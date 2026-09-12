@@ -47,6 +47,9 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var snapshots: [ProjectSnapshot] = []
 
     private let importer = FDXImporter()
+    private let autosaveDirectory: URL
+    private let preferences: UserDefaults
+    private var lastSavedDocument: OpenScreenplayDocument?
     private var undoStack: [OpenScreenplayDocument] = []
     private var lastBoardomaticTick: Date?
     private let undoLimit = 100
@@ -59,9 +62,19 @@ final class ScreenplayViewModel: ObservableObject {
         .edit: .editorial
     ]
 
-    init() {
-        loadRecentDocuments()
-        loadMostRecentWorkingDocument()
+    init(loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard) {
+        self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
+        self.preferences = preferences
+        if loadInitialDocument {
+            loadRecentDocuments()
+            loadMostRecentWorkingDocument()
+        }
+    }
+
+    // Keep the current script available if saving fails during New or Open.
+    private func saveBeforeReplacingDocument() -> Bool {
+        guard document != nil, document != lastSavedDocument else { return true }
+        return saveCurrentDocument(reportStatus: false)
     }
 
     var elements: [ScreenplayElement] {
@@ -146,7 +159,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     var screenplayPages: [ScreenplayPage] {
-        paginate(elements)
+        paginate(elements, includeEmptyElements: true)
     }
 
     var formatIssues: [FormatIssue] {
@@ -747,6 +760,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func newDocument() {
+        guard saveBeforeReplacingDocument() else { return }
         let screenplay = Screenplay(
             metadata: ScreenplayMetadata(title: "Untitled Screenplay"),
             elements: [
@@ -766,6 +780,8 @@ final class ScreenplayViewModel: ObservableObject {
         )
         sourceURL = nil
         saveURL = nil
+        lastSavedDocument = nil
+        snapshots = []
         undoStack = []
         findQuery = ""
         replaceText = ""
@@ -1123,7 +1139,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func save() {
-        saveDocument(to: saveURL ?? defaultDownloadsSaveURL())
+        saveCurrentDocument()
     }
 
     func showSavePanel() {
@@ -1188,9 +1204,11 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func loadFDX(at url: URL) {
+        guard saveBeforeReplacingDocument() else { return }
         do {
             let result = try importer.importFile(at: url)
             document = result.document
+            lastSavedDocument = nil
             undoStack = []
             sourceURL = url
             saveURL = nil
@@ -1204,10 +1222,12 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func loadOpenScreenplay(at url: URL) {
+        guard saveBeforeReplacingDocument() else { return }
         do {
             let data = try Data(contentsOf: url)
             let decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
             document = decoded
+            lastSavedDocument = decoded
             undoStack = []
             sourceURL = url
             saveURL = url
@@ -1230,7 +1250,7 @@ final class ScreenplayViewModel: ObservableObject {
         let projectURL = saveURL ?? defaultDownloadsSaveURL()
 
         if saveURL == nil {
-            saveDocument(to: projectURL, reportStatus: false)
+            guard saveDocument(to: projectURL, reportStatus: false, overwriteExisting: false) else { return }
         }
 
         do {
@@ -3243,10 +3263,9 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    private func saveDocument(to url: URL, reportStatus: Bool = true) {
-        guard var document else {
-            return
-        }
+    @discardableResult
+    private func saveDocument(to url: URL, reportStatus: Bool = true, overwriteExisting: Bool = true) -> Bool {
+        guard var document else { return false }
 
         do {
             try FileManager.default.createDirectory(
@@ -3254,26 +3273,25 @@ final class ScreenplayViewModel: ObservableObject {
                 withIntermediateDirectories: true
             )
             document.project.metadata.modifiedAt = Date()
-            let nonEmptyElements = document.screenplay.elements.filter {
-                $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            }
-            if !nonEmptyElements.isEmpty {
-                document.screenplay.elements = nonEmptyElements
-            }
             document.ensureSceneSpineIDs()
             document.ensureEditorialSpine()
             document.editorialSpine.syncEditReferences(shots: document.shots, boardFrames: document.boardFrames)
-            self.document = document
             let data = try JSONEncoder.openScreenplayEncoder().encode(document)
-            try data.write(to: url, options: .atomic)
+            // A first save must never replace an existing file, even if another
+            // process creates it after we choose the filename.
+            try DocumentFileWriter.write(data, to: url, overwriteExisting: overwriteExisting)
+            self.document = document
+            lastSavedDocument = document
             saveURL = url
             sourceURL = url
             recordRecentDocument(url)
             if reportStatus {
                 errorMessage = "Saved \(url.lastPathComponent)"
             }
+            return true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Could not save screenplay: \(error.localizedDescription)"
+            return false
         }
     }
 
@@ -3883,9 +3901,9 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    private func paginate(_ sourceElements: [ScreenplayElement]) -> [ScreenplayPage] {
+    private func paginate(_ sourceElements: [ScreenplayElement], includeEmptyElements: Bool = false) -> [ScreenplayPage] {
         let visibleElements = sourceElements.filter {
-            $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            includeEmptyElements || $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
 
         var pages: [ScreenplayPage] = []
@@ -4033,7 +4051,12 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func autosave() {
-        saveDocument(to: saveURL ?? defaultDownloadsSaveURL(), reportStatus: false)
+        saveCurrentDocument(reportStatus: false)
+    }
+
+    @discardableResult
+    private func saveCurrentDocument(reportStatus: Bool = true) -> Bool {
+        saveDocument(to: saveURL ?? defaultDownloadsSaveURL(), reportStatus: reportStatus, overwriteExisting: saveURL != nil)
     }
 
     private func createSafetySnapshotBeforeRestore() {
@@ -4081,10 +4104,16 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func defaultDownloadsSaveURL() -> URL {
-        FileManager.default
-            .homeDirectoryForCurrentUser
-            .appendingPathComponent("Downloads")
-            .appendingPathComponent(defaultSaveFileName())
+        let filename = defaultSaveFileName()
+        let suffix = ".open-screenplay.json"
+        let stem = String(filename.dropLast(suffix.count))
+        var candidate = autosaveDirectory.appendingPathComponent(filename)
+        var number = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = autosaveDirectory.appendingPathComponent("\(stem) \(number)\(suffix)")
+            number += 1
+        }
+        return candidate
     }
 
     private func snapshotsDirectory(for projectURL: URL) -> URL {
@@ -4148,7 +4177,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func loadRecentDocuments() {
-        let paths = UserDefaults.standard.stringArray(forKey: recentDocumentsKey) ?? []
+        let paths = preferences.stringArray(forKey: recentDocumentsKey) ?? []
         recentDocuments = paths
             .map { URL(fileURLWithPath: $0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
@@ -4183,11 +4212,11 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func recordRecentDocument(_ url: URL) {
-        var paths = UserDefaults.standard.stringArray(forKey: recentDocumentsKey) ?? []
+        var paths = preferences.stringArray(forKey: recentDocumentsKey) ?? []
         paths.removeAll { $0 == url.path }
         paths.insert(url.path, at: 0)
         paths = Array(paths.prefix(8))
-        UserDefaults.standard.set(paths, forKey: recentDocumentsKey)
+        preferences.set(paths, forKey: recentDocumentsKey)
         recentDocuments = paths
             .map { URL(fileURLWithPath: $0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }

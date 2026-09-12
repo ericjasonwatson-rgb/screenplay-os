@@ -13,6 +13,10 @@ let package = Package(
         .executable(name: "screenplay-inspect", targets: ["screenplay-inspect"])
     ],
     targets: [
+        .testTarget(
+            name: "ScreenplayEditorTests",
+            dependencies: ["ScreenplayOSApp", "ScreenplayDomain"]
+        ),
         .target(name: "ScreenplayDomain"),
         .target(
             name: "ScreenplayFDX",

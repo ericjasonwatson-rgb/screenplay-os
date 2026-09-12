@@ -36,11 +36,16 @@ This repository is the first open-core starter for ScreenplayOS: an open native 
 ## Quick start
 
 ```sh
+./Scripts/test.sh
 swift run screenplay-self-test
 swift run ScreenplayOS
 swift run screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx
 swift run screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx --json
 ```
+
+`./Scripts/test.sh` runs the editor safety regressions and the domain/import self-tests. It also supplies the Swift Testing framework paths needed by Command Line Tools-only installations. The editor tests use temporary files and isolated preferences.
+
+New scripts automatically save to an unused filename in Downloads (adding a number when the title already exists). Once saved, edits continue updating that same file. Blank screenplay elements are preserved during saves. If a save fails, New and Open retain the current script so you can retry Save or use Save As.
 
 In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run.
 
