@@ -131,7 +131,7 @@ Edit owns:
 
 At first, the timeline is powered by Boardomatic clips. Later, those same timeline references can use richer media.
 
-The current edit spine records clip-level timing instead of only scene markers. This gives the project a replaceable post-production guide: a board placeholder can become generated video or production media while keeping the same scene, shot, source, and timeline position.
+The current edit spine records clip-level timing instead of only scene markers. This is currently a generated post-production guide. Independent edit occurrences and media substitution that preserve editorial intent remain implementation work; source-kind enum values do not establish working media replacement. The target identity and storage contract is defined in project-format-decision.md.
 
 The first post handoff export is an Edit Timeline CSV. It records one row per edit clip with seconds, 24 fps timecode, source type, scene identity, shot identity, board identity, and script-source references. This is intentionally simpler than a full NLE XML export, but it creates the data shape needed for that future step.
 

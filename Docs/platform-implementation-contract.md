@@ -16,7 +16,7 @@ The complete film project is richer than a screenplay package. It owns sequences
 
 Use the same permanent object identities across these representations. Do not create a second editable screenplay merely to power another platform or view. The document format is a persistence/interoperability contract, not a requirement that every project object occupy one JSON file or one package.
 
-The final complete-project storage layout and companion-data linkage remain design work. Do not invent a competing released format or force OS analysis, entitlements, media binaries, or generated boards into the screenplay core. Optional companion data must not be required to read the screenplay. Authored creative work must remain recoverable without a paid tier, including authored extension material.
+The storage direction is now one `.screenplay` package with an optional versioned `project.json` envelope and `film/` companion records, as defined in project-format-decision.md. The core files remain the sole authority for screenplay text and free shot data. Payload schemas, safe persistence, and migration are still implementation work; see project-format-migration-plan.md. Do not invent a competing released format or force OS analysis, entitlements, media binaries, or generated boards into the screenplay core. Optional companion data must not be required to read the screenplay. Authored creative work must remain recoverable without a paid tier, including authored extension material.
 
 Displayed scene numbers and shot labels are not identity. The platform examples such as Scene 14 and Shot 14B mean the same objects stay associated everywhere, even when numbering changes. UUIDs and explicit references provide that continuity.
 

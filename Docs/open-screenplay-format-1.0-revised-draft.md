@@ -2,7 +2,7 @@
 ## Founding Native Document Standard
 
 **Status:** REVISED DRAFT FOR IMPLEMENTATION — not yet a released standard  
-**Draft revision:** 2 — 2026-09-12  
+**Draft revision:** 3 — 2026-09-12
 **Purpose:** An open native document format for screenplay authorship and the free creative layer  
 **Principle:** The document belongs to the writer. Its usefulness must survive the application.
 
@@ -40,6 +40,8 @@ Only `manifest.json` and `screenplay.json` are required. An absent optional file
 All JSON files use UTF-8. Readers must reject duplicate object keys as ambiguous. Array order is significant where this specification defines it. Object key order and insignificant JSON whitespace have no meaning.
 
 Paths within a package are relative, use `/`, and must not escape the package. Attachments and versions must not require symbolic links, absolute filesystem paths, or network access. A reader must reject traversal paths rather than follow them.
+
+The full-project extension direction is specified in `project-format-decision.md`: optional `project.json` and `film/` records enrich this same package. They do not change the two required core files, duplicate screenplay text, or create a paid format. Their schemas and migration are not yet implemented. A core-only writer must preserve unknown companion data; a project-aware reader must detect when external edits have made revision inventories stale.
 
 A ZIP of the package may be used for transport. ZIP is a transport representation, not a second native content model. The extraction rules must enforce the same package-path restrictions.
 

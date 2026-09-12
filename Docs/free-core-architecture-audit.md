@@ -48,3 +48,7 @@ The tests cover the current supported model and editor safeguards. They do not p
 ## Single next architectural decision
 
 **Define the successor canonical project revision envelope and its loss-aware relationship to the independent `.screenplay` package.** Decide where the complete project's authored data/revision identity lives and how existing monolithic documents migrate without loss, while preserving an independently recoverable screenplay subset. This is one storage/interoperability decision, not a reason to choose a cloud vendor or build collaboration now. It must precede published review versions and cross-device sync; current writing improvements can continue without waiting for those services.
+
+## Follow-up decision
+
+The next decision above is now recorded in `project-format-decision.md`: one `.screenplay` package with an optional film-project revision envelope, plus a loss-aware conversion plan in `project-format-migration-plan.md`. This resolves storage direction, not the implementation risks or release gates listed in this audit.
