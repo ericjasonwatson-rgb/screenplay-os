@@ -28,7 +28,8 @@ let package = Package(
         ),
         .executableTarget(
             name: "ScreenplayOSApp",
-            dependencies: ["ScreenplayDomain", "ScreenplayFDX"]
+            dependencies: ["ScreenplayDomain", "ScreenplayFDX"],
+            resources: [.copy("Resources/ScreenplayOSLogo.png")]
         ),
         .executableTarget(
             name: "screenplay-self-test",

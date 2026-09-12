@@ -16,6 +16,9 @@ struct ScreenplayOSApp: App {
         .defaultSize(width: 1200, height: 760)
         .windowStyle(.titleBar)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About ScreenplayOS", action: AppBranding.showAbout)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("New Screenplay") {
                     model.newDocument()

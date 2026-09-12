@@ -88,6 +88,17 @@ struct ContentView: View {
             model.deleteSelectedElement()
         }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button(action: AppBranding.showAbout) {
+                    Image(nsImage: AppBranding.logo)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 28, height: 28)
+                }
+                .accessibilityLabel("About ScreenplayOS")
+                .help("About ScreenplayOS")
+            }
             ToolbarItemGroup(placement: .principal) {
                 ElementTypePicker(model: model)
             }
