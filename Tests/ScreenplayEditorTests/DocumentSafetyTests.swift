@@ -162,6 +162,77 @@ struct DocumentSafetyTests {
         }
     }
 
+    @Test func adjacentTypingUndoesAsOneGroupAndRestoresCaret() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let id = try #require(model.elements.last?.id)
+            model.selectedElementID = id
+            let time = Date(timeIntervalSince1970: 100)
+            for (offset, value) in ["a", "ab", "abc"].enumerated() {
+                model.editText(id: id, text: value, before: NSRange(location: offset, length: 0),
+                    after: NSRange(location: offset + 1, length: 0), groupable: true,
+                    now: time.addingTimeInterval(Double(offset) * 0.1))
+            }
+            model.undo()
+            #expect(model.elements.last?.text == "")
+            #expect(model.caretRestoration?.range == NSRange(location: 0, length: 0))
+            model.redo()
+            #expect(model.elements.last?.text == "abc")
+            #expect(model.caretRestoration?.range == NSRange(location: 3, length: 0))
+        }
+    }
+
+    @Test func pauseAndPasteStartSeparateUndoGroups() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let id = try #require(model.elements.last?.id)
+            model.selectedElementID = id
+            model.editText(id: id, text: "a", before: NSRange(location: 0, length: 0), after: NSRange(location: 1, length: 0), groupable: true, now: Date(timeIntervalSince1970: 100))
+            model.editText(id: id, text: "ab", before: NSRange(location: 1, length: 0), after: NSRange(location: 2, length: 0), groupable: true, now: Date(timeIntervalSince1970: 102))
+            model.editText(id: id, text: "ab pasted", before: NSRange(location: 2, length: 0), after: NSRange(location: 9, length: 0), groupable: false, now: Date(timeIntervalSince1970: 102.1))
+            model.undo()
+            #expect(model.elements.last?.text == "ab")
+            model.undo()
+            #expect(model.elements.last?.text == "a")
+        }
+    }
+
+    @Test func caretMovementSeparatesTypingEvenWhenReturningToSamePosition() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let id = try #require(model.elements.last?.id)
+            model.selectedElementID = id
+            let time = Date(timeIntervalSince1970: 100)
+            model.editText(id: id, text: "a", before: NSRange(location: 0, length: 0), after: NSRange(location: 1, length: 0), groupable: true, now: time)
+            model.rememberCaret(NSRange(location: 0, length: 0), for: id)
+            model.rememberCaret(NSRange(location: 1, length: 0), for: id)
+            model.editText(id: id, text: "ab", before: NSRange(location: 1, length: 0), after: NSRange(location: 2, length: 0), groupable: true, now: time.addingTimeInterval(0.1))
+            model.undo()
+            #expect(model.elements.last?.text == "a")
+        }
+    }
+
+    @Test func typedWordReplacementRestoresOriginalSelectionInOneUndo() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let element = try #require(model.elements.last)
+            model.selectedElementID = element.id
+            model.binding(for: element).wrappedValue = "Mara opens the door."
+            let time = Date(timeIntervalSince1970: 100)
+            for (offset, word) in ["g", "ga", "gat", "gate"].enumerated() {
+                let before = offset == 0 ? NSRange(location: 15, length: 4) : NSRange(location: 15 + offset, length: 0)
+                model.editText(id: element.id, text: "Mara opens the \(word).", before: before,
+                    after: NSRange(location: 16 + offset, length: 0), groupable: true,
+                    now: time.addingTimeInterval(Double(offset) * 0.1))
+            }
+            model.undo()
+            #expect(model.elements.last?.text == "Mara opens the door.")
+            #expect(model.caretRestoration?.range == NSRange(location: 15, length: 4))
+            model.redo()
+            #expect(model.elements.last?.text == "Mara opens the gate.")
+        }
+    }
+
     @Test func newDocumentHasEditableRows() throws {
         try withModel { model, _, _ in
             model.newDocument()

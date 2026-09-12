@@ -53,7 +53,16 @@ final class ScreenplayViewModel: ObservableObject {
     private struct EditState {
         let document: OpenScreenplayDocument
         let selection: UUID?
+        var caret: NSRange? = nil
     }
+    struct CaretRestoration {
+        let elementID: UUID
+        let range: NSRange
+        let token = UUID()
+    }
+    @Published private(set) var caretRestoration: CaretRestoration?
+    private var caretRanges: [UUID: NSRange] = [:]
+    private var typingGroup: (elementID: UUID, date: Date, caret: NSRange, kind: Int)?
     private var undoStack: [EditState] = []
     private var redoStack: [EditState] = []
     private var lastBoardomaticTick: Date?
@@ -800,6 +809,9 @@ final class ScreenplayViewModel: ObservableObject {
         snapshots = []
         undoStack = []
         redoStack = []
+        typingGroup = nil
+        caretRanges = [:]
+        caretRestoration = nil
         findQuery = ""
         replaceText = ""
         characterToRename = ""
@@ -1156,6 +1168,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func save() {
+        typingGroup = nil
         saveCurrentDocument()
     }
 
@@ -1228,6 +1241,9 @@ final class ScreenplayViewModel: ObservableObject {
             lastSavedDocument = nil
             undoStack = []
             redoStack = []
+            typingGroup = nil
+            caretRanges = [:]
+            caretRestoration = nil
             sourceURL = url
             saveURL = nil
             snapshots = []
@@ -1248,6 +1264,9 @@ final class ScreenplayViewModel: ObservableObject {
             lastSavedDocument = decoded
             undoStack = []
             redoStack = []
+            typingGroup = nil
+            caretRanges = [:]
+            caretRestoration = nil
             sourceURL = url
             saveURL = url
             selectInitialElement()
@@ -2383,19 +2402,25 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func undo() {
+        typingGroup = nil
         guard let document, let previous = undoStack.popLast() else { return }
-        redoStack.append(EditState(document: document, selection: selectedElementID))
+        redoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }))
         restoreEditState(previous)
     }
 
     func redo() {
+        typingGroup = nil
         guard let document, let next = redoStack.popLast() else { return }
-        undoStack.append(EditState(document: document, selection: selectedElementID))
+        undoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }))
         restoreEditState(next)
     }
 
     private func restoreEditState(_ state: EditState) {
         document = state.document
+        if let id = state.selection, let range = state.caret {
+            caretRanges[id] = range
+            caretRestoration = CaretRestoration(elementID: id, range: range)
+        }
         if let id = state.selection, elements.contains(where: { $0.id == id }) {
             selectElement(id: id)
         } else {
@@ -3114,11 +3139,33 @@ final class ScreenplayViewModel: ObservableObject {
         autosave()
     }
 
-    private func updateElement(id: UUID, text: String) {
+    func rememberCaret(_ range: NSRange, for id: UUID) {
+        if let group = typingGroup, group.elementID != id || group.caret != range { typingGroup = nil }
+        caretRanges[id] = range
+    }
+
+    func editText(id: UUID, text: String, before: NSRange, after: NSRange, groupable: Bool, now: Date = Date()) {
+        guard let old = element(id: id), old.text != text else { return }
+        caretRestoration = nil
+        let delta = (text as NSString).length - (old.text as NSString).length
+        let insertedLength = delta + before.length
+        let kind = insertedLength > 0 ? 1 : (delta < 0 ? -1 : 0)
+        let merge = groupable && typingGroup.map {
+            $0.elementID == id && $0.kind == kind && $0.caret == before &&
+                now.timeIntervalSince($0.date) >= 0 && now.timeIntervalSince($0.date) <= 1.2
+        } == true
+        caretRanges[id] = before
+        if !merge { rememberUndoState() }
+        updateElement(id: id, text: text, recordUndo: false)
+        caretRanges[id] = after
+        typingGroup = groupable ? (id, now, after, kind) : nil
+    }
+
+    private func updateElement(id: UUID, text: String, recordUndo: Bool = true) {
         guard let index = elementIndex(for: id) else {
             return
         }
-        rememberUndoState()
+        if recordUndo { rememberUndoState() }
         let currentType = document?.screenplay.elements[index].type ?? .action
         let detectedType = automaticElementType(for: text, currentType: currentType)
         document?.screenplay.elements[index].type = detectedType
@@ -3201,11 +3248,13 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func rememberUndoState() {
+        typingGroup = nil
         guard let document else { return }
-        recordUndoState(EditState(document: document, selection: selectedElementID))
+        recordUndoState(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }))
     }
 
     private func recordUndoState(_ state: EditState) {
+        typingGroup = nil
         redoStack.removeAll()
         if undoStack.last?.document != state.document {
             undoStack.append(state)

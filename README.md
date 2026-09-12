@@ -171,7 +171,7 @@ The editor should never become a wrapper around Final Draft's data model.
 
 ## Recovery and edit history
 
-Undo and Redo restore the screenplay element selection with the document. Redo is available with Command-Shift-Z; a new edit clears the redo history. History is local to the open document and remains limited to 100 undo states. Typing still records individual edits; grouped typing and exact caret restoration are future work.
+Undo and Redo restore the screenplay element selection with the document. Redo is available with Command-Shift-Z; a new edit clears the redo history. History is local to the open document and remains limited to 100 undo states. Adjacent native typing is grouped while pauses stay under 1.2 seconds. Paste, caret movement, paragraph changes, explicit Save, and structural edits start separate groups. Undo/Redo restores the recorded caret or selection within the paragraph.
 
 New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved file. Older shared-folder snapshots remain available when their embedded project ID matches. Snapshot filenames are unique even when created rapidly. Restore verifies project identity, requires a successful safety snapshot, and writes the restored file before replacing the live document. Restores can be undone and redone.
 
@@ -193,4 +193,6 @@ An isolated app using the current writing surface was tested on this Mac with te
 - A long pasted paragraph remains accessible and accepts further typing at its end after moving between editing sections.
 - Save, New, Open, and arrow-key navigation recover the full saved passage, including its final appended text.
 
-These checks caught and fixed focus transfer on new native text views, capitalization replacing the caret position, and focus loss when a paragraph moves to another editing section. Exact caret restoration for every middle-of-paragraph reflow, text selection across paragraphs, and grouped typing undo remain unfinished.
+These checks caught and fixed focus transfer on new native text views, capitalization replacing the caret position, and focus loss when a paragraph moves to another editing section. Exact caret restoration for every middle-of-paragraph reflow, and text selection across paragraphs remain unfinished.
+
+Grouped typing and selected-word replacement were also checked in the live editor. One Undo removes a continuously typed sentence; Redo restores it. Replacing a selected word by typing is one undo group, and Undo restores the original selected range.

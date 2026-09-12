@@ -2788,6 +2788,11 @@ private struct ScreenplayPageView: View {
                                     EditableElementRow(
                                         element: element,
                                         text: model.binding(for: element),
+                                        caretRestoration: model.caretRestoration,
+                                        onTextEdit: { text, before, after, groupable in
+                                            model.editText(id: element.id, text: text, before: before, after: after, groupable: groupable)
+                                        },
+                                        onCaretChange: { model.rememberCaret($0, for: element.id) },
                                         isSelected: model.selectedElementID == element.id,
                                         openNoteCount: model.openNoteCount(for: element.id),
                                         zoom: model.pageZoom,
@@ -2910,6 +2915,9 @@ private struct ScreenplayPageView: View {
 private struct EditableElementRow: View {
     let element: ScreenplayElement
     @Binding var text: String
+    let caretRestoration: ScreenplayViewModel.CaretRestoration?
+    let onTextEdit: (String, NSRange, NSRange, Bool) -> Void
+    let onCaretChange: (NSRange) -> Void
     let isSelected: Bool
     let openNoteCount: Int
     let zoom: Double
@@ -2939,6 +2947,9 @@ private struct EditableElementRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 ScreenplayTextEditor(
                     text: $text,
+                    caretRestoration: caretRestoration,
+                    onTextEdit: onTextEdit,
+                    onCaretChange: onCaretChange,
                     placeholder: prompt,
                     elementID: element.id,
                     isFocused: isSelected,
@@ -3112,6 +3123,9 @@ private struct EditableElementRow: View {
 
 private struct ScreenplayTextEditor: NSViewRepresentable {
     @Binding var text: String
+    let caretRestoration: ScreenplayViewModel.CaretRestoration?
+    let onTextEdit: (String, NSRange, NSRange, Bool) -> Void
+    let onCaretChange: (NSRange) -> Void
     let placeholder: String
     let elementID: UUID
     let isFocused: Bool
@@ -3162,6 +3176,8 @@ private struct ScreenplayTextEditor: NSViewRepresentable {
         textView.onCycleType = onCycleType
         textView.onFocus = onSelect
 
+        context.coordinator.isUpdating = true
+        defer { context.coordinator.isUpdating = false }
         let displayText = uppercase ? text.uppercased() : text
         if textView.string != displayText {
             let selection = textView.hasLoadedText ? textView.selectedRange() : NSRange(location: (displayText as NSString).length, length: 0)
@@ -3171,6 +3187,13 @@ private struct ScreenplayTextEditor: NSViewRepresentable {
             textView.setSelectedRange(NSRange(location: location, length: min(selection.length, length - location)))
         }
 
+        if let restore = caretRestoration, restore.elementID == elementID,
+           textView.lastRestorationToken != restore.token {
+            let length = (displayText as NSString).length
+            let location = min(restore.range.location, length)
+            textView.setSelectedRange(NSRange(location: location, length: min(restore.range.length, length - location)))
+            textView.lastRestorationToken = restore.token
+        }
         textView.hasLoadedText = true
         textView.placeholder = placeholder
         textView.alignment = nsAlignment
@@ -3195,6 +3218,20 @@ private struct ScreenplayTextEditor: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: ScreenplayTextEditor
+        var isUpdating = false
+        var selectionBefore = NSRange(location: 0, length: 0)
+        var groupable = false
+
+        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+            selectionBefore = textView.selectedRange()
+            groupable = replacementString.map { $0.count <= 1 && !$0.contains("\n") } ?? false
+            return true
+        }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard !isUpdating, let view = notification.object as? NSTextView, view.string == parent.text else { return }
+            parent.onCaretChange(view.selectedRange())
+        }
 
         init(parent: ScreenplayTextEditor) {
             self.parent = parent
@@ -3212,7 +3249,7 @@ private struct ScreenplayTextEditor: NSViewRepresentable {
 
             let value = parent.uppercase ? textView.string.uppercased() : textView.string
             if parent.text != value {
-                parent.text = value
+                parent.onTextEdit(value, selectionBefore, textView.selectedRange(), groupable)
             }
         }
     }
@@ -3231,6 +3268,7 @@ private final class ScreenplayTextView: NSTextView {
     var onBackspaceAtStart: (() -> Bool)?
     var onCycleType: ((Bool) -> Void)?
     var onFocus: (() -> Void)?
+    var lastRestorationToken: UUID?
     var hasLoadedText = false
     var wantsFocus = false {
         didSet {
