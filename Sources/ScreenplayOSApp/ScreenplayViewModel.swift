@@ -164,7 +164,16 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     var screenplayPages: [ScreenplayPage] {
-        paginate(elements, includeEmptyElements: true)
+        paginate(elements, includeEmptyElements: true, splitLongElements: false)
+    }
+
+    var printedPages: [ScreenplayPage] { paginate(elements) }
+
+    func printedPageLabel(for editingPage: ScreenplayPage, using pages: [ScreenplayPage]) -> String {
+        let ids = Set(editingPage.elements.map { $0.element.id })
+        let numbers = pages.filter { page in page.elements.contains { ids.contains($0.element.id) } }.map(\.number)
+        guard let first = numbers.first, let last = numbers.last else { return "New page" }
+        return first == last ? "PDF page \(first)" : "PDF pages \(first)–\(last)"
     }
 
     var formatIssues: [FormatIssue] {
@@ -250,7 +259,7 @@ final class ScreenplayViewModel: ObservableObject {
             }
         }
 
-        for page in screenplayPages.dropLast() {
+        for page in printedPages.dropLast() {
             guard let last = page.elements.last else {
                 continue
             }
@@ -3314,7 +3323,7 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    private func exportPDF(to url: URL) {
+    func exportPDF(to url: URL) {
         guard let document else {
             return
         }
@@ -3835,7 +3844,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func pageNumber(for elementID: UUID) -> Int? {
-        for page in screenplayPages where page.elements.contains(where: { $0.element.id == elementID }) {
+        for page in printedPages where page.elements.contains(where: { $0.element.id == elementID }) {
             return page.number
         }
         return nil
@@ -3920,7 +3929,7 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    private func paginate(_ sourceElements: [ScreenplayElement], includeEmptyElements: Bool = false) -> [ScreenplayPage] {
+    private func paginate(_ sourceElements: [ScreenplayElement], includeEmptyElements: Bool = false, splitLongElements: Bool = true) -> [ScreenplayPage] {
         let visibleElements = sourceElements.filter {
             includeEmptyElements || $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
@@ -3953,12 +3962,40 @@ final class ScreenplayViewModel: ObservableObject {
             let keepTogetherHeight = keepTogetherBlockHeight(in: visibleElements, startingAt: index)
             let requiredHeight = max(item.blockHeight, keepTogetherHeight)
 
-            if !currentItems.isEmpty && usedHeight + requiredHeight > scriptContentHeight {
-                finishPage()
+            let canSplit = [.action, .dialogue, .general].contains(element.type)
+            let needsSplit = item.blockHeight > scriptContentHeight ||
+                (canSplit && usedHeight + item.blockHeight > scriptContentHeight)
+            if !splitLongElements || !needsSplit {
+                if !currentItems.isEmpty && usedHeight + min(requiredHeight, scriptContentHeight) > scriptContentHeight {
+                    finishPage()
+                }
+                currentItems.append(item)
+                usedHeight += item.blockHeight
+            } else {
+                // Keep the source paragraph intact; only its printed representation is split.
+                var remaining = item.text
+                var firstFragment = true
+                while !remaining.isEmpty {
+                    let before = firstFragment ? item.layout.before : 0
+                    let available = scriptContentHeight - usedHeight - before - item.layout.after
+                    let prefix = fittingPrefix(of: remaining, width: item.layout.width,
+                                               type: element.type, height: available)
+                    if prefix.isEmpty {
+                        finishPage()
+                        continue
+                    }
+                    let height = pdfHeight(for: prefix, width: item.layout.width, type: element.type)
+                    let layout = PDFLayoutSpec(x: item.layout.x, width: item.layout.width,
+                        before: before, after: item.layout.after, alignment: item.layout.alignment, weight: item.layout.weight)
+                    let fragment = PaginatedElement(element: element, text: prefix, layout: layout,
+                        textHeight: height, blockHeight: before + height + item.layout.after)
+                    currentItems.append(fragment)
+                    usedHeight += fragment.blockHeight
+                    remaining.removeFirst(prefix.count)
+                    firstFragment = false
+                    if !remaining.isEmpty { finishPage() }
+                }
             }
-
-            currentItems.append(item)
-            usedHeight += item.blockHeight
             index += 1
         }
 
@@ -3996,10 +4033,36 @@ final class ScreenplayViewModel: ObservableObject {
             keepCount = 2
         }
 
-        return elements[index..<min(index + keepCount, elements.count)]
+        let items = elements[index..<min(index + keepCount, elements.count)]
             .filter { $0.type != .pageBreak }
-            .map { paginatedElement(for: $0).blockHeight }
-            .reduce(0, +)
+            .map { paginatedElement(for: $0) }
+        let total = items.map(\.blockHeight).reduce(0, +)
+        if total > scriptContentHeight, items.count > 1 {
+            return items.dropLast().map(\.blockHeight).reduce(0, +) + min(items.last!.blockHeight, 48)
+        }
+        return total
+    }
+
+    private func fittingPrefix(of text: String, width: CGFloat, type: ElementType, height: CGFloat) -> String {
+        guard height >= 16 else { return "" }
+        if pdfHeight(for: text, width: width, type: type) <= height { return text }
+        // Search only grapheme boundaries: emoji and combining marks stay intact.
+        let boundaries = Array(text.indices) + [text.endIndex]
+        var low = 0
+        var high = boundaries.count - 1
+        while low < high {
+            let middle = (low + high + 1) / 2
+            let candidate = String(text[..<boundaries[middle]])
+            if pdfHeight(for: candidate, width: width, type: type) <= height {
+                low = middle
+            } else { high = middle - 1 }
+        }
+        var prefix = String(text[..<boundaries[low]])
+        // Prefer word boundaries, retaining whitespace so concatenation is lossless.
+        if let space = prefix.lastIndex(where: { $0.isWhitespace }), space != prefix.startIndex {
+            prefix = String(prefix[...space])
+        }
+        return prefix
     }
 
     private func paginatedElement(for element: ScreenplayElement) -> PaginatedElement {

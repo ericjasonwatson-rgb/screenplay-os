@@ -245,7 +245,7 @@ private struct SidebarView: View {
                         .lineLimit(2)
                 }
                 MetricRow(label: "Elements", value: "\(model.elements.count)")
-                MetricRow(label: "Pages", value: "\(model.screenplayPages.count)")
+                MetricRow(label: "Pages", value: "\(model.printedPages.count)")
                 MetricRow(label: "Scenes", value: "\(model.sceneCount)")
                 MetricRow(label: "Characters", value: "\(model.characterNames.count)")
                 MetricRow(label: "Revisions", value: "\(model.revisionMarkCount)")
@@ -2650,7 +2650,7 @@ private struct BottomStatusBar: View {
     var body: some View {
         HStack(spacing: 10) {
             StatusCapsule(systemImage: "list.number", text: model.selectedElementPosition)
-            StatusCapsule(systemImage: "doc.on.doc", text: "\(model.screenplayPages.count) pages")
+            StatusCapsule(systemImage: "doc.on.doc", text: "\(model.printedPages.count) pages")
             StatusCapsule(systemImage: "pencil.and.outline", text: model.revisionStatusText)
             StatusCapsule(systemImage: "rectangle.stack", text: model.productionContextSummary)
             StatusCapsule(systemImage: "doc.text.magnifyingglass", text: model.currentSceneTitle)
@@ -2768,14 +2768,15 @@ private struct ScreenplayPageView: View {
     @FocusState private var focusedElementID: UUID?
 
     var body: some View {
-        ScrollViewReader { proxy in
+        let printedPages = model.printedPages
+        return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .center, spacing: 34) {
                     ForEach(model.screenplayPages) { page in
                         VStack(alignment: .leading, spacing: 0) {
                             HStack {
                                 Spacer()
-                                Text("Page \(page.number)")
+                                Text(model.printedPageLabel(for: page, using: printedPages))
                                     .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
@@ -2834,7 +2835,8 @@ private struct ScreenplayPageView: View {
                         .padding(.bottom, 62 * CGFloat(model.pageZoom))
                         .padding(.leading, 108 * CGFloat(model.pageZoom))
                         .padding(.trailing, 72 * CGFloat(model.pageZoom))
-                        .frame(width: pageWidth, height: pageHeight, alignment: .topLeading)
+                        .frame(width: pageWidth, alignment: .topLeading)
+                        .frame(minHeight: pageHeight, alignment: .topLeading)
                         .background(pageColor)
                         .clipShape(RoundedRectangle(cornerRadius: ScreenplayOSTokens.Radius.page))
                         .overlay(

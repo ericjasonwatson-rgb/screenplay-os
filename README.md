@@ -80,9 +80,9 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - On Character lines, matching character names appear as clickable autocomplete suggestions.
 - Use the Elements menu in the toolbar to change the selected line type.
 - Use the bottom status bar to see the current element, page count, current scene, Return/Tab behavior, focus mode, page appearance, and zoom.
-- The editor shows screenplay page boundaries instead of one endless scroll.
+- The editor groups paragraphs into writing surfaces that expand for long text; labels identify the corresponding PDF page or page range.
 - Pagination keeps Character cues with following Dialogue and Scene Headings with following Action where possible.
-- PDF export uses the same pagination plan as the editor.
+- PDF export splits long text across pages. The page count and report page references use the PDF layout. Editing keeps each paragraph intact; the writing surface is not an exact print preview.
 - Use the Context panel to build reviewable production context from the script.
 - Refresh From Script extracts suggested characters, locations, props, VFX candidates, and format notes.
 - Mark context records as Suggested, Accepted, or Ignored so future AI workflows can use reviewed context.
@@ -145,7 +145,7 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - Empty FDX paragraphs are skipped during import instead of appearing as dead space.
 - FDX import reads only real top-level script paragraphs, ignoring nested Final Draft metadata paragraphs.
 - Explicit FDX page breaks are preserved during import and respected during pagination.
-- Editor and PDF spacing are aligned to the fixture's Final Draft element settings:
+- The editor and PDF use element-specific spacing based on the fixture; their text sizing is not yet identical:
   - Scene Heading, Action, and Shot at 1.5 inches
   - Character at 3.5 inches
   - Dialogue at 2.5 inches
@@ -174,3 +174,9 @@ The editor should never become a wrapper around Final Draft's data model.
 Undo and Redo restore the screenplay element selection with the document. Redo is available with Command-Shift-Z; a new edit clears the redo history. History is local to the open document and remains limited to 100 undo states. Typing still records individual edits; grouped typing and exact caret restoration are future work.
 
 New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved file. Older shared-folder snapshots remain available when their embedded project ID matches. Snapshot filenames are unique even when created rapidly. Restore verifies project identity, requires a successful safety snapshot, and writes the restored file before replacing the live document. Restores can be undone and redone.
+
+## Pagination status
+
+Print layout splits action and dialogue at word boundaries where possible, and at grapheme boundaries for unbroken text. It retains the source paragraph IDs and content. Explicit page breaks are honored, and character cues stay with the beginning of dialogue when space permits. Tests check page height bounds, Unicode, source preservation, and complete text extraction from exported PDFs.
+
+The writing surface expands to keep long paragraphs accessible. Exact on-screen print preview, linked editing across page boundaries, dialogue continuation cues such as `(MORE)` / `(CONT'D)`, and production page locking remain unfinished.
