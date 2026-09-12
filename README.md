@@ -80,7 +80,7 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - The top document bar and Document section show which file is currently active.
 - Click a scene in the sidebar to jump to that part of the screenplay.
 - Use the Format section to jump to basic formatting issues.
-- Use Find / Replace in the sidebar to search, jump to matches, replace selected, or replace all.
+- Use Find / Replace in the sidebar to search, jump to matches, replace selected, or replace all. Replacements that leave text unchanged preserve Undo/Redo history and do not save or revise the document. A Replace All that changes text is one undo step.
 - Use Rename Character to update matching Character cues throughout the screenplay.
 - On Character lines, matching character names appear as clickable autocomplete suggestions.
 - Use the Elements menu in the toolbar to change the selected line type.

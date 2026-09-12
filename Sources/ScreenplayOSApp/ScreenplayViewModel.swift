@@ -2083,41 +2083,32 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func replaceSelectedMatch() {
-        guard
-            !findQuery.isEmpty,
-            let selectedElementID,
-            let index = elementIndex(for: selectedElementID),
-            document?.screenplay.elements[index].text.range(of: findQuery, options: [.caseInsensitive, .diacriticInsensitive]) != nil
-        else {
-            return
-        }
+        guard !findQuery.isEmpty,
+              let selectedElementID,
+              let index = elementIndex(for: selectedElementID) else { return }
+        let original = elements[index].text
+        let replaced = original.replacingOccurrences(
+            of: findQuery, with: replaceText, options: [.caseInsensitive, .diacriticInsensitive])
+        guard replaced != original else { return }
 
         rememberUndoState()
-        document?.screenplay.elements[index].text = document?.screenplay.elements[index].text.replacingOccurrences(
-            of: findQuery,
-            with: replaceText,
-            options: [.caseInsensitive, .diacriticInsensitive]
-        ) ?? ""
+        document?.screenplay.elements[index].text = replaced
         document?.screenplay.revision += 1
         document?.project.metadata.modifiedAt = Date()
         autosave()
     }
 
     func replaceAllMatches() {
-        guard !findQuery.isEmpty, document != nil else {
-            return
-        }
+        guard !findQuery.isEmpty, document != nil else { return }
 
-        rememberUndoState()
         var changed = false
         for index in elements.indices {
-            let original = document?.screenplay.elements[index].text ?? ""
+            let original = elements[index].text
             let replaced = original.replacingOccurrences(
-                of: findQuery,
-                with: replaceText,
-                options: [.caseInsensitive, .diacriticInsensitive]
-            )
+                of: findQuery, with: replaceText, options: [.caseInsensitive, .diacriticInsensitive])
             if replaced != original {
+                // Capture one undo state immediately before the first actual change.
+                if !changed { rememberUndoState() }
                 document?.screenplay.elements[index].text = replaced
                 changed = true
             }

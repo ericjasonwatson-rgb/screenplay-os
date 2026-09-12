@@ -20,6 +20,77 @@ struct DocumentSafetyTests {
     }
 
 
+    @Test func unchangedReplacementsPreserveRedoAndSavedBytes() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let element = try #require(model.elements.last)
+            model.binding(for: element).wrappedValue = "Original"
+            model.binding(for: element).wrappedValue = "Later"
+            model.undo()
+            model.selectElement(id: element.id)
+            let before = model.document
+            let url = try #require(model.saveURL)
+            let saved = try Data(contentsOf: url)
+            for query in ["Missing", "Original", ""] {
+                model.findQuery = query
+                model.replaceText = "Original"
+                model.replaceAllMatches()
+                model.replaceSelectedMatch()
+                #expect(model.canRedo)
+                #expect(model.document == before)
+                #expect(try Data(contentsOf: url) == saved)
+            }
+            model.redo()
+            #expect(model.elements.last?.text == "Later")
+            model.undo()
+            #expect(model.elements.last?.text == "Original")
+            model.undo()
+            #expect(model.elements.last?.text == "")
+        }
+    }
+
+    @Test func realReplaceAllIsOneUndoStepAndInvalidatesOldRedo() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nCafé café.\nCAFE.")
+            let original = model.elements
+            let last = try #require(model.elements.last)
+            model.binding(for: last).wrappedValue = "Later"
+            model.undo()
+            #expect(model.canRedo)
+            model.findQuery = "cafe"
+            model.replaceText = "tea"
+            model.replaceAllMatches()
+            #expect(model.elements.map(\.text) == ["INT. ROOM - DAY", "tea tea.", "tea."])
+            #expect(model.elements.map(\.id) == original.map(\.id))
+            #expect(!model.canRedo)
+            model.undo()
+            #expect(model.elements == original)
+            model.redo()
+            #expect(model.elements.map(\.text) == ["INT. ROOM - DAY", "tea tea.", "tea."])
+        }
+    }
+
+    @Test func selectedReplacementChangesOnlySelectedParagraphAndUndoes() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nOne cat.\nAnother cat.")
+            let original = model.elements
+            model.selectElement(id: original[1].id)
+            model.findQuery = "cat"
+            model.replaceText = "dog"
+            model.replaceSelectedMatch()
+            #expect(model.elements[1].text == "One dog.")
+            #expect(model.elements[2].text == "Another cat.")
+            model.undo()
+            #expect(model.elements == original)
+            model.redo()
+            #expect(model.elements[1].text == "One dog.")
+        }
+    }
+
     @Test func mergingParagraphsKeepsNotesAndUndoRestoresOriginalAttachments() throws {
         try withModel { model, _, _ in
             model.newDocument()
