@@ -17,6 +17,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var currentShotID: UUID?
     @Published private(set) var currentBoardFrameID: UUID?
     @Published var scrollTargetElementID: UUID?
+    @Published var sourceNavigationProblem: String?
     @Published var findQuery = ""
     @Published var replaceText = ""
     @Published var characterToRename = ""
@@ -1846,12 +1847,13 @@ final class ScreenplayViewModel: ObservableObject {
         let refs = shots.first(where: { $0.id == shot.id })?.sourceRefs ?? shot.sourceRefs
         guard let sourceID = refs.first(where: { elementIndex(for: $0.screenplayElementID) != nil })?.screenplayElementID else {
             errorMessage = "This shot's source is no longer in the screenplay. The shot has been preserved."
+            sourceNavigationProblem = errorMessage
             return
         }
 
         selectedElementID = sourceID
         selectedObject = .screenplayElement(sourceID)
-        setFilmContext(sceneSpineID: shot.sceneSpineID, shotID: shot.id, preserveBoard: true)
+        setFilmContext(sceneSpineID: sceneSpineID(containing: sourceID) ?? shot.sceneSpineID, shotID: shot.id, preserveBoard: true)
         scrollTargetElementID = sourceID
     }
 
@@ -2067,12 +2069,13 @@ final class ScreenplayViewModel: ObservableObject {
         let refs = boardFrames.first(where: { $0.id == frame.id })?.sourceRefs ?? frame.sourceRefs
         guard let sourceID = refs.first(where: { elementIndex(for: $0.screenplayElementID) != nil })?.screenplayElementID else {
             errorMessage = "This board's source is no longer in the screenplay. The board has been preserved."
+            sourceNavigationProblem = errorMessage
             return
         }
 
         selectedElementID = sourceID
         selectedObject = .screenplayElement(sourceID)
-        setFilmContext(sceneSpineID: frame.sceneSpineID, shotID: frame.shotID, boardFrameID: frame.id)
+        setFilmContext(sceneSpineID: sceneSpineID(containing: sourceID) ?? frame.sceneSpineID, shotID: frame.shotID, boardFrameID: frame.id)
         scrollTargetElementID = sourceID
     }
 

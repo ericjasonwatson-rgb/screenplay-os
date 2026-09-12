@@ -76,6 +76,14 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity).background(.regularMaterial)
             }
         }
+        .alert("Source unavailable", isPresented: Binding(
+            get: { model.sourceNavigationProblem != nil },
+            set: { if !$0 { model.sourceNavigationProblem = nil } }
+        )) {
+            Button("OK") { model.sourceNavigationProblem = nil }
+        } message: {
+            Text(model.sourceNavigationProblem ?? "")
+        }
         .onDeleteCommand {
             model.deleteSelectedElement()
         }

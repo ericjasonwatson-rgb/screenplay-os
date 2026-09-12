@@ -97,6 +97,7 @@ struct DocumentSafetyTests {
             model.navigateToShotSource(shot)
             #expect(model.selectedElementID == selection)
             #expect(model.errorMessage?.contains("no longer in the screenplay") == true)
+            #expect(model.sourceNavigationProblem?.contains("no longer in the screenplay") == true)
             model.navigateToBoardSource(board)
             #expect(model.selectedElementID == selection)
             #expect(model.shots.contains { $0.id == shot.id })
