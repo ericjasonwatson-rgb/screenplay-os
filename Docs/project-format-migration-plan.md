@@ -68,3 +68,7 @@ These are planned tests, not passing results. Package-level atomicity, schemas f
 ## Next implementation slice
 
 Implement the read-only legacy inspector and report first, with synthetic fixtures for duplicate keys, unknown data/large numbers, version detection, ambiguous scene aliases, and raw editorial preservation. It must leave fixture bytes unchanged. Do not expose a new save format in the UI until preservation, conversion, recovery, and failure tests pass.
+
+## Read-only inspector implementation — 2026-09-12
+
+`Scripts/inspect-legacy.py` now implements the initial risk inventory using a raw, duplicate-key-detecting JSON reader with exact numeric tokens. See `legacy-inspector.md` for scope and usage. It reports source digest/size, known and unknown field paths, identities, reference risks, and raw editorial presence without converting or assigning identities. Full schema validation, target field mapping, a reusable identity-assignment plan, and all package writer gates remain unfinished.
