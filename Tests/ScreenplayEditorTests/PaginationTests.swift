@@ -74,6 +74,98 @@ struct PaginationTests {
         }
     }
 
+    @Test func lockingPreservesExistingPaginationAndRoundTrips() throws {
+        let source = [ScreenplayElement(type: .character, text: "MARA"),
+                      ScreenplayElement(type: .dialogue, text: (1...500).map { "word\($0)" }.joined(separator: " "))]
+        try withDocument(source) { model, _ in
+            let before = model.printedPages
+            model.lockProductionPages()
+            #expect(model.pagesAreLocked)
+            #expect(model.printedPages.map(\.label) == before.map(\.label))
+            #expect(model.printedPages.map { $0.elements.map(\.text) } == before.map { $0.elements.map(\.text) })
+            let saved = try #require(model.saveURL)
+            model.loadOpenScreenplay(at: saved)
+            #expect(model.pagesAreLocked)
+            #expect(model.printedPages.map(\.label) == before.map(\.label))
+            model.unlockProductionPages()
+            #expect(!model.pagesAreLocked)
+            model.undo()
+            #expect(model.pagesAreLocked)
+            model.redo()
+            #expect(!model.pagesAreLocked)
+        }
+    }
+
+    @Test func lockedGrowthAddsLetteredPagesWithoutMovingTheNextPage() throws {
+        let first = ScreenplayElement(type: .action, text: "First page.")
+        let next = ScreenplayElement(type: .sceneHeading, text: "EXT. SECOND LOCATION - DAY")
+        let source = [first, ScreenplayElement(type: .pageBreak, text: ""), next]
+        try withDocument(source) { model, directory in
+            model.lockProductionPages()
+            model.binding(for: first).wrappedValue = "First page. " + (1...1100).map { "addition\($0)" }.joined(separator: " ")
+            let pages = model.printedPages
+            #expect(pages.first?.label == "1")
+            #expect(pages.contains { $0.label == "1A" })
+            #expect(pages.last?.label == "2")
+            #expect(pages.last?.elements.first?.element.id == next.id)
+            #expect(model.sceneBreakdowns.first?.pageNumber == "2")
+            #expect(pages.allSatisfy { $0.elements.map(\.blockHeight).reduce(0, +) <= 648 })
+            let pdf = try PrintPreviewSnapshot(data: model.makePrintPDF(), pageLabels: pages.map(\.label))
+            #expect(pdf.pageLabels.contains("1A"))
+            #expect(pdf.document.string?.contains("1A.") == true)
+            #expect(pdf.document.pageCount == pages.count + 1)
+            model.undo()
+            #expect(model.printedPages.map(\.label) == ["1", "2"])
+            #expect(model.pagesAreLocked)
+        }
+    }
+
+    @Test func replacingTheFirstTextOnALockedPageKeepsItOnThatPage() throws {
+        let heading = ScreenplayElement(type: .sceneHeading, text: "EXT. SECOND LOCATION - DAY")
+        let source = [ScreenplayElement(type: .action, text: "First page."),
+                      ScreenplayElement(type: .pageBreak, text: ""), heading]
+        try withDocument(source) { model, _ in
+            model.lockProductionPages()
+            model.binding(for: heading).wrappedValue = "INT. REVISED LOCATION - NIGHT"
+            #expect(model.printedPages.map(\.label) == ["1", "2"])
+            #expect(model.printedPages[0].elements.map(\.text) == ["First page."])
+            #expect(model.printedPages[1].elements.map(\.text) == ["INT. REVISED LOCATION - NIGHT"])
+        }
+    }
+
+    @Test func removingLockedPageRetainsOmittedNumber() throws {
+        let first = ScreenplayElement(type: .action, text: "First page.")
+        let source = [first, ScreenplayElement(type: .pageBreak, text: ""), ScreenplayElement(type: .action, text: "Second page.")]
+        try withDocument(source) { model, _ in
+            model.lockProductionPages()
+            model.selectElement(id: first.id)
+            model.deleteSelectedElement()
+            #expect(model.printedPages.map(\.label) == ["1", "2"])
+            #expect(model.printedPages[0].elements.isEmpty)
+            #expect(model.printedPages[1].elements.first?.text == "Second page.")
+            let pdf = try #require(PDFDocument(data: model.makePrintPDF()))
+            #expect(pdf.page(at: 1)?.string?.contains("OMITTED") == true)
+            model.undo()
+            #expect(model.printedPages[0].elements.first?.text == "First page.")
+        }
+    }
+
+    @Test func lockAnchorsFollowParagraphSplitsAndUnicode() throws {
+        let original = ScreenplayElement(type: .action, text: (1...650).map { "word\($0)" }.joined(separator: " "))
+        try withDocument([original]) { model, _ in
+            model.lockProductionPages()
+            let labels = model.printedPages.map(\.label)
+            model.splitElement(original.id, at: 30)
+            #expect(model.pagesAreLocked)
+            #expect(model.printedPages.filter { !$0.label.contains(where: \.isLetter) }.map(\.label) == labels)
+            #expect(model.printedPages.flatMap(\.elements).filter { !$0.isContinuation }.map(\.text).joined().filter { !$0.isWhitespace } == original.text.filter { !$0.isWhitespace })
+        }
+        let lock = ProductionPageLock(text: "👩🏽‍🚀 first\nNext", pageStarts: [0, 8])
+        #expect(ProductionPageLayout.mappedStarts(lock, text: "👩🏽‍🚀 NEW first\nNext") == [0, 12])
+        #expect(ProductionPageLayout.suffix(26) == "Z")
+        #expect(ProductionPageLayout.suffix(27) == "AA")
+    }
+
     @Test func longParagraphIsSplitWithoutChangingSource() throws {
         let text = (1...700).map { "word\($0)" }.joined(separator: " ")
         let element = ScreenplayElement(type: .action, text: text)

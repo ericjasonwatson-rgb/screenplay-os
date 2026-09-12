@@ -179,11 +179,20 @@ final class ScreenplayViewModel: ObservableObject {
         paginate(elements, includeEmptyElements: true, splitLongElements: false)
     }
 
-    var printedPages: [ScreenplayPage] { paginate(elements) }
+    private var printCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, pages: [ScreenplayPage])?
+
+    var printedPages: [ScreenplayPage] {
+        let source = elements
+        let lock = document?.screenplay.pageLock
+        if let cache = printCache, cache.elements == source, cache.lock == lock { return cache.pages }
+        let pages = paginate(lockedPrintElements())
+        printCache = (source, lock, pages)
+        return pages
+    }
 
     func printedPageLabel(for editingPage: ScreenplayPage, using pages: [ScreenplayPage]) -> String {
         let ids = Set(editingPage.elements.map { $0.element.id })
-        let numbers = pages.filter { page in page.elements.contains { ids.contains($0.element.id) } }.map(\.number)
+        let numbers = pages.filter { page in page.elements.contains { ids.contains($0.element.id) } }.map(\.label)
         guard let first = numbers.first, let last = numbers.last else { return "New page" }
         return first == last ? "PDF page \(first)" : "PDF pages \(first)–\(last)"
     }
@@ -2974,7 +2983,7 @@ final class ScreenplayViewModel: ObservableObject {
             .map(\.name)
         return [
             InspectorDetail(label: "Scene ID", value: breakdown.editSpineID),
-            InspectorDetail(label: "Page", value: breakdown.pageNumber.map(String.init) ?? "-"),
+            InspectorDetail(label: "Page", value: breakdown.pageNumber ?? "-"),
             InspectorDetail(label: "Cast", value: joinedInspectorValue(breakdown.characters)),
             InspectorDetail(label: "Location", value: joinedInspectorValue(breakdown.locations)),
             InspectorDetail(label: "Props", value: joinedInspectorValue(breakdown.props)),
@@ -3469,7 +3478,7 @@ final class ScreenplayViewModel: ObservableObject {
             "\(title) - Production Packet",
             "Scene: \(breakdown.editSpineID)",
             "Heading: \(breakdown.heading)",
-            "Page: \(breakdown.pageNumber.map(String.init) ?? "Unknown")",
+            "Page: \(breakdown.pageNumber ?? "Unknown")",
             "",
             "Breakdown",
             "  Cast: \(breakdown.characters.joinedOrNone())",
@@ -3515,7 +3524,7 @@ final class ScreenplayViewModel: ObservableObject {
     private func sceneBreakdownCSV() -> String {
         var rows = [["scene_spine_id", "scene_number", "heading", "page", "elements", "action_beats", "revisions", "cast", "locations", "props", "vfx", "notes", "source_element_id"]]
         for breakdown in sceneBreakdowns {
-            let page = breakdown.pageNumber.map(String.init) ?? ""
+            let page = breakdown.pageNumber ?? ""
             rows.append([
                 breakdown.editSpineID,
                 String(breakdown.number),
@@ -3815,13 +3824,14 @@ final class ScreenplayViewModel: ObservableObject {
 
         for name in names {
             let matchingHeadings = scriptLocations.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value ?? []
-            let pages = Set(matchingHeadings.compactMap { pageNumber(for: $0.id) }).sorted()
+            let labels = Set(matchingHeadings.compactMap { pageNumber(for: $0.id) })
+            let pages = printedPages.map(\.label).filter { labels.contains($0) }
             let status = context.entities.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.status.displayName ?? "Script-derived"
 
             lines.append(name)
             lines.append("  Status: \(status)")
             lines.append("  Scene count: \(matchingHeadings.count)")
-            lines.append("  Pages: \(pages.isEmpty ? "Unknown" : pages.map(String.init).joined(separator: ", "))")
+            lines.append("  Pages: \(pages.isEmpty ? "Unknown" : pages.joined(separator: ", "))")
             lines.append("")
         }
 
@@ -3913,9 +3923,9 @@ final class ScreenplayViewModel: ObservableObject {
         return ("Script-derived fallback", [])
     }
 
-    private func pageNumber(for elementID: UUID) -> Int? {
+    private func pageNumber(for elementID: UUID) -> String? {
         for page in printedPages where page.elements.contains(where: { $0.element.id == elementID }) {
-            return page.number
+            return page.label
         }
         return nil
     }
@@ -3962,14 +3972,14 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func drawScriptPages(_ elements: [ScreenplayElement], in context: CGContext, pageRect: CGRect) {
-        var pageNumber = 1
+        var pageLabel = "1"
         var y: CGFloat = pageRect.height - 72
 
         func beginScriptPage() {
             context.beginPDFPage(nil)
             y = pageRect.height - 72
             withPDFGraphicsContext(context) {
-                "\(pageNumber).".draw(
+                "\(pageLabel).".draw(
                     at: CGPoint(x: pageRect.width - 72, y: pageRect.height - 42),
                     withAttributes: pdfAttributes(alignment: .right, weight: .regular, size: 12)
                 )
@@ -3978,11 +3988,16 @@ final class ScreenplayViewModel: ObservableObject {
 
         func endScriptPage() {
             context.endPDFPage()
-            pageNumber += 1
         }
 
-        for page in paginate(elements) {
+        for page in printedPages {
+            pageLabel = page.label
             beginScriptPage()
+            if page.elements.isEmpty && document?.screenplay.pageLock != nil {
+                withPDFGraphicsContext(context) {
+                    "OMITTED".draw(at: CGPoint(x: 108, y: y - 16), withAttributes: pdfAttributes(alignment: .left, weight: .regular, size: 12))
+                }
+            }
             for item in page.elements {
                 let spec = item.layout
                 y -= spec.before + item.textHeight
@@ -4008,10 +4023,14 @@ final class ScreenplayViewModel: ObservableObject {
         var currentItems: [PaginatedElement] = []
         var usedHeight: CGFloat = 0
         var pageNumber = 1
+        var lockedBase = sourceElements.first?.externalIDs["screenplayos.lockStart"].flatMap(Int.init)
+        var overflow = 0
         var index = 0
 
         func finishPage() {
-            pages.append(ScreenplayPage(number: pageNumber, elements: currentItems))
+            let label = lockedBase.map { String($0) + (overflow == 0 ? "" : ProductionPageLayout.suffix(overflow)) }
+            pages.append(ScreenplayPage(number: pageNumber, elements: currentItems, lockedLabel: label))
+            if lockedBase != nil { overflow += 1 }
             currentItems = []
             usedHeight = 0
             pageNumber += 1
@@ -4047,6 +4066,16 @@ final class ScreenplayViewModel: ObservableObject {
             let element = visibleElements[index]
 
             if element.type == .pageBreak {
+                if let base = element.externalIDs["screenplayos.lockBoundary"].flatMap(Int.init) {
+                    if splitLongElements && dialogueContinues(in: visibleElements, after: index) {
+                        appendMore(for: element, speaker: usableSpeaker(before: index))
+                    }
+                    finishPage()
+                    lockedBase = base
+                    overflow = 0
+                    index += 1
+                    continue
+                }
                 if !currentItems.isEmpty {
                     if splitLongElements && dialogueContinues(in: visibleElements, after: index) {
                         appendMore(for: element, speaker: usableSpeaker(before: index))
@@ -4119,7 +4148,7 @@ final class ScreenplayViewModel: ObservableObject {
             index += 1
         }
 
-        if !currentItems.isEmpty || pages.isEmpty {
+        if !currentItems.isEmpty || pages.isEmpty || (lockedBase != nil && overflow == 0) {
             finishPage()
         }
 
@@ -4225,8 +4254,11 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func paginatedElement(for element: ScreenplayElement) -> PaginatedElement {
-        let spec = pdfLayoutSpec(for: element.type)
-        let text = normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        var spec = pdfLayoutSpec(for: element.type)
+        if element.externalIDs["screenplayos.printFragment"] == "continued" {
+            spec = PDFLayoutSpec(x: spec.x, width: spec.width, before: 0, after: spec.after, alignment: spec.alignment, weight: spec.weight)
+        }
+        let text = element.externalIDs["screenplayos.printFragment"] != nil ? element.text : normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
         let textHeight = pdfHeight(for: text, width: spec.width, type: element.type)
         return PaginatedElement(
             element: element,
@@ -5294,7 +5326,7 @@ struct SceneBreakdown: Equatable, Identifiable {
     let editSpineID: String
     let elementID: UUID
     let heading: String
-    let pageNumber: Int?
+    let pageNumber: String?
     let elementCount: Int
     let actionBeatCount: Int
     let revisionCount: Int
@@ -5337,6 +5369,8 @@ struct FindMatch: Equatable, Identifiable {
 struct ScreenplayPage: Identifiable {
     let number: Int
     let elements: [PaginatedElement]
+    var lockedLabel: String? = nil
+    var label: String { lockedLabel ?? String(number) }
 
     var id: Int {
         number
@@ -5738,5 +5772,59 @@ extension ScreenplayViewModel {
         }
         autosave()
         return caret
+    }
+}
+
+
+extension ScreenplayViewModel {
+    var pagesAreLocked: Bool { document?.screenplay.pageLock != nil }
+
+    func lockProductionPages() {
+        guard document != nil, !pagesAreLocked else { return }
+        let source = canonicalPrintElements()
+        let pages = paginate(source)
+        var starts: [UUID: Int] = [:]
+        var position = 0
+        for element in source {
+            starts[element.id] = position
+            position += element.text.count + 1
+        }
+        var consumed: [UUID: Int] = [:]
+        var boundaries: [Int] = []
+        for page in pages {
+            if let first = page.elements.first(where: { !$0.isContinuation }) {
+                boundaries.append((starts[first.element.id] ?? 0) + (consumed[first.element.id] ?? 0))
+            } else { boundaries.append(0) }
+            for item in page.elements where !item.isContinuation {
+                consumed[item.element.id, default: 0] += item.text.count
+            }
+        }
+        // The first page includes insertions at the beginning of the screenplay.
+        if !boundaries.isEmpty { boundaries[0] = 0 }
+        rememberUndoState()
+        document?.screenplay.pageLock = ProductionPageLock(text: source.map(\.text).joined(separator: "\n"), pageStarts: boundaries)
+        document?.project.metadata.modifiedAt = Date()
+        autosave()
+    }
+
+    func unlockProductionPages() {
+        guard pagesAreLocked else { return }
+        rememberUndoState()
+        document?.screenplay.pageLock = nil
+        document?.project.metadata.modifiedAt = Date()
+        autosave()
+    }
+
+    private func canonicalPrintElements() -> [ScreenplayElement] {
+        elements.filter { $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map {
+            var element = $0
+            element.text = normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            return element
+        }
+    }
+
+    private func lockedPrintElements() -> [ScreenplayElement] {
+        guard let lock = document?.screenplay.pageLock else { return elements }
+        return ProductionPageLayout.elements(canonicalPrintElements(), lock: lock)
     }
 }

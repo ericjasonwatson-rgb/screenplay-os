@@ -179,7 +179,7 @@ New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved
 
 Print layout splits action and dialogue at word boundaries where possible, and at grapheme boundaries for unbroken text. It retains the source paragraph IDs and content. Explicit page breaks are honored, and character cues stay with the beginning of dialogue when space permits. Tests check page height bounds, Unicode, source preservation, and complete text extraction from exported PDFs.
 
-The writing surface scrolls continuously, including across long paragraphs. Production page locking remains unfinished.
+The writing surface scrolls continuously, including across long paragraphs. Production page locking is available through Lock Pages above the writing surface.
 
 Automatic print-page breaks within a dialogue paragraph now add `(MORE)` and a repeated speaker cue with `(CONT'D)` when a usable preceding character cue is available. These markers are generated only for print layout and do not modify the source script.
 
@@ -214,3 +214,14 @@ Regression checks compare preview and export page text, page dimensions, and ren
 Printed dialogue follows the same speaker through adjacent dialogue paragraphs and parentheticals. Automatic breaks and explicit page breaks inside that speech add `(MORE)` before the break and a repeated speaker cue with `(CONT'D)` afterward. Speaker extensions such as `(V.O.)` are retained, and an existing continuation suffix is not duplicated. A new character cue, scene heading, or action ends the speech.
 
 The paginator reserves space for continuation markers, keeps a parenthetical with the following dialogue when it fits, and splits unusually long parentheticals without losing text. These changes affect print layout and preview only; source paragraphs and IDs stay intact. Regression checks cover separate dialogue paragraphs, consecutive explicit breaks, new-speaker and scene boundaries, and long parentheticals. Rendered PDF pages were visually checked for the explicit-break case.
+
+
+## Production page locking
+
+Choose **Lock Pages** above the writing surface to freeze the current numbered page boundaries. Edits before a boundary stay in that page's section: overflow becomes `1A`, `1B`, and so on while the next original page remains `2`. Shortened sections leave unused space; fully deleted sections retain an `OMITTED` page. Lettered overflow pages reflow within their original numbered section as revisions change.
+
+Locks are saved in the native screenplay file and survive reopening. Preview, PDF export, scene inspection, and production reports use the locked labels. The title page is outside the numbered sequence. **Unlock Pages** restores normal flowing pagination; locking, unlocking, and subsequent text edits support Undo/Redo. To establish a new numbered baseline, unlock and lock again.
+
+The renderer follows frozen boundaries through text edits and paragraph splits or merges using the saved baseline text. It preserves the editable source paragraphs and IDs, and generated continuation cues remain print-only. Older native files without a page lock continue to open with flowing pagination. This is native-file page locking; it does not import or export another application's page-lock metadata.
+
+Live verification: expanding the first page of a locked two-page fixture produced pages `1`, `1A`, `1B`, `1C`, `2`. The preview displayed `Script page 1A` and kept the next scene on page `2`; the native file retained the lock and revised text.

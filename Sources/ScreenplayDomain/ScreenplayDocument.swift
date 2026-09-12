@@ -203,19 +203,22 @@ public struct Screenplay: Codable, Equatable, Identifiable {
     public var elements: [ScreenplayElement]
     public var revision: Int
     public var revisionSettings: RevisionSettings
+    public var pageLock: ProductionPageLock?
 
     public init(
         id: UUID = UUID(),
         metadata: ScreenplayMetadata,
         elements: [ScreenplayElement] = [],
         revision: Int = 0,
-        revisionSettings: RevisionSettings = RevisionSettings()
+        revisionSettings: RevisionSettings = RevisionSettings(),
+        pageLock: ProductionPageLock? = nil
     ) {
         self.id = id
         self.metadata = metadata
         self.elements = elements
         self.revision = revision
         self.revisionSettings = revisionSettings
+        self.pageLock = pageLock
     }
 
     enum CodingKeys: String, CodingKey {
@@ -224,6 +227,7 @@ public struct Screenplay: Codable, Equatable, Identifiable {
         case elements
         case revision
         case revisionSettings = "revision_settings"
+        case pageLock = "page_lock"
     }
 
     public init(from decoder: Decoder) throws {
@@ -233,6 +237,7 @@ public struct Screenplay: Codable, Equatable, Identifiable {
         elements = try container.decode([ScreenplayElement].self, forKey: .elements)
         revision = try container.decode(Int.self, forKey: .revision)
         revisionSettings = try container.decodeIfPresent(RevisionSettings.self, forKey: .revisionSettings) ?? RevisionSettings()
+        pageLock = try container.decodeIfPresent(ProductionPageLock.self, forKey: .pageLock)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -242,6 +247,7 @@ public struct Screenplay: Codable, Equatable, Identifiable {
         try container.encode(elements, forKey: .elements)
         try container.encode(revision, forKey: .revision)
         try container.encode(revisionSettings, forKey: .revisionSettings)
+        try container.encodeIfPresent(pageLock, forKey: .pageLock)
     }
 }
 
@@ -1232,5 +1238,17 @@ public extension JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
+    }
+}
+
+
+/// Frozen print boundaries, expressed as Character offsets in the normalized source text.
+/// Keeping the baseline lets boundaries follow edits, splits, merges, and deleted paragraphs.
+public struct ProductionPageLock: Codable, Equatable {
+    public var text: String
+    public var pageStarts: [Int]
+    public init(text: String, pageStarts: [Int]) {
+        self.text = text
+        self.pageStarts = pageStarts
     }
 }

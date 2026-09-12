@@ -16,10 +16,12 @@ struct PrintPreviewSnapshot: Identifiable {
     let id = UUID()
     let data: Data
     let document: PDFDocument
-    init(data: Data) throws {
+    let pageLabels: [String]
+    init(data: Data, pageLabels: [String] = []) throws {
         guard let document = PDFDocument(data: data), document.pageCount > 0 else { throw PrintPDFError.renderFailed }
         self.data = data
         self.document = document
+        self.pageLabels = pageLabels
     }
 }
 
@@ -45,7 +47,7 @@ struct PrintPreviewSheet: View {
                 Text("Page \(page + 1) of \(snapshot.document.pageCount)").monospacedDigit()
                 Button { page += 1 } label: { Image(systemName: "chevron.right") }
                     .disabled(page + 1 >= snapshot.document.pageCount).accessibilityLabel("Next page")
-                Text(page == 0 ? "Title page" : "Script page \(page)").foregroundStyle(.secondary)
+                Text(page == 0 ? "Title page" : "Script page \(snapshot.pageLabels.indices.contains(page - 1) ? snapshot.pageLabels[page - 1] : String(page))").foregroundStyle(.secondary)
                 Spacer()
                 Button("Fit Page") { zoom = nil }
                 Button("100%") { zoom = 1 }

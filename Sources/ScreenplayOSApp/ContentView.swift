@@ -1204,7 +1204,7 @@ private struct SceneBreakdownCard: View {
             }
 
             HStack(spacing: 8) {
-                BreakdownMetric(label: "Page", value: breakdown.pageNumber.map(String.init) ?? "-")
+                BreakdownMetric(label: "Page", value: breakdown.pageNumber ?? "-")
                 BreakdownMetric(label: "Beats", value: "\(breakdown.actionBeatCount)")
                 BreakdownMetric(label: "Rev", value: "\(breakdown.revisionCount)")
             }
@@ -1593,7 +1593,7 @@ private struct OutlineSceneCard: View {
                     .font(.system(size: 15, weight: .semibold))
                     .lineLimit(2)
                 Spacer()
-                Text("p. \(breakdown.pageNumber.map(String.init) ?? "-")")
+                Text("p. \(breakdown.pageNumber ?? "-")")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -2770,9 +2770,18 @@ private struct ScreenplayPageView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
+                if model.pagesAreLocked {
+                    Label("Pages Locked", systemImage: "lock.fill").font(.caption)
+                    Button("Unlock Pages") { model.unlockProductionPages() }
+                        .help("Return to flowing page numbers. This can be undone.")
+                } else {
+                    Button("Lock Pages") { model.lockProductionPages() }
+                        .disabled(model.document == nil)
+                        .help("Preserve current page numbers; additions use lettered pages and deletions retain omitted pages.")
+                }
                 Spacer()
                 Button {
-                    do { preview = try PrintPreviewSnapshot(data: model.makePrintPDF()) }
+                    do { preview = try PrintPreviewSnapshot(data: model.makePrintPDF(), pageLabels: model.printedPages.map(\.label)) }
                     catch { model.errorMessage = error.localizedDescription }
                 } label: {
                     Label("Print Preview", systemImage: "doc.text.magnifyingglass")
