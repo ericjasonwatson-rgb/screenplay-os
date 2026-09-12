@@ -50,6 +50,12 @@ final class ScreenplayViewModel: ObservableObject {
     private let autosaveDirectory: URL
     private let preferences: UserDefaults
     private var lastSavedDocument: OpenScreenplayDocument?
+    private var diskVersion: (url: URL, data: Data)?
+    private let recoveryDirectory: URL
+    private let recoverySessionID = UUID()
+    private var ownedRecoveryFiles: Set<URL> = []
+    @Published private(set) var saveProblem: String?
+    @Published private(set) var recoveryCopies: [RecoveryCopy] = []
     private struct EditState {
         let document: OpenScreenplayDocument
         let selection: UUID?
@@ -79,9 +85,13 @@ final class ScreenplayViewModel: ObservableObject {
         .edit: .editorial
     ]
 
-    init(loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard) {
+    init(loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil) {
         self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
         self.preferences = preferences
+        self.recoveryDirectory = recoveryDirectory ?? autosaveDirectory?.appendingPathComponent("Recovery", isDirectory: true)
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("ScreenplayOS/Recovery", isDirectory: true)
+        loadRecoveryCopies()
         if loadInitialDocument {
             loadRecentDocuments()
             loadMostRecentWorkingDocument()
@@ -818,6 +828,8 @@ final class ScreenplayViewModel: ObservableObject {
         sourceURL = nil
         saveURL = nil
         lastSavedDocument = nil
+        diskVersion = nil
+        saveProblem = nil
         snapshots = []
         undoStack = []
         redoStack = []
@@ -1186,7 +1198,8 @@ final class ScreenplayViewModel: ObservableObject {
         saveCurrentDocument()
     }
 
-    func showSavePanel() {
+    @discardableResult
+    func showSavePanel() -> Bool {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.canCreateDirectories = true
@@ -1195,8 +1208,11 @@ final class ScreenplayViewModel: ObservableObject {
         panel.nameFieldStringValue = defaultSaveFileName()
 
         if panel.runModal() == .OK, let url = panel.url {
-            saveDocument(to: url)
+            let sameFile = url.standardizedFileURL == diskVersion?.url
+            let approved: Data? = sameFile ? nil : (try? Data(contentsOf: url))
+            return saveDocument(to: url, overwriteExisting: sameFile || approved != nil, approvedExistingData: approved)
         }
+        return false
     }
 
     func showExportPDFPanel(data: Data? = nil) {
@@ -1253,6 +1269,8 @@ final class ScreenplayViewModel: ObservableObject {
             let result = try importer.importFile(at: url)
             document = result.document
             lastSavedDocument = nil
+            diskVersion = nil
+            saveProblem = nil
             undoStack = []
             redoStack = []
             typingGroup = nil
@@ -1278,6 +1296,8 @@ final class ScreenplayViewModel: ObservableObject {
             let decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
             document = decoded
             lastSavedDocument = decoded
+            diskVersion = (url.standardizedFileURL, data)
+            saveProblem = nil
             undoStack = []
             redoStack = []
             typingGroup = nil
@@ -3361,7 +3381,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     @discardableResult
-    private func saveDocument(to url: URL, reportStatus: Bool = true, overwriteExisting: Bool = true, documentToSave: OpenScreenplayDocument? = nil) -> Bool {
+    private func saveDocument(to url: URL, reportStatus: Bool = true, overwriteExisting: Bool = true, documentToSave: OpenScreenplayDocument? = nil, approvedExistingData: Data? = nil) -> Bool {
         guard var document = documentToSave ?? self.document else { return false }
 
         do {
@@ -3376,18 +3396,25 @@ final class ScreenplayViewModel: ObservableObject {
             let data = try JSONEncoder.openScreenplayEncoder().encode(document)
             // A first save must never replace an existing file, even if another
             // process creates it after we choose the filename.
-            try DocumentFileWriter.write(data, to: url, overwriteExisting: overwriteExisting)
+            let expected = diskVersion?.url == url.standardizedFileURL ? diskVersion?.data : approvedExistingData
+            try DocumentFileWriter.write(data, to: url, overwriteExisting: overwriteExisting, expectedExistingData: expected)
             self.document = document
             lastSavedDocument = document
+            diskVersion = (url.standardizedFileURL, data)
+            let wasBlocked = saveProblem != nil
+            saveProblem = nil
+            clearOwnedRecoveryCopies()
             saveURL = url
             sourceURL = url
             recordRecentDocument(url)
-            if reportStatus {
+            if reportStatus || wasBlocked {
                 errorMessage = "Saved \(url.lastPathComponent)"
             }
             return true
         } catch {
-            errorMessage = "Could not save screenplay: \(error.localizedDescription)"
+            let recoveryMessage = preserveRecoveryCopy()
+            saveProblem = "Could not save screenplay: \(error.localizedDescription) \(recoveryMessage)"
+            errorMessage = saveProblem
             return false
         }
     }
@@ -5826,5 +5853,90 @@ extension ScreenplayViewModel {
     private func lockedPrintElements() -> [ScreenplayElement] {
         guard let lock = document?.screenplay.pageLock else { return elements }
         return ProductionPageLayout.elements(canonicalPrintElements(), lock: lock)
+    }
+}
+
+
+extension ScreenplayViewModel {
+    var hasUnsavedChanges: Bool { document != nil && document != lastSavedDocument }
+
+    /// Shared by New/Open and the close/quit policy. Failure keeps the live document open.
+    func prepareToClose() -> Bool {
+        guard hasUnsavedChanges else { return true }
+        return saveCurrentDocument(reportStatus: false)
+    }
+
+    func confirmSafeClose() -> Bool {
+        if prepareToClose() { return true }
+        let alert = NSAlert()
+        alert.messageText = "Your latest edits have not been saved to the screenplay."
+        alert.informativeText = saveProblem ?? "Keep editing or save a separate copy before closing."
+        alert.addButton(withTitle: "Keep Editing")
+        alert.addButton(withTitle: "Save a Copy…")
+        return alert.runModal() == .alertSecondButtonReturn && showSavePanel() && !hasUnsavedChanges
+    }
+
+    /// An exclusive copy is also usable without presenting a panel (for recovery tests).
+    @discardableResult func saveSeparateCopy(to url: URL) -> Bool {
+        saveDocument(to: url, overwriteExisting: false)
+    }
+
+    private func preserveRecoveryCopy() -> String {
+        guard let document else { return "" }
+        do {
+            try FileManager.default.createDirectory(at: recoveryDirectory, withIntermediateDirectories: true)
+            let url = recoveryDirectory.appendingPathComponent("\(document.project.id)-\(recoverySessionID).json")
+            let record = RecoveryRecord(document: document, originalURL: saveURL ?? sourceURL, savedAt: Date())
+            let data = try JSONEncoder.openScreenplayEncoder().encode(record)
+            try data.write(to: url, options: .atomic)
+            ownedRecoveryFiles.insert(url)
+            loadRecoveryCopies()
+            return "A recovery copy is available in File > Recover Unsaved Draft."
+        } catch {
+            return "The recovery copy also failed: \(error.localizedDescription) Keep this window open and save a separate copy."
+        }
+    }
+
+    private func clearOwnedRecoveryCopies() {
+        guard !ownedRecoveryFiles.isEmpty else { return }
+        for url in Array(ownedRecoveryFiles) {
+            if !FileManager.default.fileExists(atPath: url.path) || (try? FileManager.default.removeItem(at: url)) != nil {
+                ownedRecoveryFiles.remove(url)
+            }
+        }
+        loadRecoveryCopies()
+    }
+
+    func loadRecoveryCopies() {
+        let urls = (try? FileManager.default.contentsOfDirectory(at: recoveryDirectory, includingPropertiesForKeys: nil)) ?? []
+        recoveryCopies = urls.filter { $0.pathExtension == "json" }.compactMap { url in
+            guard let data = try? Data(contentsOf: url),
+                  let record = try? JSONDecoder.openScreenplayDecoder().decode(RecoveryRecord.self, from: data) else { return nil }
+            return RecoveryCopy(url: url, title: record.document.project.metadata.title, savedAt: record.savedAt)
+        }.sorted { $0.savedAt > $1.savedAt }
+    }
+
+    func openRecoveryCopy(_ copy: RecoveryCopy) {
+        guard saveBeforeReplacingDocument() else { return }
+        do {
+            let record = try JSONDecoder.openScreenplayDecoder().decode(RecoveryRecord.self, from: Data(contentsOf: copy.url))
+            document = record.document
+            lastSavedDocument = nil
+            diskVersion = nil
+            saveURL = nil
+            sourceURL = nil
+            saveProblem = nil
+            undoStack = []
+            redoStack = []
+            typingGroup = nil
+            caretRanges = [:]
+            documentCaret = nil
+            documentCaretToken = UUID()
+            caretRestoration = nil
+            snapshots = []
+            ownedRecoveryFiles.insert(copy.url)
+            selectInitialElement()
+            errorMessage = "Recovered \(copy.title). Save this draft as a separate file."
+        } catch { errorMessage = "Could not open recovery copy: \(error.localizedDescription)" }
     }
 }

@@ -45,7 +45,11 @@ swift run screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_
 
 `./Scripts/test.sh` runs the editor safety regressions and the domain/import self-tests. It also supplies the Swift Testing framework paths needed by Command Line Tools-only installations. The editor tests use temporary files and isolated preferences.
 
-New scripts automatically save to an unused filename in Downloads (adding a number when the title already exists). Once saved, edits continue updating that same file. Blank screenplay elements are preserved during saves. If a save fails, New and Open retain the current script so you can retry Save or use Save As.
+New scripts automatically save to an unused filename in Downloads (adding a number when the title already exists). Once saved, edits continue updating that same file. Blank screenplay elements are preserved during saves. Before updating a file, the app checks that its bytes still match the version it opened or last saved. Outside edits or a missing original block the save. Use **Save a Copy…** to preserve local edits separately.
+
+If saving fails, the app attempts a recovery copy in Application Support/ScreenplayOS/Recovery. A persistent notice explains the problem. **File > Recover Unsaved Draft** opens recovery copies as detached drafts, including after a restart. A successful save removes recovery copies owned by that draft; unrelated recovery copies remain available. Recovery storage can also fail, so keep the window open until a normal save or separate copy succeeds.
+
+New, Open, window Close, and Quit retain unsaved edits when saving fails. Close and Quit offer Keep Editing or Save a Copy; cancelling the copy leaves the document open. The version check detects existing outside changes but does not lock out a simultaneous external writer between the check and atomic replacement.
 
 In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run.
 

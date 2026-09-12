@@ -60,6 +60,22 @@ struct ContentView: View {
                 }
             )
         )
+        .safeAreaInset(edge: .bottom) {
+            if let problem = model.saveProblem {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(problem).font(.callout).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button("Save a Copy…") { model.showSavePanel() }
+                }
+                .padding(12)
+                .background(.regularMaterial)
+            } else if !model.recoveryCopies.isEmpty {
+                Text("Unsaved drafts are available in File > Recover Unsaved Draft.")
+                    .font(.callout).padding(8)
+                    .frame(maxWidth: .infinity).background(.regularMaterial)
+            }
+        }
         .onDeleteCommand {
             model.deleteSelectedElement()
         }

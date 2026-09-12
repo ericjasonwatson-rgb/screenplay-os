@@ -19,6 +19,99 @@ struct DocumentSafetyTests {
         try body(model, directory, preferences)
     }
 
+
+    @Test func outsideEditsSurviveAutosaveAndBlockDocumentReplacementAndClose() throws {
+        try withModel { model, directory, _ in
+            model.newDocument()
+            model.save()
+            let url = try #require(model.saveURL)
+            var outside = try #require(model.document)
+            outside.screenplay.elements[0].text = "OUTSIDE EDIT"
+            let externalData = try JSONEncoder.openScreenplayEncoder().encode(outside)
+            try externalData.write(to: url, options: .atomic)
+            let element = try #require(model.elements.first)
+            model.binding(for: element).wrappedValue = "LOCAL EDIT"
+            #expect(try Data(contentsOf: url) == externalData)
+            #expect(model.saveProblem != nil)
+            #expect(model.hasUnsavedChanges)
+            #expect(!model.prepareToClose())
+            let draft = model.document
+            model.newDocument()
+            #expect(model.document == draft)
+            model.loadOpenScreenplay(at: url)
+            #expect(model.document == draft)
+            let recovery = try #require(model.recoveryCopies.first)
+            let record = try JSONDecoder.openScreenplayDecoder().decode(RecoveryRecord.self, from: Data(contentsOf: recovery.url))
+            #expect(record.document.screenplay.elements.first?.text == "LOCAL EDIT")
+            let copyURL = directory.appendingPathComponent("saved-copy.json")
+            #expect(model.saveSeparateCopy(to: copyURL))
+            #expect(!model.hasUnsavedChanges && model.saveProblem == nil)
+            #expect(model.prepareToClose())
+            #expect(model.recoveryCopies.isEmpty)
+            #expect(!FileManager.default.fileExists(atPath: recovery.url.path))
+            #expect(try Data(contentsOf: url) == externalData)
+            let copy = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: Data(contentsOf: copyURL))
+            #expect(copy.screenplay.elements.first?.text == "LOCAL EDIT")
+        }
+    }
+
+    @Test func deletedOriginalIsNotSilentlyRecreatedAndRecoverySurvivesRestart() throws {
+        try withModel { model, directory, preferences in
+            model.newDocument()
+            model.save()
+            let url = try #require(model.saveURL)
+            try FileManager.default.removeItem(at: url)
+            let element = try #require(model.elements.first)
+            model.binding(for: element).wrappedValue = "FIRST LOCAL EDIT"
+            model.binding(for: element).wrappedValue = "LATEST LOCAL EDIT"
+            #expect(!FileManager.default.fileExists(atPath: url.path))
+            #expect(!model.prepareToClose())
+            #expect(model.recoveryCopies.count == 1)
+            let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
+            let recovery = try #require(reopened.recoveryCopies.first)
+            reopened.openRecoveryCopy(recovery)
+            #expect(reopened.elements.first?.text == "LATEST LOCAL EDIT")
+            #expect(reopened.saveURL == nil && reopened.sourceURL == nil)
+            #expect(reopened.hasUnsavedChanges)
+            #expect(reopened.saveSeparateCopy(to: directory.appendingPathComponent("recovered.json")))
+            #expect(reopened.recoveryCopies.isEmpty)
+        }
+    }
+
+    @Test func recoveryFailureStillBlocksClose() throws {
+        try withModel { model, directory, _ in
+            model.newDocument()
+            model.save()
+            let url = try #require(model.saveURL)
+            try FileManager.default.removeItem(at: url)
+            try Data("blocked".utf8).write(to: directory.appendingPathComponent("Recovery"))
+            let element = try #require(model.elements.first)
+            model.binding(for: element).wrappedValue = "KEEP IN MEMORY"
+            #expect(!model.prepareToClose())
+            #expect(model.saveProblem?.contains("recovery copy also failed") == true)
+            #expect(model.elements.first?.text == "KEEP IN MEMORY")
+        }
+    }
+
+    @Test func overwriteRequiresExactReadVersionButAllowsUnchangedBytes() throws {
+        try withModel { _, directory, _ in
+            let url = directory.appendingPathComponent("version.json")
+            let before = Data("before".utf8)
+            let after = Data("after".utf8)
+            try before.write(to: url)
+            #expect(throws: (any Error).self) {
+                try DocumentFileWriter.write(after, to: url, overwriteExisting: true)
+            }
+            #expect(throws: (any Error).self) {
+                try DocumentFileWriter.write(after, to: url, overwriteExisting: true, expectedExistingData: after)
+            }
+            #expect(try Data(contentsOf: url) == before)
+            try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(100)], ofItemAtPath: url.path)
+            try DocumentFileWriter.write(after, to: url, overwriteExisting: true, expectedExistingData: before)
+            #expect(try Data(contentsOf: url) == after)
+        }
+    }
+
     @Test func crossParagraphReplacementAndUndoPreserveIdentityAndSelection() throws {
         try withModel { model, _, _ in
             model.newDocument()
@@ -406,8 +499,9 @@ struct DocumentSafetyTests {
             #expect(model.document == edited)
             model.loadOpenScreenplay(at: otherURL)
             #expect(model.document == edited)
-            // Once storage works again, the same edits can be saved and reopened.
+            // Restore the expected original version before retrying a normal save.
             try FileManager.default.removeItem(at: originalURL)
+            try originalData.write(to: originalURL)
             model.save()
             let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
             reopened.loadOpenScreenplay(at: originalURL)

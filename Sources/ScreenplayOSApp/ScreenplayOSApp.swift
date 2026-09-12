@@ -9,6 +9,8 @@ struct ScreenplayOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
+                .onAppear { appDelegate.model = model }
+                .background(DocumentCloseGuard(model: model))
                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
         }
         .defaultSize(width: 1200, height: 760)
@@ -24,6 +26,15 @@ struct ScreenplayOSApp: App {
                     model.showOpenPanel()
                 }
                 .keyboardShortcut("o", modifiers: [.command])
+
+                Menu("Recover Unsaved Draft") {
+                    ForEach(model.recoveryCopies) { copy in
+                        Button("\(copy.title) — \(copy.savedAt.formatted())") {
+                            model.openRecoveryCopy(copy)
+                        }
+                    }
+                }
+                .disabled(model.recoveryCopies.isEmpty)
 
                 Menu("Open Recent") {
                     if model.recentDocuments.isEmpty {
@@ -320,6 +331,12 @@ struct ScreenplayOSApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var model: ScreenplayViewModel?
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        model?.confirmSafeClose() == false ? .terminateCancel : .terminateNow
+    }
+
     static func resetMainWindowLayout() {
         normalizeMainWindowFrame(force: true)
     }
