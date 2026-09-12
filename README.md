@@ -225,3 +225,7 @@ Locks are saved in the native screenplay file and survive reopening. Preview, PD
 The renderer follows frozen boundaries through text edits and paragraph splits or merges using the saved baseline text. It preserves the editable source paragraphs and IDs, and generated continuation cues remain print-only. Older native files without a page lock continue to open with flowing pagination. This is native-file page locking; it does not import or export another application's page-lock metadata.
 
 Live verification: expanding the first page of a locked two-page fixture produced pages `1`, `1A`, `1B`, `1C`, `2`. The preview displayed `Script page 1A` and kept the next scene on page `2`; the native file retained the lock and revised text.
+
+## Laptop window layout
+
+The window starts within the display bounds and supports a smaller minimum size. Wide Shot, Outline, Boards, and Edit workspaces scroll horizontally inside the main area instead of pushing the navigation sidebar off screen. The status bar also scrolls when space is limited. Workspace > Reset Layout restores a screen-sized window.

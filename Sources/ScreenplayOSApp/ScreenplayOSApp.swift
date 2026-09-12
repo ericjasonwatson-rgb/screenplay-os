@@ -9,9 +9,9 @@ struct ScreenplayOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
-                .frame(minWidth: 1180, idealWidth: 1440, minHeight: 760, idealHeight: 920)
+                .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
         }
-        .defaultSize(width: 1440, height: 920)
+        .defaultSize(width: 1200, height: 760)
         .windowStyle(.titleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -342,15 +342,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let visibleFrame = screen.visibleFrame
         let frame = window.frame
-        let isTooSmall = frame.width < 1180 || frame.height < 760
+        let isTooSmall = frame.width < min(900, visibleFrame.width) || frame.height < min(560, visibleFrame.height)
         let isOffscreen = frame.minX < visibleFrame.minX || frame.maxX > visibleFrame.maxX || frame.minY < visibleFrame.minY || frame.maxY > visibleFrame.maxY
 
         guard force || isTooSmall || isOffscreen else {
             return
         }
 
-        let width = min(1440, visibleFrame.width - 64)
-        let height = min(920, visibleFrame.height - 64)
+        let width = min(1200, visibleFrame.width - 32)
+        let height = min(760, visibleFrame.height - 32)
         let origin = NSPoint(
             x: visibleFrame.midX - width / 2,
             y: visibleFrame.midY - height / 2

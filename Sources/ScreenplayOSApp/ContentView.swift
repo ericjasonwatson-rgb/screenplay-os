@@ -26,7 +26,7 @@ struct ContentView: View {
             if model.visibleWorkspaceRegions.contains(.navigation) {
                 NavigationSplitView {
                     SidebarView(model: model)
-                        .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 360)
+                        .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
                 } detail: {
                     EditorWorkspaceView(model: model)
                 }
@@ -1485,29 +1485,45 @@ private struct EditorWorkspaceView: View {
         HSplitView {
             VStack(spacing: 0) {
                 DocumentIdentityBar(model: model)
-                switch model.workflowMode {
-                case .outline:
-                    OutlineWorkspaceView(model: model)
-                case .writing:
+                if model.workflowMode == .writing || model.workflowMode == .production {
                     ScreenplayPageView(model: model)
-                case .directing:
-                    ShotWorkspaceView(model: model)
-                case .boards:
-                    BoardsWorkspaceView(model: model)
-                case .production:
-                    ScreenplayPageView(model: model)
-                case .edit:
-                    EditWorkspaceView(model: model)
+                } else {
+                    GeometryReader { geometry in
+                        ScrollView(.horizontal) {
+                            wideWorkspace
+                                .frame(width: max(geometry.size.width, minimumWorkspaceWidth), height: geometry.size.height)
+                        }
+                    }
                 }
                 BottomStatusBar(model: model)
             }
+            .frame(minWidth: 340, maxWidth: .infinity)
 
             if model.contextAssistantVisible && model.visibleWorkspaceRegions.contains(.context) {
                 ContextAssistantPanel(model: model)
-                    .frame(minWidth: 340, idealWidth: 370, maxWidth: 460)
+                    .frame(minWidth: 280, idealWidth: 300, maxWidth: 380)
             }
         }
     }
+
+    private var minimumWorkspaceWidth: CGFloat {
+        switch model.workflowMode {
+        case .edit: return 1140
+        case .boards: return 940
+        default: return 880
+        }
+    }
+
+    @ViewBuilder private var wideWorkspace: some View {
+        switch model.workflowMode {
+        case .outline: OutlineWorkspaceView(model: model)
+        case .directing: ShotWorkspaceView(model: model)
+        case .boards: BoardsWorkspaceView(model: model)
+        case .edit: EditWorkspaceView(model: model)
+        default: EmptyView()
+        }
+    }
+
 }
 
 private struct OutlineWorkspaceView: View {
@@ -2648,39 +2664,41 @@ private struct BottomStatusBar: View {
     @ObservedObject var model: ScreenplayViewModel
 
     var body: some View {
-        HStack(spacing: 10) {
-            StatusCapsule(systemImage: "list.number", text: model.selectedElementPosition)
-            StatusCapsule(systemImage: "doc.on.doc", text: "\(model.printedPages.count) pages")
-            StatusCapsule(systemImage: "pencil.and.outline", text: model.revisionStatusText)
-            StatusCapsule(systemImage: "rectangle.stack", text: model.productionContextSummary)
-            StatusCapsule(systemImage: "doc.text.magnifyingglass", text: model.currentSceneTitle)
-                .frame(maxWidth: 280, alignment: .leading)
+        ScrollView(.horizontal) {
+            HStack(spacing: 10) {
+                StatusCapsule(systemImage: "list.number", text: model.selectedElementPosition)
+                StatusCapsule(systemImage: "doc.on.doc", text: "\(model.printedPages.count) pages")
+                StatusCapsule(systemImage: "pencil.and.outline", text: model.revisionStatusText)
+                StatusCapsule(systemImage: "rectangle.stack", text: model.productionContextSummary)
+                StatusCapsule(systemImage: "doc.text.magnifyingglass", text: model.currentSceneTitle)
+                    .frame(maxWidth: 280, alignment: .leading)
 
-            Spacer(minLength: 12)
+                Spacer(minLength: 12)
 
-            Toggle(isOn: $model.focusMode) {
-                Label("Focus", systemImage: "scope")
+                Toggle(isOn: $model.focusMode) {
+                    Label("Focus", systemImage: "scope")
+                }
+                .toggleStyle(.button)
+                .controlSize(.small)
+
+                Toggle(isOn: $model.darkPageMode) {
+                    Label("Page", systemImage: model.darkPageMode ? "moon" : "sun.max")
+                }
+                .toggleStyle(.button)
+                .controlSize(.small)
+
+                Image(systemName: "minus.magnifyingglass")
+                    .foregroundStyle(.secondary)
+                Slider(value: $model.pageZoom, in: 0.8...1.35, step: 0.05)
+                    .frame(width: 120)
+                Text("\(Int(model.pageZoom * 100))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 42, alignment: .trailing)
             }
-            .toggleStyle(.button)
-            .controlSize(.small)
-
-            Toggle(isOn: $model.darkPageMode) {
-                Label("Page", systemImage: model.darkPageMode ? "moon" : "sun.max")
-            }
-            .toggleStyle(.button)
-            .controlSize(.small)
-
-            Image(systemName: "minus.magnifyingglass")
-                .foregroundStyle(.secondary)
-            Slider(value: $model.pageZoom, in: 0.8...1.35, step: 0.05)
-                .frame(width: 120)
-            Text("\(Int(model.pageZoom * 100))%")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 42, alignment: .trailing)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
         .background(.bar)
     }
 }
