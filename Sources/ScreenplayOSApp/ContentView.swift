@@ -44,22 +44,29 @@ struct ContentView: View {
         .background(
             KeyCommandMonitor(
                 onDelete: {
-                    model.deleteSelectedElementIfEmpty()
+                    guard model.packagePreview == nil else { return false }
+                    return model.deleteSelectedElementIfEmpty()
                 },
                 onCommandDelete: {
+                    guard model.packagePreview == nil else { return false }
                     model.deleteEmptyElements()
                     return true
                 },
                 onElementShortcut: { type in
+                    guard model.packagePreview == nil else { return false }
                     model.setSelectedElementType(type)
                     return true
                 },
                 onCommandPalette: {
+                    guard model.packagePreview == nil else { return false }
                     model.showCommandPalette()
                     return true
                 }
             )
         )
+        .sheet(item: $model.packagePreview) { preview in
+            PackagePreviewView(preview: preview) { model.packagePreview = nil }
+        }
         .safeAreaInset(edge: .bottom) {
             if let problem = model.saveProblem {
                 HStack {
@@ -85,6 +92,7 @@ struct ContentView: View {
             Text(model.sourceNavigationProblem ?? "")
         }
         .onDeleteCommand {
+            guard model.packagePreview == nil else { return }
             model.deleteSelectedElement()
         }
         .toolbar {

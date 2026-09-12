@@ -18,6 +18,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var sourceURL: URL?
     @Published private(set) var saveURL: URL?
     @Published var errorMessage: String?
+    @Published var packagePreview: PackagePreview?
     @Published var selectedElementID: UUID?
     @Published private(set) var selectedObject: ObjectSelection = .none
     @Published private(set) var currentSceneSpineID: String?
@@ -1204,9 +1205,10 @@ final class ScreenplayViewModel: ObservableObject {
     func showOpenPanel() {
         let panel = NSOpenPanel()
         let fdxType = UTType(filenameExtension: "fdx") ?? .xml
-        panel.allowedContentTypes = [fdxType, .json]
+        panel.allowedContentTypes = [fdxType, .json, .folder, .package]
         panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = true
+        panel.treatsFilePackagesAsDirectories = false
         panel.canChooseFiles = true
         panel.title = "Open Screenplay or Final Draft FDX"
         panel.prompt = "Open"
@@ -1279,10 +1281,21 @@ final class ScreenplayViewModel: ObservableObject {
 
     func openDocument(at url: URL) {
         switch url.pathExtension.lowercased() {
+        case "screenplay":
+            openPackagePreview(at: url)
         case "json":
             loadOpenScreenplay(at: url)
         default:
             loadFDX(at: url)
+        }
+    }
+
+    func openPackagePreview(at url: URL) {
+        do {
+            packagePreview = try PackagePreviewReader.read(url)
+            errorMessage = nil
+        } catch {
+            errorMessage = PackagePreviewError.invalid.localizedDescription
         }
     }
 
