@@ -17,17 +17,10 @@ shutil.copy2(source, temporary)
 temporary.replace(app / 'Contents/MacOS/ScreenplayOS')
 resources = app / 'Contents/Resources'
 resources.mkdir(parents=True, exist_ok=True)
-# Convert the supplied artwork to standard macOS icon sizes without redrawing it.
-logo = pathlib.Path('Sources/ScreenplayOSApp/Resources/ScreenplayOSLogo.png')
-shutil.copy2(logo, resources / 'ScreenplayOSLogo.png')
-iconset = pathlib.Path('.build/ScreenplayOS.iconset')
-iconset.mkdir(parents=True, exist_ok=True)
-for points in (16, 32, 128, 256, 512):
-    for scale in (1, 2):
-        pixels = points * scale
-        name = f'icon_{points}x{points}' + ('@2x' if scale == 2 else '') + '.png'
-        subprocess.run(['sips', '-z', str(pixels), str(pixels), str(logo), '--out', str(iconset / name)], check=True, stdout=subprocess.DEVNULL)
-subprocess.run(['iconutil', '-c', 'icns', str(iconset), '-o', str(resources / 'ScreenplayOS.icns')], check=True)
+# Preserve the supplied PNG and its prebuilt standard macOS icon representations.
+branding = pathlib.Path('Sources/ScreenplayOSApp/Resources')
+shutil.copy2(branding / 'ScreenplayOSLogo.png', resources / 'ScreenplayOSLogo.png')
+shutil.copy2(branding / 'ScreenplayOS.icns', resources / 'ScreenplayOS.icns')
 revision = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text=True).strip()
 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
     'CFBundleExecutable': 'ScreenplayOS',
