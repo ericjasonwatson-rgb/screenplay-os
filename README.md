@@ -74,6 +74,7 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - Use Open Recent to return to scripts you opened or saved recently.
 - Use Snapshots to create named local checkpoints before major rewrites, scene moves, shot generation, board timing changes, or restores.
 - Use Notes to add comments to the selected script line, review notes for the current scene, and resolve or reopen them.
+- Merging paragraphs moves their script notes to the surviving paragraph. When replacing several paragraphs, notes on removed paragraphs stay with the first replacement paragraph; a surviving suffix keeps its notes with the last paragraph. Scene associations update with the edit. Undo/Redo restores the original text and note attachments together, preserving note IDs, bodies, status, and timestamps.
 - Use Notes below the writing surface to open notes for the active paragraph; the button includes its open-note count. Revision colors highlight marked text.
 - Press Command-K to open the command palette, type to filter commands, press Return to run the top match, or press Escape to close it.
 - The top document bar and Document section show which file is currently active.

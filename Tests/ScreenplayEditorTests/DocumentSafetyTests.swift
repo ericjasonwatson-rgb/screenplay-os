@@ -20,6 +20,106 @@ struct DocumentSafetyTests {
     }
 
 
+    @Test func mergingParagraphsKeepsNotesAndUndoRestoresOriginalAttachments() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nFirst.\nSecond.")
+            let first = model.elements[1]
+            let second = model.elements[2]
+            for element in [first, second] {
+                model.selectElement(id: element.id)
+                model.draftScriptNote = "Note on " + element.text
+                model.addNoteToSelectedElement()
+            }
+            let resolvedID = try #require(model.scriptNotes.first?.id)
+            model.setScriptNoteStatus(.resolved, for: resolvedID)
+            let before = model.scriptNotes
+            let separator = NSRange(location: NSMaxRange(model.writingRanges[1]), length: 1)
+            model.replaceWritingText(in: separator, with: "")
+            #expect(model.elements[1].text == "First.Second.")
+            #expect(model.scriptNotes.allSatisfy { $0.screenplayElementID == first.id })
+            #expect(model.scriptNotes.map(\.body) == before.map(\.body))
+            #expect(model.scriptNotes.map(\.status) == before.map(\.status))
+            #expect(model.scriptNotes.map(\.resolvedAt) == before.map(\.resolvedAt))
+            #expect(model.scriptNotes.map(\.id) == before.map(\.id))
+            model.undo()
+            #expect(model.scriptNotes == before)
+            #expect(model.elements[2].id == second.id)
+            model.redo()
+            #expect(model.scriptNotes.allSatisfy { $0.screenplayElementID == first.id })
+            let saved = try #require(model.saveURL)
+            model.loadOpenScreenplay(at: saved)
+            #expect(model.scriptNotes.allSatisfy { $0.screenplayElementID == first.id })
+            model.navigateToScriptNote(try #require(model.scriptNotes.first))
+            #expect(model.selectedElementID == first.id)
+        }
+    }
+
+    @Test func replacingMultipleParagraphsPreservesNotesOnTheReplacement() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nFirst.\nMiddle.\nLast.")
+            let source = model.elements
+            for element in source.dropFirst() {
+                model.selectElement(id: element.id)
+                model.draftScriptNote = element.text
+                model.addNoteToSelectedElement()
+            }
+            let start = model.writingRanges[1].location
+            let end = model.writingRanges[3].location + 2
+            model.replaceWritingText(in: NSRange(location: start, length: end - start), with: "Replacement.\nTail ")
+            #expect(model.scriptNotes.count == 3)
+            #expect(model.scriptNotes.first { $0.body == "Middle." }?.screenplayElementID == source[1].id)
+            #expect(model.scriptNotes.first { $0.body == "Last." }?.screenplayElementID == source[3].id)
+            #expect(model.scriptNotes.allSatisfy { note in model.elements.contains { $0.id == note.screenplayElementID } })
+        }
+    }
+
+    @Test func explicitMergeIncludingEmptyParagraphMovesItsNote() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nFirst.\nSecond.")
+            let first = model.elements[1]
+            let second = model.elements[2]
+            model.selectElement(id: second.id)
+            model.draftScriptNote = "Keep this note"
+            model.addNoteToSelectedElement()
+            model.binding(for: second).wrappedValue = ""
+            let before = model.scriptNotes
+            #expect(model.mergeElementWithPrevious(second.id))
+            #expect(model.elements[1].text == "First.")
+            #expect(model.scriptNotes.first?.screenplayElementID == first.id)
+            model.undo()
+            #expect(model.scriptNotes == before)
+            model.binding(for: second).wrappedValue = "Second."
+            #expect(model.mergeElementWithPrevious(second.id))
+            #expect(model.elements[1].text == "First. Second.")
+            #expect(model.scriptNotes.first?.screenplayElementID == first.id)
+        }
+    }
+
+    @Test func mergingSceneHeadingUpdatesNotesSceneAssociation() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. FIRST - DAY\nFirst action.\nINT. SECOND - NIGHT\nLater action.")
+            let original = model.elements
+            model.selectElement(id: original[3].id)
+            model.draftScriptNote = "Scene note"
+            model.addNoteToSelectedElement()
+            let before = model.scriptNotes
+            let separator = NSRange(location: NSMaxRange(model.writingRanges[1]), length: 1)
+            model.replaceWritingText(in: separator, with: "")
+            #expect(model.scriptNotes.first?.sceneSpineID == original[0].spineID)
+            #expect(model.scriptNotes.first?.screenplayElementID == original[3].id)
+            model.undo()
+            #expect(model.scriptNotes == before)
+        }
+    }
+
     @Test func outsideEditsSurviveAutosaveAndBlockDocumentReplacementAndClose() throws {
         try withModel { model, directory, _ in
             model.newDocument()

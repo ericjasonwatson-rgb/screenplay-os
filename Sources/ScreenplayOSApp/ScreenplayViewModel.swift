@@ -2329,16 +2329,10 @@ final class ScreenplayViewModel: ObservableObject {
             return false
         }
 
-        if current.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            selectElement(id: elementID)
-            deleteSelectedElement()
-            return true
-        }
-
         rememberUndoState()
         let previousIndex = index - 1
         let previousText = document?.screenplay.elements[previousIndex].text ?? ""
-        let separator = previousText.isEmpty ? "" : " "
+        let separator = previousText.isEmpty || current.text.isEmpty ? "" : " "
         document?.screenplay.elements[previousIndex].text = previousText + separator + current.text
         document?.screenplay.elements.remove(at: index)
         document?.screenplay.revision += 1
@@ -2346,6 +2340,8 @@ final class ScreenplayViewModel: ObservableObject {
 
         let previousID = document?.screenplay.elements[previousIndex].id
         if let previousID {
+            document?.ensureSceneSpineIDs()
+            reattachScriptNotes([current.id: previousID])
             selectElement(id: previousID)
         }
         scrollTargetElementID = previousID
@@ -2585,6 +2581,17 @@ final class ScreenplayViewModel: ObservableObject {
         if let frame = frames.last {
             selectedObject = .boardFrame(frame.id, sceneSpineID: frame.sceneSpineID)
             setFilmContext(sceneSpineID: frame.sceneSpineID, shotID: frame.shotID, boardFrameID: frame.id)
+        }
+    }
+
+    /// Called within the text edit's undo transaction; note bodies and status are untouched.
+    private func reattachScriptNotes(_ destinations: [UUID: UUID]) {
+        guard let notes = document?.scriptNotes else { return }
+        for (index, note) in notes.enumerated() {
+            let target = destinations[note.screenplayElementID] ?? note.screenplayElementID
+            guard elementIndex(for: target) != nil else { continue }
+            document?.scriptNotes[index].screenplayElementID = target
+            document?.scriptNotes[index].sceneSpineID = sceneSpineID(containing: target) ?? ""
         }
     }
 
@@ -5786,6 +5793,14 @@ extension ScreenplayViewModel {
         }
         document?.screenplay.elements.replaceSubrange(start...end, with: changed)
         document?.ensureSceneSpineIDs()
+        let retainedIDs = Set(changed.map(\.id))
+        var noteDestinations: [UUID: UUID] = [:]
+        for index in start...end where !retainedIDs.contains(old[index].id) {
+            // The remaining suffix follows the last replacement paragraph. Notes
+            // on fully replaced paragraphs stay with the replacement's first paragraph.
+            noteDestinations[old[index].id] = index == end && !suffix.isEmpty ? changed.last!.id : changed[0].id
+        }
+        reattachScriptNotes(noteDestinations)
         document?.screenplay.revision += 1
         document?.project.metadata.modifiedAt = Date()
         let insertedParts = (prefix + replacement).components(separatedBy: "\n")
