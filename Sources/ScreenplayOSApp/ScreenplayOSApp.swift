@@ -69,6 +69,9 @@ struct ScreenplayOSApp: App {
                 }
                 .keyboardShortcut("z", modifiers: [.command])
                 .disabled(!model.canUndo)
+                Button("Redo") { model.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!model.canRedo)
             }
             CommandMenu("Workspace") {
                 Picker("Mode", selection: Binding(

@@ -42,6 +42,126 @@ struct DocumentSafetyTests {
         }
     }
 
+    @Test func undoRedoRestoresTextSelectionAndInvalidatesAfterNewEdit() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let element = try #require(model.elements.last)
+            model.selectedElementID = element.id
+            model.binding(for: element).wrappedValue = "Original"
+            model.binding(for: element).wrappedValue = "Changed"
+            model.undo()
+            #expect(model.elements.last?.text == "Original")
+            #expect(model.selectedElementID == element.id)
+            #expect(model.canRedo)
+            model.redo()
+            #expect(model.elements.last?.text == "Changed")
+            #expect(model.selectedElementID == element.id)
+            model.undo()
+            model.binding(for: element).wrappedValue = "New direction"
+            #expect(!model.canRedo)
+            model.redo()
+            #expect(model.elements.last?.text == "New direction")
+            model.newDocument()
+            #expect(!model.canUndo && !model.canRedo)
+        }
+    }
+
+    @Test func snapshotsAreIsolatedAndForeignRestoreIsRejected() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.createSnapshot()
+            let foreign = try #require(model.snapshots.first)
+            model.newDocument()
+            model.createSnapshot()
+            #expect(model.snapshots.count == 1)
+            #expect(model.snapshots.first?.url.deletingLastPathComponent() != foreign.url.deletingLastPathComponent())
+            let before = model.document
+            model.restoreSnapshot(foreign)
+            #expect(model.document == before)
+            #expect(model.errorMessage == "This snapshot belongs to a different project.")
+        }
+    }
+
+    @Test func rapidSnapshotsStayDistinctAndRestoreCanBeUndone() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let element = try #require(model.elements.last)
+            model.binding(for: element).wrappedValue = "Before"
+            model.createSnapshot()
+            let snapshot = try #require(model.snapshots.first)
+            model.createSnapshot()
+            #expect(model.snapshots.count == 2)
+            model.binding(for: element).wrappedValue = "After"
+            model.restoreSnapshot(snapshot)
+            #expect(model.elements.last?.text == "Before")
+            #expect(model.snapshots.count == 3)
+            model.undo()
+            #expect(model.elements.last?.text == "After")
+            model.redo()
+            #expect(model.elements.last?.text == "Before")
+        }
+    }
+
+    @Test func backupFailureAbortsRestoreWithoutChangingScript() throws {
+        try withModel { model, directory, _ in
+            model.newDocument()
+            model.createSnapshot()
+            let snapshot = try #require(model.snapshots.first)
+            let snapshotData = try Data(contentsOf: snapshot.url)
+            let externalURL = directory.appendingPathComponent("external.snapshot.open-screenplay.json")
+            try snapshotData.write(to: externalURL)
+            let external = ProjectSnapshot(url: externalURL, modifiedAt: Date(), size: snapshotData.count)
+            let snapshotDirectory = snapshot.url.deletingLastPathComponent()
+            try FileManager.default.removeItem(at: snapshotDirectory)
+            try Data("blocked directory".utf8).write(to: snapshotDirectory)
+            let element = try #require(model.elements.last)
+            model.binding(for: element).wrappedValue = "Keep me"
+            let before = model.document
+            let saveURL = try #require(model.saveURL)
+            let saved = try Data(contentsOf: saveURL)
+            model.restoreSnapshot(external)
+            #expect(model.document == before)
+            #expect(try Data(contentsOf: saveURL) == saved)
+            #expect(model.errorMessage?.hasPrefix("Could not restore snapshot:") == true)
+        }
+    }
+
+    @Test func legacySnapshotsAreFilteredByProjectIdentity() throws {
+        try withModel { model, directory, _ in
+            model.newDocument()
+            model.createSnapshot()
+            let snapshot = try #require(model.snapshots.first)
+            let firstURL = try #require(model.saveURL)
+            let legacy = directory.appendingPathComponent("ScreenplayOS Snapshots/legacy.snapshot.open-screenplay.json")
+            try FileManager.default.copyItem(at: snapshot.url, to: legacy)
+            model.newDocument()
+            model.createSnapshot()
+            #expect(!model.snapshots.contains { $0.url.standardizedFileURL == legacy.standardizedFileURL })
+            model.loadOpenScreenplay(at: firstURL)
+            #expect(model.snapshots.contains { $0.url.standardizedFileURL == legacy.standardizedFileURL })
+        }
+    }
+
+    @Test func failedRestoreWriteKeepsLiveDocumentAndHistory() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.createSnapshot()
+            let snapshot = try #require(model.snapshots.first)
+            let element = try #require(model.elements.last)
+            model.binding(for: element).wrappedValue = "Keep current version"
+            let current = model.document
+            let url = try #require(model.saveURL)
+            try FileManager.default.removeItem(at: url)
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+            model.restoreSnapshot(snapshot)
+            #expect(model.document == current)
+            #expect(model.errorMessage?.hasPrefix("Could not save screenplay:") == true)
+            try FileManager.default.removeItem(at: url)
+            model.undo()
+            #expect(model.elements.last?.text == "")
+        }
+    }
+
     @Test func newDocumentHasEditableRows() throws {
         try withModel { model, _, _ in
             model.newDocument()

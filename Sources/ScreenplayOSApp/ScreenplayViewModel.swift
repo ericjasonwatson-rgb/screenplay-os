@@ -50,7 +50,12 @@ final class ScreenplayViewModel: ObservableObject {
     private let autosaveDirectory: URL
     private let preferences: UserDefaults
     private var lastSavedDocument: OpenScreenplayDocument?
-    private var undoStack: [OpenScreenplayDocument] = []
+    private struct EditState {
+        let document: OpenScreenplayDocument
+        let selection: UUID?
+    }
+    private var undoStack: [EditState] = []
+    private var redoStack: [EditState] = []
     private var lastBoardomaticTick: Date?
     private let undoLimit = 100
     private let recentDocumentsKey = "ScreenplayOSRecentDocuments"
@@ -713,6 +718,8 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
+    var canRedo: Bool { !redoStack.isEmpty }
+
     var canUndo: Bool {
         !undoStack.isEmpty
     }
@@ -783,6 +790,7 @@ final class ScreenplayViewModel: ObservableObject {
         lastSavedDocument = nil
         snapshots = []
         undoStack = []
+        redoStack = []
         findQuery = ""
         replaceText = ""
         characterToRename = ""
@@ -1210,6 +1218,7 @@ final class ScreenplayViewModel: ObservableObject {
             document = result.document
             lastSavedDocument = nil
             undoStack = []
+            redoStack = []
             sourceURL = url
             saveURL = nil
             snapshots = []
@@ -1229,6 +1238,7 @@ final class ScreenplayViewModel: ObservableObject {
             document = decoded
             lastSavedDocument = decoded
             undoStack = []
+            redoStack = []
             sourceURL = url
             saveURL = url
             selectInitialElement()
@@ -1241,7 +1251,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func createSnapshot() {
-        guard let document else {
+        guard document != nil else {
             return
         }
 
@@ -1253,12 +1263,13 @@ final class ScreenplayViewModel: ObservableObject {
             guard saveDocument(to: projectURL, reportStatus: false, overwriteExisting: false) else { return }
         }
 
+        guard let document else { return }
         do {
             let directory = snapshotsDirectory(for: projectURL)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let url = directory.appendingPathComponent(snapshotFileName(label: label, date: Date()))
             let data = try JSONEncoder.openScreenplayEncoder().encode(document)
-            try data.write(to: url, options: .atomic)
+            try DocumentFileWriter.write(data, to: url, overwriteExisting: false)
             snapshotName = ""
             loadSnapshots()
             recordActivity(
@@ -1267,7 +1278,7 @@ final class ScreenplayViewModel: ObservableObject {
                 detail: "\(label) -> \(url.lastPathComponent)",
                 target: AIProposalTarget()
             )
-            autosave()
+            guard saveCurrentDocument(reportStatus: false) else { return }
             errorMessage = "Snapshot created: \(label)"
         } catch {
             errorMessage = error.localizedDescription
@@ -1275,33 +1286,27 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func restoreSnapshot(_ snapshot: ProjectSnapshot) {
-        guard FileManager.default.fileExists(atPath: snapshot.url.path) else {
-            errorMessage = "Snapshot file is missing."
-            loadSnapshots()
-            return
-        }
-
+        guard let current = document, let saveURL else { return }
         do {
-            createSafetySnapshotBeforeRestore()
             let data = try Data(contentsOf: snapshot.url)
-            let decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
-            rememberUndoState()
-            document = decoded
-            selectInitialElement()
-            if let saveURL {
-                saveDocument(to: saveURL, reportStatus: false)
+            var decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+            guard decoded.project.id == current.project.id else {
+                errorMessage = "This snapshot belongs to a different project."
+                return
             }
+            try createSafetySnapshotBeforeRestore()
+            decoded.activity.insert(ActivityEvent(actor: .manual, action: "Restored snapshot",
+                detail: snapshot.name, target: AIProposalTarget()), at: 0)
+            decoded.activity = Array(decoded.activity.prefix(200))
+            let previous = EditState(document: current, selection: selectedElementID)
+            // Save first; a failed write must not replace the live document.
+            guard saveDocument(to: saveURL, reportStatus: false, documentToSave: decoded) else { return }
+            recordUndoState(previous)
+            selectInitialElement()
             loadSnapshots()
-            recordActivity(
-                actor: .manual,
-                action: "Restored snapshot",
-                detail: snapshot.name,
-                target: AIProposalTarget()
-            )
-            autosave()
             errorMessage = "Restored snapshot: \(snapshot.name)"
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Could not restore snapshot: \(error.localizedDescription)"
         }
     }
 
@@ -2369,12 +2374,25 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func undo() {
-        guard let previous = undoStack.popLast() else {
-            return
-        }
+        guard let document, let previous = undoStack.popLast() else { return }
+        redoStack.append(EditState(document: document, selection: selectedElementID))
+        restoreEditState(previous)
+    }
 
-        document = previous
+    func redo() {
+        guard let document, let next = redoStack.popLast() else { return }
+        undoStack.append(EditState(document: document, selection: selectedElementID))
+        restoreEditState(next)
+    }
+
+    private func restoreEditState(_ state: EditState) {
+        document = state.document
+        if let id = state.selection, elements.contains(where: { $0.id == id }) {
+            selectElement(id: id)
+        } else {
             selectInitialElement()
+        }
+        scrollTargetElementID = selectedElementID
         autosave()
     }
 
@@ -3174,14 +3192,15 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func rememberUndoState() {
-        guard let document else {
-            return
-        }
+        guard let document else { return }
+        recordUndoState(EditState(document: document, selection: selectedElementID))
+    }
 
-        if undoStack.last != document {
-            undoStack.append(document)
+    private func recordUndoState(_ state: EditState) {
+        redoStack.removeAll()
+        if undoStack.last?.document != state.document {
+            undoStack.append(state)
         }
-
         if undoStack.count > undoLimit {
             undoStack.removeFirst(undoStack.count - undoLimit)
         }
@@ -3264,8 +3283,8 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     @discardableResult
-    private func saveDocument(to url: URL, reportStatus: Bool = true, overwriteExisting: Bool = true) -> Bool {
-        guard var document else { return false }
+    private func saveDocument(to url: URL, reportStatus: Bool = true, overwriteExisting: Bool = true, documentToSave: OpenScreenplayDocument? = nil) -> Bool {
+        guard var document = documentToSave ?? self.document else { return false }
 
         do {
             try FileManager.default.createDirectory(
@@ -4059,21 +4078,13 @@ final class ScreenplayViewModel: ObservableObject {
         saveDocument(to: saveURL ?? defaultDownloadsSaveURL(), reportStatus: reportStatus, overwriteExisting: saveURL != nil)
     }
 
-    private func createSafetySnapshotBeforeRestore() {
-        guard let document else {
-            return
-        }
-
-        let projectURL = saveURL ?? defaultDownloadsSaveURL()
-        do {
-            let directory = snapshotsDirectory(for: projectURL)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let url = directory.appendingPathComponent(snapshotFileName(label: "Before Restore", date: Date()))
-            let data = try JSONEncoder.openScreenplayEncoder().encode(document)
-            try data.write(to: url, options: .atomic)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+    private func createSafetySnapshotBeforeRestore() throws {
+        guard let document, let saveURL else { return }
+        let directory = snapshotsDirectory(for: saveURL)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(snapshotFileName(label: "Before Restore", date: Date()))
+        let data = try JSONEncoder.openScreenplayEncoder().encode(document)
+        try DocumentFileWriter.write(data, to: url, overwriteExisting: false)
     }
 
     private func defaultSaveFileName() -> String {
@@ -4120,6 +4131,7 @@ final class ScreenplayViewModel: ObservableObject {
         projectURL
             .deletingLastPathComponent()
             .appendingPathComponent("ScreenplayOS Snapshots", isDirectory: true)
+            .appendingPathComponent(document?.project.id.uuidString ?? "Unassigned", isDirectory: true)
     }
 
     private func snapshotFileName(label: String, date: Date) -> String {
@@ -4132,7 +4144,7 @@ final class ScreenplayViewModel: ObservableObject {
             .filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        return "\(safeTitle).\(formatter.string(from: date)).\(safeLabel).snapshot.open-screenplay.json"
+        return "\(safeTitle).\(formatter.string(from: date)).\(safeLabel).\(UUID().uuidString).snapshot.open-screenplay.json"
     }
 
     private func loadBundledFixture() {
@@ -4191,17 +4203,20 @@ final class ScreenplayViewModel: ObservableObject {
         }
 
         let directory = snapshotsDirectory(for: saveURL)
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            snapshots = []
-            return
+        let legacyDirectory = directory.deletingLastPathComponent()
+        let files = [directory, legacyDirectory].flatMap {
+            (try? FileManager.default.contentsOfDirectory(at: $0,
+                includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
+                options: [.skipsHiddenFiles])) ?? []
         }
-
         snapshots = files
-            .filter { $0.lastPathComponent.hasSuffix(".snapshot.open-screenplay.json") }
+            .filter { url in
+                guard url.lastPathComponent.hasSuffix(".snapshot.open-screenplay.json"),
+                      let data = try? Data(contentsOf: url),
+                      let snapshot = try? JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+                else { return false }
+                return snapshot.project.id == document?.project.id
+            }
             .map { ProjectSnapshot(url: $0, modifiedAt: modificationDate(for: $0), size: fileSize(for: $0)) }
             .sorted { $0.modifiedAt > $1.modifiedAt }
     }

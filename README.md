@@ -168,3 +168,9 @@ FDX file
 ```
 
 The editor should never become a wrapper around Final Draft's data model.
+
+## Recovery and edit history
+
+Undo and Redo restore the screenplay element selection with the document. Redo is available with Command-Shift-Z; a new edit clears the redo history. History is local to the open document and remains limited to 100 undo states. Typing still records individual edits; grouped typing and exact caret restoration are future work.
+
+New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved file. Older shared-folder snapshots remain available when their embedded project ID matches. Snapshot filenames are unique even when created rapidly. Restore verifies project identity, requires a successful safety snapshot, and writes the restored file before replacing the live document. Restores can be undone and redone.
