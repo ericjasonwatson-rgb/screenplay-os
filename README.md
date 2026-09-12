@@ -2,9 +2,15 @@
 
 This repository is the first open-core starter for ScreenplayOS: an open native screenplay document model with Final Draft FDX treated as a compatibility adapter, not the internal standard.
 
+## UI and platform direction
+
+Follow [Platform Architecture](Docs/platform-architecture.md) and its [implementation contract](Docs/platform-implementation-contract.md), alongside the existing UI constitution and product architecture. These requirements govern future UI work: one project model, shared creative commands, native Mac interaction, adaptive iPad/phone surfaces, and local-first persistence. The current application remains a macOS prototype; other platforms and sync are future work.
+
+The [revised native-format draft](Docs/open-screenplay-format-1.0-revised-draft.md) defines the portable screenplay contract. The complete filmmaking project is richer, while screenplay and manually authored creative work must remain independently recoverable. The current monolithic schema is a prototype representation, not conformance to that draft.
+
 ## What is included
 
-- `Specs/open-screenplay-1.0.schema.json`: draft JSON Schema for Open Screenplay 1.0.
+- `Specs/open-screenplay-1.0.schema.json`: legacy prototype JSON Schema; not the revised package-format schema.
 - `Sources/ScreenplayDomain`: Swift domain model for projects, screenplays, elements, shots, and script-linked shot references.
 - `Sources/ScreenplayFDX`: minimal FDX importer that maps Final Draft paragraphs into native screenplay elements.
 - `Sources/ScreenplayOSApp`: first macOS app shell with an editable screenplay surface.
