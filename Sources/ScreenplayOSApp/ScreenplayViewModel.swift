@@ -3975,11 +3975,25 @@ final class ScreenplayViewModel: ObservableObject {
                 // Keep the source paragraph intact; only its printed representation is split.
                 var remaining = item.text
                 var firstFragment = true
+                var speaker = element.type == .dialogue ? dialogueSpeaker(in: visibleElements, before: index) : nil
+                let more = continuationMarker("(MORE)", type: .parenthetical, source: element)
+                if let name = speaker {
+                    let cue = continuationMarker("\(name) (CONT'D)", type: .character, source: element)
+                    // Malformed, page-sized speaker cues must not prevent forward progress.
+                    if cue.blockHeight + more.blockHeight + 16 > scriptContentHeight { speaker = nil }
+                }
                 while !remaining.isEmpty {
+                    if !firstFragment, currentItems.isEmpty, let speaker {
+                        let cue = continuationMarker("\(speaker) (CONT'D)", type: .character, source: element)
+                        currentItems.append(cue)
+                        usedHeight += cue.blockHeight
+                    }
                     let before = firstFragment ? item.layout.before : 0
                     let available = scriptContentHeight - usedHeight - before - item.layout.after
+                    let willContinue = pdfHeight(for: remaining, width: item.layout.width, type: element.type) > available
+                    let markerHeight = speaker != nil && willContinue ? more.blockHeight : 0
                     let prefix = fittingPrefix(of: remaining, width: item.layout.width,
-                                               type: element.type, height: available)
+                                               type: element.type, height: available - markerHeight)
                     if prefix.isEmpty {
                         finishPage()
                         continue
@@ -3993,7 +4007,13 @@ final class ScreenplayViewModel: ObservableObject {
                     usedHeight += fragment.blockHeight
                     remaining.removeFirst(prefix.count)
                     firstFragment = false
-                    if !remaining.isEmpty { finishPage() }
+                    if !remaining.isEmpty {
+                        if speaker != nil {
+                            currentItems.append(more)
+                            usedHeight += more.blockHeight
+                        }
+                        finishPage()
+                    }
                 }
             }
             index += 1
@@ -4004,6 +4024,25 @@ final class ScreenplayViewModel: ObservableObject {
         }
 
         return pages
+    }
+
+    private func dialogueSpeaker(in elements: [ScreenplayElement], before index: Int) -> String? {
+        for candidate in elements[..<index].reversed() {
+            if candidate.type == .parenthetical { continue }
+            guard candidate.type == .character else { return nil }
+            let name = candidate.text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            guard !name.isEmpty else { return nil }
+            return name.replacingOccurrences(of: " (CONT'D)", with: "")
+                .replacingOccurrences(of: " (CONT’D)", with: "")
+        }
+        return nil
+    }
+
+    private func continuationMarker(_ text: String, type: ElementType, source: ScreenplayElement) -> PaginatedElement {
+        let layout = pdfLayoutSpec(for: type)
+        let height = pdfHeight(for: text, width: layout.width, type: type)
+        return PaginatedElement(element: source, text: text, layout: layout,
+            textHeight: height, blockHeight: layout.before + height + layout.after, isContinuation: true)
     }
 
     private var scriptContentHeight: CGFloat {
@@ -5190,6 +5229,7 @@ struct PaginatedElement: Identifiable {
     let layout: PDFLayoutSpec
     let textHeight: CGFloat
     let blockHeight: CGFloat
+    var isContinuation: Bool = false
 
     var id: UUID {
         element.id

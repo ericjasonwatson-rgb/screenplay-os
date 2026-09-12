@@ -2851,6 +2851,11 @@ private struct ScreenplayPageView: View {
             .onAppear {
                 focusedElementID = model.selectedElementID
             }
+            .onChange(of: model.screenplayPages.count) { _ in
+                if let id = model.selectedElementID {
+                    proxy.scrollTo(id, anchor: .top)
+                }
+            }
             .onChange(of: model.selectedElementID) { elementID in
                 focusedElementID = elementID
             }
@@ -2936,6 +2941,7 @@ private struct EditableElementRow: View {
                     text: $text,
                     placeholder: prompt,
                     elementID: element.id,
+                    isFocused: isSelected,
                     focusedElementID: focusedElementID,
                     alignment: alignment,
                     fontWeight: weight,
@@ -3108,6 +3114,7 @@ private struct ScreenplayTextEditor: NSViewRepresentable {
     @Binding var text: String
     let placeholder: String
     let elementID: UUID
+    let isFocused: Bool
     let focusedElementID: FocusState<UUID?>.Binding
     let alignment: TextAlignment
     let fontWeight: Font.Weight
@@ -3157,20 +3164,20 @@ private struct ScreenplayTextEditor: NSViewRepresentable {
 
         let displayText = uppercase ? text.uppercased() : text
         if textView.string != displayText {
+            let selection = textView.hasLoadedText ? textView.selectedRange() : NSRange(location: (displayText as NSString).length, length: 0)
             textView.string = displayText
+            let length = (displayText as NSString).length
+            let location = min(selection.location, length)
+            textView.setSelectedRange(NSRange(location: location, length: min(selection.length, length - location)))
         }
 
+        textView.hasLoadedText = true
         textView.placeholder = placeholder
         textView.alignment = nsAlignment
         textView.font = nsFont
         textView.textColor = foregroundColor
 
-        if focusedElementID.wrappedValue == elementID,
-           textView.window?.firstResponder !== textView {
-            DispatchQueue.main.async {
-                textView.window?.makeFirstResponder(textView)
-            }
-        }
+        textView.wantsFocus = isFocused
     }
 
     func makeCoordinator() -> Coordinator {
@@ -3224,6 +3231,27 @@ private final class ScreenplayTextView: NSTextView {
     var onBackspaceAtStart: (() -> Bool)?
     var onCycleType: ((Bool) -> Void)?
     var onFocus: (() -> Void)?
+    var hasLoadedText = false
+    var wantsFocus = false {
+        didSet {
+            if wantsFocus != oldValue { requestFocusIfNeeded() }
+        }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        requestFocusIfNeeded()
+    }
+
+    private func requestFocusIfNeeded() {
+        guard wantsFocus, window != nil else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.wantsFocus, let window = self.window,
+                  window.firstResponder !== self else { return }
+            window.makeFirstResponder(self)
+            self.scrollRangeToVisible(self.selectedRange())
+        }
+    }
 
     override var intrinsicContentSize: NSSize {
         guard let textContainer, let layoutManager else {
@@ -3239,7 +3267,7 @@ private final class ScreenplayTextView: NSTextView {
         switch event.keyCode {
         case 36, 76:
             let selected = selectedRange()
-            if !string.isEmpty, selected.location < string.count {
+            if !string.isEmpty, selected.location < (string as NSString).length {
                 onSplit?(selected.location)
             } else {
                 onReturn?()

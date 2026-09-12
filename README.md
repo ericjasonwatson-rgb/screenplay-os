@@ -179,4 +179,18 @@ New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved
 
 Print layout splits action and dialogue at word boundaries where possible, and at grapheme boundaries for unbroken text. It retains the source paragraph IDs and content. Explicit page breaks are honored, and character cues stay with the beginning of dialogue when space permits. Tests check page height bounds, Unicode, source preservation, and complete text extraction from exported PDFs.
 
-The writing surface expands to keep long paragraphs accessible. Exact on-screen print preview, linked editing across page boundaries, dialogue continuation cues such as `(MORE)` / `(CONT'D)`, and production page locking remain unfinished.
+The writing surface expands to keep long paragraphs accessible. Exact on-screen print preview, linked editing across page boundaries, production page locking, and continuation handling across separate dialogue elements or explicit page breaks remain unfinished.
+
+Automatic print-page breaks within a dialogue paragraph now add `(MORE)` and a repeated speaker cue with `(CONT'D)` when a usable preceding character cue is available. These markers are generated only for print layout and do not modify the source script.
+
+## Live editor smoke checks
+
+An isolated app using the current writing surface was tested on this Mac with temporary scripts and separate preferences:
+
+- New document accepts lowercase typing and displays a complete uppercase scene heading.
+- Return creates and focuses an action element; subsequent text stays in that element.
+- Undo and Redo restore typed text while keeping the active element focused.
+- A long pasted paragraph remains accessible and accepts further typing at its end after moving between editing sections.
+- Save, New, Open, and arrow-key navigation recover the full saved passage, including its final appended text.
+
+These checks caught and fixed focus transfer on new native text views, capitalization replacing the caret position, and focus loss when a paragraph moves to another editing section. Exact caret restoration for every middle-of-paragraph reflow, text selection across paragraphs, and grouped typing undo remain unfinished.

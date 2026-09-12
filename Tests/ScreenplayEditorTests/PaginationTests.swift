@@ -75,8 +75,25 @@ struct PaginationTests {
         let dialogue = ScreenplayElement(type: .dialogue, text: String(repeating: "We have to keep going. ", count: 220).trimmingCharacters(in: .whitespaces))
         try withDocument([cue, dialogue]) { model, _ in
             #expect(model.printedPages.count > 1)
-            #expect(model.printedPages.first?.elements.map(\.element.id) == [cue.id, dialogue.id])
+            #expect(model.printedPages.first?.elements.filter { !$0.isContinuation }.map(\.element.id) == [cue.id, dialogue.id])
+            #expect(model.printedPages.dropLast().allSatisfy { $0.elements.last?.text == "(MORE)" })
+            #expect(model.printedPages.dropFirst().allSatisfy { $0.elements.first?.text == "MARA (CONT'D)" })
+            #expect(model.printedPages.last?.elements.last?.isContinuation == false)
+            let fragments = model.printedPages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == dialogue.id }
+            #expect(fragments.map(\.text).joined() == dialogue.text)
+            #expect(model.elements == [cue, dialogue])
             #expect(model.printedPages.allSatisfy { $0.elements.map(\.blockHeight).reduce(0, +) <= 648 })
+        }
+    }
+
+    @Test func oversizedSpeakerDoesNotPreventPaginationProgress() throws {
+        let cue = ScreenplayElement(type: .character, text: String(repeating: "MARA ", count: 400))
+        let dialogue = ScreenplayElement(type: .dialogue, text: String(repeating: "Keep going. ", count: 200))
+        try withDocument([cue, dialogue]) { model, _ in
+            let pages = model.printedPages
+            #expect(pages.count > 1)
+            #expect(pages.allSatisfy { $0.elements.map(\.blockHeight).reduce(0, +) <= 648 })
+            #expect(pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == dialogue.id }.map(\.text).joined() == dialogue.text.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }
 
