@@ -96,6 +96,88 @@ struct PaginationTests {
         }
     }
 
+    @Test func identicalParagraphsKeepTheirLockedPageIdentityAfterDeletionAndReopen() throws {
+        let first = ScreenplayElement(type: .action, text: "Same text.")
+        let separator = ScreenplayElement(type: .pageBreak, text: "")
+        let second = ScreenplayElement(type: .action, text: "Same text.")
+        try withDocument([first, separator, second]) { model, _ in
+            model.lockProductionPages()
+            #expect(model.document?.screenplay.pageLock?.elements?.map(\.id) == [first.id, separator.id, second.id])
+            model.selectElement(id: first.id)
+            model.deleteSelectedElement()
+            model.selectElement(id: separator.id)
+            model.deleteSelectedElement()
+            #expect(model.printedPages.map(\.label) == ["1", "2"])
+            #expect(model.printedPages[0].elements.isEmpty)
+            #expect(model.printedPages[1].elements.first?.element.id == second.id)
+            model.undo()
+            model.undo()
+            #expect(model.printedPages[0].elements.first?.element.id == first.id)
+            model.redo()
+            model.redo()
+            let saved = try #require(model.saveURL)
+            model.loadOpenScreenplay(at: saved)
+            #expect(model.printedPages[0].elements.isEmpty)
+            #expect(model.printedPages[1].elements.first?.element.id == second.id)
+            let pdf = try #require(PDFDocument(data: model.makePrintPDF()))
+            #expect(pdf.page(at: 1)?.string?.contains("OMITTED") == true)
+            #expect(pdf.page(at: 2)?.string?.contains("Same text.") == true)
+        }
+    }
+
+    @Test func deletingLastIdenticalParagraphLeavesFirstOnPageOne() throws {
+        let first = ScreenplayElement(type: .action, text: "Same text.")
+        let separator = ScreenplayElement(type: .pageBreak, text: "")
+        let second = ScreenplayElement(type: .action, text: "Same text.")
+        try withDocument([first, separator, second]) { model, _ in
+            model.lockProductionPages()
+            model.selectElement(id: second.id)
+            model.deleteSelectedElement()
+            model.selectElement(id: separator.id)
+            model.deleteSelectedElement()
+            #expect(model.printedPages.map(\.label) == ["1", "2"])
+            #expect(model.printedPages[0].elements.first?.element.id == first.id)
+            #expect(model.printedPages[1].elements.isEmpty)
+        }
+    }
+
+    @Test func identicalReplacementStaysOnTheSurvivingParagraphsPage() throws {
+        let first = ScreenplayElement(type: .action, text: "First text.")
+        let next = ScreenplayElement(type: .action, text: "Second text.")
+        try withDocument([first, ScreenplayElement(type: .pageBreak, text: ""), next]) { model, _ in
+            model.lockProductionPages()
+            model.binding(for: next).wrappedValue = "First text."
+            #expect(model.printedPages[0].elements.first?.element.id == first.id)
+            #expect(model.printedPages[1].elements.first?.element.id == next.id)
+            #expect(model.printedPages[1].elements.first?.text == "First text.")
+        }
+    }
+
+    @Test func identityAnchorsFollowSplitsMergesAndCompleteDeletion() {
+        let first = ScreenplayElement(type: .action, text: "alpha beta gamma")
+        let next = ScreenplayElement(type: .action, text: "tail")
+        let baseline = [first, next]
+        let lock = ProductionPageLock(text: baseline.map(\.text).joined(separator: "\n"),
+                                      pageStarts: [0, 11, 17],
+                                      elements: baseline.map { ProductionLockElement(id: $0.id, text: $0.text) })
+        var head = first
+        head.text = "alpha"
+        let split = ScreenplayElement(type: .action, text: "beta gamma")
+        #expect(ProductionPageLayout.mappedStarts(lock, source: [head, split, next]) == [0, 11, 17])
+        var merged = first
+        merged.text = "alpha beta gammatail"
+        #expect(ProductionPageLayout.mappedStarts(lock, source: [merged]) == [0, 11, 16])
+        #expect(ProductionPageLayout.mappedStarts(lock, source: []) == [0, 0, 0])
+    }
+
+    @Test func legacyPageLocksDecodeWithoutInventingParagraphIdentity() throws {
+        let json = Data(#"{"text":"First\nNext","pageStarts":[0,6]}"#.utf8)
+        let lock = try JSONDecoder().decode(ProductionPageLock.self, from: json)
+        #expect(lock.elements == nil)
+        let source = [ScreenplayElement(type: .action, text: "First NEW"), ScreenplayElement(type: .action, text: "Next")]
+        #expect(ProductionPageLayout.mappedStarts(lock, source: source) == [0, 10])
+    }
+
     @Test func lockedGrowthAddsLetteredPagesWithoutMovingTheNextPage() throws {
         let first = ScreenplayElement(type: .action, text: "First page.")
         let next = ScreenplayElement(type: .sceneHeading, text: "EXT. SECOND LOCATION - DAY")

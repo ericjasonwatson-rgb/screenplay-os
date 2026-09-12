@@ -5829,7 +5829,7 @@ extension ScreenplayViewModel {
         // The first page includes insertions at the beginning of the screenplay.
         if !boundaries.isEmpty { boundaries[0] = 0 }
         rememberUndoState()
-        document?.screenplay.pageLock = ProductionPageLock(text: source.map(\.text).joined(separator: "\n"), pageStarts: boundaries)
+        document?.screenplay.pageLock = ProductionPageLock(text: source.map(\.text).joined(separator: "\n"), pageStarts: boundaries, elements: source.map { ProductionLockElement(id: $0.id, text: $0.text) })
         document?.project.metadata.modifiedAt = Date()
         autosave()
     }

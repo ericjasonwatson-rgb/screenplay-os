@@ -47,8 +47,58 @@ enum ProductionPageLayout {
         }
     }
 
+    /// Surviving paragraph IDs partition the diff so repeated text in a different
+    /// paragraph cannot steal an anchor. Diffing between those IDs still lets a
+    /// frozen boundary follow text through a split or merge.
+    static func mappedStarts(_ lock: ProductionPageLock, source: [ScreenplayElement]) -> [Int] {
+        let text = source.map(\.text).joined(separator: "\n")
+        guard let baseline = lock.elements,
+              baseline.map(\.text).joined(separator: "\n") == lock.text else {
+            return mappedStarts(lock, text: text)
+        }
+        let old = Array(lock.text)
+        let new = Array(text)
+        var current: [UUID: Int] = [:]
+        var position = 0
+        for element in source {
+            current[element.id] = position
+            position += element.text.count + 1
+        }
+        var anchors: [(old: Int, new: Int)] = []
+        position = 0
+        for element in baseline {
+            if let destination = current[element.id],
+               anchors.last.map({ destination > $0.new }) ?? true {
+                anchors.append((position, destination))
+            }
+            position += element.text.count + 1
+        }
+        if anchors.first?.old != 0 { anchors.insert((0, 0), at: 0) }
+        anchors.append((old.count, new.count))
+        var previous = 0
+        return lock.pageStarts.enumerated().map { index, raw in
+            guard index > 0 else { return 0 }
+            let offset = min(max(raw, 0), old.count)
+            let segment = anchors.lastIndex(where: { $0.old <= offset }) ?? 0
+            let start = anchors[segment]
+            let mapped: Int
+            if offset == start.old || segment + 1 == anchors.count {
+                mapped = start.new
+            } else {
+                let end = anchors[segment + 1]
+                let local = ProductionPageLock(
+                    text: String(old[start.old..<end.old]),
+                    pageStarts: [0, offset - start.old])
+                mapped = start.new + mappedStarts(local, text: String(new[start.new..<end.new]))[1]
+            }
+            // Reordering paragraphs must never produce backwards print boundaries.
+            previous = min(new.count, max(previous, mapped))
+            return previous
+        }
+    }
+
     static func elements(_ source: [ScreenplayElement], lock: ProductionPageLock) -> [ScreenplayElement] {
-        let boundaries = mappedStarts(lock, text: source.map(\.text).joined(separator: "\n"))
+        let boundaries = mappedStarts(lock, source: source)
         var result = [ScreenplayElement(type: .pageBreak, text: "", externalIDs: ["screenplayos.lockStart": "1"])]
         var boundaryIndex = 1
         var position = 0

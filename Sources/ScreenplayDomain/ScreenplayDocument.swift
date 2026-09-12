@@ -1247,8 +1247,20 @@ public extension JSONDecoder {
 public struct ProductionPageLock: Codable, Equatable {
     public var text: String
     public var pageStarts: [Int]
-    public init(text: String, pageStarts: [Int]) {
+    /// Optional for compatibility with locks saved before paragraph identities were recorded.
+    public var elements: [ProductionLockElement]?
+    public init(text: String, pageStarts: [Int], elements: [ProductionLockElement]? = nil) {
         self.text = text
         self.pageStarts = pageStarts
+        self.elements = elements
+    }
+}
+
+public struct ProductionLockElement: Codable, Equatable {
+    public var id: UUID
+    public var text: String
+    public init(id: UUID, text: String) {
+        self.id = id
+        self.text = text
     }
 }
