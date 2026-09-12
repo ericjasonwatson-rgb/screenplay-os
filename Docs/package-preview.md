@@ -2,7 +2,7 @@
 
 ## Native interaction check, 2026-09-12
 
-The c7acf63 app was checked with a synthetic two-scene package: opening displayed the experimental/read-only notice and script text without clipping; closing returned to the same draft, document path, and text. Scene-row activation did not scroll the text. The sidebar now uses explicit borderless buttons instead of List rows. The updated Release build succeeds, but native verification of the revised buttons and disabled menu commands remains pending because macOS app reopening returned an AppleEvent timeout. Do not count this as a completed navigation acceptance check.
+Native verification passed with a synthetic two-scene package. Opening displays the experimental/read-only notice and script text without clipping. Both scene buttons scroll to the corresponding heading, including returning to the first scene. Save, Save As, and export are disabled during preview; Escape closes it and returns to the same draft, document path, and text. The initial shared ScrollViewReader failed to target the text reliably. The corrected reader wraps only the screenplay scroll view, with a separate navigation request so repeated scene activation can scroll again. Release build passed. This verifies the bounded preview journey, not package editing or complete format conformance.
 
 The Open command now accepts experimental `.screenplay` directories alongside legacy JSON and FDX. Packages open in a separate preview sheet with script text, scene navigation, a read-only/experimental label, and Close Preview. The editable document, save URL, recent-document history, and undo stack are not replaced by this path.
 

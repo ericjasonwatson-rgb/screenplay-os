@@ -169,6 +169,8 @@ private struct UniqueJSONKeys {
 struct PackagePreviewView: View {
     let preview: PackagePreview
     let close: () -> Void
+    @State private var navigationRequest: UUID?
+    @State private var targetScene: UUID?
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -182,12 +184,14 @@ struct PackagePreviewView: View {
             Text("Script text preview. Page layout, production locks, and filmmaking views aren’t shown.")
                 .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 16).padding(.bottom, 12)
             Divider()
-            ScrollViewReader { proxy in
                 HStack(spacing: 0) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(preview.scenes) { scene in
-                                Button { proxy.scrollTo(scene.id, anchor: .top) } label: {
+                                Button {
+                                    targetScene = scene.id
+                                    navigationRequest = UUID()
+                                } label: {
                                     Text(scene.text.isEmpty ? "Untitled Scene" : scene.text)
                                         .lineLimit(3)
                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -197,6 +201,7 @@ struct PackagePreviewView: View {
                         }.padding(12)
                     }.frame(width: 200).accessibilityLabel("Preview scenes")
                     Divider()
+                    ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 12) {
                             if preview.paragraphs.isEmpty { Text("This screenplay is empty.").foregroundStyle(.secondary) }
@@ -210,6 +215,9 @@ struct PackagePreviewView: View {
                             }
                         }.padding(24)
                     }.accessibilityLabel("Read-only screenplay text")
+                        .onChange(of: navigationRequest) { _ in
+                            if let targetScene { proxy.scrollTo(targetScene, anchor: .top) }
+                        }
                 }
             }
             Divider()
