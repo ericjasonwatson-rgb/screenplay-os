@@ -4017,27 +4017,66 @@ final class ScreenplayViewModel: ObservableObject {
             pageNumber += 1
         }
 
+        func usableSpeaker(before position: Int) -> String? {
+            guard let name = dialogueSpeaker(in: visibleElements, before: position) else { return nil }
+            let source = visibleElements[position]
+            let cue = continuationMarker("\(name) (CONT'D)", type: .character, source: source)
+            let more = continuationMarker("(MORE)", type: .parenthetical, source: source)
+            return cue.blockHeight + more.blockHeight + 16 <= scriptContentHeight ? name : nil
+        }
+
+        func appendMore(for source: ScreenplayElement, speaker: String?) {
+            guard speaker != nil,
+                  let last = currentItems.last, !last.isContinuation,
+                  [.dialogue, .parenthetical].contains(last.element.type),
+                  (currentItems.first?.isContinuation == true ||
+                   currentItems.contains(where: { !$0.isContinuation && $0.element.type == .dialogue })) else { return }
+            let marker = continuationMarker("(MORE)", type: .parenthetical, source: source)
+            currentItems.append(marker)
+            usedHeight += marker.blockHeight
+        }
+
+        func appendCue(_ speaker: String?, source: ScreenplayElement) {
+            guard currentItems.isEmpty, let speaker else { return }
+            let cue = continuationMarker("\(speaker) (CONT'D)", type: .character, source: source)
+            currentItems.append(cue)
+            usedHeight += cue.blockHeight
+        }
+
         while index < visibleElements.count {
             let element = visibleElements[index]
 
             if element.type == .pageBreak {
                 if !currentItems.isEmpty {
+                    if splitLongElements && dialogueContinues(in: visibleElements, after: index) {
+                        appendMore(for: element, speaker: usableSpeaker(before: index))
+                    }
                     finishPage()
                 }
                 index += 1
                 continue
             }
 
+            let isSpeech = [.dialogue, .parenthetical].contains(element.type)
+            let speaker = isSpeech && splitLongElements ? usableSpeaker(before: index) : nil
+            let earlierDialogue = hasEarlierDialogue(in: visibleElements, before: index)
+            let reserveMore = speaker != nil && dialogueContinues(in: visibleElements, after: index)
+            let moreHeight = continuationMarker("(MORE)", type: .parenthetical, source: element).blockHeight
+            let heightLimit = scriptContentHeight - (reserveMore ? moreHeight : 0)
+            if earlierDialogue && isSpeech { appendCue(speaker, source: element) }
+
             let item = paginatedElement(for: element)
             let keepTogetherHeight = keepTogetherBlockHeight(in: visibleElements, startingAt: index)
             let requiredHeight = max(item.blockHeight, keepTogetherHeight)
 
-            let canSplit = [.action, .dialogue, .general].contains(element.type)
-            let needsSplit = item.blockHeight > scriptContentHeight ||
-                (canSplit && usedHeight + item.blockHeight > scriptContentHeight)
+            let canSplit = [.action, .dialogue, .parenthetical, .general].contains(element.type)
+            let needsSplit = item.blockHeight > heightLimit ||
+                (canSplit && usedHeight + item.blockHeight > heightLimit)
             if !splitLongElements || !needsSplit {
-                if !currentItems.isEmpty && usedHeight + min(requiredHeight, scriptContentHeight) > scriptContentHeight {
+                if !currentItems.isEmpty && usedHeight + min(requiredHeight, heightLimit) > heightLimit {
+                    if isSpeech && earlierDialogue { appendMore(for: element, speaker: speaker) }
                     finishPage()
+                    if isSpeech && earlierDialogue { appendCue(speaker, source: element) }
                 }
                 currentItems.append(item)
                 usedHeight += item.blockHeight
@@ -4045,26 +4084,17 @@ final class ScreenplayViewModel: ObservableObject {
                 // Keep the source paragraph intact; only its printed representation is split.
                 var remaining = item.text
                 var firstFragment = true
-                var speaker = element.type == .dialogue ? dialogueSpeaker(in: visibleElements, before: index) : nil
                 let more = continuationMarker("(MORE)", type: .parenthetical, source: element)
-                if let name = speaker {
-                    let cue = continuationMarker("\(name) (CONT'D)", type: .character, source: element)
-                    // Malformed, page-sized speaker cues must not prevent forward progress.
-                    if cue.blockHeight + more.blockHeight + 16 > scriptContentHeight { speaker = nil }
-                }
                 while !remaining.isEmpty {
-                    if !firstFragment, currentItems.isEmpty, let speaker {
-                        let cue = continuationMarker("\(speaker) (CONT'D)", type: .character, source: element)
-                        currentItems.append(cue)
-                        usedHeight += cue.blockHeight
-                    }
+                    if !firstFragment || earlierDialogue { appendCue(speaker, source: element) }
                     let before = firstFragment ? item.layout.before : 0
                     let available = scriptContentHeight - usedHeight - before - item.layout.after
                     let willContinue = pdfHeight(for: remaining, width: item.layout.width, type: element.type) > available
-                    let markerHeight = speaker != nil && willContinue ? more.blockHeight : 0
+                    let markerHeight = speaker != nil && (willContinue || reserveMore) ? more.blockHeight : 0
                     let prefix = fittingPrefix(of: remaining, width: item.layout.width,
                                                type: element.type, height: available - markerHeight)
                     if prefix.isEmpty {
+                        if isSpeech && earlierDialogue { appendMore(for: element, speaker: speaker) }
                         finishPage()
                         continue
                     }
@@ -4098,7 +4128,7 @@ final class ScreenplayViewModel: ObservableObject {
 
     private func dialogueSpeaker(in elements: [ScreenplayElement], before index: Int) -> String? {
         for candidate in elements[..<index].reversed() {
-            if candidate.type == .parenthetical { continue }
+            if [.parenthetical, .dialogue, .pageBreak].contains(candidate.type) { continue }
             guard candidate.type == .character else { return nil }
             let name = candidate.text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             guard !name.isEmpty else { return nil }
@@ -4106,6 +4136,22 @@ final class ScreenplayViewModel: ObservableObject {
                 .replacingOccurrences(of: " (CONT’D)", with: "")
         }
         return nil
+    }
+
+    private func hasEarlierDialogue(in elements: [ScreenplayElement], before index: Int) -> Bool {
+        for candidate in elements[..<index].reversed() {
+            if [.parenthetical, .pageBreak].contains(candidate.type) { continue }
+            return candidate.type == .dialogue
+        }
+        return false
+    }
+
+    private func dialogueContinues(in elements: [ScreenplayElement], after index: Int) -> Bool {
+        for candidate in elements.dropFirst(index + 1) {
+            if [.parenthetical, .pageBreak].contains(candidate.type) { continue }
+            return candidate.type == .dialogue
+        }
+        return false
     }
 
     private func continuationMarker(_ text: String, type: ElementType, source: ScreenplayElement) -> PaginatedElement {
@@ -4136,6 +4182,10 @@ final class ScreenplayViewModel: ObservableObject {
                elements[index + 2].type == .dialogue {
                 keepCount = 3
             }
+        } else if element.type == .parenthetical,
+                  elements.indices.contains(index + 1),
+                  elements[index + 1].type == .dialogue {
+            keepCount = 2
         } else if element.type == .sceneHeading,
                   elements.indices.contains(index + 1),
                   elements[index + 1].type == .action {

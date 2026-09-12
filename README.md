@@ -179,7 +179,7 @@ New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved
 
 Print layout splits action and dialogue at word boundaries where possible, and at grapheme boundaries for unbroken text. It retains the source paragraph IDs and content. Explicit page breaks are honored, and character cues stay with the beginning of dialogue when space permits. Tests check page height bounds, Unicode, source preservation, and complete text extraction from exported PDFs.
 
-The writing surface scrolls continuously, including across long paragraphs. Production page locking and continuation handling across separate dialogue elements or explicit page breaks remain unfinished.
+The writing surface scrolls continuously, including across long paragraphs. Production page locking remains unfinished.
 
 Automatic print-page breaks within a dialogue paragraph now add `(MORE)` and a repeated speaker cue with `(CONT'D)` when a usable preceding character cue is available. These markers are generated only for print layout and do not modify the source script.
 
@@ -193,7 +193,7 @@ An isolated app using the current writing surface was tested on this Mac with te
 - A long pasted paragraph remains accessible and accepts further typing at its end after moving between editing sections.
 - Save, New, Open, and arrow-key navigation recover the full saved passage, including its final appended text.
 
-These checks caught and fixed focus transfer on new native text views, capitalization replacing the caret position, and focus loss when a paragraph moves to another editing section. Exact caret restoration for every middle-of-paragraph reflow, and text selection across paragraphs remain unfinished.
+These checks caught and fixed focus transfer on new native text views, capitalization replacing the caret position, and focus loss when a paragraph moves to another editing section. The continuous editor subsequently added caret and selection restoration across paragraphs; see the continuous editor smoke checks below.
 
 Grouped typing and selected-word replacement were also checked in the live editor. One Undo removes a continuously typed sentence; Redo restores it. Replacing a selected word by typing is one undo group, and Undo restores the original selected range.
 
@@ -207,3 +207,10 @@ Use **Print Preview** above the writing surface to inspect the exact PDF layout.
 Preview and regular PDF export use the same renderer. **Export PDF** inside the preview writes the exact reviewed PDF data. Opening the preview again creates a fresh rendering of the current screenplay. Preview does not change the document or its undo history.
 
 Regression checks compare preview and export page text, page dimensions, and rendered page images, including long dialogue continuation markers and explicit page breaks. Live checks on this Mac confirmed page navigation, zoom, export from the preview, and continued typing after dismissal.
+
+
+## Dialogue across page breaks
+
+Printed dialogue follows the same speaker through adjacent dialogue paragraphs and parentheticals. Automatic breaks and explicit page breaks inside that speech add `(MORE)` before the break and a repeated speaker cue with `(CONT'D)` afterward. Speaker extensions such as `(V.O.)` are retained, and an existing continuation suffix is not duplicated. A new character cue, scene heading, or action ends the speech.
+
+The paginator reserves space for continuation markers, keeps a parenthetical with the following dialogue when it fits, and splits unusually long parentheticals without losing text. These changes affect print layout and preview only; source paragraphs and IDs stay intact. Regression checks cover separate dialogue paragraphs, consecutive explicit breaks, new-speaker and scene boundaries, and long parentheticals. Rendered PDF pages were visually checked for the explicit-break case.

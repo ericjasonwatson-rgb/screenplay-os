@@ -134,6 +134,105 @@ struct PaginationTests {
         }
     }
 
+    @Test func adjacentDialogueParagraphsContinueAcrossAutomaticBreaks() throws {
+        let dialogue = (1...85).map { ScreenplayElement(type: .dialogue, text: "Sentence \($0).") }
+        let source = [ScreenplayElement(type: .character, text: "MARA")] + dialogue
+        try withDocument(source) { model, _ in
+            let before = model.document
+            let pages = model.printedPages
+            #expect(pages.count >= 3)
+            #expect(pages.dropLast().allSatisfy { $0.elements.last?.text == "(MORE)" })
+            #expect(pages.dropFirst().allSatisfy { $0.elements.first?.text == "MARA (CONT'D)" })
+            #expect(pages.allSatisfy { $0.elements.map(\.blockHeight).reduce(0, +) <= 648 })
+            #expect(pages.flatMap(\.elements).filter { !$0.isContinuation }.map(\.element.id) == source.map(\.id))
+            #expect(model.document == before)
+        }
+    }
+
+    @Test func explicitBreakWithinSpeechAddsMarkersAndPreservesParenthetical() throws {
+        let source = [ScreenplayElement(type: .character, text: "MARA (V.O.)"),
+                      ScreenplayElement(type: .dialogue, text: "I thought we were done."),
+                      ScreenplayElement(type: .pageBreak, text: ""),
+                      ScreenplayElement(type: .pageBreak, text: ""),
+                      ScreenplayElement(type: .parenthetical, text: "(quietly)"),
+                      ScreenplayElement(type: .dialogue, text: "There is one more thing.")]
+        try withDocument(source) { model, directory in
+            let before = model.document
+            let pages = model.printedPages
+            #expect(pages.count == 2)
+            #expect(pages[0].elements.last?.text == "(MORE)")
+            #expect(pages[1].elements.map(\.text) == ["MARA (V.O.) (CONT'D)", "(quietly)", "There is one more thing."])
+            #expect(model.document == before)
+            let data = try model.makePrintPDF()
+            let pdf = try #require(PDFDocument(data: data))
+            #expect(pdf.pageCount == 3)
+            #expect(pdf.page(at: 1)?.string?.contains("(MORE)") == true)
+            #expect(pdf.page(at: 2)?.string?.contains("MARA (V.O.) (CONT'D)") == true)
+            if let destination = ProcessInfo.processInfo.environment["SCREENPLAY_PAGINATION_QA_DIR"] {
+                let output = URL(fileURLWithPath: destination)
+                try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+                try data.write(to: output.appendingPathComponent("continued-dialogue.pdf"))
+                for index in 1..<pdf.pageCount {
+                    let page = try #require(pdf.page(at: index))
+                    let image = page.thumbnail(of: NSSize(width: 612, height: 792), for: .mediaBox)
+                    let tiff = try #require(image.tiffRepresentation)
+                    let bitmap = try #require(NSBitmapImageRep(data: tiff))
+                    let png = try #require(bitmap.representation(using: .png, properties: [:]))
+                    try png.write(to: output.appendingPathComponent("continued-dialogue-\(index).png"))
+                }
+            }
+        }
+    }
+
+    @Test func newSpeakerAndSceneEndContinuation() throws {
+        for next in [ScreenplayElement(type: .character, text: "ELI"),
+                     ScreenplayElement(type: .sceneHeading, text: "EXT. STREET - NIGHT"),
+                     ScreenplayElement(type: .action, text: "Mara leaves.")] {
+            let source = [ScreenplayElement(type: .character, text: "MARA"),
+                          ScreenplayElement(type: .dialogue, text: "Goodbye."),
+                          ScreenplayElement(type: .pageBreak, text: ""), next,
+                          ScreenplayElement(type: .dialogue, text: "A new thought.")]
+            try withDocument(source) { model, _ in
+                #expect(model.printedPages.flatMap(\.elements).allSatisfy { !$0.isContinuation })
+            }
+        }
+    }
+
+    @Test func parentheticalAtPageBoundaryKeepsDialogueAndFitsMarkers() throws {
+        let dialogue = (1...36).map { ScreenplayElement(type: .dialogue, text: "Sentence \($0).") }
+        let source = [ScreenplayElement(type: .character, text: "MARA (CONT'D)")] + dialogue +
+            [ScreenplayElement(type: .parenthetical, text: "(after a long pause)"),
+             ScreenplayElement(type: .dialogue, text: String(repeating: "Keep going. ", count: 150))]
+        try withDocument(source) { model, _ in
+            let pages = model.printedPages
+            #expect(pages.count > 1)
+            #expect(pages.allSatisfy { $0.elements.map(\.blockHeight).reduce(0, +) <= 648 })
+            #expect(pages.dropLast().allSatisfy { $0.elements.last?.text == "(MORE)" })
+            #expect(pages.dropFirst().allSatisfy { $0.elements.first?.text == "MARA (CONT'D)" })
+            #expect(pages.flatMap(\.elements).allSatisfy { !$0.text.contains("(CONT'D) (CONT'D)") })
+            let final = source.last!
+            #expect(pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == final.id }.map(\.text).joined() == final.text.trimmingCharacters(in: .whitespaces))
+        }
+    }
+
+    @Test func longParentheticalsAndForcedBreaksStayWithinPages() throws {
+        for count in [1, 30, 100, 250] {
+            let parenthetical = ScreenplayElement(type: .parenthetical, text: "(" + String(repeating: "quietly waiting ", count: count) + ")")
+            let source = [ScreenplayElement(type: .character, text: "MARA"),
+                          ScreenplayElement(type: .dialogue, text: "Before the pause."),
+                          ScreenplayElement(type: .pageBreak, text: ""), parenthetical,
+                          ScreenplayElement(type: .pageBreak, text: ""),
+                          ScreenplayElement(type: .dialogue, text: "After the pause.")]
+            try withDocument(source) { model, _ in
+                let pages = model.printedPages
+                #expect(pages.allSatisfy { $0.elements.map(\.blockHeight).reduce(0, +) <= 648 })
+                #expect(pages.dropLast().allSatisfy { $0.elements.last?.text == "(MORE)" })
+                #expect(pages.dropFirst().allSatisfy { $0.elements.first?.text == "MARA (CONT'D)" })
+                #expect(pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == parenthetical.id }.map(\.text).joined() == parenthetical.text)
+            }
+        }
+    }
+
     @Test func oversizedSpeakerDoesNotPreventPaginationProgress() throws {
         let cue = ScreenplayElement(type: .character, text: String(repeating: "MARA ", count: 400))
         let dialogue = ScreenplayElement(type: .dialogue, text: String(repeating: "Keep going. ", count: 200))
