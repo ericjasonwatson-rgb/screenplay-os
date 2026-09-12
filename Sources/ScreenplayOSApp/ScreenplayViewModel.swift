@@ -1843,7 +1843,9 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func navigateToShotSource(_ shot: Shot) {
-        guard let sourceID = shot.sourceRefs.first?.screenplayElementID else {
+        let refs = shots.first(where: { $0.id == shot.id })?.sourceRefs ?? shot.sourceRefs
+        guard let sourceID = refs.first(where: { elementIndex(for: $0.screenplayElementID) != nil })?.screenplayElementID else {
+            errorMessage = "This shot's source is no longer in the screenplay. The shot has been preserved."
             return
         }
 
@@ -2062,7 +2064,9 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func navigateToBoardSource(_ frame: BoardFrame) {
-        guard let sourceID = frame.sourceRefs.first?.screenplayElementID else {
+        let refs = boardFrames.first(where: { $0.id == frame.id })?.sourceRefs ?? frame.sourceRefs
+        guard let sourceID = refs.first(where: { elementIndex(for: $0.screenplayElementID) != nil })?.screenplayElementID else {
+            errorMessage = "This board's source is no longer in the screenplay. The board has been preserved."
             return
         }
 
@@ -2332,7 +2336,7 @@ final class ScreenplayViewModel: ObservableObject {
         let previousID = document?.screenplay.elements[previousIndex].id
         if let previousID {
             document?.ensureSceneSpineIDs()
-            reattachScriptNotes([current.id: previousID])
+            reattachParagraphSources([current.id: previousID])
             selectElement(id: previousID)
         }
         scrollTargetElementID = previousID
@@ -2575,15 +2579,49 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    /// Called within the text edit's undo transaction; note bodies and status are untouched.
-    private func reattachScriptNotes(_ destinations: [UUID: UUID]) {
-        guard let notes = document?.scriptNotes else { return }
-        for (index, note) in notes.enumerated() {
-            let target = destinations[note.screenplayElementID] ?? note.screenplayElementID
-            guard elementIndex(for: target) != nil else { continue }
-            document?.scriptNotes[index].screenplayElementID = target
-            document?.scriptNotes[index].sceneSpineID = sceneSpineID(containing: target) ?? ""
+    /// Part of the text edit's undo transaction. Production content is preserved.
+    private func reattachParagraphSources(_ destinations: [UUID: UUID]) {
+        guard var updated = document else { return }
+        var scenes: [UUID: String] = [:]
+        var scene = ""
+        for element in updated.screenplay.elements {
+            if element.type == .sceneHeading { scene = element.spineID ?? "" }
+            scenes[element.id] = scene
         }
+        for index in updated.scriptNotes.indices {
+            let target = destinations[updated.scriptNotes[index].screenplayElementID] ?? updated.scriptNotes[index].screenplayElementID
+            guard let scene = scenes[target] else { continue }
+            updated.scriptNotes[index].screenplayElementID = target
+            updated.scriptNotes[index].sceneSpineID = scene
+        }
+        func remap(_ refs: [ShotSourceRef]) -> [ShotSourceRef] {
+            var result: [ShotSourceRef] = []
+            for ref in refs {
+                var mapped = ref
+                if let target = destinations[ref.screenplayElementID] {
+                    mapped.screenplayElementID = target
+                    // A merge changes offsets. Retain a paragraph-level link rather
+                    // than claim the original range still selects the same text.
+                    mapped.startOffset = nil
+                    mapped.endOffset = nil
+                }
+                if !result.contains(mapped) { result.append(mapped) }
+            }
+            return result
+        }
+        for index in updated.shots.indices {
+            updated.shots[index].sourceRefs = remap(updated.shots[index].sourceRefs)
+            if let target = updated.shots[index].sourceRefs.first(where: { scenes[$0.screenplayElementID] != nil }) {
+                updated.shots[index].sceneSpineID = scenes[target.screenplayElementID]!
+            }
+        }
+        for index in updated.boardFrames.indices {
+            updated.boardFrames[index].sourceRefs = remap(updated.boardFrames[index].sourceRefs)
+            if let target = updated.boardFrames[index].sourceRefs.first(where: { scenes[$0.screenplayElementID] != nil }) {
+                updated.boardFrames[index].sceneSpineID = scenes[target.screenplayElementID]!
+            }
+        }
+        document = updated
     }
 
     private func sceneSpineID(containing elementID: UUID) -> String? {
@@ -5791,7 +5829,7 @@ extension ScreenplayViewModel {
             // on fully replaced paragraphs stay with the replacement's first paragraph.
             noteDestinations[old[index].id] = index == end && !suffix.isEmpty ? changed.last!.id : changed[0].id
         }
-        reattachScriptNotes(noteDestinations)
+        reattachParagraphSources(noteDestinations)
         document?.screenplay.revision += 1
         document?.project.metadata.modifiedAt = Date()
         let insertedParts = (prefix + replacement).components(separatedBy: "\n")

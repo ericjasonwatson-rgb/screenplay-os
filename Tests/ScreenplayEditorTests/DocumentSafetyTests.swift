@@ -20,6 +20,90 @@ struct DocumentSafetyTests {
     }
 
 
+    @Test func mergedProductionRangesBecomeParagraphLinksAndNavigationSkipsDeletedRefs() throws {
+        try withModel { model, directory, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nFirst action.\nSecond action.")
+            let first = model.elements[1]
+            let second = model.elements[2]
+            model.selectElement(id: first.id)
+            model.generateShotListForSelectedScene()
+            model.generateBoardsForSelectedScene()
+            var fixture = try #require(model.document)
+            let refs = [ShotSourceRef(screenplayElementID: UUID()),
+                        ShotSourceRef(screenplayElementID: second.id, startOffset: 0, endOffset: 6)]
+            fixture.shots[0].sourceRefs = refs
+            fixture.boardFrames[0].sourceRefs = refs
+            let url = directory.appendingPathComponent("ranges.json")
+            try JSONEncoder.openScreenplayEncoder().encode(fixture).write(to: url)
+            model.loadOpenScreenplay(at: url)
+            model.navigateToShotSource(model.shots[0])
+            #expect(model.selectedElementID == second.id)
+            model.navigateToBoardSource(model.boardFrames[0])
+            #expect(model.selectedElementID == second.id)
+            #expect(model.mergeElementWithPrevious(second.id))
+            #expect(model.shots[0].sourceRefs[1] == ShotSourceRef(screenplayElementID: first.id))
+            #expect(model.boardFrames[0].sourceRefs[1] == ShotSourceRef(screenplayElementID: first.id))
+            model.undo()
+            #expect(model.shots[0].sourceRefs == refs && model.boardFrames[0].sourceRefs == refs)
+        }
+    }
+
+    @Test func productionSourcesFollowMergeAndRestoreWithUndo() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nFirst action.\nSecond action.")
+            let first = model.elements[1]
+            let second = model.elements[2]
+            model.selectElement(id: first.id)
+            model.generateShotListForSelectedScene()
+            model.generateBoardsForSelectedScene()
+            let shots = model.shots
+            let boards = model.boardFrames
+            #expect(shots.contains { $0.sourceRefs.contains { $0.screenplayElementID == second.id } })
+            model.replaceWritingText(in: NSRange(location: NSMaxRange(model.writingRanges[1]), length: 1), with: "")
+            let mergedShots = model.shots
+            let mergedBoards = model.boardFrames
+            #expect(mergedShots.allSatisfy { $0.sourceRefs.allSatisfy { $0.screenplayElementID != second.id } })
+            #expect(mergedBoards.allSatisfy { $0.sourceRefs.allSatisfy { $0.screenplayElementID != second.id } })
+            #expect(mergedShots.map(\.id) == shots.map(\.id))
+            #expect(mergedBoards.map(\.shotID) == boards.map(\.shotID))
+            #expect(mergedBoards.map(\.prompt) == boards.map(\.prompt))
+            model.undo()
+            #expect(model.shots == shots && model.boardFrames == boards)
+            model.redo()
+            #expect(model.shots == mergedShots && model.boardFrames == mergedBoards)
+            model.loadOpenScreenplay(at: try #require(model.saveURL))
+            #expect(model.shots == mergedShots && model.boardFrames == mergedBoards)
+        }
+    }
+
+    @Test func deletedProductionSourceDoesNotNavigateToMissingParagraph() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                     with: "INT. ROOM - DAY\nFirst action.\nSecond action.")
+            let second = model.elements[2]
+            model.selectElement(id: second.id)
+            model.generateShotListForSelectedScene()
+            model.generateBoardsForSelectedScene()
+            let shot = try #require(model.shots.first { $0.sourceRefs.first?.screenplayElementID == second.id })
+            let board = try #require(model.boardFrames.first { $0.shotID == shot.id })
+            model.selectElement(id: second.id)
+            model.deleteSelectedElement()
+            let selection = model.selectedElementID
+            model.navigateToShotSource(shot)
+            #expect(model.selectedElementID == selection)
+            #expect(model.errorMessage?.contains("no longer in the screenplay") == true)
+            model.navigateToBoardSource(board)
+            #expect(model.selectedElementID == selection)
+            #expect(model.shots.contains { $0.id == shot.id })
+            #expect(model.boardFrames.contains { $0.id == board.id })
+        }
+    }
+
     @Test func unchangedReplacementsPreserveRedoAndSavedBytes() throws {
         try withModel { model, _, _ in
             model.newDocument()

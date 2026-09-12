@@ -234,3 +234,11 @@ Live verification: expanding the first page of a locked two-page fixture produce
 ## Laptop window layout
 
 The window starts within the display bounds and supports a smaller minimum size. Wide Shot, Outline, Boards, and Edit workspaces scroll horizontally inside the main area instead of pushing the navigation sidebar off screen. The status bar also scrolls when space is limited. Workspace > Reset Layout restores a screen-sized window.
+
+### One app to launch
+
+Use **ScreenplayOS.app** beside this project folder. The separate Review apps were temporary test harnesses and are retired. ScreenplayOS opens recent native documents and saves new drafts to Downloads; the old review fixtures remain in the workspace's work/live-review/scripts folder.
+
+Run `./Scripts/package-app.sh` from the project to rebuild this same app. The bundle records its source commit in ScreenplayOSRevision. This is a local development build, not a signed distribution release.
+
+Shot and board source links follow merged or replaced paragraphs alongside script notes. Remapped links become paragraph-level links because previous text offsets may no longer be accurate. If a source is deleted outright, its production item and original reference remain preserved; Go to Source uses another surviving reference or explains that the source is missing without selecting a nonexistent paragraph. Undo restores the source and production links together.
