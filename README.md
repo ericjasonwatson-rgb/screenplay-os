@@ -70,7 +70,7 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - Use Open Recent to return to scripts you opened or saved recently.
 - Use Snapshots to create named local checkpoints before major rewrites, scene moves, shot generation, board timing changes, or restores.
 - Use Notes to add comments to the selected script line, review notes for the current scene, and resolve or reopen them.
-- Script lines with open notes show a small note marker in the page gutter; click it to open Notes for that line.
+- Use Notes below the writing surface to open notes for the active paragraph; the button includes its open-note count. Revision colors highlight marked text.
 - Press Command-K to open the command palette, type to filter commands, press Return to run the top match, or press Escape to close it.
 - The top document bar and Document section show which file is currently active.
 - Click a scene in the sidebar to jump to that part of the screenplay.
@@ -80,9 +80,9 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - On Character lines, matching character names appear as clickable autocomplete suggestions.
 - Use the Elements menu in the toolbar to change the selected line type.
 - Use the bottom status bar to see the current element, page count, current scene, Return/Tab behavior, focus mode, page appearance, and zoom.
-- The editor groups paragraphs into writing surfaces that expand for long text; labels identify the corresponding PDF page or page range.
+- The editor uses one continuous writing surface. Native selection, Copy, Cut, and Paste work across paragraphs; the active paragraph still controls formatting, notes, and character suggestions.
 - Pagination keeps Character cues with following Dialogue and Scene Headings with following Action where possible.
-- PDF export splits long text across pages. The page count and report page references use the PDF layout. Editing keeps each paragraph intact; the writing surface is not an exact print preview.
+- PDF export splits long text across pages. The page count and report page references use the PDF layout. The continuous writing surface is not an exact print preview.
 - Use the Context panel to build reviewable production context from the script.
 - Refresh From Script extracts suggested characters, locations, props, VFX candidates, and format notes.
 - Mark context records as Suggested, Accepted, or Ignored so future AI workflows can use reviewed context.
@@ -171,7 +171,7 @@ The editor should never become a wrapper around Final Draft's data model.
 
 ## Recovery and edit history
 
-Undo and Redo restore the screenplay element selection with the document. Redo is available with Command-Shift-Z; a new edit clears the redo history. History is local to the open document and remains limited to 100 undo states. Adjacent native typing is grouped while pauses stay under 1.2 seconds. Paste, caret movement, paragraph changes, explicit Save, and structural edits start separate groups. Undo/Redo restores the recorded caret or selection within the paragraph.
+Undo and Redo restore the screenplay element selection with the document. Redo is available with Command-Shift-Z; a new edit clears the redo history. History is local to the open document and remains limited to 100 undo states. Adjacent native typing is grouped while pauses stay under 1.2 seconds. Multiline paste, caret movement, paragraph changes, and explicit Save start separate groups. A typed replacement spanning paragraphs is one undo group. Undo/Redo restores the recorded caret or selection, including selections across paragraphs.
 
 New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved file. Older shared-folder snapshots remain available when their embedded project ID matches. Snapshot filenames are unique even when created rapidly. Restore verifies project identity, requires a successful safety snapshot, and writes the restored file before replacing the live document. Restores can be undone and redone.
 
@@ -179,7 +179,7 @@ New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved
 
 Print layout splits action and dialogue at word boundaries where possible, and at grapheme boundaries for unbroken text. It retains the source paragraph IDs and content. Explicit page breaks are honored, and character cues stay with the beginning of dialogue when space permits. Tests check page height bounds, Unicode, source preservation, and complete text extraction from exported PDFs.
 
-The writing surface expands to keep long paragraphs accessible. Exact on-screen print preview, linked editing across page boundaries, production page locking, and continuation handling across separate dialogue elements or explicit page breaks remain unfinished.
+The writing surface scrolls continuously, including across long paragraphs. Exact on-screen print preview, production page locking, and continuation handling across separate dialogue elements or explicit page breaks remain unfinished.
 
 Automatic print-page breaks within a dialogue paragraph now add `(MORE)` and a repeated speaker cue with `(CONT'D)` when a usable preceding character cue is available. These markers are generated only for print layout and do not modify the source script.
 
@@ -196,3 +196,5 @@ An isolated app using the current writing surface was tested on this Mac with te
 These checks caught and fixed focus transfer on new native text views, capitalization replacing the caret position, and focus loss when a paragraph moves to another editing section. Exact caret restoration for every middle-of-paragraph reflow, and text selection across paragraphs remain unfinished.
 
 Grouped typing and selected-word replacement were also checked in the live editor. One Undo removes a continuously typed sentence; Redo restores it. Replacing a selected word by typing is one undo group, and Undo restores the original selected range.
+
+- Continuous editor smoke checks: selecting across two paragraphs and typing a replacement is one undo group; Undo restores both paragraphs and the spanning selection, and Redo reapplies the replacement. Native Cut and Paste across the same boundary restore the text as multiple paragraphs. A long action paragraph remains scrollable and accepts typing at its end.

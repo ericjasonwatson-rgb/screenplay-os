@@ -19,6 +19,101 @@ struct DocumentSafetyTests {
         try body(model, directory, preferences)
     }
 
+    @Test func crossParagraphReplacementAndUndoPreserveIdentityAndSelection() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            let initial = try #require(model.elements.first)
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length), with: "INT. ROOM - DAY\nMara opens the door.\nShe leaves.")
+            let before = model.elements
+            let ranges = model.writingRanges
+            let selection = NSRange(location: ranges[1].location + 5, length: ranges[2].location + 4 - ranges[1].location - 5)
+            model.replaceWritingText(in: selection, with: "waits.")
+            #expect(model.elements.count == 2)
+            #expect(model.elements[1].text == "Mara waits.leaves.")
+            #expect(model.elements.first?.id == initial.id)
+            #expect(model.elements[1].id == before[1].id)
+            model.undo()
+            #expect(model.elements == before)
+            #expect(model.documentCaret == selection)
+            model.redo()
+            #expect(model.elements[1].text == "Mara waits.leaves.")
+        }
+    }
+
+    @Test func multilinePastePreservesUntouchedSuffixIdentity() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length), with: "INT. ROOM - DAY\nFirst action.\nLast action.")
+            let before = model.elements
+            let ranges = model.writingRanges
+            let range = NSRange(location: ranges[1].location + 6, length: ranges[2].location + 5 - ranges[1].location - 6)
+            model.replaceWritingText(in: range, with: "new.\nNext ")
+            #expect(model.elements.map(\.text) == ["INT. ROOM - DAY", "First new.", "Next action."])
+            #expect(model.elements.map(\.id) == before.map(\.id))
+            model.undo()
+            #expect(model.elements == before)
+        }
+    }
+
+    @Test func wholeDocumentCutLeavesEditableElementAndUndoRestoresAll() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length), with: "INT. ROOM - DAY\nA visitor arrives.\n")
+            let before = model.elements
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length), with: "")
+            #expect(model.elements.count == 1)
+            #expect(model.writingText.isEmpty)
+            model.undo()
+            #expect(model.elements == before)
+        }
+    }
+
+    @Test func continuousTypingGroupsAndUnicodeCaretIsCorrect() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length), with: "INT. ROOM - DAY\n")
+            let start = try #require(model.writingRanges.last).location
+            let date = Date()
+            let first = model.replaceWritingText(in: NSRange(location: start, length: 0), with: "👩🏽‍🚀", groupable: true, now: date)
+            let second = model.replaceWritingText(in: first, with: "!", groupable: true, now: date.addingTimeInterval(0.1))
+            #expect(second.location == start + ("👩🏽‍🚀!" as NSString).length)
+            model.undo()
+            #expect(model.elements.last?.text == "")
+            model.redo()
+            #expect(model.elements.last?.text == "👩🏽‍🚀!")
+        }
+    }
+
+    @Test func typedCrossParagraphReplacementIsOneUndoGroup() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length), with: "INT. ROOM - DAY\nMara opens the door.\nShe leaves.")
+            let before = model.elements
+            let ranges = model.writingRanges
+            let selection = NSRange(location: ranges[1].location + 5, length: ranges[2].location + 4 - ranges[1].location - 5)
+            let now = Date()
+            let caret = model.replaceWritingText(in: selection, with: "w", groupable: true, now: now)
+            model.replaceWritingText(in: caret, with: "a", groupable: true, now: now.addingTimeInterval(0.1))
+            model.undo()
+            #expect(model.elements == before)
+            #expect(model.documentCaret == selection)
+        }
+    }
+
+    @Test func continuousBackspacesAreGroupedAndRestoreOriginalCaret() throws {
+        try withModel { model, _, _ in
+            model.newDocument()
+            model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length), with: "INT. ROOM - DAY\nMara")
+            let end = (model.writingText as NSString).length
+            let now = Date()
+            model.replaceWritingText(in: NSRange(location: end - 1, length: 1), with: "", groupable: true, selection: NSRange(location: end, length: 0), now: now)
+            model.replaceWritingText(in: NSRange(location: end - 2, length: 1), with: "", groupable: true, selection: NSRange(location: end - 1, length: 0), now: now.addingTimeInterval(0.1))
+            model.undo()
+            #expect(model.elements.last?.text == "Mara")
+            #expect(model.documentCaret == NSRange(location: end, length: 0))
+        }
+    }
+
     @Test func firstWriteRejectsAnOccupiedDestinationAndCleansTemporaryFiles() throws {
         try withModel { _, directory, _ in
             let url = directory.appendingPathComponent("script.json")

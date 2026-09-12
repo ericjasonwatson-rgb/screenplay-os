@@ -54,6 +54,7 @@ final class ScreenplayViewModel: ObservableObject {
         let document: OpenScreenplayDocument
         let selection: UUID?
         var caret: NSRange? = nil
+        var documentCaret: NSRange? = nil
     }
     struct CaretRestoration {
         let elementID: UUID
@@ -62,6 +63,8 @@ final class ScreenplayViewModel: ObservableObject {
     }
     @Published private(set) var caretRestoration: CaretRestoration?
     private var caretRanges: [UUID: NSRange] = [:]
+    private(set) var documentCaret: NSRange?
+    @Published private(set) var documentCaretToken = UUID()
     private var typingGroup: (elementID: UUID, date: Date, caret: NSRange, kind: Int)?
     private var undoStack: [EditState] = []
     private var redoStack: [EditState] = []
@@ -811,6 +814,8 @@ final class ScreenplayViewModel: ObservableObject {
         redoStack = []
         typingGroup = nil
         caretRanges = [:]
+        documentCaret = nil
+        documentCaretToken = UUID()
         caretRestoration = nil
         findQuery = ""
         replaceText = ""
@@ -1243,6 +1248,8 @@ final class ScreenplayViewModel: ObservableObject {
             redoStack = []
             typingGroup = nil
             caretRanges = [:]
+            documentCaret = nil
+            documentCaretToken = UUID()
             caretRestoration = nil
             sourceURL = url
             saveURL = nil
@@ -1266,6 +1273,8 @@ final class ScreenplayViewModel: ObservableObject {
             redoStack = []
             typingGroup = nil
             caretRanges = [:]
+            documentCaret = nil
+            documentCaretToken = UUID()
             caretRestoration = nil
             sourceURL = url
             saveURL = url
@@ -2404,19 +2413,21 @@ final class ScreenplayViewModel: ObservableObject {
     func undo() {
         typingGroup = nil
         guard let document, let previous = undoStack.popLast() else { return }
-        redoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }))
+        redoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }, documentCaret: documentCaret))
         restoreEditState(previous)
     }
 
     func redo() {
         typingGroup = nil
         guard let document, let next = redoStack.popLast() else { return }
-        undoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }))
+        undoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }, documentCaret: documentCaret))
         restoreEditState(next)
     }
 
     private func restoreEditState(_ state: EditState) {
         document = state.document
+        documentCaret = state.documentCaret
+        documentCaretToken = UUID()
         if let id = state.selection, let range = state.caret {
             caretRanges[id] = range
             caretRestoration = CaretRestoration(elementID: id, range: range)
@@ -3250,7 +3261,7 @@ final class ScreenplayViewModel: ObservableObject {
     private func rememberUndoState() {
         typingGroup = nil
         guard let document else { return }
-        recordUndoState(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }))
+        recordUndoState(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }, documentCaret: documentCaret))
     }
 
     private func recordUndoState(_ state: EditState) {
@@ -5580,5 +5591,92 @@ private extension Array where Element: Hashable {
     func uniqued() -> [Element] {
         var seen: Set<Element> = []
         return filter { seen.insert($0).inserted }
+    }
+}
+
+
+extension ScreenplayViewModel {
+    var writingText: String { elements.map(\.text).joined(separator: "\n") }
+
+    /// Each separator belongs to the preceding element; offsets use AppKit's UTF-16 units.
+    var writingRanges: [NSRange] {
+        var offset = 0
+        return elements.map {
+            let range = NSRange(location: offset, length: ($0.text as NSString).length)
+            offset = NSMaxRange(range) + 1
+            return range
+        }
+    }
+
+    func rememberDocumentCaret(_ range: NSRange) {
+        if documentCaret != range { typingGroup = nil }
+        documentCaret = range
+        if let index = writingRanges.lastIndex(where: { $0.location <= range.location }) {
+            let id = elements[index].id
+            if selectedElementID != id { selectElement(id: id) }
+        }
+    }
+
+    @discardableResult
+    func replaceWritingText(in range: NSRange, with replacement: String, groupable: Bool = false, selection: NSRange? = nil, now: Date = Date()) -> NSRange {
+        let ranges = writingRanges
+        guard !ranges.isEmpty, range.location >= 0, range.length >= 0,
+              range.location <= (writingText as NSString).length,
+              range.length <= (writingText as NSString).length - range.location,
+              let start = ranges.lastIndex(where: { $0.location <= range.location }),
+              let end = ranges.lastIndex(where: { $0.location <= NSMaxRange(range) }) else {
+            return documentCaret ?? NSRange(location: 0, length: 0)
+        }
+        let replacement = replacement.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+        let old = elements
+        let localStart = range.location - ranges[start].location
+        let localEnd = NSMaxRange(range) - ranges[end].location
+        let prefix = (old[start].text as NSString).substring(to: localStart)
+        let suffix = (old[end].text as NSString).substring(from: localEnd)
+        documentCaret = selection ?? range
+        selectElement(id: old[start].id)
+        if start == end && !replacement.contains("\n") {
+            let text = prefix + replacement + suffix
+            let after = NSRange(location: (prefix + replacement as NSString).length, length: 0)
+            editText(id: old[start].id, text: text,
+                     before: NSRange(location: (selection?.location ?? range.location) - ranges[start].location, length: selection?.length ?? range.length), after: after,
+                     groupable: groupable, now: now)
+            let normalizedPrefix = normalizedText(for: elements[start].type, text: prefix + replacement)
+            let caret = NSRange(location: ranges[start].location + (normalizedPrefix as NSString).length, length: 0)
+            documentCaret = caret
+            return caret
+        }
+        rememberUndoState()
+        let parts = (prefix + replacement + suffix).components(separatedBy: "\n")
+        var changed: [ScreenplayElement] = []
+        for (index, text) in parts.enumerated() {
+            var item: ScreenplayElement
+            if index == 0 {
+                item = old[start]
+            } else if index == parts.count - 1 && end != start && !suffix.isEmpty {
+                item = old[end]
+            } else {
+                item = ScreenplayElement(type: nextElementType(after: changed.last!.type), text: "")
+            }
+            item.type = automaticElementType(for: text, currentType: item.type)
+            item.text = normalizedText(for: item.type, text: text)
+            if let mark = currentRevisionMark() { item.revisionMark = mark }
+            changed.append(item)
+        }
+        document?.screenplay.elements.replaceSubrange(start...end, with: changed)
+        document?.ensureSceneSpineIDs()
+        document?.screenplay.revision += 1
+        document?.project.metadata.modifiedAt = Date()
+        let insertedParts = (prefix + replacement).components(separatedBy: "\n")
+        let last = insertedParts.count - 1
+        let localCaret = (normalizedText(for: changed[last].type, text: insertedParts[last]) as NSString).length
+        let caret = NSRange(location: writingRanges[start + last].location + localCaret, length: 0)
+        documentCaret = caret
+        selectElement(id: changed[last].id)
+        if groupable && !replacement.contains("\n") {
+            typingGroup = (changed[last].id, now, NSRange(location: localCaret, length: 0), replacement.isEmpty ? -1 : 1)
+        }
+        autosave()
+        return caret
     }
 }
