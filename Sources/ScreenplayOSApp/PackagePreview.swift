@@ -184,10 +184,17 @@ struct PackagePreviewView: View {
             Divider()
             ScrollViewReader { proxy in
                 HStack(spacing: 0) {
-                    List(preview.scenes) { scene in
-                        Button { proxy.scrollTo(scene.id, anchor: .top) } label: {
-                            Text(scene.text.isEmpty ? "Untitled Scene" : scene.text).lineLimit(3)
-                        }.buttonStyle(.plain)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(preview.scenes) { scene in
+                                Button { proxy.scrollTo(scene.id, anchor: .top) } label: {
+                                    Text(scene.text.isEmpty ? "Untitled Scene" : scene.text)
+                                        .lineLimit(3)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                }.buttonStyle(.borderless)
+                            }
+                        }.padding(12)
                     }.frame(width: 200).accessibilityLabel("Preview scenes")
                     Divider()
                     ScrollView {

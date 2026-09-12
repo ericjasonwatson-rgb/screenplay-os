@@ -1,5 +1,9 @@
 # Read-only package preview in the Mac app
 
+## Native interaction check, 2026-09-12
+
+The c7acf63 app was checked with a synthetic two-scene package: opening displayed the experimental/read-only notice and script text without clipping; closing returned to the same draft, document path, and text. Scene-row activation did not scroll the text. The sidebar now uses explicit borderless buttons instead of List rows. The updated Release build succeeds, but native verification of the revised buttons and disabled menu commands remains pending because macOS app reopening returned an AppleEvent timeout. Do not count this as a completed navigation acceptance check.
+
 The Open command now accepts experimental `.screenplay` directories alongside legacy JSON and FDX. Packages open in a separate preview sheet with script text, scene navigation, a read-only/experimental label, and Close Preview. The editable document, save URL, recent-document history, and undo stack are not replaced by this path.
 
 The preview uses its own display model, never `OpenScreenplayDocument` or the app's normalizing decoder. It contains selectable text rather than an editable text view. Main app menu commands are disabled while it is shown, and the editor's local keyboard monitor ignores preview events. Closing the sheet returns to the existing draft. The package is never passed to autosave, Save As, or the editable document's persistence path.
