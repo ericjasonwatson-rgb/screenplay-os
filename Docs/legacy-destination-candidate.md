@@ -52,3 +52,7 @@ Candidates retain `conversion_ready: false`. No serialized candidate-import inte
 27 focused inspector/mapping/destination tests pass, including nine destination tests. Coverage includes minimal/empty documents, cross-view scene/shot references, stable scene IDs after reorder/rename, ambiguity and target-field collisions, high-precision unknown values, UUID/date/type rejection, stale/tampered candidates, populated edit trims and production-lock archival, and read-only CLI behavior with blocked diagnostics. CLI tests verify unchanged input bytes and modification times and no new input-directory files.
 
 The next implementation gate is a staged converted-copy writer with independent readback and fault-injection tests. It must keep the original untouched and must not enable production-locked editing or declare complete format conformance merely because this profile validates. The existing native app continues saving its current format.
+
+## Converted-copy writer follow-up — 2026-09-12
+
+A separate experimental macOS writer now creates only new destinations, retains exact source bytes, performs exclusive publication, and verifies staged/published output. See `legacy-converted-copy.md` for failure/recovery behavior and 37 focused tests. The app still cannot edit the new package format; existing save behavior and the remaining conformance gates are unchanged.

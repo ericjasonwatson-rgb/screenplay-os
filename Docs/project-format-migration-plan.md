@@ -80,3 +80,7 @@ Implement the read-only legacy inspector and report first, with synthetic fixtur
 ## Destination candidate follow-up — 2026-09-12
 
 The executable destination profile and scene/reference transformations are now implemented in memory. See `legacy-destination-candidate.md` for payload coverage, nine new destination tests, conservative blockers, and remaining format/writer limitations. `--candidate` validates complete payload objects for currently migrated legacy records; package writes and app migration remain disabled.
+
+## Converted-copy writer follow-up — 2026-09-12
+
+A separate experimental macOS writer now creates only new destinations, retains exact source bytes, performs exclusive publication, and verifies staged/published output. See `legacy-converted-copy.md` for failure/recovery behavior and 37 focused tests. The app still cannot edit the new package format; existing save behavior and the remaining conformance gates are unchanged.
