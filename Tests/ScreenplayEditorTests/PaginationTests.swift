@@ -26,6 +26,54 @@ struct PaginationTests {
         try body(model, directory)
     }
 
+    @Test func previewMatchesExportAndDoesNotChangeTheScreenplay() throws {
+        let dialogue = (1...800).map { "line\($0)" }.joined(separator: " ")
+        let elements = [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"),
+                        ScreenplayElement(type: .character, text: "MARA"),
+                        ScreenplayElement(type: .dialogue, text: dialogue),
+                        ScreenplayElement(type: .pageBreak, text: ""),
+                        ScreenplayElement(type: .action, text: "END OF SCENE.")]
+        try withDocument(elements) { model, directory in
+            model.titlePageBinding(.title).wrappedValue = "Preview Review"
+            let before = model.document
+            let data = try model.makePrintPDF()
+            let snapshot = try PrintPreviewSnapshot(data: data)
+            #expect(model.document == before)
+            #expect(snapshot.document.pageCount == model.printedPages.count + 1)
+            #expect(snapshot.document.page(at: 0)?.string?.contains("Preview Review") == true)
+            #expect(snapshot.document.string?.contains("(MORE)") == true)
+            #expect(snapshot.document.string?.contains("(CONT'D)") == true)
+            let url = directory.appendingPathComponent("export.pdf")
+            model.exportPDF(to: url)
+            let exported = try #require(PDFDocument(url: url))
+            #expect(exported.pageCount == snapshot.document.pageCount)
+            for index in 0..<exported.pageCount {
+                let previewPage = try #require(snapshot.document.page(at: index))
+                let exportedPage = try #require(exported.page(at: index))
+                #expect(previewPage.string == exportedPage.string)
+                #expect(previewPage.bounds(for: .mediaBox) == exportedPage.bounds(for: .mediaBox))
+                let size = NSSize(width: 306, height: 396)
+                #expect(previewPage.thumbnail(of: size, for: .mediaBox).tiffRepresentation == exportedPage.thumbnail(of: size, for: .mediaBox).tiffRepresentation)
+            }
+            // Exporting a reviewed snapshot writes those exact bytes, even after later edits.
+            model.binding(for: elements.last!).wrappedValue = "A later change."
+            model.writePrintPDF(snapshot.data, to: url)
+            #expect(try Data(contentsOf: url) == snapshot.data)
+            #expect(snapshot.document.string?.contains("END OF SCENE.") == true)
+            #expect(snapshot.document.string?.contains("A later change.") == false)
+        }
+    }
+
+    @Test func printExportFailureIsReportedWithoutChangingSource() throws {
+        try withDocument([ScreenplayElement(type: .action, text: "Original.")]) { model, directory in
+            let before = model.document
+            model.exportPDF(to: directory.appendingPathComponent("missing/export.pdf"))
+            #expect(model.errorMessage?.hasPrefix("Could not export PDF:") == true)
+            #expect(model.document == before)
+            #expect(throws: (any Error).self) { try PrintPreviewSnapshot(data: Data("invalid".utf8)) }
+        }
+    }
+
     @Test func longParagraphIsSplitWithoutChangingSource() throws {
         let text = (1...700).map { "word\($0)" }.joined(separator: " ")
         let element = ScreenplayElement(type: .action, text: text)

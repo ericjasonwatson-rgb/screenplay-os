@@ -82,7 +82,7 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - Use the bottom status bar to see the current element, page count, current scene, Return/Tab behavior, focus mode, page appearance, and zoom.
 - The editor uses one continuous writing surface. Native selection, Copy, Cut, and Paste work across paragraphs; the active paragraph still controls formatting, notes, and character suggestions.
 - Pagination keeps Character cues with following Dialogue and Scene Headings with following Action where possible.
-- PDF export splits long text across pages. The page count and report page references use the PDF layout. The continuous writing surface is not an exact print preview.
+- PDF export splits long text across pages. The page count and report page references use the PDF layout. Use Print Preview for the exact exported layout, including the title page; the continuous writing surface stays optimized for editing.
 - Use the Context panel to build reviewable production context from the script.
 - Refresh From Script extracts suggested characters, locations, props, VFX candidates, and format notes.
 - Mark context records as Suggested, Accepted, or Ignored so future AI workflows can use reviewed context.
@@ -179,7 +179,7 @@ New snapshots live under `ScreenplayOS Snapshots/<project ID>/` beside the saved
 
 Print layout splits action and dialogue at word boundaries where possible, and at grapheme boundaries for unbroken text. It retains the source paragraph IDs and content. Explicit page breaks are honored, and character cues stay with the beginning of dialogue when space permits. Tests check page height bounds, Unicode, source preservation, and complete text extraction from exported PDFs.
 
-The writing surface scrolls continuously, including across long paragraphs. Exact on-screen print preview, production page locking, and continuation handling across separate dialogue elements or explicit page breaks remain unfinished.
+The writing surface scrolls continuously, including across long paragraphs. Production page locking and continuation handling across separate dialogue elements or explicit page breaks remain unfinished.
 
 Automatic print-page breaks within a dialogue paragraph now add `(MORE)` and a repeated speaker cue with `(CONT'D)` when a usable preceding character cue is available. These markers are generated only for print layout and do not modify the source script.
 
@@ -198,3 +198,12 @@ These checks caught and fixed focus transfer on new native text views, capitaliz
 Grouped typing and selected-word replacement were also checked in the live editor. One Undo removes a continuously typed sentence; Redo restores it. Replacing a selected word by typing is one undo group, and Undo restores the original selected range.
 
 - Continuous editor smoke checks: selecting across two paragraphs and typing a replacement is one undo group; Undo restores both paragraphs and the spanning selection, and Redo reapplies the replacement. Native Cut and Paste across the same boundary restore the text as multiple paragraphs. A long action paragraph remains scrollable and accepts typing at its end.
+
+
+## Print preview
+
+Use **Print Preview** above the writing surface to inspect the exact PDF layout. Previous/Next navigate the title page and script pages; **Fit Page** shows a whole page and **100%** uses actual-size viewing. **Back to Writing** (or Escape) returns to the editor with its caret intact.
+
+Preview and regular PDF export use the same renderer. **Export PDF** inside the preview writes the exact reviewed PDF data. Opening the preview again creates a fresh rendering of the current screenplay. Preview does not change the document or its undo history.
+
+Regression checks compare preview and export page text, page dimensions, and rendered page images, including long dialogue continuation markers and explicit page breaks. Live checks on this Mac confirmed page navigation, zoom, export from the preview, and continued typing after dismissal.

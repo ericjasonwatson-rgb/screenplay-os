@@ -1190,7 +1190,7 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    func showExportPDFPanel() {
+    func showExportPDFPanel(data: Data? = nil) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.canCreateDirectories = true
@@ -1199,7 +1199,7 @@ final class ScreenplayViewModel: ObservableObject {
         panel.nameFieldStringValue = "\(title.replacingOccurrences(of: "/", with: "-")).pdf"
 
         if panel.runModal() == .OK, let url = panel.url {
-            exportPDF(to: url)
+            if let data { writePrintPDF(data, to: url) } else { exportPDF(to: url) }
         }
     }
 
@@ -3383,21 +3383,31 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    func exportPDF(to url: URL) {
-        guard let document else {
-            return
-        }
-
+    /// Preview and export share this renderer, including the title page and continuation cues.
+    func makePrintPDF() throws -> Data {
+        guard let document else { throw PrintPDFError.noDocument }
+        let data = NSMutableData()
         var pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
-        guard let context = CGContext(url as CFURL, mediaBox: &pageRect, nil) else {
-            errorMessage = "Could not create PDF."
-            return
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &pageRect, nil) else {
+            throw PrintPDFError.renderFailed
         }
-
         drawTitlePage(document.titlePage, in: context, pageRect: pageRect)
         drawScriptPages(document.screenplay.elements, in: context, pageRect: pageRect)
         context.closePDF()
-        errorMessage = "Exported \(url.lastPathComponent)"
+        return data as Data
+    }
+
+    func exportPDF(to url: URL) {
+        do { writePrintPDF(try makePrintPDF(), to: url) }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    func writePrintPDF(_ data: Data, to url: URL) {
+        do {
+            try data.write(to: url, options: .atomic)
+            errorMessage = "Exported \(url.lastPathComponent)"
+        } catch { errorMessage = "Could not export PDF: \(error.localizedDescription)" }
     }
 
     private func exportReport(to url: URL, kind: ReportKind) {

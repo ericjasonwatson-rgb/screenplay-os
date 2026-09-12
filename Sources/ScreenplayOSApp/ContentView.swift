@@ -2765,9 +2765,20 @@ private struct MetricRow: View {
 
 private struct ScreenplayPageView: View {
     @ObservedObject var model: ScreenplayViewModel
+    @State private var preview: PrintPreviewSnapshot?
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    do { preview = try PrintPreviewSnapshot(data: model.makePrintPDF()) }
+                    catch { model.errorMessage = error.localizedDescription }
+                } label: {
+                    Label("Print Preview", systemImage: "doc.text.magnifyingglass")
+                }
+                .disabled(model.document == nil)
+            }.padding(8)
             ContinuousScreenplayEditor(model: model)
             if let element = model.selectedElement {
                 HStack {
@@ -2785,6 +2796,9 @@ private struct ScreenplayPageView: View {
             if let message = model.errorMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary).padding(8)
             }
+        }
+        .sheet(item: $preview) { snapshot in
+            PrintPreviewSheet(snapshot: snapshot) { model.showExportPDFPanel(data: snapshot.data) }
         }
     }
 }
