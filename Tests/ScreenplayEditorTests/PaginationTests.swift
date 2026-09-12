@@ -26,6 +26,28 @@ struct PaginationTests {
         try body(model, directory)
     }
 
+    @Test func warmMeasurementsMatchFreshPaginationAfterTextAndTypeChanges() throws {
+        let action = ScreenplayElement(type: .action, text: String(repeating: "A passage with many words. ", count: 45))
+        try withDocument([ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"), action]) { model, directory in
+            _ = model.printedPages
+            model.setType(.dialogue, for: action.id)
+            model.binding(for: action).wrappedValue = action.text + "One more line."
+            let warm = model.printedPages
+            let suite = "PaginationFresh.\(UUID())"
+            let preferences = try #require(UserDefaults(suiteName: suite))
+            defer { preferences.removePersistentDomain(forName: suite) }
+            let fresh = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
+            fresh.loadOpenScreenplay(at: try #require(model.saveURL))
+            #expect(warm.map(\.label) == fresh.printedPages.map(\.label))
+            #expect(warm.map { $0.elements.map(\.text) } == fresh.printedPages.map { $0.elements.map(\.text) })
+            #expect(warm.map { $0.elements.map(\.blockHeight) } == fresh.printedPages.map { $0.elements.map(\.blockHeight) })
+            let cachedPDF = try #require(PDFDocument(data: model.makePrintPDF()))
+            let freshPDF = try #require(PDFDocument(data: fresh.makePrintPDF()))
+            #expect(cachedPDF.string == freshPDF.string)
+            #expect(cachedPDF.pageCount == freshPDF.pageCount)
+        }
+    }
+
     @Test func previewMatchesExportAndDoesNotChangeTheScreenplay() throws {
         let dialogue = (1...800).map { "line\($0)" }.joined(separator: " ")
         let elements = [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"),

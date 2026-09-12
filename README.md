@@ -248,3 +248,7 @@ Use **ScreenplayOS.app** beside this project folder. The separate Review apps we
 Run `./Scripts/package-app.sh` from the project to rebuild this same app. The bundle records its source commit in ScreenplayOSRevision. This is a local development build, not a signed distribution release.
 
 Shot and board source links follow merged or replaced paragraphs alongside script notes. Remapped links become paragraph-level links because previous text offsets may no longer be accurate. If a source is deleted outright, its production item and original reference remain preserved; Go to Source uses another surviving reference or explains that the source is missing without selecting a nonexistent paragraph. Undo restores the source and production links together.
+
+### Long-script pagination performance
+
+Print text measurements are cached by exact text, element type, and width, with bounded retained text and entry count. Page arrangement is still recomputed from current content, so the cache does not freeze stale page numbers. A 120-page development fixture measured approximately 7–8 ms for ordinary repagination after an edit and 45 ms with locks, versus previous measurements of approximately 128 ms and 169 ms. These engine timings are not end-to-end typing latency. Native editor regression coverage checks Unicode typing, caret position, Undo/Redo, selection, type formatting, and zoom.

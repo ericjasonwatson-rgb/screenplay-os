@@ -4342,7 +4342,17 @@ final class ScreenplayViewModel: ObservableObject {
         NSGraphicsContext.restoreGraphicsState()
     }
 
+    private struct PrintMeasurementKey: Hashable {
+        let text: String
+        let width: CGFloat
+        let type: ElementType
+    }
+    private var printMeasurements: [PrintMeasurementKey: CGFloat] = [:]
+    private var printMeasurementCharacters = 0
+
     private func pdfHeight(for text: String, width: CGFloat, type: ElementType) -> CGFloat {
+        let key = PrintMeasurementKey(text: text, width: width, type: type)
+        if let height = printMeasurements[key] { return height }
         let attributes = pdfAttributes(
             alignment: pdfLayoutSpec(for: type).alignment,
             weight: pdfLayoutSpec(for: type).weight,
@@ -4353,7 +4363,18 @@ final class ScreenplayViewModel: ObservableObject {
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: attributes
         )
-        return max(16, ceil(rect.height))
+        let height = max(16, ceil(rect.height))
+        // Bound retained source text as well as entry count during long editing sessions.
+        let characters = text.utf16.count
+        if characters <= 2_000_000 {
+            if printMeasurements.count >= 4096 || printMeasurementCharacters + characters > 2_000_000 {
+                printMeasurements.removeAll(keepingCapacity: true)
+                printMeasurementCharacters = 0
+            }
+            printMeasurements[key] = height
+            printMeasurementCharacters += characters
+        }
+        return height
     }
 
     private func pdfAttributes(alignment: NSTextAlignment, weight: NSFont.Weight, size: CGFloat) -> [NSAttributedString.Key: Any] {

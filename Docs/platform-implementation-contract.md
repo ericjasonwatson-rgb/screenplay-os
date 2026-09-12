@@ -68,6 +68,8 @@ The existing Specs/open-screenplay-1.0.schema.json describes the monolithic prot
 
 The 120-page development-build benchmark measured model edit/autosave at 12–17 ms and repagination at approximately 128–169 ms. These are single-workload engine timings, not UI latency targets or proof of touch responsiveness. Full native editing and rendering need measurement before declaring long-script responsiveness acceptable.
 
+Current delivery focus: macOS only. iPadOS and iOS remain architectural targets; do not start their implementation until the user resumes that scope.
+
 ## Delivery sequence
 
 1. Measure native long-script editing and workspace switching; address the measured pagination/rendering bottleneck while preserving printed output.
