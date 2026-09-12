@@ -7,7 +7,14 @@ import ScreenplayFDX
 
 @MainActor
 final class ScreenplayViewModel: ObservableObject {
-    @Published private(set) var document: OpenScreenplayDocument?
+    @Published private(set) var document: OpenScreenplayDocument? {
+        didSet {
+            // Includes nested edits, production-context changes, Undo/Redo and Open.
+            // Selection and workspace changes can reuse the same derived summaries.
+            sceneBreakdownCache = nil
+        }
+    }
+    private var sceneBreakdownCache: [SceneBreakdown]?
     @Published private(set) var sourceURL: URL?
     @Published private(set) var saveURL: URL?
     @Published var errorMessage: String?
@@ -149,9 +156,17 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     var sceneBreakdowns: [SceneBreakdown] {
+        if let sceneBreakdownCache { return sceneBreakdownCache }
+        // A split paragraph can appear on several pages; retain its first page.
+        var pageLabels: [UUID: String] = [:]
+        for page in printedPages {
+            for item in page.elements where pageLabels[item.element.id] == nil {
+                pageLabels[item.element.id] = page.label
+            }
+        }
         let sceneIndexes = elements.indices.filter { elements[$0].type == .sceneHeading }
 
-        return sceneIndexes.enumerated().map { offset, startIndex in
+        let breakdowns = sceneIndexes.enumerated().map { offset, startIndex in
             let endIndex = sceneIndexes.dropFirst(offset + 1).first ?? elements.count
             let sceneElements = Array(elements[startIndex..<endIndex])
             let sourceIDs = Set(sceneElements.map(\.id))
@@ -172,7 +187,7 @@ final class ScreenplayViewModel: ObservableObject {
                 editSpineID: spineID,
                 elementID: elements[startIndex].id,
                 heading: heading.isEmpty ? "Untitled Scene" : heading,
-                pageNumber: pageNumber(for: elements[startIndex].id),
+                pageNumber: pageLabels[elements[startIndex].id],
                 elementCount: sceneElements.count,
                 actionBeatCount: sceneElements.filter { $0.type == .action || $0.type == .shot }.count,
                 revisionCount: revisionCount,
@@ -184,6 +199,8 @@ final class ScreenplayViewModel: ObservableObject {
                 firstAction: firstAction
             )
         }
+        sceneBreakdownCache = breakdowns
+        return breakdowns
     }
 
     var screenplayPages: [ScreenplayPage] {
