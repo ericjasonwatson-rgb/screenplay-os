@@ -4,10 +4,11 @@ cd "$(dirname "$0")/.."
 export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$CLANG_MODULE_CACHE_PATH"
 mkdir -p "$CLANG_MODULE_CACHE_PATH" "$PWD/.build/swift-cache"
-swift build --disable-sandbox --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
-binary_dir="$(swift build --disable-sandbox --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
+configuration="${SCREENPLAYOS_BUILD_CONFIGURATION:-release}"
+swift build --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
+binary_dir="$(swift build --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
 app_destination="${1:-$PWD/../ScreenplayOS.app}"
-python3 - "$binary_dir/ScreenplayOS" "$app_destination" <<'PY'
+python3 - "$binary_dir/ScreenplayOS" "$app_destination" "$configuration" <<'PY'
 import pathlib, plistlib, shutil, subprocess, sys
 source, app = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 (app / 'Contents/MacOS').mkdir(parents=True, exist_ok=True)
@@ -33,6 +34,7 @@ revision = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text
     'LSMinimumSystemVersion': '13.0',
     'NSHighResolutionCapable': True,
     'ScreenplayOSRevision': revision,
+    'ScreenplayOSBuildConfiguration': sys.argv[3],
 }))
 print(app.resolve())
 PY

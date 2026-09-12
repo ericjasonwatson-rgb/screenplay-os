@@ -18,5 +18,6 @@ if [[ -d "$testing_frameworks/Testing.framework" ]]; then
     test_args+=(-Xlinker -rpath -Xlinker "$testing_frameworks")
     test_args+=(-Xlinker -rpath -Xlinker "$testing_libraries")
 fi
-swift test --disable-sandbox --cache-path "$PWD/.build/swift-cache" "${test_args[@]}"
-swift run --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-self-test
+configuration="${SCREENPLAYOS_BUILD_CONFIGURATION:-debug}"
+swift test --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" "${test_args[@]}" "$@"
+swift run --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-self-test
