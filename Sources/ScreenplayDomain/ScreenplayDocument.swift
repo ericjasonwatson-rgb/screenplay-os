@@ -967,6 +967,7 @@ public struct EditorialSpine: Codable, Equatable {
                     for: sceneShots,
                     boardFrames: sceneBoardFrames,
                     shotsByID: shotsByID,
+                    existingClips: sequences[sequenceIndex].beats[beatIndex].editClips,
                     startingAt: timelineCursor
                 )
 
@@ -979,6 +980,7 @@ public struct EditorialSpine: Codable, Equatable {
         for shots: [Shot],
         boardFrames: [BoardFrame],
         shotsByID: [UUID: Shot],
+        existingClips: [EditClip],
         startingAt timelineStart: Double
     ) -> [EditClip] {
         var cursor = timelineStart
@@ -986,7 +988,10 @@ public struct EditorialSpine: Codable, Equatable {
         if !boardFrames.isEmpty {
             return boardFrames.map { frame in
                 defer { cursor += max(0.5, frame.durationSeconds) }
+                // This guide still derives timing from boards; rebuilding it must not
+                // replace the identity of a surviving occurrence in the same beat.
                 return EditClip(
+                    id: existingClips.first { $0.sourceKind == .boardFrame && $0.boardFrameID == frame.id }?.id ?? UUID(),
                     sceneSpineID: frame.sceneSpineID,
                     shotID: frame.shotID,
                     boardFrameID: frame.id,
@@ -1003,6 +1008,7 @@ public struct EditorialSpine: Codable, Equatable {
         return shots.map { shot in
             defer { cursor += 4.0 }
             return EditClip(
+                id: existingClips.first { $0.sourceKind == .shotPlaceholder && $0.shotID == shot.id }?.id ?? UUID(),
                 sceneSpineID: shot.sceneSpineID,
                 shotID: shot.id,
                 sourceElementIDs: shot.sourceRefs.map(\.screenplayElementID),

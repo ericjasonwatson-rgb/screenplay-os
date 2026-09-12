@@ -4,6 +4,7 @@ Adopted 2026-09-12 from the supplied Platform Architecture direction. This contr
 
 ## Governing documents
 
+- free-core-open-projects-amendment.md: complete user-supplied amendment; governs free local access, service boundaries, and review-first browser scope.
 - platform-architecture.md: complete user-supplied platform direction, preserved verbatim.
 - ui-ux-design-constitution.md: focus, density, context, and interaction principles.
 - product-architecture.md: five views of one film.
@@ -39,7 +40,7 @@ Do not port the whole existing Mac view model as the shared application layer. E
 | Boards | Large visual workspace and contextual details | Touch manipulation and Pencil annotations where useful | Swipeable sequence and review |
 | Edit | Viewer, Story Spine, timeline | Touch timeline with expandable supporting surfaces | Review/playback first |
 
-Web is complementary access, editing, and collaboration when justified. It does not define storage, object identity, or desktop interaction.
+The first browser surface is review and participation: screenplay/scene reading, boards, boardomatic playback, version comparison, and contextual feedback. Full browser authoring is a later demand-driven possibility, not an immediate parity requirement. It does not define storage, object identity, or desktop interaction. The mobile columns above describe future direction, not current delivery.
 
 One design language shares terms, semantic colors, icon meaning, hierarchy, and selection semantics. Control dimensions, pane arrangements, gestures, and navigation are platform-specific. Do not scale desktop columns down to phone widths. Preserve the complete Mac experience.
 
@@ -56,7 +57,7 @@ One design language shares terms, semantic colors, icon meaning, hierarchy, and 
 
 Writing, outlining, shots, local boards, local edit review, and saves must work offline. Features using unavailable remote media or services must explain the specific unavailable resource without blocking unrelated local work.
 
-Local persistence and recoverable history precede optional cloud sync. Save completion and sync completion are separate states. Uploads, media decoding, downloads, and conflict resolution must not block core typing. Large media is stored independently from structured project metadata and referenced by stable asset/version identity.
+Local persistence and recoverable history precede optional cloud sync. Saved locally, synced to cloud, and remotely backed up/recoverable are three separate states. Confirm local persistence before showing local save success; sync runs optionally and asynchronously. Uploads, media decoding, downloads, and conflict resolution must not block core typing. Large media is stored independently from structured project metadata and referenced by stable asset/version identity.
 
 Future synchronization must detect concurrent edits using object revisions/causal information or another explicitly justified strategy. Wall-clock timestamps alone do not resolve concurrent creative edits. Preserve both sides of a conflict and prior states; do not silently use last upload wins. No CRDT, server, or sync provider is selected by this contract.
 
@@ -66,7 +67,7 @@ The current product is a local macOS SwiftUI/AppKit prototype. ScreenplayDomain 
 
 The existing Specs/open-screenplay-1.0.schema.json describes the monolithic prototype representation. It is not the schema for the revised package draft. Preserve compatibility until a loss-aware migration exists.
 
-The 120-page development-build benchmark measured model edit/autosave at 12–17 ms and repagination at approximately 128–169 ms. These are single-workload engine timings, not UI latency targets or proof of touch responsiveness. Full native editing and rendering need measurement before declaring long-script responsiveness acceptable.
+The current same-harness 120-page native-window benchmark measured median insert/layout/display-request time at about 120 ms in Debug and 98–100 ms in Release. These are not hardware key-to-screen measurements or proof of acceptable responsiveness. See typing-benchmark.md for workload and limitations.
 
 Current delivery focus: macOS only. iPadOS and iOS remain architectural targets; do not start their implementation until the user resumes that scope.
 
@@ -75,8 +76,8 @@ Current delivery focus: macOS only. iPadOS and iOS remain architectural targets;
 1. Measure native long-script editing and workspace switching; address the measured pagination/rendering bottleneck while preserving printed output.
 2. For the next creative editing change, extract its command and reference/undo transaction from the Mac view model behind a platform-independent API. Expand incrementally; avoid a speculative full rewrite.
 3. Specify and test the portable package and complete-project companion relationship, unknown-data preservation, transactions, and migration.
-4. Prototype one serious iPad writing/shot workflow against the same command layer. Evaluate touch, hardware keyboard, selection, offline save, and recovery before selecting more presentation reuse.
-5. Add version-aware sync, separate media transfer, focused phone workflows, and complementary web access through explicit later milestones.
+4. Only after explicit resumption of mobile scope, prototype one serious iPad writing/shot workflow against the same command layer. Evaluate touch, hardware keyboard, selection, offline save, and recovery before selecting more presentation reuse.
+5. Add version-aware sync, separate media transfer, focused phone workflows, and review-first browser participation through explicit later milestones.
 6. Validate signing/notarization and platform distribution requirements before distribution claims. The current local bundle is a development build.
 
 ## Acceptance evidence
@@ -84,3 +85,17 @@ Current delivery focus: macOS only. iPadOS and iOS remain architectural targets;
 For each UI change, verify the affected native interaction, keyboard/focus behavior, selection/context continuity, supported window sizes, and accessibility. For creative mutations, test identities, references, Undo/Redo, and persistence. For storage or sync, test failure, offline behavior, conflict preservation, and recovery. Record measured performance with workload, build configuration, and limitations; do not substitute model timings for complete UI timings.
 
 A framework change requires a documented comparison covering editor quality, Mac behavior, iPad interaction, offline storage, sync, media, timeline performance, distribution, and maintainability. Fast prototyping or maximum UI sharing alone is not a sufficient reason.
+
+## Free core, services, and participation amendment
+
+Ordinary local creation, opening, writing, outlining, scene navigation, basic shots, saving, reopening, and supported export require no account, subscription, AI configuration, network, or upload. Keep one canonical project format: no incompatible FreeProject, StudioProject, or CloudProject. FDX remains interchange. The independent screenplay package is a recoverable subset/interoperability boundary, not a paid/free fork. Cancellation may disable service operations, but must not lock owned local creative data or supported export. Pricing, licensing/open-source strategy, and cloud retention policies are not decided here.
+
+Keep identity/account, entitlements, sync, review, backup, media processing/storage, AI jobs, and analytics outside canonical creative objects. Providers belong behind adapters. UI/service preferences belong outside authored content; preserve legacy fields until an explicit migration exists. Extract commands incrementally when a real feature needs them, not as a speculative infrastructure rewrite.
+
+A future Published Review Version is an immutable or explicitly versioned projection of a specific project revision, not a second editable project. References include the published version, relevant canonical object IDs, and time coordinates where applicable. Sharing scopes may select screenplay, sequence, scene, boards, boardomatic, or edit. Private by default; guest access requires the owner's explicit authorization. Publication, permissions, hosting, comments, and version comparison are not implemented by this document.
+
+Future asynchronous AI jobs bind exact project/object identities and input revisions. Results remain candidates until explicit adoption through a visible, attributable, undoable command; detect stale results before adoption. Local heuristic assistants do not establish this service contract. Any creative-content network transfer must explicitly disclose content, recipient, purpose, and expected result. Ordinary usage analytics must not transmit screenplay contents.
+
+Media records eventually use stable MediaID and asset/version metadata independently of blob locations (local, cloud, both, proxy, unavailable). Missing media retains the shot and edit occurrence. Boardomatic-to-media substitution must retain editorial intent and occurrence identity. The current derived Edit guide does not yet provide independent edit occurrences or media replacement semantics.
+
+Before each major feature, apply the amendment's data/local/identity/portability/entitlement/sync/review/AI/privacy questions. See free-core-architecture-audit.md for evidence. Do not add accounts, payments, sync, collaboration, web authoring, media hosting, AI orchestration, or permission matrices under this amendment alone. Writing quality and data protection remain the current milestone.
