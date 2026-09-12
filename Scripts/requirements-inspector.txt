@@ -1,0 +1,2 @@
+# Only --candidate and its destination-schema tests require this dependency.
+jsonschema==4.26.0

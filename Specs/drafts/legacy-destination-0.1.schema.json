@@ -1,0 +1,1295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unreleased legacy destination candidate 0.1",
+  "description": "In-memory legacy migration payload profile, not released Open Screenplay conformance. No writer is enabled.",
+  "type": "object",
+  "properties": {
+    "manifest.json": {
+      "$ref": "#/$defs/manifest"
+    },
+    "screenplay.json": {
+      "$ref": "#/$defs/nativeScreenplay"
+    },
+    "project.json": {
+      "$ref": "#/$defs/projectEnvelope"
+    },
+    "notes.json": {
+      "type": "object",
+      "properties": {
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeNote"
+          }
+        }
+      },
+      "required": [
+        "notes"
+      ],
+      "additionalProperties": true
+    },
+    "shots.json": {
+      "type": "object",
+      "properties": {
+        "shot_addenda": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/addendum"
+          }
+        }
+      },
+      "required": [
+        "shot_addenda"
+      ],
+      "additionalProperties": true
+    },
+    "film/outline.json": {
+      "type": "object",
+      "properties": {
+        "beats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outlineBeat"
+          }
+        }
+      },
+      "required": [
+        "beats"
+      ],
+      "additionalProperties": true
+    },
+    "film/boards.json": {
+      "type": "object",
+      "properties": {
+        "boards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boardFrame"
+          }
+        }
+      },
+      "required": [
+        "boards"
+      ],
+      "additionalProperties": true
+    },
+    "film/edit.json": {
+      "$ref": "#/$defs/editorialSpine"
+    },
+    "film/production.json": {
+      "$ref": "#/$defs/productionContext"
+    },
+    "film/proposals.json": {
+      "type": "object",
+      "properties": {
+        "proposals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/aiProposal"
+          }
+        }
+      },
+      "required": [
+        "proposals"
+      ],
+      "additionalProperties": true
+    },
+    "film/activity.json": {
+      "type": "object",
+      "properties": {
+        "activity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/activityEvent"
+          }
+        }
+      },
+      "required": [
+        "activity"
+      ],
+      "additionalProperties": true
+    },
+    "extensions.json": {
+      "type": "object",
+      "properties": {
+        "extensions": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "extensions"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "manifest.json",
+    "screenplay.json",
+    "project.json",
+    "extensions.json"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "id",
+        "metadata",
+        "screenplay_id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "metadata": {
+          "$ref": "#/$defs/projectMetadata"
+        },
+        "screenplay_id": {
+          "$ref": "#/$defs/uuid"
+        }
+      },
+      "additionalProperties": true
+    },
+    "projectMetadata": {
+      "type": "object",
+      "required": [
+        "title",
+        "author",
+        "created_at",
+        "modified_at"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "created_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "modified_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      },
+      "additionalProperties": true
+    },
+    "screenplay": {
+      "type": "object",
+      "required": [
+        "id",
+        "metadata",
+        "elements",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "metadata": {
+          "$ref": "#/$defs/screenplayMetadata"
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/element"
+          }
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "revision_settings": {
+          "$ref": "#/$defs/revisionSettings"
+        }
+      },
+      "additionalProperties": true
+    },
+    "revisionSettings": {
+      "type": "object",
+      "required": [
+        "mode_enabled",
+        "label",
+        "color"
+      ],
+      "properties": {
+        "mode_enabled": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/$defs/revisionColor"
+        }
+      },
+      "additionalProperties": true
+    },
+    "titlePage": {
+      "type": "object",
+      "required": [
+        "title",
+        "subtitle",
+        "author",
+        "contact",
+        "draft_date"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "contact": {
+          "type": "string"
+        },
+        "draft_date": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "screenplayMetadata": {
+      "type": "object",
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "episode_title": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "element": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "text",
+        "external_ids"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "type": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "spine_id": {
+          "type": "string"
+        },
+        "external_ids": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "revision_mark": {
+          "$ref": "#/$defs/revisionMark"
+        }
+      },
+      "additionalProperties": true
+    },
+    "revisionMark": {
+      "type": "object",
+      "required": [
+        "label",
+        "color",
+        "changed_at"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "color": {
+          "$ref": "#/$defs/revisionColor"
+        },
+        "changed_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      },
+      "additionalProperties": true
+    },
+    "revisionColor": {
+      "type": "string"
+    },
+    "productionContext": {
+      "type": "object",
+      "required": [
+        "context_enabled",
+        "entities",
+        "notes"
+      ],
+      "properties": {
+        "context_enabled": {
+          "type": "boolean"
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/productionEntity"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/productionNote"
+          }
+        },
+        "generated_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      },
+      "additionalProperties": true
+    },
+    "productionEntity": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "status",
+        "source_element_ids",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "kind": {
+          "$ref": "#/$defs/productionEntityKind"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/productionEntityStatus"
+        },
+        "source_element_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "productionNote": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "body",
+        "status",
+        "source_element_ids"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/productionEntityStatus"
+        },
+        "source_element_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "productionEntityKind": {
+      "type": "string"
+    },
+    "productionEntityStatus": {
+      "type": "string"
+    },
+    "aiSettings": {
+      "type": "object",
+      "required": [
+        "writing_enabled",
+        "directing_enabled",
+        "production_enabled"
+      ],
+      "properties": {
+        "writing_enabled": {
+          "type": "boolean"
+        },
+        "outline_enabled": {
+          "type": "boolean"
+        },
+        "directing_enabled": {
+          "type": "boolean"
+        },
+        "boards_enabled": {
+          "type": "boolean"
+        },
+        "production_enabled": {
+          "type": "boolean"
+        },
+        "edit_enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "aiProposal": {
+      "type": "object",
+      "required": [
+        "id",
+        "workflow",
+        "title",
+        "body",
+        "status",
+        "target",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "workflow": {
+          "$ref": "#/$defs/aiProposalWorkflow"
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/aiProposalStatus"
+        },
+        "target": {
+          "$ref": "#/$defs/aiProposalTarget"
+        },
+        "created_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      },
+      "additionalProperties": true
+    },
+    "aiProposalWorkflow": {
+      "type": "string"
+    },
+    "aiProposalStatus": {
+      "type": "string"
+    },
+    "aiProposalTarget": {
+      "type": "object",
+      "properties": {
+        "screenplay_element_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scene_spine_id": {
+          "type": "string"
+        },
+        "outline_beat_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "shot_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "board_frame_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "context_record_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scene_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": true,
+      "required": []
+    },
+    "activityEvent": {
+      "type": "object",
+      "required": [
+        "id",
+        "actor",
+        "action",
+        "detail",
+        "target",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "actor": {
+          "$ref": "#/$defs/activityActor"
+        },
+        "action": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/aiProposalTarget"
+        },
+        "created_at": {
+          "$ref": "#/$defs/dateTime"
+        }
+      },
+      "additionalProperties": true
+    },
+    "activityActor": {
+      "type": "string"
+    },
+    "outlineBeat": {
+      "type": "object",
+      "required": [
+        "id",
+        "template",
+        "order",
+        "name",
+        "purpose",
+        "notes",
+        "linked_scene_ids"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "template": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "linked_scene_spine_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "linked_scene_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "shot": {
+      "type": "object",
+      "required": [
+        "id",
+        "scene_id",
+        "shot_number",
+        "label",
+        "setup",
+        "status",
+        "source_refs",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scene_spine_id": {
+          "type": "string"
+        },
+        "shot_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "label": {
+          "type": "string"
+        },
+        "setup": {
+          "$ref": "#/$defs/shotSetup"
+        },
+        "status": {
+          "$ref": "#/$defs/shotStatus"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shotSourceRef"
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "scene_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": true
+    },
+    "shotSetup": {
+      "type": "string"
+    },
+    "shotStatus": {
+      "type": "string"
+    },
+    "scriptNote": {
+      "type": "object",
+      "required": [
+        "id",
+        "screenplay_element_id",
+        "scene_id",
+        "body",
+        "status",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "screenplay_element_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scene_spine_id": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/scriptNoteStatus"
+        },
+        "created_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "resolved_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "scene_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": true
+    },
+    "scriptNoteStatus": {
+      "type": "string"
+    },
+    "boardFrame": {
+      "type": "object",
+      "required": [
+        "id",
+        "shot_id",
+        "scene_id",
+        "frame_number",
+        "label",
+        "prompt",
+        "duration_seconds",
+        "status",
+        "notes",
+        "source_refs"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "shot_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scene_spine_id": {
+          "type": "string"
+        },
+        "frame_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "label": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "duration_seconds": {
+          "type": "number",
+          "minimum": 0.5
+        },
+        "status": {
+          "$ref": "#/$defs/shotStatus"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shotSourceRef"
+          }
+        },
+        "scene_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": true
+    },
+    "editorialSpine": {
+      "type": "object",
+      "required": [
+        "sequences"
+      ],
+      "properties": {
+        "sequences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/editorialSequence"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "editorialSequence": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "order",
+        "beats"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "beats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/editorialBeat"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "editorialBeat": {
+      "type": "object",
+      "required": [
+        "id",
+        "order",
+        "scene_id",
+        "title",
+        "source_element_ids",
+        "shot_ids",
+        "board_frame_ids",
+        "edit_clips",
+        "edit_notes",
+        "marker_category",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "scene_spine_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "source_element_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        },
+        "shot_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        },
+        "board_frame_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        },
+        "edit_clips": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/editClip"
+          }
+        },
+        "edit_notes": {
+          "type": "string"
+        },
+        "marker_category": {
+          "$ref": "#/$defs/editorialMarkerCategory"
+        },
+        "status": {
+          "$ref": "#/$defs/editorialBeatStatus"
+        },
+        "scene_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": true
+    },
+    "editClip": {
+      "type": "object",
+      "required": [
+        "id",
+        "scene_id",
+        "source_element_ids",
+        "label",
+        "source_kind",
+        "timeline_start_seconds",
+        "timeline_duration_seconds",
+        "source_start_seconds",
+        "status",
+        "notes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scene_spine_id": {
+          "type": "string"
+        },
+        "shot_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "board_frame_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "source_element_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        },
+        "label": {
+          "type": "string"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/editClipSourceKind"
+        },
+        "timeline_start_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "timeline_duration_seconds": {
+          "type": "number",
+          "minimum": 0.5
+        },
+        "source_start_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "status": {
+          "$ref": "#/$defs/editClipStatus"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "scene_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": true
+    },
+    "editClipSourceKind": {
+      "type": "string"
+    },
+    "editClipStatus": {
+      "type": "string"
+    },
+    "editorialMarkerCategory": {
+      "type": "string"
+    },
+    "editorialBeatStatus": {
+      "type": "string"
+    },
+    "shotSourceRef": {
+      "type": "object",
+      "required": [
+        "screenplay_element_id"
+      ],
+      "properties": {
+        "screenplay_element_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "start_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "nativeElement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "text"
+      ],
+      "additionalProperties": true
+    },
+    "nativeScreenplay": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeElement"
+          }
+        },
+        "title_page": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "elements"
+      ],
+      "additionalProperties": true
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "open-screenplay"
+        },
+        "format_version": {
+          "const": "1.0"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modified_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "format",
+        "format_version",
+        "document_id",
+        "title",
+        "author",
+        "created_at",
+        "modified_at"
+      ],
+      "additionalProperties": true
+    },
+    "nativeNote": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string"
+        },
+        "anchor": {
+          "type": "object",
+          "properties": {
+            "element_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "element_id"
+          ],
+          "additionalProperties": true
+        },
+        "resolved": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "anchor",
+        "resolved"
+      ],
+      "additionalProperties": true
+    },
+    "nativeShot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "label": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "element_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "element_id"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "notes",
+        "ordinal",
+        "source_refs"
+      ],
+      "additionalProperties": true
+    },
+    "addendum": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "scene_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "shots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeShot"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "scene_id",
+        "shots"
+      ],
+      "additionalProperties": true
+    },
+    "projectEnvelope": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "open-screenplay-project"
+        },
+        "format_version": {
+          "const": "0.1-draft"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "screenplay_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "head": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "parents": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "bytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "sha256",
+                  "bytes"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "objects": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "revision_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "parents": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "state": {
+                    "enum": [
+                      "active",
+                      "deleted"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "revision_id",
+                  "parents",
+                  "state"
+                ],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": [
+            "id",
+            "parents",
+            "created_at",
+            "files",
+            "objects"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "format",
+        "format_version",
+        "project_id",
+        "screenplay_id",
+        "head"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

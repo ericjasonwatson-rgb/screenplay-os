@@ -385,6 +385,7 @@ def validate_mapping(data, plan):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', help='Legacy monolithic JSON file (not FDX or a package)')
+    parser.add_argument('--candidate', action='store_true', help='Validate destination payloads and scene/reference mapping in memory')
     parser.add_argument('--mapping', action='store_true', help='Validate draft field mapping in memory; print metadata only')
     args = parser.parse_args()
     try:
@@ -402,7 +403,26 @@ def main():
                                  if key not in ('payload_fragments', 'findings')}
             if Path(args.source).read_bytes() != data:
                 raise ValueError('source changed during mapping')
-    except (OSError, RecursionError, ValueError) as error:
+        if args.candidate:
+            import importlib.util
+            sys.dont_write_bytecode = True
+            spec = importlib.util.spec_from_file_location('legacy_destination', Path(__file__).with_name('legacy_destination.py'))
+            destination = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(destination)
+            data = Path(args.source).read_bytes()
+            if hashlib.sha256(data).hexdigest() != report['source_sha256']:
+                raise ValueError('source changed before candidate construction')
+            try:
+                candidate = destination.build_candidate(data)
+                report['candidate'] = {key: value for key, value in candidate.items() if key != 'files'}
+                report['candidate']['validated_files'] = sorted(candidate['files'])
+            except ValueError as error:
+                report['candidate'] = {'status': 'blocked', 'conversion_ready': False}
+                report['findings'].append({'severity': 'blocker', 'code': 'candidate_validation',
+                                           'path': '', 'message': str(error)})
+            if Path(args.source).read_bytes() != data:
+                raise ValueError('source changed during candidate construction')
+    except (OSError, RecursionError, ValueError, ImportError) as error:
         print(json.dumps({'error': type(error).__name__, 'conversion_available': False}), file=sys.stderr)
         return 2
     print(json.dumps(report, ensure_ascii=True, indent=2))

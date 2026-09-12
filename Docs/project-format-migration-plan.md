@@ -76,3 +76,7 @@ Implement the read-only legacy inspector and report first, with synthetic fixtur
 ## Preservation and initial field mapping — 2026-09-12
 
 `--mapping` now validates complete source reconstruction from in-memory field fragments and structural records. Core text/catalog fields have explicit routes; richer records remain explicitly preserved as legacy extension fragments. See `legacy-field-mapping.md` for implemented rules, tests, and limitations. This is not a completed target schema, active migration of every feature, identity-assignment plan, or converted-copy writer.
+
+## Destination candidate follow-up — 2026-09-12
+
+The executable destination profile and scene/reference transformations are now implemented in memory. See `legacy-destination-candidate.md` for payload coverage, nine new destination tests, conservative blockers, and remaining format/writer limitations. `--candidate` validates complete payload objects for currently migrated legacy records; package writes and app migration remain disabled.

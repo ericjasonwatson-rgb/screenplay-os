@@ -57,3 +57,7 @@ A changed source, missing mapping, wrong route, changed value/type, reordered ar
 The test command includes 18 inspector/mapping tests, ten added for this layer. They cover precision-preserving serialization, unknown/empty data, reconstruction without original bytes, stale/unsupported plans, tampered mappings/values/types/order, blocked input, populated editorial data and locks, and CLI read-only behavior. Input bytes, modification time, and directory contents remain unchanged in CLI tests.
 
 Next, define and validate the actual core/extension payload schemas and implement the remaining active field transformations, with scene-identity and reference mapping. Only after that should a staged converted-copy writer be added and tested for interruption, outside edits, disk failure, and recovery. Current app saves and user documents are unchanged.
+
+## Destination candidate follow-up — 2026-09-12
+
+The executable destination profile and scene/reference transformations are now implemented in memory. See `legacy-destination-candidate.md` for payload coverage, nine new destination tests, conservative blockers, and remaining format/writer limitations. `--candidate` validates complete payload objects for currently migrated legacy records; package writes and app migration remain disabled.

@@ -36,3 +36,7 @@ Eight automated tests cover empty/Unicode scripts, malformed/duplicate JSON, exa
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/LegacyInspector -v
 ```
+
+## Destination validation
+
+Use `--candidate` to validate draft payloads and stable scene/reference mappings in memory; see `legacy-destination-candidate.md`. This optional mode requires the dependency in `Scripts/requirements-inspector.txt`. It prints metadata only and never enables conversion or writes a package.
