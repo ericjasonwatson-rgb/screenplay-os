@@ -860,7 +860,12 @@ final class ScreenplayViewModel: ObservableObject {
         replaceText = ""
         characterToRename = ""
         newCharacterName = ""
+        workflowMode = .writing
         sidebarMode = .navigator
+        focusMode = false
+        navigationVisible = true
+        contextAssistantVisible = false
+        commandPaletteVisible = false
         selectInitialElement()
         errorMessage = "New screenplay"
     }
@@ -4513,31 +4518,17 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func loadMostRecentWorkingDocument() {
-        if let savedURL = mostRecentSavedDocumentURL() {
-            loadOpenScreenplay(at: savedURL)
+        // Recent documents reflect the user's opening/saving order, not unrelated
+        // modification dates in Downloads. Missing paths are filtered on load.
+        guard let recent = recentDocuments.first else {
+            newDocument()
             return
         }
-
-        loadBundledFixture()
-    }
-
-    private func mostRecentSavedDocumentURL() -> URL? {
-        let downloads = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
-
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: downloads,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return nil
-        }
-
-        let savedDocuments = files.filter {
-            $0.lastPathComponent.hasSuffix(".open-screenplay.json")
-        }
-
-        return savedDocuments.max { left, right in
-            modificationDate(for: left) < modificationDate(for: right)
+        openDocument(at: recent.url)
+        if document == nil {
+            let reason = errorMessage ?? "The file could not be read."
+            newDocument()
+            errorMessage = "Could not reopen \(recent.name). \(reason) A new screenplay is ready; the original file has not been changed."
         }
     }
 
