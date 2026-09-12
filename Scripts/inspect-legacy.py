@@ -3,6 +3,8 @@
 import argparse
 import hashlib
 import json
+import re
+import copy
 from pathlib import Path
 import sys
 import uuid
@@ -217,14 +219,190 @@ def inspect_file(path, schema):
     return report
 
 
+
+_NUMBER = re.compile(r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\Z')
+
+
+def preserve_json(value):
+    """Encode the raw tree without numeric coercion or Unicode normalization."""
+    def encode(node):
+        if isinstance(node, Number):
+            if not _NUMBER.fullmatch(node):
+                raise ValueError('invalid numeric token')
+            return str(node)
+        if node is None:
+            return 'null'
+        if type(node) is bool:
+            return 'true' if node else 'false'
+        if type(node) is int:
+            return str(node)
+        if type(node) is str:
+            node.encode('utf-8', errors='strict')
+            return json.dumps(node, ensure_ascii=False)
+        if type(node) is list:
+            return '[' + ','.join(encode(child) for child in node) + ']'
+        if type(node) is dict:
+            if any(type(key) is not str for key in node):
+                raise ValueError('JSON keys must be strings')
+            return '{' + ','.join(encode(key) + ':' + encode(node[key]) for key in sorted(node)) + '}'
+        raise ValueError('unsupported value; floats must not enter the preservation tree')
+    return encode(value).encode('utf-8')
+
+
+def mapping_destination(path):
+    """Conservative field rules. All other values retain their original pointer."""
+    exact = {
+        '/format': ('manifest.json', '/format'),
+        '/format_version': ('manifest.json', '/format_version'),
+        '/project/id': ('project.json', '/project_id'),
+        '/project/screenplay_id': ('project.json', '/screenplay_id'),
+        '/screenplay/id': ('screenplay.json', '/id'),
+        '/screenplay/elements': ('screenplay.json', '/elements'),
+    }
+    for key in ('title', 'author', 'created_at', 'modified_at'):
+        exact['/project/metadata/' + key] = ('manifest.json', '/' + key)
+    if path in exact:
+        return 'mapped', *exact[path]
+    # A field path, not a name match anywhere inside an unknown extension.
+    if re.fullmatch(r'/screenplay/elements/[0-9]+/(id|type|text)', path):
+        return 'mapped', 'screenplay.json', path[len('/screenplay'):]
+    if re.fullmatch(r'/title_page/(title|subtitle|author|contact|draft_date)', path):
+        return 'mapped', 'screenplay.json', path
+    return 'preserved_opaque', 'extensions.json', pointer('/extensions/dev.screenplayos.legacy/fields', path)
+
+
+def create_mapping(data, schema):
+    """Build validated field fragments in memory; these are NOT package files."""
+    inspection = inspect_bytes(data, schema)
+    plan = {
+        'mapping_version': '0.1', 'source_sha256': inspection['source_sha256'],
+        'source_bytes': len(data), 'conversion_ready': False,
+        'target_drafts': {'core': '1.0-unreleased', 'project': '0.1-draft'},
+        'findings': [item for item in inspection['findings'] if item['code'] != 'mapping_deferred'],
+        'structure': [], 'mappings': [],
+        'payload_fragments': {}, 'preservation_verified': False,
+        'identity_assignments': [],
+    }
+    if any(item['severity'] == 'blocker' for item in inspection['findings']):
+        plan['status'] = 'blocked'
+        # Inventory still explicitly marks every parsed source node as blocked.
+        plan['blocked_fields'] = [item['path'] for item in inspection['inventory']]
+        return plan
+    root = parse_source(data)
+    def walk(value, path):
+        if isinstance(value, dict) and value:
+            plan['structure'].append(dict(path=path, type='object', disposition='preserved_opaque', keys=list(value)))
+            for key, child in value.items():
+                walk(child, pointer(path, key))
+        elif isinstance(value, list) and value:
+            plan['structure'].append(dict(path=path, type='array', disposition='preserved_opaque', length=len(value)))
+            for index, child in enumerate(value):
+                walk(child, pointer(path, index))
+        else:
+            disposition, file, target = mapping_destination(path)
+            fragments = plan['payload_fragments'].setdefault(file, {})
+            if target in fragments:
+                raise ValueError('mapping destination collision')
+            fragments[target] = copy.deepcopy(value)
+            plan['mappings'].append(dict(source=path, type=kind(value),
+                disposition=disposition, file=file, target=target))
+    walk(root, '')
+    plan['status'] = 'field_fragments_only'
+    validate_mapping(data, plan)
+    plan['preservation_verified'] = True
+    return plan
+
+
+def recover_mapping(plan):
+    """Recover the legacy tree solely from field fragments and structural records."""
+    structures = {}
+    leaves = {}
+    used = set()
+    for item in plan['structure']:
+        if item.get('disposition') != 'preserved_opaque':
+            raise ValueError('unsupported structural disposition')
+        if item['path'] in structures:
+            raise ValueError('duplicate structural record')
+        structures[item['path']] = item
+    for item in plan['mappings']:
+        source = item['source']
+        if source in leaves or source in structures:
+            raise ValueError('duplicate source mapping')
+        expected = mapping_destination(source)
+        if (item['disposition'], item['file'], item['target']) != expected:
+            raise ValueError('unsupported mapping rule')
+        address = (item['file'], item['target'])
+        if address in used:
+            raise ValueError('duplicate target mapping')
+        used.add(address)
+        value = plan['payload_fragments'][item['file']][item['target']]
+        if kind(value) != item['type']:
+            raise ValueError('mapped value type changed')
+        if isinstance(value, (dict, list)) and value:
+            raise ValueError('nonempty subtree hidden in a leaf')
+        leaves[source] = value
+    actual = {(file, target) for file, fragments in plan['payload_fragments'].items() for target in fragments}
+    if used != actual:
+        raise ValueError('unaccounted target fragment')
+    visited = set()
+    def restore(path):
+        visited.add(path)
+        if path in leaves:
+            return copy.deepcopy(leaves[path])
+        item = structures[path]
+        if item['type'] == 'object':
+            keys = item['keys']
+            if len(keys) != len(set(keys)) or any(type(key) is not str for key in keys):
+                raise ValueError('invalid structural keys')
+            return {key: restore(pointer(path, key)) for key in keys}
+        if item['type'] != 'array' or type(item['length']) is not int or item['length'] < 1:
+            raise ValueError('invalid structural array')
+        return [restore(pointer(path, index)) for index in range(item['length'])]
+    result = restore('')
+    if visited != structures.keys() | leaves.keys():
+        raise ValueError('unreachable source mapping')
+    return result
+
+
+def validate_mapping(data, plan):
+    """Reject stale plans, changed values/types, missing coverage, or wrong routes."""
+    if plan.get('mapping_version') != '0.1' or plan.get('status') != 'field_fragments_only':
+        raise ValueError('unsupported or blocked mapping')
+    if plan.get('source_sha256') != hashlib.sha256(data).hexdigest() or plan.get('source_bytes') != len(data):
+        raise ValueError('source changed since planning')
+    if plan.get('conversion_ready') is not False or plan.get('identity_assignments') != []:
+        raise ValueError('conversion or identity assignment is not implemented')
+    restored = recover_mapping(plan)
+    # Serialization distinguishes booleans, numeric tokens and numeric-looking strings.
+    # Dict ordering is irrelevant; array order, exact tokens and Unicode are preserved.
+    if preserve_json(restored) != preserve_json(parse_source(data)):
+        raise ValueError('source values or structure changed')
+    encoded = preserve_json(restored)
+    if preserve_json(parse_source(encoded)) != encoded:
+        raise ValueError('preservation round trip failed')
+    return True
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', help='Legacy monolithic JSON file (not FDX or a package)')
+    parser.add_argument('--mapping', action='store_true', help='Validate draft field mapping in memory; print metadata only')
     args = parser.parse_args()
     try:
         schema = json.loads((Path(__file__).resolve().parent.parent / 'Specs/open-screenplay-1.0.schema.json').read_text())
         report = inspect_file(args.source, schema)
-    except (OSError, RecursionError) as error:
+        if args.mapping:
+            data = Path(args.source).read_bytes()
+            if hashlib.sha256(data).hexdigest() != report['source_sha256']:
+                raise ValueError('source changed before mapping')
+            plan = create_mapping(data, schema)
+            # Full fragments contain private creative data and remain in memory.
+            report['findings'] = [item for item in report['findings'] if item['code'] != 'mapping_deferred']
+            report['scope'] = 'Read-only inspection and validated field fragments; not package conformance or conversion.'
+            report['mapping'] = {key: value for key, value in plan.items()
+                                 if key not in ('payload_fragments', 'findings')}
+            if Path(args.source).read_bytes() != data:
+                raise ValueError('source changed during mapping')
+    except (OSError, RecursionError, ValueError) as error:
         print(json.dumps({'error': type(error).__name__, 'conversion_available': False}), file=sys.stderr)
         return 2
     print(json.dumps(report, ensure_ascii=True, indent=2))

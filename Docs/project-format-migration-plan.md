@@ -72,3 +72,7 @@ Implement the read-only legacy inspector and report first, with synthetic fixtur
 ## Read-only inspector implementation — 2026-09-12
 
 `Scripts/inspect-legacy.py` now implements the initial risk inventory using a raw, duplicate-key-detecting JSON reader with exact numeric tokens. See `legacy-inspector.md` for scope and usage. It reports source digest/size, known and unknown field paths, identities, reference risks, and raw editorial presence without converting or assigning identities. Full schema validation, target field mapping, a reusable identity-assignment plan, and all package writer gates remain unfinished.
+
+## Preservation and initial field mapping — 2026-09-12
+
+`--mapping` now validates complete source reconstruction from in-memory field fragments and structural records. Core text/catalog fields have explicit routes; richer records remain explicitly preserved as legacy extension fragments. See `legacy-field-mapping.md` for implemented rules, tests, and limitations. This is not a completed target schema, active migration of every feature, identity-assignment plan, or converted-copy writer.

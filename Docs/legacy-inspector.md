@@ -21,13 +21,13 @@ The report includes:
 
 Script text, notes, and prompts are not emitted as values. Reports still contain object IDs and JSON keys/paths, including user-defined keys; treat reports as local project metadata. There are no network operations. A second read detects changes during that interval, not future changes or an exclusive file lock.
 
-Numbers remain exact lexical tokens in the raw tree, including large integers and high-precision exponents. No floating-point conversion occurs. Duplicate keys (including equivalent escaped key spellings), non-JSON numeric constants, invalid UTF-8, and unpaired Unicode surrogates are rejected. Unknown subtrees are inspected without guessing creative identity from arbitrary `id` keys. The parser does not supply a preservation writer; retaining an in-memory value is not yet a proven migration round trip.
+Numbers remain exact lexical tokens in the raw tree, including large integers and high-precision exponents. No floating-point conversion occurs. Duplicate keys (including equivalent escaped key spellings), non-JSON numeric constants, invalid UTF-8, and unpaired Unicode surrogates are rejected. Unknown subtrees are inspected without guessing creative identity from arbitrary `id` keys. The optional mapping layer supplies a tested raw JSON preservation encoder and reconstruction checks. It does not supply a package writer or establish a complete migration round trip.
 
 ## Current limitations
 
 This is a risk inventory, not a complete JSON Schema validator or migration plan. It does not check every schema constraint, date, range, source type, cross-record semantic relationship, package path, asset, or conflict. The legacy schema itself does not describe every current optional field; such fields are conservatively reported as unknown, never discarded. Duplicate creative UUIDs are conservatively blocked. Ambiguous scene aliases require explicit repair. Missing historical references remain unresolved instead of being reattached.
 
-All known fields remain marked unmapped: no target payload schemas, identity assignments, conversion, or lossless claim are supplied. The application still uses its existing save path. The next implementation step is a complete preservation model and validated target mapping, building on this inventory before any converted-copy writer.
+All known fields remain marked unmapped: no target payload schemas, identity assignments, conversion, or lossless claim are supplied. The application still uses its existing save path. The in-memory preservation and initial field-mapping layer is now implemented; see `legacy-field-mapping.md` and use `--mapping`. Complete active target schemas and transformations remain unfinished before any converted-copy writer.
 
 ## Verification
 
