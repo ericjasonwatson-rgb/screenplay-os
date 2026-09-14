@@ -4,7 +4,7 @@ The continuous minimal-package editor now offers Print Preview and PDF export. W
 
 The first package print profile uses US Letter (612 × 792 points), a 432 × 648 point text area, left margin 108 points, top margin 72 points, 12-point Courier, and screenplay-type indents. TextKit lays out complete glyph ranges through successive page containers, allowing very long paragraphs to continue rather than clipping or dropping their remainder. Page numbers appear in the top margin. A heading, character cue, or parenthetical at the end of a page moves with following text; oversized blocks must still make progress. Text, authored casing, blank paragraphs, and IDs are not rewritten.
 
-This is un-locked script pagination, not format conformance or production pagination parity. It does not add MORE/CONT'D dialogue markers, production locks, manual page breaks, title-page authoring, or pagination overlays to the writing surface. Rich packages remain read-only. The fixed print profile can differ from the adaptive on-screen layout.
+This is un-locked script pagination, not format conformance or production pagination parity. Dialogue MORE/CONT’D markers are now implemented; see `package-dialogue-continuations.md`. Production locks, manual page breaks, title-page authoring, and pagination overlays on the writing surface remain unimplemented. Rich packages remain read-only. The fixed print profile can differ from the adaptive on-screen layout.
 
 ## Performance change
 

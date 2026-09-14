@@ -31,39 +31,81 @@ enum PackagePrintLayout {
         let storage = NSTextStorage(attributedString: attributed)
         let layout = NSLayoutManager()
         storage.addLayoutManager(layout)
+        // A continuation belongs only to an uninterrupted cue/dialogue/parenthetical
+        // block. Never invent a speaker for un-cued dialogue or cross an action/heading.
+        var owners: [Int?] = [], owner: Int?
+        for (index, entry) in projection.entries.enumerated() {
+            if entry.type == "character" { owner = entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : index }
+            else if !["dialogue", "parenthetical"].contains(entry.type) { owner = nil }
+            owners.append(owner)
+        }
+        func continuation(at offset: Int) -> String? {
+            guard offset > 0, offset < attributed.length,
+                  let left = projection.entries.lastIndex(where: { $0.range.location < offset }),
+                  let right = projection.entries.lastIndex(where: { $0.range.location <= offset }),
+                  let cue = owners[left], owners[right] == cue,
+                  ["dialogue", "parenthetical"].contains(projection.entries[left].type),
+                  ["dialogue", "parenthetical"].contains(projection.entries[right].type) else { return nil }
+            return projection.entries[cue].text
+        }
+        func continuedCue(_ cue: String) -> String {
+            if cue.hasSuffix("(CONT’D)") || cue.hasSuffix("(CONT'D)") { return cue }
+            return cue + " (CONT’D)"
+        }
         var ranges: [NSRange] = [], glyphRanges: [NSRange] = []
+        var headers: [String?] = [], headerHeights: [CGFloat] = [], footers: [Bool] = []
         var previousEnd = 0
+        var incoming: String?
         repeat {
-            let container = NSTextContainer(containerSize: NSSize(width: 432, height: 648))
+            let header = incoming.map(continuedCue)
+            let headerHeight: CGFloat = header.map {
+                ceil(($0 as NSString).boundingRect(with: NSSize(width: 288, height: CGFloat.greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]).height) + 8
+            } ?? 0
+            guard headerHeight < 500 else { throw PrintPDFError.renderFailed }
+            let container = NSTextContainer(containerSize: NSSize(width: 432, height: 648 - headerHeight))
             container.lineFragmentPadding = 0
             layout.addTextContainer(container)
             layout.ensureLayout(for: container)
             var glyphs = layout.glyphRange(for: container)
-            // Keep an ending heading/cue/parenthetical with at least the first line
-            // of its following paragraph. Oversized blocks still make forward progress.
-            let characters = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
-            if let index = projection.entries.indices.last(where: { index in
-                let entry = projection.entries[index]
-                guard ["scene_heading", "character", "parenthetical"].contains(entry.type),
-                      index + 1 < projection.entries.count,
-                      entry.range.location > characters.location,
-                      entry.range.location < NSMaxRange(characters) else { return false }
-                return projection.entries[index + 1].range.location >= NSMaxRange(characters)
-            }) {
-                // Include a preceding cue when the stranded paragraph is parenthetical.
-                var first = index
-                while first > 0, ["character", "scene_heading"].contains(projection.entries[first - 1].type),
-                      projection.entries[first - 1].range.location > characters.location { first -= 1 }
-                let glyph = layout.glyphIndexForCharacter(at: projection.entries[first].range.location)
-                let y = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
-                if y > 0 {
-                    container.containerSize.height = y
-                    layout.ensureLayout(for: container)
-                    glyphs = layout.glyphRange(for: container)
+            func keepGroups() {
+                // Keep an ending heading/cue/parenthetical with at least the first line
+                // of its following paragraph. Oversized blocks still make forward progress.
+                let characters = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+                if let index = projection.entries.indices.last(where: { index in
+                    let entry = projection.entries[index]
+                    guard ["scene_heading", "character", "parenthetical"].contains(entry.type),
+                          index + 1 < projection.entries.count,
+                          entry.range.location > characters.location,
+                          entry.range.location < NSMaxRange(characters) else { return false }
+                    return projection.entries[index + 1].range.location >= NSMaxRange(characters)
+                }) {
+                    // Include a preceding cue when the stranded paragraph is parenthetical.
+                    var first = index
+                    while first > 0, ["character", "scene_heading"].contains(projection.entries[first - 1].type),
+                          projection.entries[first - 1].range.location > characters.location { first -= 1 }
+                    let glyph = layout.glyphIndexForCharacter(at: projection.entries[first].range.location)
+                    let y = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
+                    if y > 0 {
+                        container.containerSize.height = y
+                        layout.ensureLayout(for: container)
+                        glyphs = layout.glyphRange(for: container)
+                    }
                 }
             }
-            glyphRanges.append(glyphs)
-            ranges.append(layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil))
+            keepGroups()
+            var chars = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+            if continuation(at: NSMaxRange(chars)) != nil {
+                // Reserve a real line for MORE before deciding the final page boundary.
+                container.containerSize.height = min(container.containerSize.height, 648 - headerHeight - 24)
+                layout.ensureLayout(for: container)
+                glyphs = layout.glyphRange(for: container)
+                keepGroups()
+                chars = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+            }
+            incoming = continuation(at: NSMaxRange(chars))
+            headers.append(header); headerHeights.append(headerHeight); footers.append(incoming != nil)
+            glyphRanges.append(glyphs); ranges.append(chars)
             let end = NSMaxRange(glyphs)
             if end >= layout.numberOfGlyphs { break }
             guard end > previousEnd, ranges.count < 10_000 else { throw PrintPDFError.renderFailed }
@@ -80,7 +122,14 @@ enum PackagePrintLayout {
             NSGraphicsContext.saveGraphicsState()
             NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
             // TextKit containers each have a local origin; page margins are added here.
-            layout.drawGlyphs(forGlyphRange: range, at: NSPoint(x: 108, y: 72))
+            if let header = headers[index] {
+                (header as NSString).draw(with: NSRect(x: 252, y: 72, width: 288, height: headerHeights[index]),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font, .foregroundColor: NSColor.black])
+            }
+            layout.drawGlyphs(forGlyphRange: range, at: NSPoint(x: 108, y: 72 + headerHeights[index]))
+            if footers[index] {
+                ("(MORE)" as NSString).draw(at: NSPoint(x: 252, y: 700), withAttributes: [.font: font, .foregroundColor: NSColor.black])
+            }
             ("\(index + 1)." as NSString).draw(at: NSPoint(x: 516, y: 36), withAttributes: [.font: font, .foregroundColor: NSColor.black])
             NSGraphicsContext.restoreGraphicsState()
             context.restoreGState(); context.endPDFPage()
