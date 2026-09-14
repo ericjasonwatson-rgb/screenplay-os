@@ -19,7 +19,7 @@ struct ScreenplayOSApp: App {
             CommandGroup(replacing: .appInfo) {
                 Group {
                     Button("About ScreenplayOS", action: AppBranding.showAbout)
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packageSheetOpen)
             }
             CommandGroup(replacing: .newItem) {
                 Group {
@@ -53,7 +53,7 @@ struct ScreenplayOSApp: App {
                             }
                         }
                     }
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packageSheetOpen)
             }
             CommandGroup(replacing: .saveItem) {
                 Group {
@@ -81,18 +81,22 @@ struct ScreenplayOSApp: App {
                         model.showProductionExportPanel()
                     }
                     .keyboardShortcut("p", modifiers: [.command, .option])
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packageSheetOpen)
+                if let editor = model.packageEditor {
+                    Button("Save Edited Copy…") { editor.savePanel() }
+                        .keyboardShortcut("s", modifiers: [.command])
+                }
             }
             CommandGroup(replacing: .undoRedo) {
                 Group {
                     Button("Undo") {
-                        model.undo()
+                        if let editor = model.packageEditor { editor.undo() } else { model.undo() }
                     }
                     .keyboardShortcut("z", modifiers: [.command])
-                    .disabled(!model.canUndo)
-                    Button("Redo") { model.redo() }
+                    .disabled(!(model.packageEditor?.canUndo ?? model.canUndo))
+                    Button("Redo") { if let editor = model.packageEditor { editor.redo() } else { model.redo() } }
                         .keyboardShortcut("z", modifiers: [.command, .shift])
-                        .disabled(!model.canRedo)
+                        .disabled(!(model.packageEditor?.canRedo ?? model.canRedo))
                 }.disabled(model.packagePreview != nil)
             }
             CommandMenu("Workspace") {
@@ -150,7 +154,7 @@ struct ScreenplayOSApp: App {
                         AppDelegate.resetMainWindowLayout()
                     }
                     .keyboardShortcut("0", modifiers: [.command, .shift])
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packageSheetOpen)
             }
             CommandMenu("Screenplay") {
                 Group {
@@ -339,7 +343,7 @@ struct ScreenplayOSApp: App {
                         model.setSelectedElementType(.shot)
                     }
                     .keyboardShortcut("7", modifiers: [.command])
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packageSheetOpen)
             }
         }
     }

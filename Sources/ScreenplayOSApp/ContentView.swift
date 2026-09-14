@@ -44,26 +44,29 @@ struct ContentView: View {
         .background(
             KeyCommandMonitor(
                 onDelete: {
-                    guard model.packagePreview == nil else { return false }
+                    guard !model.packageSheetOpen else { return false }
                     return model.deleteSelectedElementIfEmpty()
                 },
                 onCommandDelete: {
-                    guard model.packagePreview == nil else { return false }
+                    guard !model.packageSheetOpen else { return false }
                     model.deleteEmptyElements()
                     return true
                 },
                 onElementShortcut: { type in
-                    guard model.packagePreview == nil else { return false }
+                    guard !model.packageSheetOpen else { return false }
                     model.setSelectedElementType(type)
                     return true
                 },
                 onCommandPalette: {
-                    guard model.packagePreview == nil else { return false }
+                    guard !model.packageSheetOpen else { return false }
                     model.showCommandPalette()
                     return true
                 }
             )
         )
+        .sheet(item: $model.packageEditor) { editor in
+            PackageEditorView(editor: editor) { model.packageEditor = nil }
+        }
         .sheet(item: $model.packagePreview) { preview in
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
         }
@@ -92,7 +95,7 @@ struct ContentView: View {
             Text(model.sourceNavigationProblem ?? "")
         }
         .onDeleteCommand {
-            guard model.packagePreview == nil else { return }
+            guard !model.packageSheetOpen else { return }
             model.deleteSelectedElement()
         }
         .toolbar {

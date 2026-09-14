@@ -1,0 +1,15 @@
+# Experimental package editing in the Mac app
+
+File > Open routes supported minimal `.screenplay` packages to a separate paragraph editor. Existing supported rich converted packages continue through the read-only preview. Unsupported packages that neither reader understands report an opening error; they are not converted or stripped.
+
+The experimental editor lists existing paragraphs and edits one paragraph at a time. Apply Paragraph commits that text to the session; choosing another paragraph or saving also applies pending text. Undo first reverts pending text, then undoes applied paragraph edits; Redo restores applied edits. This is a bounded paragraph-editing workflow, not the paginated screenplay editor. Adding, deleting, retyping, and reordering paragraphs are not implemented here.
+
+Save Edited Copy (also Command-S while this editor is open) uses the verified exclusive-copy adapter. It leaves the source untouched and reports the verified destination only on success. Failed saves keep the editor, text, and undo history open; retained staging/output paths are shown when available. A successful save marks the current text saved without switching the source or overwriting the destination on subsequent saves. Each save requires a new destination.
+
+Close and Quit check pending and applied unsaved changes. The user can keep editing, save a copy, or explicitly discard. Cancelling the save panel or failing to save prevents closing through the save choice. Automatic sheet dismissal is disabled. Package commands are isolated from the underlying legacy draft, whose save/undo state is retained. Other main-document commands are disabled while the package editor is displayed.
+
+There is no package autosave or crash-recovery browser yet. Retained failed-save files may be incomplete and must be verified before use. The original package remains available. Production locks, formatting, anchored references, unknown data, and project envelopes remain outside editable support; see `package-text-commands.md` and `package-edited-copy.md`.
+
+Automated workflow coverage includes pending text saving, save/reopen, Undo/Redo around the saved state, failure retaining edits and displaying recovery information, destination preservation, and opening/closing without replacing the existing legacy draft. Native interaction verification is recorded separately after the packaged build is tested.
+
+Native check, 2026-09-14: a synthetic two-paragraph package opened in the new editor. Paragraph editing, Apply, toolbar Undo/Redo, Close/Keep Editing, Command-S, verified save confirmation, closing, and reopening the edited copy were exercised. The saved action text appeared in the reopened editor; the original action remained unchanged, and closing returned to the same legacy draft. The 740-point-wide editor showed all controls and the wrapped saved path without clipping. The save panel initially inherited the source directory; its default is now explicitly the source's parent. The application Quit command did not produce an observable prompt in automation, so native Quit-prompt verification remains separate from the confirmed Close guard.

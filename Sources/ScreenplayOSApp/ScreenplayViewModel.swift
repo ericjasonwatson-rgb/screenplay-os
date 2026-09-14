@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -19,6 +20,15 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var saveURL: URL?
     @Published var errorMessage: String?
     @Published var packagePreview: PackagePreview?
+    @Published var packageEditor: PackageEditor? {
+        didSet {
+            packageEditorChanges = packageEditor?.objectWillChange.sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+        }
+    }
+    private var packageEditorChanges: AnyCancellable?
+    var packageSheetOpen: Bool { packagePreview != nil || packageEditor != nil }
     @Published var selectedElementID: UUID?
     @Published private(set) var selectedObject: ObjectSelection = .none
     @Published private(set) var currentSceneSpineID: String?
@@ -1291,6 +1301,11 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func openPackagePreview(at url: URL) {
+        if let editor = try? PackageEditor(source: url) {
+            packageEditor = editor
+            errorMessage = nil
+            return
+        }
         do {
             packagePreview = try PackagePreviewReader.read(url)
             errorMessage = nil
@@ -5956,6 +5971,7 @@ extension ScreenplayViewModel {
     }
 
     func confirmSafeClose() -> Bool {
+        if let packageEditor, !packageEditor.confirmClose() { return false }
         if prepareToClose() { return true }
         let alert = NSAlert()
         alert.messageText = "Your latest edits have not been saved to the screenplay."
