@@ -366,8 +366,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func requestQuit() {
         guard model?.confirmSafeClose() != false else { return }
         terminationApproved = true
-        NSApplication.shared.terminate(nil)
-        terminationApproved = false
+        // AppKit defers termination while the SwiftUI package sheet is open.
+        // Dismiss only after both package and underlying draft decisions succeed.
+        model?.packageEditor = nil
+        model?.packagePreview = nil
+        DispatchQueue.main.async {
+            NSApplication.shared.terminate(nil)
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

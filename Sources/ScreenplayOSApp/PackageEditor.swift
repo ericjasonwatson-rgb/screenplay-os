@@ -134,7 +134,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         panel.title = "Save Edited Copy"
         panel.directoryURL = originalSource.deletingLastPathComponent()
         panel.prompt = "Save Copy"
-        panel.nameFieldStringValue = source.deletingPathExtension().lastPathComponent + " Edited.screenplay"
+        panel.nameFieldStringValue = originalSource.deletingPathExtension().lastPathComponent + " Edited.screenplay"
         guard panel.runModal() == .OK, var url = panel.url else { return false }
         if url.pathExtension != "screenplay" { url.appendPathExtension("screenplay") }
         return save(to: url)
