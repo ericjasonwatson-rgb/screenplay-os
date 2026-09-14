@@ -1,5 +1,7 @@
 # Paragraph editing command boundary
 
+Native loading and new-copy persistence for this minimal profile are now implemented separately; see `package-edited-copy.md`. Mac UI integration and richer project revision/inventory support remain pending.
+
 Implemented 2026-09-14 in `ScreenplayDomain/PackageTextSession.swift`.
 
 This is an in-memory command layer, not an enabled Mac editing workflow or a package writer. It accepts a complete file-byte snapshot supplied by a caller. It does not enumerate the filesystem, so the future loader must provide every file rather than selecting only the files it understands.
