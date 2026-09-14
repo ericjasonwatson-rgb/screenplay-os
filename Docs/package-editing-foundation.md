@@ -1,5 +1,7 @@
 # Package editing foundation
 
+The next command layer is now implemented for a deliberately narrow minimal-package profile; see `package-text-commands.md` for stable-ID targeting, local revision checks, and editing blockers. Neither layer enables package editing or saves in the Mac app yet.
+
 Implemented 2026-09-13: `ScreenplayDomain/PreservedJSON.swift` supplies a native, in-memory JSON preservation primitive and undo/redo session. It is not connected to the editor or to a package writer.
 
 The parser indexes string-value byte ranges while validating JSON syntax and rejecting duplicate decoded keys. Numbers are validated lexically and never converted to floating point: large integers, long decimals, and large exponents retain their exact original tokens. Object keys and string comparisons use exact Unicode scalar identity, including distinguishing composed and decomposed text. String escapes are decoded only for lookup/comparison; opening never rewrites the bytes.
