@@ -162,6 +162,17 @@ final class PackageEditor: ObservableObject, Identifiable {
             refreshDraft(); message = nil; return true
         } catch { message = "The paragraph could not be split. Your text is still here."; return false }
     }
+    func selectWritingParagraph(_ id: UUID) {
+        guard selected != id else { return }
+        selected = id; refreshDraft()
+    }
+    @discardableResult func editWritingSpan(start: UUID, end: UUID, prefix: String, replacement: String, suffix: String, splitType: String?) -> Bool {
+        do {
+            selected = try session.editSpan(startID: start, endID: end, expectedRevision: session.revision,
+                prefix: prefix, replacement: replacement, suffix: suffix, splitType: splitType)
+            refreshDraft(); message = nil; return true
+        } catch { message = "The edit could not be applied. Your previous text is retained."; return false }
+    }
     @discardableResult func save(to url: URL) -> Bool {
         guard apply() else { return false }
         flushRecovery()
@@ -228,39 +239,24 @@ struct PackageEditorView: View {
                 Button("Save Edited Copy…") { editor.savePanel() }
             }
             Divider()
-            HStack(alignment: .top) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(Array(editor.rows.enumerated()), id: \.element.id) { index, row in
-                            Button {
-                                editor.select(row.id)
-                            } label: {
-                                Text("\(index + 1). " + editor.label(for: row))
-                                    .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
-                            }.buttonStyle(.borderless)
-                                .foregroundStyle(row.id == editor.selected ? Color.accentColor : Color.primary)
-                        }
+            if let row = editor.rows.first(where: { $0.id == editor.selected }) {
+                Picker("Paragraph type", selection: Binding(get: { row.type }, set: editor.changeType)) {
+                    ForEach(PackageTextSession.supportedTypes, id: \.self) { type in
+                        Text(type.replacingOccurrences(of: "_", with: " ").capitalized).tag(type)
                     }
-                }.frame(width: 200).accessibilityLabel("Package paragraphs")
-                Divider()
-                VStack(alignment: .leading) {
-                    if let row = editor.rows.first(where: { $0.id == editor.selected }) {
-                        Picker("Paragraph type", selection: Binding(get: { row.type }, set: editor.changeType)) {
-                            ForEach(PackageTextSession.supportedTypes, id: \.self) { type in
-                                Text(type.replacingOccurrences(of: "_", with: " ").capitalized).tag(type)
-                            }
-                        }
-                        PackageParagraphTextView(editor: editor)
-                        Button("Apply Paragraph") { editor.apply() }.disabled(!editor.pending)
-                    } else { Text("This screenplay has no paragraphs.") }
-                }
+                }.frame(maxWidth: 320)
+            }
+            if editor.rows.isEmpty {
+                Text("This screenplay has no paragraphs. Add a paragraph to begin.").frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                PackageParagraphTextView(editor: editor)
             }
             HStack {
                 Button("Add Paragraph", action: editor.addParagraph)
                 Button("Delete Paragraph", action: editor.deleteParagraph).disabled(editor.selected == nil)
                 Spacer()
             }
-            Text("Return creates a paragraph. Shift-Return inserts a line break. Page layout and production features are not available here.")
+            Text("Return creates a paragraph. Backspace at its start joins the previous paragraph. Shift-Return inserts a line break. Pagination and production features are not available here.")
                 .font(.caption).foregroundStyle(.secondary)
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }

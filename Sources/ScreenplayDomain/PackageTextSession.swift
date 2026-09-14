@@ -112,6 +112,25 @@ public struct PackageTextSession {
         try commit(candidateSession.session.document)
         return id
     }
+    /// Replace a contiguous paragraph span in one transaction, retaining the first ID.
+    @discardableResult public mutating func editSpan(startID: UUID, endID: UUID, expectedRevision: UUID,
+        prefix: String, replacement: String, suffix: String, splitType: String? = nil) throws -> UUID {
+        guard expectedRevision == revision else { throw Failure.staleRevision }
+        guard let first = indexes[startID], let last = indexes[endID], first <= last else { throw Failure.missingElement }
+        var candidate = self
+        let removed = paragraphs[(first + 1)..<(last + 1)].map(\.id)
+        for id in removed { try candidate.delete(elementID: id, expectedRevision: candidate.revision) }
+        let text = prefix + replacement + (splitType == nil ? suffix : "")
+        try candidate.replaceText(elementID: startID, expectedRevision: candidate.revision,
+                                  expectedText: candidate.text(for: startID), replacement: text)
+        var selected = startID
+        if let splitType {
+            selected = try candidate.insert(after: startID, expectedRevision: candidate.revision, type: splitType, text: suffix)
+        }
+        try commit(candidate.session.document)
+        return selected
+    }
+
     private mutating func commit(_ candidate: PreservedJSON) throws {
         guard candidate.data != screenplayBytes else { return }
         var files = originalFiles; files["screenplay.json"] = candidate.data
