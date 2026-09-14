@@ -21,6 +21,7 @@ public struct PreservedJSON {
     }
     public enum Failure: Error { case malformed, duplicateKey, limit, missingString, staleValue }
     public private(set) var data: Data
+    private var values: [[Component]: Range<Int>]
     private var strings: [[Component]: Range<Int>]
 
     public init(_ data: Data) throws {
@@ -32,6 +33,7 @@ public struct PreservedJSON {
         guard parser.position == parser.bytes.count else { throw Failure.malformed }
         self.data = data
         self.strings = parser.strings
+        self.values = parser.values
     }
 
     public func string(at path: [Component]) throws -> String {
@@ -53,10 +55,32 @@ public struct PreservedJSON {
         return true
     }
 
+    // Internal structural editing primitives; callers must validate domain semantics.
+    func arrayValues(at path: [Component]) throws -> [Data] {
+        guard let range = values[path], data[range.lowerBound] == 91 else { throw Failure.malformed }
+        var result: [Data] = []
+        while let child = values[path + [.index(result.count)]] { result.append(data.subdata(in: child)) }
+        return result
+    }
+    mutating func replaceArray(at path: [Component], with items: [Data]) throws {
+        _ = try arrayValues(at: path)
+        var replacement = Data("[".utf8)
+        for (index, item) in items.enumerated() {
+            _ = try PreservedJSON(item)
+            if index > 0 { replacement.append(contentsOf: ",".utf8) }
+            replacement.append(item)
+        }
+        replacement.append(contentsOf: "]".utf8)
+        var candidate = data
+        candidate.replaceSubrange(values[path]!, with: replacement)
+        self = try PreservedJSON(candidate)
+    }
+
     private struct Parser {
         let bytes: [UInt8]
         var position = 0
         var strings: [[Component]: Range<Int>] = [:]
+        var values: [[Component]: Range<Int>] = [:]
         var current: UInt8? { position < bytes.count ? bytes[position] : nil }
         mutating func space() { while let byte = current, [9, 10, 13, 32].contains(byte) { position += 1 } }
         mutating func consume(_ byte: UInt8) throws {
@@ -81,6 +105,8 @@ public struct PreservedJSON {
         mutating func value(_ path: [Component], depth: Int) throws {
             guard depth < 128 else { throw Failure.limit }
             space()
+            let start = position
+            defer { values[path] = start..<position }
             switch current {
             case 34:
                 strings[path] = try quoted().1
@@ -151,6 +177,10 @@ public struct PreservedJSONSession {
     public mutating func replaceString(at path: [PreservedJSON.Component], expected: String, with replacement: String) throws {
         var candidate = document
         guard try candidate.replaceString(at: path, expected: expected, with: replacement) else { return }
+        undoStates.append(document); redoStates.removeAll(); document = candidate
+    }
+    mutating func commit(_ candidate: PreservedJSON) {
+        guard candidate.data != document.data else { return }
         undoStates.append(document); redoStates.removeAll(); document = candidate
     }
     public mutating func undo() {

@@ -6,7 +6,11 @@ import ScreenplayDomain
 final class PackageEditor: ObservableObject, Identifiable {
     let id = UUID()
     struct Row: Identifiable { let id: UUID; let type: String }
-    let rows: [Row]
+    var rows: [Row] { session.paragraphs.map { Row(id: $0.id, type: $0.type) } }
+    func label(for row: Row) -> String {
+        let text = (try? session.text(for: row.id)) ?? ""
+        return text.isEmpty ? row.type.replacingOccurrences(of: "_", with: " ").capitalized + " (empty)" : text
+    }
     let source: URL
     let title: String
     @Published private(set) var session: PackageTextSession
@@ -88,9 +92,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         savedBytes = loaded.screenplayBytes
         let manifest = try PreservedJSON(loaded.originalFiles["manifest.json"]!)
         title = try manifest.string(at: [.key("title")])
-        let root = try JSONSerialization.jsonObject(with: loaded.screenplayBytes) as! [String: Any]
-        rows = (root["elements"] as! [[String: Any]]).map { Row(id: UUID(uuidString: $0["id"] as! String)!, type: $0["type"] as! String) }
-        selected = rows.first?.id
+        selected = loaded.paragraphs.first?.id
         if let selected { draft = try loaded.text(for: selected) }
     }
     @discardableResult func apply() -> Bool {
@@ -109,10 +111,57 @@ final class PackageEditor: ObservableObject, Identifiable {
     }
     func undo() {
         if pending { refreshDraft(); return }
-        session.undo(); refreshDraft(); message = nil
+        let oldIDs = Set(rows.map(\.id)), oldIndex = rows.firstIndex { $0.id == selected } ?? 0
+        session.undo(); restoreSelection(previousIDs: oldIDs, oldIndex: oldIndex); message = nil
     }
-    func redo() { guard !pending else { return }; session.redo(); refreshDraft(); message = nil }
-    private func refreshDraft() { if let selected { draft = (try? session.text(for: selected)) ?? "" } }
+    func redo() {
+        guard !pending else { return }
+        let oldIDs = Set(rows.map(\.id)), oldIndex = rows.firstIndex { $0.id == selected } ?? 0
+        session.redo(); restoreSelection(previousIDs: oldIDs, oldIndex: oldIndex); message = nil
+    }
+    private func restoreSelection(previousIDs: Set<UUID>, oldIndex: Int) {
+        if let restored = rows.first(where: { !previousIDs.contains($0.id) }) { selected = restored.id }
+        if !rows.contains(where: { $0.id == selected }) { selected = rows.isEmpty ? nil : rows[min(max(0, oldIndex - 1), rows.count - 1)].id }
+        refreshDraft()
+    }
+    private func refreshDraft() { draft = selected.flatMap { try? session.text(for: $0) } ?? "" }
+    func addParagraph() {
+        guard apply() else { return }
+        do {
+            selected = try session.insert(after: selected, expectedRevision: session.revision)
+            refreshDraft(); message = nil
+        } catch { message = "The paragraph could not be added. Your work is still here." }
+    }
+    func changeType(_ type: String) {
+        guard let selected, apply() else { return }
+        do {
+            try session.changeType(elementID: selected, expectedRevision: session.revision, type: type)
+            scheduleRecovery(); message = nil
+        } catch { message = "The paragraph type could not be changed." }
+    }
+    func deleteParagraph() {
+        guard let selected, let index = rows.firstIndex(where: { $0.id == selected }), apply() else { return }
+        do {
+            try session.delete(elementID: selected, expectedRevision: session.revision)
+            self.selected = rows.isEmpty ? nil : rows[min(index, rows.count - 1)].id
+            refreshDraft(); message = "Paragraph deleted. Undo restores it."
+        } catch { message = "The paragraph could not be deleted." }
+    }
+    @discardableResult func splitParagraph(at range: NSRange) -> Bool {
+        guard let selected, let selection = Range(range, in: draft) else { return false }
+        // Native selections use UTF-16; require grapheme boundaries before splitting.
+        let boundaries = Set(draft.indices).union([draft.endIndex])
+        guard boundaries.contains(selection.lowerBound), boundaries.contains(selection.upperBound) else { return false }
+        let prefix = String(draft[..<selection.lowerBound]), suffix = String(draft[selection.upperBound...])
+        let type = rows.first(where: { $0.id == selected })?.type ?? "action"
+        let next = ["character", "parenthetical"].contains(type) ? "dialogue" : "action"
+        guard apply() else { return false }
+        do {
+            self.selected = try session.split(elementID: selected, expectedRevision: session.revision,
+                prefix: prefix, suffix: suffix, nextType: next)
+            refreshDraft(); message = nil; return true
+        } catch { message = "The paragraph could not be split. Your text is still here."; return false }
+    }
     @discardableResult func save(to url: URL) -> Bool {
         guard apply() else { return false }
         flushRecovery()
@@ -186,23 +235,32 @@ struct PackageEditorView: View {
                             Button {
                                 editor.select(row.id)
                             } label: {
-                                Text("\(index + 1). " + ((try? editor.session.text(for: row.id)) ?? ""))
+                                Text("\(index + 1). " + editor.label(for: row))
                                     .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
                             }.buttonStyle(.borderless)
+                                .foregroundStyle(row.id == editor.selected ? Color.accentColor : Color.primary)
                         }
                     }
                 }.frame(width: 200).accessibilityLabel("Package paragraphs")
                 Divider()
                 VStack(alignment: .leading) {
                     if let row = editor.rows.first(where: { $0.id == editor.selected }) {
-                        Text(row.type.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(.secondary)
-                        TextEditor(text: $editor.draft).font(.system(size: 14, design: .monospaced))
-                            .accessibilityLabel("Paragraph text")
+                        Picker("Paragraph type", selection: Binding(get: { row.type }, set: editor.changeType)) {
+                            ForEach(PackageTextSession.supportedTypes, id: \.self) { type in
+                                Text(type.replacingOccurrences(of: "_", with: " ").capitalized).tag(type)
+                            }
+                        }
+                        PackageParagraphTextView(editor: editor)
                         Button("Apply Paragraph") { editor.apply() }.disabled(!editor.pending)
                     } else { Text("This screenplay has no paragraphs.") }
                 }
             }
-            Text("Edit existing paragraphs here. Page layout, paragraph creation, and production features are not available in this editor.")
+            HStack {
+                Button("Add Paragraph", action: editor.addParagraph)
+                Button("Delete Paragraph", action: editor.deleteParagraph).disabled(editor.selected == nil)
+                Spacer()
+            }
+            Text("Return creates a paragraph. Shift-Return inserts a line break. Page layout and production features are not available here.")
                 .font(.caption).foregroundStyle(.secondary)
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }
