@@ -17,7 +17,9 @@ struct PrintPreviewSnapshot: Identifiable {
     let data: Data
     let document: PDFDocument
     let pageLabels: [String]
-    init(data: Data, pageLabels: [String] = []) throws {
+    let hasTitlePage: Bool
+    init(data: Data, pageLabels: [String] = [], hasTitlePage: Bool = true) throws {
+        self.hasTitlePage = hasTitlePage
         guard let document = PDFDocument(data: data), document.pageCount > 0 else { throw PrintPDFError.renderFailed }
         self.data = data
         self.document = document
@@ -31,6 +33,12 @@ struct PrintPreviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var page = 0
     @State private var zoom: CGFloat? = nil
+
+    private var pageDescription: String {
+        if !snapshot.hasTitlePage { return "Script page \(page + 1)" }
+        if page == 0 { return "Title page" }
+        return "Script page " + (snapshot.pageLabels.indices.contains(page - 1) ? snapshot.pageLabels[page - 1] : String(page))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,7 +55,7 @@ struct PrintPreviewSheet: View {
                 Text("Page \(page + 1) of \(snapshot.document.pageCount)").monospacedDigit()
                 Button { page += 1 } label: { Image(systemName: "chevron.right") }
                     .disabled(page + 1 >= snapshot.document.pageCount).accessibilityLabel("Next page")
-                Text(page == 0 ? "Title page" : "Script page \(snapshot.pageLabels.indices.contains(page - 1) ? snapshot.pageLabels[page - 1] : String(page))").foregroundStyle(.secondary)
+                Text(pageDescription).foregroundStyle(.secondary)
                 Spacer()
                 Button("Fit Page") { zoom = nil }
                 Button("100%") { zoom = 1 }

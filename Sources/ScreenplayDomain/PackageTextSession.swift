@@ -117,6 +117,11 @@ public struct PackageTextSession {
         prefix: String, replacement: String, suffix: String, splitType: String? = nil) throws -> UUID {
         guard expectedRevision == revision else { throw Failure.staleRevision }
         guard let first = indexes[startID], let last = indexes[endID], first <= last else { throw Failure.missingElement }
+        if first == last && splitType == nil {
+            try replaceText(elementID: startID, expectedRevision: expectedRevision,
+                            expectedText: text(for: startID), replacement: prefix + replacement + suffix)
+            return startID
+        }
         var candidate = self
         let removed = paragraphs[(first + 1)..<(last + 1)].map(\.id)
         for id in removed { try candidate.delete(elementID: id, expectedRevision: candidate.revision) }

@@ -5,18 +5,29 @@ import ScreenplayDomain
 /// Maps the continuous native text surface back to stable paragraph identities.
 struct PackageWritingProjection {
     struct Entry { let id: UUID; let type: String; let range: NSRange; let text: String }
-    let entries: [Entry]
-    let text: String
+    var entries: [Entry]
+    var text: String
     init(_ session: PackageTextSession) {
-        var entries: [Entry] = [], text = ""
+        var entries: [Entry] = [], text = "", offset = 0
         for row in session.paragraphs {
-            if !entries.isEmpty { text += "\n" }
+            if !entries.isEmpty { text += "\n"; offset += 1 }
             let value = (try? session.text(for: row.id)) ?? ""
             entries.append(Entry(id: row.id, type: row.type,
-                                 range: NSRange(location: (text as NSString).length, length: (value as NSString).length), text: value))
-            text += value
+                                 range: NSRange(location: offset, length: (value as NSString).length), text: value))
+            text += value; offset += (value as NSString).length
         }
         self.entries = entries; self.text = text
+    }
+    mutating func updateParagraph(_ id: UUID, value: String) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        let old = entries[index]
+        text = (text as NSString).replacingCharacters(in: old.range, with: value)
+        let length = (value as NSString).length, delta = length - old.range.length
+        entries[index] = Entry(id: id, type: old.type, range: NSRange(location: old.range.location, length: length), text: value)
+        for i in (index + 1)..<entries.count {
+            let entry = entries[i]
+            entries[i] = Entry(id: entry.id, type: entry.type, range: NSRange(location: entry.range.location + delta, length: entry.range.length), text: entry.text)
+        }
     }
     func position(_ offset: Int) -> (Entry, String.Index)? {
         guard offset >= 0 else { return nil }
@@ -60,6 +71,18 @@ struct PackageParagraphTextView: NSViewRepresentable {
         var nativeEdit: (NSRange, String)?
         init(_ editor: PackageEditor) { self.editor = editor; projection = PackageWritingProjection(editor.session) }
 
+        static func attributes(for type: String) -> [NSAttributedString.Key: Any] {
+            let style = NSMutableParagraphStyle(); style.paragraphSpacing = 14
+            switch type {
+            case "character": style.firstLineHeadIndent = 190; style.headIndent = 190
+            case "dialogue": style.firstLineHeadIndent = 95; style.headIndent = 95; style.tailIndent = -70
+            case "parenthetical": style.firstLineHeadIndent = 135; style.headIndent = 135; style.tailIndent = -95
+            case "transition": style.alignment = .right
+            default: break
+            }
+            let font = NSFont(name: type == "scene_heading" ? "Courier-Bold" : "Courier", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+            return [.font: font, .foregroundColor: NSColor.textColor, .paragraphStyle: style]
+        }
         func render(_ text: NSTextView, caret: Int? = nil) {
             guard !rendering else { return }
             let changed = renderedRevision != editor.session.revision
@@ -68,28 +91,16 @@ struct PackageParagraphTextView: NSViewRepresentable {
             rendering = true
             defer { rendering = false }
             let oldRange = text.selectedRange()
-            projection = PackageWritingProjection(editor.session)
             if changed {
+                projection = PackageWritingProjection(editor.session)
                 let content = NSMutableAttributedString(string: projection.text)
                 let font = (NSFont(name: "Courier", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular))
                 content.addAttributes([.font: font, .foregroundColor: NSColor.textColor], range: NSRange(location: 0, length: content.length))
                 for entry in projection.entries {
-                    let style = NSMutableParagraphStyle()
-                    style.paragraphSpacing = 14
-                    // Relative indents remain usable in a laptop-width writing pane.
-                    switch entry.type {
-                    case "character": style.firstLineHeadIndent = 190; style.headIndent = 190
-                    case "dialogue": style.firstLineHeadIndent = 95; style.headIndent = 95; style.tailIndent = -70
-                    case "parenthetical": style.firstLineHeadIndent = 135; style.headIndent = 135; style.tailIndent = -95
-                    case "transition": style.alignment = .right
-                    default: break
-                    }
+                    let attributes = Self.attributes(for: entry.type)
                     let length = entry.range.length + (NSMaxRange(entry.range) < content.length ? 1 : 0)
                     if length > 0 {
-                        content.addAttribute(.paragraphStyle, value: style, range: NSRange(location: entry.range.location, length: length))
-                        if entry.type == "scene_heading" {
-                            content.addAttribute(.font, value: (NSFont(name: "Courier-Bold", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .bold)), range: entry.range)
-                        }
+                        content.addAttributes(attributes, range: NSRange(location: entry.range.location, length: length))
                     }
                 }
                 text.textStorage?.setAttributedString(content)
@@ -97,7 +108,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             let location = caret ?? (selectionChanged ? projection.entries.first(where: { $0.id == editor.selected })?.range.location : nil) ?? oldRange.location
             let clamped = min(location, (projection.text as NSString).length)
             text.setSelectedRange(NSRange(location: clamped, length: caret == nil && !selectionChanged ? min(oldRange.length, (projection.text as NSString).length - clamped) : 0))
-            text.typingAttributes = [.font: (NSFont(name: "Courier", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)), .foregroundColor: NSColor.textColor]
+            text.typingAttributes = Self.attributes(for: projection.position(clamped)?.0.type ?? "action")
             if let entry = projection.position(clamped)?.0 {
                 editor.selectWritingParagraph(entry.id)
             }
@@ -108,6 +119,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             guard !rendering, let text = notification.object as? NSTextView, !text.hasMarkedText(),
                   let entry = projection.position(text.selectedRange().location)?.0 else { return }
             selected = entry.id; editor.selectWritingParagraph(entry.id)
+            text.typingAttributes = Self.attributes(for: entry.type)
         }
         func replace(_ range: NSRange, with replacement: String, split: Bool, in text: NSTextView) -> Bool {
             guard let (first, start) = projection.position(range.location),
@@ -116,6 +128,19 @@ struct PackageParagraphTextView: NSViewRepresentable {
             let nextType = ["character", "parenthetical"].contains(first.type) ? "dialogue" : "action"
             guard editor.editWritingSpan(start: first.id, end: last.id, prefix: prefix,
                                          replacement: replacement, suffix: suffix, splitType: split ? nextType : nil) else { return false }
+            if first.id == last.id && !split {
+                projection.updateParagraph(first.id, value: prefix + replacement + suffix)
+                // Native input already changed the characters. Restyle only this paragraph.
+                if !text.hasMarkedText(), text.string.unicodeScalars.elementsEqual(projection.text.unicodeScalars),
+                   let updated = projection.entries.first(where: { $0.id == first.id }) {
+                    rendering = true
+                    let length = updated.range.length + (NSMaxRange(updated.range) < (projection.text as NSString).length ? 1 : 0)
+                    text.textStorage?.addAttributes(Self.attributes(for: updated.type), range: NSRange(location: updated.range.location, length: length))
+                    rendering = false
+                    renderedRevision = editor.session.revision
+                    selected = editor.selected
+                }
+            }
             if text.hasMarkedText() {
                 // Keep provisional composition recoverable without resetting the native IME.
                 projection = PackageWritingProjection(editor.session)

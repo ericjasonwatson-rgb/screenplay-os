@@ -17,6 +17,7 @@ final class PackageEditor: ObservableObject, Identifiable {
     @Published var selected: UUID?
     @Published var draft = "" { didSet { scheduleRecovery() } }
     @Published var message: String?
+    @Published var printPreview: PrintPreviewSnapshot?
     private var savedBytes: Data
     private var recoveryID = UUID()
     private let recoveryDirectory: URL?
@@ -173,6 +174,23 @@ final class PackageEditor: ObservableObject, Identifiable {
             refreshDraft(); message = nil; return true
         } catch { message = "The edit could not be applied. Your previous text is retained."; return false }
     }
+    func showPrintPreview() {
+        guard apply() else { return }
+        do {
+            let result = try PackagePrintLayout.make(session)
+            printPreview = try PrintPreviewSnapshot(data: result.data, hasTitlePage: false)
+        } catch { message = "The print preview could not be created. Your screenplay is unchanged." }
+    }
+    func exportPrintPreview() {
+        guard let snapshot = printPreview else { return }
+        let panel = NSSavePanel()
+        panel.title = "Export PDF"
+        panel.nameFieldStringValue = originalSource.deletingPathExtension().lastPathComponent + ".pdf"
+        panel.directoryURL = originalSource.deletingLastPathComponent()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try snapshot.data.write(to: url, options: .atomic) }
+        catch { message = "The PDF could not be exported. Your screenplay is unchanged." }
+    }
     @discardableResult func save(to url: URL) -> Bool {
         guard apply() else { return false }
         flushRecovery()
@@ -236,6 +254,7 @@ struct PackageEditorView: View {
                 Button("Redo", action: editor.redo).disabled(!editor.canRedo)
                 Spacer()
                 Text(editor.dirty ? "Unsaved changes" : "No unsaved changes").foregroundStyle(.secondary)
+                Button("Print Preview", action: editor.showPrintPreview)
                 Button("Save Edited Copy…") { editor.savePanel() }
             }
             Divider()
@@ -256,11 +275,14 @@ struct PackageEditorView: View {
                 Button("Delete Paragraph", action: editor.deleteParagraph).disabled(editor.selected == nil)
                 Spacer()
             }
-            Text("Return creates a paragraph. Backspace at its start joins the previous paragraph. Shift-Return inserts a line break. Pagination and production features are not available here.")
+            Text("Return creates a paragraph. Backspace at its start joins the previous paragraph. Shift-Return inserts a line break. Print Preview shows derived pages. Production locks are not supported here.")
                 .font(.caption).foregroundStyle(.secondary)
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }
         }.padding(16).frame(minWidth: 740, idealWidth: 850, minHeight: 520, idealHeight: 650)
             .interactiveDismissDisabled()
+            .sheet(item: $editor.printPreview) { snapshot in
+                PrintPreviewSheet(snapshot: snapshot, export: editor.exportPrintPreview)
+            }
     }
 }
