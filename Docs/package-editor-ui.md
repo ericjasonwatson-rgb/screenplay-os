@@ -8,7 +8,7 @@ Save Edited Copy (also Command-S while this editor is open) uses the verified ex
 
 Close and Quit check pending and applied unsaved changes. The user can keep editing, save a copy, or explicitly discard. Cancelling the save panel or failing to save prevents closing through the save choice. Automatic sheet dismissal is disabled. Package commands are isolated from the underlying legacy draft, whose save/undo state is retained. Other main-document commands are disabled while the package editor is displayed.
 
-There is no package autosave or crash-recovery browser yet. Retained failed-save files may be incomplete and must be verified before use. The original package remains available. Production locks, formatting, anchored references, unknown data, and project envelopes remain outside editable support; see `package-text-commands.md` and `package-edited-copy.md`.
+Package recovery now records unsaved edits locally and offers File > Recover Package Edits; see `package-recovery.md`. This is separate from saving or autosaving the original package. Retained failed-save files may be incomplete and must be verified before use. The original package remains available. Production locks, formatting, anchored references, unknown data, and project envelopes remain outside editable support; see `package-text-commands.md` and `package-edited-copy.md`.
 
 Automated workflow coverage includes pending text saving, save/reopen, Undo/Redo around the saved state, failure retaining edits and displaying recovery information, destination preservation, and opening/closing without replacing the existing legacy draft. Native interaction verification is recorded separately after the packaged build is tested.
 

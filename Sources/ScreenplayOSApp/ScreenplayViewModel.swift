@@ -28,6 +28,16 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
     private var packageEditorChanges: AnyCancellable?
+    @Published var packageRecoveries: [PackageRecovery.Record] = []
+    private var packageRecoveryDirectory: URL { recoveryDirectory.appendingPathComponent("Packages") }
+    func refreshPackageRecoveries() { packageRecoveries = PackageRecovery.list(packageRecoveryDirectory) }
+    func openPackageRecovery(_ record: PackageRecovery.Record) {
+        do {
+            let current = try PackageRecovery.read(packageRecoveryDirectory.appendingPathComponent(record.id.uuidString + ".json"))
+            packageEditor = try PackageEditor(recovery: current, directory: packageRecoveryDirectory)
+        }
+        catch { errorMessage = "This recovery copy could not be opened. It has been left intact." }
+    }
     var packageSheetOpen: Bool { packagePreview != nil || packageEditor != nil }
     @Published var selectedElementID: UUID?
     @Published private(set) var selectedObject: ObjectSelection = .none
@@ -111,6 +121,7 @@ final class ScreenplayViewModel: ObservableObject {
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("ScreenplayOS/Recovery", isDirectory: true)
         loadRecoveryCopies()
+        refreshPackageRecoveries()
         if loadInitialDocument {
             loadRecentDocuments()
             loadMostRecentWorkingDocument()
@@ -1301,7 +1312,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func openPackagePreview(at url: URL) {
-        if let editor = try? PackageEditor(source: url) {
+        if let editor = try? PackageEditor(source: url, recoveryDirectory: packageRecoveryDirectory) {
             packageEditor = editor
             errorMessage = nil
             return

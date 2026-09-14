@@ -16,6 +16,10 @@ struct ScreenplayOSApp: App {
         .defaultSize(width: 1200, height: 760)
         .windowStyle(.titleBar)
         .commands {
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit ScreenplayOS") { appDelegate.requestQuit() }
+                    .keyboardShortcut("q", modifiers: [.command])
+            }
             CommandGroup(replacing: .appInfo) {
                 Group {
                     Button("About ScreenplayOS", action: AppBranding.showAbout)
@@ -42,6 +46,12 @@ struct ScreenplayOSApp: App {
                     }
                     .disabled(model.recoveryCopies.isEmpty)
 
+                    Menu("Recover Package Edits") {
+                        Button("Refresh Recovery List", action: model.refreshPackageRecoveries)
+                        ForEach(model.packageRecoveries) { record in
+                            Button("\(record.title) — \(record.savedAt.formatted())") { model.openPackageRecovery(record) }
+                        }
+                    }
                     Menu("Open Recent") {
                         if model.recentDocuments.isEmpty {
                             Text("No Recent Scripts")
@@ -349,11 +359,19 @@ struct ScreenplayOSApp: App {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var model: ScreenplayViewModel?
+    private var terminationApproved = false
+    func requestQuit() {
+        guard model?.confirmSafeClose() != false else { return }
+        terminationApproved = true
+        NSApplication.shared.terminate(nil)
+        terminationApproved = false
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        model?.confirmSafeClose() == false ? .terminateCancel : .terminateNow
+        terminationApproved || model?.confirmSafeClose() != false ? .terminateNow : .terminateCancel
     }
 
     static func resetMainWindowLayout() {
