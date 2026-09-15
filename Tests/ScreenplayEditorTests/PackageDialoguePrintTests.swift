@@ -64,6 +64,64 @@ struct PackageDialoguePrintTests {
             }
         }
     }
+    @Test func dialogueBreaksKeepAtLeastTwoLinesOnEachSide() throws {
+        // Sweep the available space around a page boundary, with and without
+        // parentheticals, and include both explicit breaks and soft wrapping.
+        for explicitBreaks in [true, false] {
+            for lineCount in [3, 4, 44, 45, 46, 87] {
+                for padding in 0...25 {
+                    let words = (0..<(lineCount * 5)).map { String(format: "t%04d", $0) }
+                    let speech = explicitBreaks
+                        ? stride(from: 0, to: words.count, by: 5).map { words[$0..<($0 + 5)].joined(separator: " ") }.joined(separator: "\n")
+                        : words.joined(separator: " ")
+                    var rows: [(String, String)] = []
+                    if padding > 0 { rows.append(("action", (0..<padding).map { "Filler \($0)" }.joined(separator: "\n"))) }
+                    rows += [("character", "ELI"), ("parenthetical", "(quietly)"), ("dialogue", speech), ("action", "End.")]
+                    let session = try fixture(rows)
+                    let original = session.screenplayBytes
+                    let result = try PackagePrintLayout.make(session)
+                    let pdf = try #require(PDFDocument(data: result.data))
+                    var found: [String] = []
+                    for page in 0..<pdf.pageCount {
+                        let text = pdf.page(at: page)!.string ?? ""
+                        let tokens = text.components(separatedBy: .whitespacesAndNewlines).filter { $0.hasPrefix("t") && $0.count == 5 }
+                        found += tokens
+                        if !tokens.isEmpty {
+                            #expect(tokens.count >= 10, "Stranded line: explicit=\(explicitBreaks), lines=\(lineCount), padding=\(padding), page=\(page), words=\(tokens.count)")
+                            #expect(text.contains("ELI"))
+                        }
+                        if text.contains("(quietly)") { #expect(tokens.count >= 10) }
+                    }
+                    #expect(found == words)
+                    #expect(session.screenplayBytes == original && !session.canUndo)
+                    var end = 0
+                    for range in result.characterRanges { #expect(range.location == end); end = NSMaxRange(range) }
+                    #expect(end == (result.text as NSString).length)
+                    if explicitBreaks && lineCount == 44 && padding == 22,
+                       let path = ProcessInfo.processInfo.environment["DIALOGUE_BREAK_SAMPLE"] {
+                        try result.data.write(to: URL(fileURLWithPath: path))
+                    }
+                }
+            }
+        }
+    }
+
+    @Test func uncuedDialogueDoesNotLeaveOneFinalLine() throws {
+        let lines = (0..<47).map { String(format: "u%04d", $0) }
+        let result = try PackagePrintLayout.make(fixture([("dialogue", lines.joined(separator: "\n"))]))
+        let pdf = try #require(PDFDocument(data: result.data))
+        #expect(pdf.pageCount == 2)
+        var found: [String] = []
+        for i in 0..<pdf.pageCount {
+            let text = pdf.page(at: i)!.string ?? ""
+            let tokens = text.components(separatedBy: .whitespacesAndNewlines).filter { $0.hasPrefix("u") }
+            #expect(tokens.count >= 2)
+            #expect(!text.contains("MORE") && !text.contains("CONT’D"))
+            found += tokens
+        }
+        #expect(found == lines)
+    }
+
     @Test func previewAndSaveNeverPersistMarkers() throws {
         let session = try fixture([("character", "ELI"), ("dialogue", String(repeating: "A spoken sentence. ", count: 400))])
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

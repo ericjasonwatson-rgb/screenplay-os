@@ -60,7 +60,12 @@ struct PackageRecoveryTests {
         let b = try PackageEditor(source: source, recoveryDirectory: store)
         a.select(id); b.select(id)
         a.draft = "one"; a.draft = "latest"; b.draft = "other session"
-        try await Task.sleep(nanoseconds: 1_000_000_000)
+        // Other native layout tests can occupy the main actor before the debounce
+        // task starts. Await the observable result, with a bounded failure deadline.
+        let deadline = ContinuousClock.now + .seconds(5)
+        while PackageRecovery.list(store).count != 2 && ContinuousClock.now < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
         #expect(PackageRecovery.list(store).count == 2)
         #expect(a.recoveryStatus == "Recovery saved locally")
         #expect(b.recoveryStatus == "Recovery saved locally")

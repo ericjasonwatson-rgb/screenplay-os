@@ -52,6 +52,26 @@ enum PackagePrintLayout {
             if cue.hasSuffix("(CONT’D)") || cue.hasSuffix("(CONT'D)") { return cue }
             return cue + " (CONT’D)"
         }
+        // Measure each split dialogue once at the same width, independently of page
+        // height. This includes soft wraps and authored line breaks without editing text.
+        var dialogueLines: [Int: [Int]] = [:]
+        func lineStarts(for index: Int) -> [Int] {
+            if let cached = dialogueLines[index] { return cached }
+            let entry = projection.entries[index]
+            let sample = NSTextStorage(attributedString: attributed.attributedSubstring(from: entry.range))
+            let measuring = NSLayoutManager()
+            sample.addLayoutManager(measuring)
+            let area = NSTextContainer(containerSize: NSSize(width: 432, height: CGFloat.greatestFiniteMagnitude))
+            area.lineFragmentPadding = 0
+            measuring.addTextContainer(area)
+            measuring.ensureLayout(for: area)
+            var starts: [Int] = []
+            measuring.enumerateLineFragments(forGlyphRange: measuring.glyphRange(for: area)) { _, _, _, range, _ in
+                starts.append(entry.range.location + measuring.characterIndexForGlyph(at: range.location))
+            }
+            dialogueLines[index] = starts
+            return starts
+        }
         var ranges: [NSRange] = [], glyphRanges: [NSRange] = []
         var headers: [String?] = [], headerHeights: [CGFloat] = [], footers: [Bool] = []
         var previousEnd = 0
@@ -102,6 +122,33 @@ enum PackagePrintLayout {
                 glyphs = layout.glyphRange(for: container)
                 keepGroups()
                 chars = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+            }
+            let boundary = NSMaxRange(chars)
+            if let index = projection.entries.lastIndex(where: { $0.range.location < boundary }),
+               projection.entries[index].type == "dialogue",
+               boundary < NSMaxRange(projection.entries[index].range) {
+                let starts = lineStarts(for: index)
+                let onPage = starts.filter { $0 >= chars.location && $0 < boundary }
+                let remaining = starts.filter { $0 >= boundary }
+                var moveFrom: Int?
+                if onPage.count < 2 {
+                    moveFrom = onPage.first
+                } else if remaining.count == 1 {
+                    // Move one line back unless that would strand a line here; in
+                    // that case move the short paragraph together with its cue.
+                    moveFrom = onPage.count == 2 ? onPage.first : onPage.last
+                }
+                if let moveFrom, moveFrom > chars.location {
+                    let glyph = layout.glyphIndexForCharacter(at: moveFrom)
+                    let y = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
+                    if y > 0 {
+                        container.containerSize.height = y
+                        layout.ensureLayout(for: container)
+                        glyphs = layout.glyphRange(for: container)
+                        keepGroups()
+                        chars = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+                    }
+                }
             }
             incoming = continuation(at: NSMaxRange(chars))
             headers.append(header); headerHeights.append(headerHeight); footers.append(incoming != nil)
