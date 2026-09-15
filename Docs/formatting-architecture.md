@@ -28,7 +28,7 @@ Save snapshots, staged writes, conflict checks, retained generations and recover
 
 ## Remaining formatting work
 
-1. Measure sustained typing on very long scripts before optimizing incremental pagination. The editor caches the plan by document revision, but text changes currently rebuild the full derived plan.
+1. Further reduce latency for early-script edits: the first incremental optimization preserves unchanged earlier pages, but an edit near the beginning still repaginates most of a long script. See writing-performance.md for measured limits.
 2. Consider a separate indeterminate menu indicator for mixed selections. The current unchecked state covers both mixed and uniformly disabled selections.
 3. Test unavailable font variants and broader typography/pagination combinations before claiming arbitrary-font fidelity. A4 remains disabled.
 4. FDX/Fountain interchange requires explicit preservation/loss tests before rich round-trip claims. Legacy JSON editing has not been migrated to this package pipeline.
@@ -56,3 +56,7 @@ The package editor and PDF exporter now share a non-PDF page-plan builder. A sin
 Native tests verify page-line positions against the PDF plan, hit testing on later pages, cross-page selection replacement, caret restoration, undo/redo, source-only saves and an empty first page. Production locks remain unsupported in this package editor.
 
 Live verification used Paginated Writing Check.screenplay: a visible page gap, page 2 number, MORE footer and ALEX continued header, followed by typing on page 4 with the caret scrolled into view. A white-color component exception found during the first live run was fixed by passing explicit theme state; drawing both themes is now regression-tested. Final suite: 156 Swift tests, 37 Python tests and 14 self-tests passed.
+
+### Writing interface
+
+The package editor keeps title/save state and the core writing toolbar in two compact rows. Mode and Workspace remain visible above them. Document contains Save As, Print Preview, previous-version access and Close. Writing contains paper appearance, paragraph management and help. Character suggestions occupy space only when available. Recovery failures and font-substitution notices remain visible.

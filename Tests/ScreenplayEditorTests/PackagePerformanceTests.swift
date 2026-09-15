@@ -24,14 +24,17 @@ struct PackagePerformanceTests {
         window.orderFront(nil); RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         let text = try #require(find(host))
         var timings: [Double] = []
-        for _ in 0..<10 {
-            text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
+        let location = ProcessInfo.processInfo.environment["PACKAGE_BENCHMARK_LOCATION"] ?? "end"
+        let startOffset = location == "start" ? 0 : location == "middle" ? (text.string as NSString).length / 2 : (text.string as NSString).length
+        for i in 0..<10 {
+            text.setSelectedRange(NSRange(location: startOffset + i, length: 0))
             let start = Date()
             text.insertText("x", replacementRange: text.selectedRange())
             host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.001)); host.displayIfNeeded()
             timings.append(Date().timeIntervalSince(start) * 1000)
             #expect(text.string == PackageWritingProjection(editor.session).text)
         }
+        print("PACKAGE_BENCHMARK_LOCATION=\(location)")
         print("PACKAGE_TYPING_MS=\(timings)")
         #expect(editor.flushRecovery())
     }

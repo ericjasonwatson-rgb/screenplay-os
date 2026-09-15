@@ -469,30 +469,11 @@ final class PackageEditor: ObservableObject, Identifiable {
 
 struct PackageEditorView: View {
     @FocusState private var findFocused: Bool
+    @State private var showWritingHelp = false
     @ObservedObject var editor: PackageEditor
     let close: () -> Void
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(editor.title.isEmpty ? "Untitled Screenplay" : editor.title).font(.headline)
-                    Text(editor.currentURL?.lastPathComponent ?? "New package · Not yet saved").foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Close", action: close)
-            }
-            HStack {
-                Button("Undo", action: editor.undo).disabled(!editor.canUndo)
-                Button("Redo", action: editor.redo).disabled(!editor.canRedo)
-                Spacer()
-                Text(editor.dirty ? "Unsaved changes" : "No unsaved changes").foregroundStyle(.secondary)
-                Button("Find", action: editor.showFind)
-                Toggle("Dark Page", isOn: $editor.darkPageMode).toggleStyle(.button)
-                Button("Print Preview", action: editor.showPrintPreview)
-                Button("Save") { editor.saveCurrent() }
-                Button("Save As…") { editor.savePanel() }
-            }
-            Menu("Format") {
+    private var formatMenu: some View {
+        Menu("Format") {
                 Menu("Document Font: " + editor.session.typography.fontFamily) {
                     ForEach(NSFontManager.shared.availableFontFamilies.sorted(), id: \.self) { family in
                         Button(family) { editor.changeTypography(font: family) }
@@ -510,6 +491,49 @@ struct PackageEditorView: View {
                 Toggle("Strikethrough", isOn: Binding(get: { editor.emphasisActive(\.strikethrough) }, set: { _ in editor.toggleEmphasis(\.strikethrough) }))
                 Button("Clear Emphasis") { editor.formatSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) }
             }.fixedSize().disabled(findFocused)
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Text(editor.title.isEmpty ? "Untitled Screenplay" : editor.title)
+                    .font(.headline).lineLimit(1).truncationMode(.middle)
+                Text(editor.dirty ? "Unsaved" : "Saved").font(.caption).foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Button("Save") { editor.saveCurrent() }
+                Menu("Document") {
+                    Button("Save As…") { editor.savePanel() }
+                    Button("Print Preview", action: editor.showPrintPreview)
+                    if let previous = editor.previousVersionURL {
+                        Button("Show Previous Version") { NSWorkspace.shared.activateFileViewerSelecting([previous]) }
+                    }
+                    Divider()
+                    Button("Close", action: close)
+                }.fixedSize()
+            }
+            HStack(spacing: 12) {
+                Button(action: editor.undo) { Label("Undo", systemImage: "arrow.uturn.backward") }
+                    .labelStyle(.iconOnly).help("Undo").disabled(!editor.canUndo)
+                Button(action: editor.redo) { Label("Redo", systemImage: "arrow.uturn.forward") }
+                    .labelStyle(.iconOnly).help("Redo").disabled(!editor.canRedo)
+                if let row = editor.rows.first(where: { $0.id == editor.selected }) {
+                    Picker("Paragraph type", selection: Binding(get: { row.type }, set: editor.changeType)) {
+                        ForEach(PackageTextSession.supportedTypes, id: \.self) { type in
+                            Text(type.replacingOccurrences(of: "_", with: " ").capitalized).tag(type)
+                        }
+                    }.labelsHidden().frame(width: 155).accessibilityLabel("Paragraph type")
+                }
+                formatMenu
+                Spacer(minLength: 8)
+                Button("Find", action: editor.showFind)
+                Menu("Writing") {
+                    Toggle("Dark Page", isOn: $editor.darkPageMode)
+                    Divider()
+                    Button("Add Paragraph", action: editor.addParagraph)
+                    Button("Delete Paragraph", action: editor.deleteParagraph).disabled(editor.selected == nil)
+                    Divider()
+                    Button("Writing Help") { showWritingHelp = true }
+                }.fixedSize()
+            }
             if editor.findVisible {
                 VStack(spacing: 6) {
                     HStack {
@@ -530,14 +554,6 @@ struct PackageEditorView: View {
                     .onAppear { findFocused = true }
                     .onChange(of: editor.findFocusRequest) { _ in findFocused = true }
             }
-            Divider()
-            if let row = editor.rows.first(where: { $0.id == editor.selected }) {
-                Picker("Paragraph type", selection: Binding(get: { row.type }, set: editor.changeType)) {
-                    ForEach(PackageTextSession.supportedTypes, id: \.self) { type in
-                        Text(type.replacingOccurrences(of: "_", with: " ").capitalized).tag(type)
-                    }
-                }.frame(maxWidth: 320)
-            }
             if editor.rows.isEmpty {
                 Text("This screenplay has no paragraphs. Add a paragraph to begin.").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -557,22 +573,9 @@ struct PackageEditorView: View {
                             }
                             Button("Dismiss", action: editor.dismissCharacterSuggestions)
                         }
-                    }
+                    }.frame(height: 30)
                     Text("↓ selects a name; Return accepts it. Escape dismisses.").font(.caption).foregroundStyle(.secondary)
-                } else {
-                    Text("Character names from this screenplay appear as you type a character cue.")
-                        .font(.caption).foregroundStyle(.secondary)
                 }
-            }.frame(height: 48, alignment: .leading)
-            HStack {
-                Button("Add Paragraph", action: editor.addParagraph)
-                Button("Delete Paragraph", action: editor.deleteParagraph).disabled(editor.selected == nil)
-                Spacer()
-            }
-            Text("Tab / Shift-Tab change paragraph type. Return creates a paragraph. Backspace at its start joins the previous paragraph. Shift-Return inserts a line break. Print Preview shows derived pages. Production locks are not supported here.")
-                .font(.caption).foregroundStyle(.secondary)
-            if let previous = editor.previousVersionURL {
-                Button("Show Previous Version") { NSWorkspace.shared.activateFileViewerSelecting([previous]) }
             }
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let substitution = PackageTypography.substitution(editor.session.typography) {
@@ -584,6 +587,14 @@ struct PackageEditorView: View {
             .preferredColorScheme(.dark)
             .safeAreaInset(edge: .top, spacing: 0) { PackageNavigationBar() }
             .interactiveDismissDisabled()
+            .popover(isPresented: $showWritingHelp) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Writing").font(.headline)
+                    Text("Return starts a paragraph. Shift-Return inserts a line break. Backspace at a paragraph’s start joins it to the previous paragraph.")
+                    Text("Tab / Shift-Tab change paragraph type. ⌘B, ⌘I and ⌘U toggle bold, italic and underline.")
+                    Text("Page numbers and dialogue continuation labels are generated automatically. Production locks are not supported in this editor.")
+                }.padding().frame(width: 340)
+            }
             .sheet(item: $editor.printPreview) { snapshot in
                 PrintPreviewSheet(snapshot: snapshot, export: editor.exportPrintPreview)
             }

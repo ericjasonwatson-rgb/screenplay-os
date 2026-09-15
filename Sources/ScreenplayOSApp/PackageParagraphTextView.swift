@@ -53,7 +53,7 @@ final class PackageWritingNativeTextView: NSTextView, NSLayoutManagerDelegate {
     var pageHeight: CGFloat { CGFloat(pageCount) * pageStride - Self.pageGap }
     func paginate(_ session: PackageTextSession) throws {
         guard pageRevision != session.revision else { return }
-        let plan = try PackagePrintLayout.plan(session)
+        let plan = try PackagePrintLayout.plan(session, reusing: pagePlan)
         var lines: [Int: NSRect] = [:]
         for (page, range) in plan.glyphRanges.enumerated() {
             plan.layout.enumerateLineFragments(forGlyphRange: range) { rect, _, _, glyphs, _ in
@@ -67,7 +67,7 @@ final class PackageWritingNativeTextView: NSTextView, NSLayoutManagerDelegate {
         plannedExtra = plan.layout.extraLineFragmentRect
         plannedExtra.origin.y += CGFloat(pageCount - 1) * pageStride + (plan.headerHeights.last ?? 0)
         layoutManager?.delegate = self
-        layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+        layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: plan.relayoutStart, length: (string as NSString).length - plan.relayoutStart), actualCharacterRange: nil)
         if let container = textContainer, let manager = layoutManager {
             manager.ensureLayout(for: container)
             if string.isEmpty || string.hasSuffix("\n") {

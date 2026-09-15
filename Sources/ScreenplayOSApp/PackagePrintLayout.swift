@@ -21,8 +21,11 @@ enum PackagePrintLayout {
         let headers: [String?]
         let headerHeights: [CGFloat]
         let footers: [Bool]
+        let typography: DocumentTypography
+        let relayoutStart: Int
     }
-    static func plan(_ session: PackageTextSession) throws -> Plan {
+    // Reuse consumes the editor-owned layout cache; callers needing a snapshot use a fresh plan.
+    static func plan(_ session: PackageTextSession, reusing previous: Plan? = nil) throws -> Plan {
         let projection = PackageWritingProjection(session)
         let attributed = NSMutableAttributedString(string: projection.text)
         let font = PackageTypography.font(session.typography)
@@ -34,9 +37,34 @@ enum PackagePrintLayout {
         for entry in projection.entries {
             PackageTypography.apply(try session.styledText(for: entry.id), settings: session.typography, to: attributed, offset: entry.range.location)
         }
-        let storage = NSTextStorage(attributedString: attributed)
-        let layout = NSLayoutManager()
-        storage.addLayoutManager(layout)
+        var keptPages = 0
+        var relayoutStart = 0
+        if let previous, previous.typography == session.typography, previous.text != projection.text,
+           previous.storage.string.unicodeScalars.elementsEqual(previous.text.unicodeScalars) {
+            let old = Array(previous.text.utf16), new = Array(projection.text.utf16)
+            var common = 0
+            while common < min(old.count, new.count), old[common] == new[common] { common += 1 }
+            // Step back to a complete Unicode boundary before inspecting attributes.
+            while common > 0, Range(NSRange(location: 0, length: common), in: projection.text) == nil || Range(NSRange(location: 0, length: common), in: previous.text) == nil { common -= 1 }
+            let prefix = NSRange(location: 0, length: common)
+            if attributed.attributedSubstring(from: prefix).isEqual(to: previous.storage.attributedSubstring(from: prefix)),
+               let page = previous.ranges.lastIndex(where: { $0.location < common }) {
+                // Reconsider the preceding page as well: keep-with-next and continuation
+                // rules can pull text back across the boundary before the edit.
+                keptPages = max(0, page - 1)
+                relayoutStart = previous.ranges[keptPages].location
+            }
+        }
+        let storage: NSTextStorage, layout: NSLayoutManager
+        if keptPages > 0, let previous {
+            storage = previous.storage; layout = previous.layout
+            while layout.textContainers.count > keptPages { layout.removeTextContainer(at: layout.textContainers.count - 1) }
+            storage.replaceCharacters(in: NSRange(location: relayoutStart, length: storage.length - relayoutStart),
+                with: attributed.attributedSubstring(from: NSRange(location: relayoutStart, length: attributed.length - relayoutStart)))
+        } else {
+            storage = NSTextStorage(attributedString: attributed)
+            layout = NSLayoutManager(); storage.addLayoutManager(layout)
+        }
         // A continuation belongs only to an uninterrupted cue/dialogue/parenthetical
         // block. Never invent a speaker for un-cued dialogue or cross an action/heading.
         var owners: [Int?] = [], owner: Int?
@@ -78,10 +106,13 @@ enum PackagePrintLayout {
             dialogueLines[index] = starts
             return starts
         }
-        var ranges: [NSRange] = [], glyphRanges: [NSRange] = []
-        var headers: [String?] = [], headerHeights: [CGFloat] = [], footers: [Bool] = []
-        var previousEnd = 0
-        var incoming: String?
+        var ranges = Array(previous?.ranges.prefix(keptPages) ?? [])
+        var glyphRanges = Array(previous?.glyphRanges.prefix(keptPages) ?? [])
+        var headers = Array(previous?.headers.prefix(keptPages) ?? [])
+        var headerHeights = Array(previous?.headerHeights.prefix(keptPages) ?? [])
+        var footers = Array(previous?.footers.prefix(keptPages) ?? [])
+        var previousEnd = glyphRanges.last.map(NSMaxRange) ?? 0
+        var incoming: String? = keptPages > 0 ? continuation(at: relayoutStart) : nil
         repeat {
             let header = incoming.map(continuedCue)
             let headerHeight: CGFloat = header.map {
@@ -165,7 +196,7 @@ enum PackagePrintLayout {
             previousEnd = end
         } while true
         return Plan(storage: storage, layout: layout, text: projection.text, font: font, ranges: ranges,
-                    glyphRanges: glyphRanges, headers: headers, headerHeights: headerHeights, footers: footers)
+                    glyphRanges: glyphRanges, headers: headers, headerHeights: headerHeights, footers: footers, typography: session.typography, relayoutStart: relayoutStart)
     }
     static func make(_ session: PackageTextSession) throws -> Result {
         let plan = try plan(session)
