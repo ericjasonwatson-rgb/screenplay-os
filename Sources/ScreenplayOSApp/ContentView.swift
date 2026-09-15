@@ -2719,14 +2719,7 @@ private struct BottomStatusBar: View {
                 .toggleStyle(.button)
                 .controlSize(.small)
 
-                Image(systemName: "minus.magnifyingglass")
-                    .foregroundStyle(.secondary)
-                Slider(value: $model.pageZoom, in: 0.8...1.35, step: 0.05)
-                    .frame(width: 120)
-                Text("\(Int(model.pageZoom * 100))%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 42, alignment: .trailing)
+
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)

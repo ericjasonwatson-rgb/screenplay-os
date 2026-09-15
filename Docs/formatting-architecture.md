@@ -66,3 +66,11 @@ The package editor keeps title/save state and the core writing toolbar in two co
 The package editor has a persistent Zoom menu beside Mode and Workspace: 50–300% presets, a 100% default, and Fit Width that follows window resizing. Zoom is window-local presentation state; it never writes document typography, changes undo history, marks the document dirty, or changes PDF geometry. A native scroll-view magnification scales the complete page, including margins and generated page furniture. TextKit retains its 612-point page and 432-point text width. Above the viewport width, the page scrolls horizontally.
 
 Native integration checks cover scale, window resize, selection retention, unchanged revision/bytes/page ranges, scaled coordinate conversion, Unicode replacement and exact undo at 150%, and matching print page ranges.
+
+### Shared document controls
+
+Both document interfaces now use the same document-panel button and percentage zoom control in the persistent top bar. The older workspace retains its supported 80–135% range; the package editor retains 50–300% and Fit Width. The older bottom-bar zoom slider is removed. This shares presentation controls without pretending the two editing engines or document formats have identical capabilities.
+
+The package document panel starts collapsed and shows document identity/save state and a scene list derived from canonical scene-heading paragraphs. Selecting a scene requests a native caret position through the existing editor adapter. Toggling the panel preserves the native editor instance, selection, revision and history. Navigation visibility remains local UI state and is not written into the package. The panel is 210 points wide and its contents scroll independently; Mode, Workspace and Zoom remain outside it. Formatting controls and unsupported production capabilities remain separate follow-up work.
+
+Verified with 159 Swift tests, 37 Python tests and 14 self-tests. The live app showed the older workspace's zoom in its top bar with the document panel open. In the synthetic package, the navigator rendered without clipped labels, a scene click returned the scrolled editor to its heading, and collapsing the panel preserved native text focus. Document contents remained Saved.

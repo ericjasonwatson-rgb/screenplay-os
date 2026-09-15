@@ -13,6 +13,7 @@ final class PackageEditor: ObservableObject, Identifiable {
     }
     let source: URL
     @Published var darkPageMode = false
+    @Published var navigationVisible = false
     @Published private(set) var currentURL: URL?
     private var savedFiles: [String: Data] = [:]
     var didSave: ((URL) -> Void)?
@@ -347,6 +348,13 @@ final class PackageEditor: ObservableObject, Identifiable {
             refreshDraft(); message = nil; return true
         } catch { message = "The paragraph could not be split. Your text is still here."; return false }
     }
+    func navigateToScene(_ id: UUID) {
+        guard rows.contains(where: { $0.id == id && $0.type == "scene_heading" }), apply(),
+              let entry = PackageWritingProjection(session).entries.first(where: { $0.id == id }) else { return }
+        typingBoundary = UUID()
+        selected = id; refreshDraft()
+        requestedFindSelection = NSRange(location: entry.range.location, length: 0)
+    }
     func selectWritingParagraph(_ id: UUID) {
         guard selected != id else { return }
         selected = id; refreshDraft()
@@ -558,9 +566,16 @@ struct PackageEditorView: View {
             if editor.rows.isEmpty {
                 Text("This screenplay has no paragraphs. Add a paragraph to begin.").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScriptPageWell(width: pageZoomPercent == 0 ? 10_000 : PackagePageGeometry.width * CGFloat(pageZoomPercent) / 100) {
-                    PackageParagraphTextView(editor: editor, zoomPercent: pageZoomPercent)
+                HStack(spacing: 0) {
+                    if editor.navigationVisible {
+                        PackageDocumentNavigator(editor: editor).frame(width: 210)
+                        Divider()
+                    }
+                    ScriptPageWell(width: pageZoomPercent == 0 ? 10_000 : PackagePageGeometry.width * CGFloat(pageZoomPercent) / 100) {
+                        PackageParagraphTextView(editor: editor, zoomPercent: pageZoomPercent)
+                    }
                 }
+
             }
             VStack(alignment: .leading, spacing: 4) {
                 if !editor.characterSuggestions.isEmpty {
@@ -588,7 +603,7 @@ struct PackageEditorView: View {
         }.padding(16).frame(minWidth: 740, idealWidth: 850, minHeight: 520, idealHeight: 650)
             .background(StudioAppearance.panel)
             .preferredColorScheme(.dark)
-            .safeAreaInset(edge: .top, spacing: 0) { PackageNavigationBar(zoomPercent: $pageZoomPercent) }
+            .safeAreaInset(edge: .top, spacing: 0) { PackageNavigationBar(zoomPercent: $pageZoomPercent, navigationVisible: $editor.navigationVisible) }
             .interactiveDismissDisabled()
             .popover(isPresented: $showWritingHelp) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -601,5 +616,33 @@ struct PackageEditorView: View {
             .sheet(item: $editor.printPreview) { snapshot in
                 PrintPreviewSheet(snapshot: snapshot, export: editor.exportPrintPreview)
             }
+    }
+}
+
+private struct PackageDocumentNavigator: View {
+    @ObservedObject var editor: PackageEditor
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Document").font(.headline)
+                Text(editor.title.isEmpty ? "Untitled Screenplay" : editor.title).lineLimit(3)
+                Text(editor.dirty ? "Unsaved" : "Saved").font(.caption).foregroundStyle(.secondary)
+                Divider()
+                Text("Scenes").font(.headline)
+                let scenes = editor.rows.filter { $0.type == "scene_heading" }
+                if scenes.isEmpty { Text("No scene headings yet.").foregroundStyle(.secondary) }
+                ForEach(Array(scenes.enumerated()), id: \.element.id) { index, row in
+                    Button { editor.navigateToScene(row.id) } label: {
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("\(index + 1)").foregroundStyle(.secondary).monospacedDigit()
+                            Text(editor.label(for: row)).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+                        }.padding(6)
+                            .background(editor.selected == row.id ? Color.accentColor.opacity(0.18) : Color.clear)
+                    }.buttonStyle(.plain)
+                    .accessibilityLabel("Go to scene \(index + 1): \(editor.label(for: row))")
+                }
+            }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+        }.background(StudioAppearance.panel)
+        .accessibilityLabel("Document navigator")
     }
 }

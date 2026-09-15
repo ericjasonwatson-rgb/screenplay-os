@@ -5,6 +5,47 @@ import Testing
 
 @Suite("Package page zoom", .serialized) @MainActor
 struct PackagePageZoomTests {
+    @Test func navigatorPreservesNativeEditorAndSceneNavigationDoesNotEdit() throws {
+        let (root, source, _, _) = try PackageEditedCopyTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let scriptURL = source.appendingPathComponent("screenplay.json")
+        var script = try JSONSerialization.jsonObject(with: Data(contentsOf: scriptURL)) as! [String: Any]
+        var elements = script["elements"] as! [[String: Any]]
+        elements[0]["type"] = "scene_heading"
+        script["elements"] = elements
+        try JSONSerialization.data(withJSONObject: script).write(to: scriptURL)
+        let editor = try PackageEditor(source: source, recoveryDirectory: root.appendingPathComponent("Recovery"))
+        let host = NSHostingView(rootView: PackageEditorView(editor: editor, close: {}))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 740, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = host
+        defer { window.close() }
+        func refresh() { host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.02)) }
+        func find(_ view: NSView) -> PackageWritingNativeTextView? {
+            (view as? PackageWritingNativeTextView) ?? view.subviews.lazy.compactMap { find($0) }.first
+        }
+        refresh()
+        let text = try #require(find(host))
+        text.setSelectedRange(NSRange(location: 1, length: 2))
+        let bytes = editor.session.screenplayBytes, revision = editor.session.revision
+        for visible in [true, false, true] {
+            editor.navigationVisible = visible; refresh()
+            #expect(find(host) === text)
+            #expect(text.selectedRange() == NSRange(location: 1, length: 2))
+            #expect(editor.session.revision == revision && editor.session.screenplayBytes == bytes)
+            #expect(!editor.dirty && !editor.canUndo)
+        }
+        let scene = try #require(editor.rows.first { $0.type == "scene_heading" })
+        editor.navigateToScene(scene.id); refresh()
+        let entry = try #require(PackageWritingProjection(editor.session).entries.first { $0.id == scene.id })
+        #expect(text.selectedRange() == NSRange(location: entry.range.location, length: 0))
+        #expect(!editor.dirty && !editor.canUndo)
+        text.insertText("x", replacementRange: text.selectedRange()); refresh()
+        editor.navigationVisible = false; refresh()
+        #expect(editor.canUndo && find(host) === text)
+        editor.undo(); refresh()
+        #expect(editor.session.screenplayBytes == bytes)
+    }
+
     @Test func scalingPreservesLayoutSelectionAndDocument() throws {
         let (root, source, _, _) = try PackageEditedCopyTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
