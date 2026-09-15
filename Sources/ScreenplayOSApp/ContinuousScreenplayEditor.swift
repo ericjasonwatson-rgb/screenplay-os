@@ -75,7 +75,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 var range = ranges[index]
                 if index < ranges.count - 1 { range.length += 1 }
                 var attributes: [NSAttributedString.Key: Any] = [
-                    .font: StudioAppearance.courier(size: 14 * scale, bold: weight != .regular),
+                    .font: model.document?.typography.map { PackageTypography.font($0, displayScale: scale) } ?? StudioAppearance.courier(size: 14 * scale, bold: weight != .regular),
                     .foregroundColor: StudioAppearance.ink(model.darkPageMode),
                     .paragraphStyle: style
                 ]
@@ -83,6 +83,9 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                     attributes[.backgroundColor] = NSColor(mark.color.swiftUIColor).withAlphaComponent(0.15)
                 }
                 if range.length > 0 { attributed.addAttributes(attributes, range: range) }
+                if element.runs != nil {
+                    PackageTypography.apply(element.styledText, settings: model.writingTypography, to: attributed, offset: ranges[index].location, displayScale: scale)
+                }
                 if element.id == model.selectedElementID { activeAttributes = attributes }
             }
             let paperWidth = max(576 * scale, view.enclosingScrollView?.contentSize.width ?? 0)
@@ -116,6 +119,9 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             view.typingAttributes = activeAttributes
             restorationToken = model.documentCaretToken
             selectedID = model.selectedElementID
+            view.formattingShortcut = { [weak self] key in
+                self?.model.toggleWritingEmphasis(key == "b" ? \.bold : key == "i" ? \.italic : \.underline)
+            }
             view.cycleType = { [weak self] forward in
                 guard let self, let id = self.model.selectedElementID else { return }
                 self.model.cycleElementType(for: id, forward: forward)
@@ -184,6 +190,14 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
 
 private final class WritingTextView: NSTextView {
     var cycleType: ((Bool) -> Void)?
+    var formattingShortcut: ((String) -> Void)?
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if window?.firstResponder === self, event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           let key = event.charactersIgnoringModifiers?.lowercased(), ["b", "i", "u"].contains(key) {
+            formattingShortcut?(key); return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         DispatchQueue.main.async { [weak self] in

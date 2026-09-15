@@ -52,7 +52,7 @@ struct PackageRecoveryTests {
         failing.draft = "Keep this text"; failing.flushRecovery()
         #expect(failing.dirty && failing.recoveryStatus?.contains("failed") == true)
     }
-    @Test func debouncedTypingPersistsAndSeparateSessionsDoNotCollide() async throws {
+    @Test(.timeLimit(.minutes(1))) func debouncedTypingPersistsAndSeparateSessionsDoNotCollide() async throws {
         let (root, source, _, id) = try PackageEditedCopyTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = root.appendingPathComponent("Recovery")
@@ -60,12 +60,10 @@ struct PackageRecoveryTests {
         let b = try PackageEditor(source: source, recoveryDirectory: store)
         a.select(id); b.select(id)
         a.draft = "one"; a.draft = "latest"; b.draft = "other session"
-        // Other native layout tests can occupy the main actor before the debounce
-        // task starts. Await the observable result, with a bounded failure deadline.
-        let deadline = ContinuousClock.now + .seconds(5)
-        while PackageRecovery.list(store).count != 2 && ContinuousClock.now < deadline {
-            try await Task.sleep(nanoseconds: 50_000_000)
-        }
+        // Await actual scheduled work, not a wall-clock deadline consumed by
+        // unrelated native layout tests on the shared main actor.
+        await a.waitForScheduledRecovery()
+        await b.waitForScheduledRecovery()
         #expect(PackageRecovery.list(store).count == 2)
         #expect(a.recoveryStatus == "Recovery saved locally")
         #expect(b.recoveryStatus == "Recovery saved locally")

@@ -82,3 +82,7 @@ The package writing toolbar exposes document font family and point size, followe
 The older monolithic ScreenplayElement representation has no persisted inline style runs or document typography settings, and its native renderer applies type-based styling. Therefore these controls are currently package-editor capabilities. Exposing active controls in the older editor would require a separate tested storage, editing and export change; it is not achieved by sharing toolbar components. Existing documents are not migrated by this UI change.
 
 Verification: 159 Swift tests, 37 Python tests and 14 self-tests pass. Live testing on the synthetic Paginated Writing Check package applied each emphasis button to selected text, changed Courier 12 pt to Helvetica 16 pt, and undid all five operations back to Courier 12 pt with all emphasis off and Saved status. The toolbar rendered without clipped controls in the test window.
+
+### Legacy formatting support — 2026-09-15
+
+The earlier legacy-storage limitation is now resolved for supported native editing and PDF output. Both editors share `WritingFormattingBar`; legacy documents can persist typography and scalar emphasis runs using the additive legacy 1.1 extension. See `legacy-formatting.md` for version compatibility, editing/history behavior, PDF cache correctness, tests, and remaining interchange boundaries.

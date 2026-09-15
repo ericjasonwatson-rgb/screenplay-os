@@ -5,6 +5,7 @@ public struct OpenScreenplayDocument: Codable, Equatable {
     public var formatVersion: String
     public var project: Project
     public var screenplay: Screenplay
+    public var typography: DocumentTypography?
     public var titlePage: TitlePage
     public var productionContext: ProductionContext
     public var aiSettings: AISettings
@@ -55,6 +56,7 @@ public struct OpenScreenplayDocument: Codable, Equatable {
         case formatVersion = "format_version"
         case project
         case screenplay
+        case typography
         case titlePage = "title_page"
         case productionContext = "production_context"
         case aiSettings = "ai_settings"
@@ -71,7 +73,14 @@ public struct OpenScreenplayDocument: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         format = try container.decode(String.self, forKey: .format)
         formatVersion = try container.decode(String.self, forKey: .formatVersion)
+        guard format == "open-screenplay", ["1.0", "1.1"].contains(formatVersion) else {
+            throw DecodingError.dataCorruptedError(forKey: .formatVersion, in: container, debugDescription: "Unsupported legacy screenplay version")
+        }
         project = try container.decode(Project.self, forKey: .project)
+        typography = try container.decodeIfPresent(DocumentTypography.self, forKey: .typography)
+        if let typography, typography.paper != "US_LETTER" {
+            throw DecodingError.dataCorruptedError(forKey: .typography, in: container, debugDescription: "Unsupported legacy paper size")
+        }
         screenplay = try container.decode(Screenplay.self, forKey: .screenplay)
         aiSettings = try container.decodeIfPresent(AISettings.self, forKey: .aiSettings) ?? AISettings()
         proposals = try container.decodeIfPresent([AIProposal].self, forKey: .proposals) ?? []
@@ -687,7 +696,19 @@ public struct ScreenplayMetadata: Codable, Equatable {
 public struct ScreenplayElement: Codable, Equatable, Identifiable {
     public let id: UUID
     public var type: ElementType
-    public var text: String
+    public var text: String {
+        didSet {
+            guard let runs, !oldValue.unicodeScalars.elementsEqual(text.unicodeScalars) else { return }
+            self.runs = try? StyledText(text: oldValue, runs: runs).replacingText(text).runs
+        }
+    }
+    public private(set) var runs: [StyledText.Run]?
+    public var styledText: StyledText { try! StyledText(text: text, runs: runs ?? []) }
+    public mutating func setStyledText(_ value: StyledText) {
+        text = value.text
+        runs = value.runs.isEmpty ? nil : value.runs
+    }
+
     public var spineID: String?
     public var externalIDs: [String: String]
     public var revisionMark: RevisionMark?
@@ -712,10 +733,23 @@ public struct ScreenplayElement: Codable, Equatable, Identifiable {
         case id
         case type
         case text
+        case runs
         case spineID = "spine_id"
         case externalIDs = "external_ids"
         case revisionMark = "revision_mark"
     }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        type = try c.decode(ElementType.self, forKey: .type)
+        text = try c.decode(String.self, forKey: .text)
+        runs = try c.decodeIfPresent([StyledText.Run].self, forKey: .runs)
+        _ = try StyledText(text: text, runs: runs ?? [])
+        spineID = try c.decodeIfPresent(String.self, forKey: .spineID)
+        externalIDs = try c.decode([String: String].self, forKey: .externalIDs)
+        revisionMark = try c.decodeIfPresent(RevisionMark.self, forKey: .revisionMark)
+    }
+
 }
 
 public struct RevisionMark: Codable, Equatable {

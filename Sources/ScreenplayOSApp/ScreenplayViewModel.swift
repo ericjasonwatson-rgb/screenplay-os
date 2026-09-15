@@ -112,7 +112,8 @@ final class ScreenplayViewModel: ObservableObject {
     }
     @Published private(set) var caretRestoration: CaretRestoration?
     private var caretRanges: [UUID: NSRange] = [:]
-    private(set) var documentCaret: NSRange?
+    @Published private(set) var documentCaret: NSRange?
+    @Published private(set) var legacyInsertionStyle: StyledText.Style?
     @Published private(set) var documentCaretToken = UUID()
     private var typingGroup: (elementID: UUID, date: Date, caret: NSRange, kind: Int)?
     private var undoStack: [EditState] = []
@@ -243,14 +244,14 @@ final class ScreenplayViewModel: ObservableObject {
         paginate(elements, includeEmptyElements: true, splitLongElements: false)
     }
 
-    private var printCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, pages: [ScreenplayPage])?
+    private var printCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography?, pages: [ScreenplayPage])?
 
     var printedPages: [ScreenplayPage] {
         let source = elements
         let lock = document?.screenplay.pageLock
-        if let cache = printCache, cache.elements == source, cache.lock == lock { return cache.pages }
+        if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.pages }
         let pages = paginate(lockedPrintElements())
-        printCache = (source, lock, pages)
+        printCache = (source, lock, document?.typography, pages)
         return pages
     }
 
@@ -890,6 +891,7 @@ final class ScreenplayViewModel: ObservableObject {
         redoStack = []
         typingGroup = nil
         caretRanges = [:]
+        legacyInsertionStyle = nil
         documentCaret = nil
         documentCaretToken = UUID()
         caretRestoration = nil
@@ -1365,6 +1367,7 @@ final class ScreenplayViewModel: ObservableObject {
             redoStack = []
             typingGroup = nil
             caretRanges = [:]
+            legacyInsertionStyle = nil
             documentCaret = nil
             documentCaretToken = UUID()
             caretRestoration = nil
@@ -1392,6 +1395,7 @@ final class ScreenplayViewModel: ObservableObject {
             redoStack = []
             typingGroup = nil
             caretRanges = [:]
+            legacyInsertionStyle = nil
             documentCaret = nil
             documentCaretToken = UUID()
             caretRestoration = nil
@@ -1789,13 +1793,15 @@ final class ScreenplayViewModel: ObservableObject {
 
         rememberUndoState()
         let duplicated = document.screenplay.elements[range].map { element in
-            ScreenplayElement(
+            var copy = ScreenplayElement(
                 type: element.type,
                 text: element.text,
                 spineID: nil,
                 externalIDs: [:],
                 revisionMark: currentRevisionMark() ?? element.revisionMark
             )
+            copy.setStyledText(element.styledText)
+            return copy
         }
         document.screenplay.elements.insert(contentsOf: duplicated, at: range.upperBound)
         document.screenplay.revision += 1
@@ -2179,42 +2185,24 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func replaceSelectedMatch() {
-        guard !findQuery.isEmpty,
-              let selectedElementID,
-              let index = elementIndex(for: selectedElementID) else { return }
-        let original = elements[index].text
-        let replaced = original.replacingOccurrences(
-            of: findQuery, with: replaceText, options: [.caseInsensitive, .diacriticInsensitive])
-        guard replaced != original else { return }
-
-        rememberUndoState()
-        document?.screenplay.elements[index].text = replaced
-        document?.screenplay.revision += 1
-        document?.project.metadata.modifiedAt = Date()
-        autosave()
+        guard let selectedElementID, let index = elementIndex(for: selectedElementID) else { return }
+        replaceWritingMatches(in: [index])
     }
-
-    func replaceAllMatches() {
-        guard !findQuery.isEmpty, document != nil else { return }
-
-        var changed = false
-        for index in elements.indices {
-            let original = elements[index].text
-            let replaced = original.replacingOccurrences(
-                of: findQuery, with: replaceText, options: [.caseInsensitive, .diacriticInsensitive])
-            if replaced != original {
-                // Capture one undo state immediately before the first actual change.
-                if !changed { rememberUndoState() }
-                document?.screenplay.elements[index].text = replaced
-                changed = true
+    func replaceAllMatches() { replaceWritingMatches(in: Array(elements.indices)) }
+    private func replaceWritingMatches(in indices: [Int]) {
+        guard !findQuery.isEmpty, var candidate = document else { return }
+        do {
+            var changed = false
+            for index in indices {
+                let original = elements[index].styledText
+                let updated = try original.replacingOccurrences(of: findQuery, with: replaceText)
+                if updated != original { candidate.screenplay.elements[index].setStyledText(updated); changed = true }
             }
-        }
-
-        if changed {
-            document?.screenplay.revision += 1
-            document?.project.metadata.modifiedAt = Date()
-            autosave()
-        }
+            guard changed else { return }
+            rememberUndoState()
+            candidate.screenplay.revision += 1; candidate.project.metadata.modifiedAt = Date()
+            document = candidate; autosave()
+        } catch { errorMessage = "Replacement would split a character. Your text and formatting are unchanged." }
     }
 
     func renameCharacter() {
@@ -2374,6 +2362,8 @@ final class ScreenplayViewModel: ObservableObject {
             type: nextElementType(after: current.type),
             text: after
         )
+        if let scalar = try? current.styledText.scalarRange(fromUTF16: NSRange(location: clampedOffset, length: 0)),
+           let tail = try? current.styledText.split(at: scalar.lowerBound).1.replacingText(after) { next.setStyledText(tail) }
         next.revisionMark = currentRevisionMark()
         document?.screenplay.elements.insert(next, at: index + 1)
         assignSceneSpineIDIfNeeded(at: index + 1)
@@ -2420,7 +2410,9 @@ final class ScreenplayViewModel: ObservableObject {
         let previousIndex = index - 1
         let previousText = document?.screenplay.elements[previousIndex].text ?? ""
         let separator = previousText.isEmpty || current.text.isEmpty ? "" : " "
-        document?.screenplay.elements[previousIndex].text = previousText + separator + current.text
+        if let value = try? document!.screenplay.elements[previousIndex].styledText.appending(StyledText(text: separator)).appending(current.styledText) {
+            document?.screenplay.elements[previousIndex].setStyledText(value)
+        }
         document?.screenplay.elements.remove(at: index)
         document?.screenplay.revision += 1
         document?.project.metadata.modifiedAt = Date()
@@ -2537,6 +2529,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func restoreEditState(_ state: EditState) {
+        legacyInsertionStyle = nil
         document = state.document
         documentCaret = state.documentCaret
         documentCaretToken = UUID()
@@ -3312,7 +3305,7 @@ final class ScreenplayViewModel: ObservableObject {
         caretRanges[id] = range
     }
 
-    func editText(id: UUID, text: String, before: NSRange, after: NSRange, groupable: Bool, now: Date = Date()) {
+    func editText(id: UUID, text: String, before: NSRange, after: NSRange, groupable: Bool, now: Date = Date(), styledValue: StyledText? = nil) {
         guard let old = element(id: id), old.text != text else { return }
         caretRestoration = nil
         let delta = (text as NSString).length - (old.text as NSString).length
@@ -3324,12 +3317,12 @@ final class ScreenplayViewModel: ObservableObject {
         } == true
         caretRanges[id] = before
         if !merge { rememberUndoState() }
-        updateElement(id: id, text: text, recordUndo: false)
+        updateElement(id: id, text: text, recordUndo: false, styledValue: styledValue)
         caretRanges[id] = after
         typingGroup = groupable ? (id, now, after, kind) : nil
     }
 
-    private func updateElement(id: UUID, text: String, recordUndo: Bool = true) {
+    private func updateElement(id: UUID, text: String, recordUndo: Bool = true, styledValue: StyledText? = nil) {
         guard let index = elementIndex(for: id) else {
             return
         }
@@ -3337,7 +3330,18 @@ final class ScreenplayViewModel: ObservableObject {
         let currentType = document?.screenplay.elements[index].type ?? .action
         let detectedType = automaticElementType(for: text, currentType: currentType)
         document?.screenplay.elements[index].type = detectedType
-        document?.screenplay.elements[index].text = normalizedText(for: detectedType, text: text)
+        let normalized = normalizedText(for: detectedType, text: text)
+        if let styledValue {
+            if let updated = try? styledValue.replacingText(normalized) {
+                document?.screenplay.elements[index].setStyledText(updated)
+            }
+        } else {
+            document?.screenplay.elements[index].text = normalized
+        }
+        if document?.screenplay.elements[index].runs != nil {
+            if document?.typography == nil { document?.typography = try? DocumentTypography() }
+            document?.formatVersion = "1.1"
+        }
         assignSceneSpineIDIfNeeded(at: index)
         markRevisionIfNeeded(at: index)
         document?.screenplay.revision += 1
@@ -4158,10 +4162,8 @@ final class ScreenplayViewModel: ObservableObject {
                 y -= spec.before + item.textHeight
                 let rect = CGRect(x: spec.x, y: y, width: spec.width, height: item.textHeight + 4)
                 withPDFGraphicsContext(context) {
-                    item.text.draw(
-                        in: rect,
-                        withAttributes: pdfAttributes(alignment: spec.alignment, weight: spec.weight, size: 12)
-                    )
+                    if let attributed = item.attributed { attributed.draw(in: rect) }
+                    else { item.text.draw(in: rect, withAttributes: scriptPDFAttributes(type: item.element.type, alignment: spec.alignment, weight: spec.weight)) }
                 }
                 y -= spec.after
             }
@@ -4268,27 +4270,31 @@ final class ScreenplayViewModel: ObservableObject {
                 // Keep the source paragraph intact; only its printed representation is split.
                 var remaining = item.text
                 var firstFragment = true
+                var consumedUTF16 = 0
                 let more = continuationMarker("(MORE)", type: .parenthetical, source: element)
                 while !remaining.isEmpty {
                     if !firstFragment || earlierDialogue { appendCue(speaker, source: element) }
                     let before = firstFragment ? item.layout.before : 0
                     let available = scriptContentHeight - usedHeight - before - item.layout.after
-                    let willContinue = pdfHeight(for: remaining, width: item.layout.width, type: element.type) > available
+                    let remainingAttributes = item.attributed?.attributedSubstring(from: NSRange(location: consumedUTF16, length: (remaining as NSString).length))
+                    let willContinue = pdfHeight(for: remaining, width: item.layout.width, type: element.type, attributed: remainingAttributes) > available
                     let markerHeight = speaker != nil && (willContinue || reserveMore) ? more.blockHeight : 0
                     let prefix = fittingPrefix(of: remaining, width: item.layout.width,
-                                               type: element.type, height: available - markerHeight)
+                                               type: element.type, height: available - markerHeight, attributed: remainingAttributes)
                     if prefix.isEmpty {
                         if isSpeech && earlierDialogue { appendMore(for: element, speaker: speaker) }
                         finishPage()
                         continue
                     }
-                    let height = pdfHeight(for: prefix, width: item.layout.width, type: element.type)
+                    let fragmentAttributes = remainingAttributes?.attributedSubstring(from: NSRange(location: 0, length: (prefix as NSString).length))
+                    let height = pdfHeight(for: prefix, width: item.layout.width, type: element.type, attributed: fragmentAttributes)
                     let layout = PDFLayoutSpec(x: item.layout.x, width: item.layout.width,
                         before: before, after: item.layout.after, alignment: item.layout.alignment, weight: item.layout.weight)
                     let fragment = PaginatedElement(element: element, text: prefix, layout: layout,
-                        textHeight: height, blockHeight: before + height + item.layout.after)
+                        textHeight: height, blockHeight: before + height + item.layout.after, attributed: fragmentAttributes)
                     currentItems.append(fragment)
                     usedHeight += fragment.blockHeight
+                    consumedUTF16 += (prefix as NSString).length
                     remaining.removeFirst(prefix.count)
                     firstFragment = false
                     if !remaining.isEmpty {
@@ -4386,9 +4392,9 @@ final class ScreenplayViewModel: ObservableObject {
         return total
     }
 
-    private func fittingPrefix(of text: String, width: CGFloat, type: ElementType, height: CGFloat) -> String {
+    private func fittingPrefix(of text: String, width: CGFloat, type: ElementType, height: CGFloat, attributed: NSAttributedString? = nil) -> String {
         guard height >= 16 else { return "" }
-        if pdfHeight(for: text, width: width, type: type) <= height { return text }
+        if pdfHeight(for: text, width: width, type: type, attributed: attributed) <= height { return text }
         // Search only grapheme boundaries: emoji and combining marks stay intact.
         let boundaries = Array(text.indices) + [text.endIndex]
         var low = 0
@@ -4396,7 +4402,7 @@ final class ScreenplayViewModel: ObservableObject {
         while low < high {
             let middle = (low + high + 1) / 2
             let candidate = String(text[..<boundaries[middle]])
-            if pdfHeight(for: candidate, width: width, type: type) <= height {
+            if pdfHeight(for: candidate, width: width, type: type, attributed: attributed?.attributedSubstring(from: NSRange(location: 0, length: (candidate as NSString).length))) <= height {
                 low = middle
             } else { high = middle - 1 }
         }
@@ -4414,13 +4420,19 @@ final class ScreenplayViewModel: ObservableObject {
             spec = PDFLayoutSpec(x: spec.x, width: spec.width, before: 0, after: spec.after, alignment: spec.alignment, weight: spec.weight)
         }
         let text = element.externalIDs["screenplayos.printFragment"] != nil ? element.text : normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
-        let textHeight = pdfHeight(for: text, width: spec.width, type: element.type)
+        let rich = NSMutableAttributedString(string: text, attributes: scriptPDFAttributes(type: element.type, alignment: spec.alignment, weight: spec.weight))
+        if let styled = try? element.styledText.replacingText(text), element.runs != nil {
+            PackageTypography.apply(styled, settings: writingTypography, to: rich, offset: 0)
+        }
+        let formatted = document?.typography != nil || element.runs != nil
+        let textHeight = pdfHeight(for: text, width: spec.width, type: element.type, attributed: formatted ? rich : nil)
         return PaginatedElement(
             element: element,
             text: text,
             layout: spec,
             textHeight: textHeight,
-            blockHeight: spec.before + textHeight + spec.after
+            blockHeight: spec.before + textHeight + spec.after,
+            attributed: formatted ? rich : nil
         )
     }
 
@@ -4435,23 +4447,21 @@ final class ScreenplayViewModel: ObservableObject {
         let text: String
         let width: CGFloat
         let type: ElementType
+        let fontFamily: String?
+        let fontSize: Double?
+        let attributed: NSAttributedString?
     }
     private var printMeasurements: [PrintMeasurementKey: CGFloat] = [:]
     private var printMeasurementCharacters = 0
 
-    private func pdfHeight(for text: String, width: CGFloat, type: ElementType) -> CGFloat {
-        let key = PrintMeasurementKey(text: text, width: width, type: type)
+    private func pdfHeight(for text: String, width: CGFloat, type: ElementType, attributed: NSAttributedString? = nil) -> CGFloat {
+        let key = PrintMeasurementKey(text: text, width: width, type: type,
+            fontFamily: document?.typography?.fontFamily, fontSize: document?.typography?.fontSize,
+            attributed: attributed.map { NSAttributedString(attributedString: $0) })
         if let height = printMeasurements[key] { return height }
-        let attributes = pdfAttributes(
-            alignment: pdfLayoutSpec(for: type).alignment,
-            weight: pdfLayoutSpec(for: type).weight,
-            size: 12
-        )
-        let rect = text.boundingRect(
-            with: CGSize(width: width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: attributes
-        )
+        let attributes = scriptPDFAttributes(type: type, alignment: pdfLayoutSpec(for: type).alignment, weight: pdfLayoutSpec(for: type).weight)
+        let rich = attributed ?? NSAttributedString(string: text, attributes: attributes)
+        let rect = rich.boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
         let height = max(16, ceil(rect.height))
         // Bound retained source text as well as entry count during long editing sessions.
         let characters = text.utf16.count
@@ -4464,6 +4474,12 @@ final class ScreenplayViewModel: ObservableObject {
             printMeasurementCharacters += characters
         }
         return height
+    }
+
+    private func scriptPDFAttributes(type: ElementType, alignment: NSTextAlignment, weight: NSFont.Weight) -> [NSAttributedString.Key: Any] {
+        var attributes = pdfAttributes(alignment: alignment, weight: weight, size: 12)
+        if let settings = document?.typography { attributes[.font] = PackageTypography.font(settings) }
+        return attributes
     }
 
     private func pdfAttributes(alignment: NSTextAlignment, weight: NSFont.Weight, size: CGFloat) -> [NSAttributedString.Key: Any] {
@@ -5551,6 +5567,7 @@ struct PaginatedElement: Identifiable {
     let textHeight: CGFloat
     let blockHeight: CGFloat
     var isContinuation: Bool = false
+    var attributed: NSAttributedString? = nil
 
     var id: UUID {
         element.id
@@ -5870,7 +5887,7 @@ extension ScreenplayViewModel {
     }
 
     func rememberDocumentCaret(_ range: NSRange) {
-        if documentCaret != range { typingGroup = nil }
+        if documentCaret != range { typingGroup = nil; legacyInsertionStyle = nil }
         documentCaret = range
         if let index = writingRanges.lastIndex(where: { $0.location <= range.location }) {
             let id = elements[index].id
@@ -5899,14 +5916,39 @@ extension ScreenplayViewModel {
         if start == end && !replacement.contains("\n") {
             let text = prefix + replacement + suffix
             let after = NSRange(location: (prefix + replacement as NSString).length, length: 0)
+            var updatedStyle: StyledText?
+            if old[start].runs != nil || legacyInsertionStyle != nil {
+                do {
+                    var value = old[start].styledText
+                    try value.replace(value.scalarRange(fromUTF16: NSRange(location: localStart, length: localEnd - localStart)),
+                        with: replacement, style: writingCaretStyle)
+                    updatedStyle = value
+                } catch { errorMessage = "Select whole characters and try again."; return documentCaret ?? range }
+            }
             editText(id: old[start].id, text: text,
                      before: NSRange(location: (selection?.location ?? range.location) - ranges[start].location, length: selection?.length ?? range.length), after: after,
-                     groupable: groupable, now: now)
+                     groupable: groupable, now: now, styledValue: updatedStyle)
             let normalizedPrefix = normalizedText(for: elements[start].type, text: prefix + replacement)
             let caret = NSRange(location: ranges[start].location + (normalizedPrefix as NSString).length, length: 0)
             documentCaret = caret
             return caret
         }
+        var styledParts: [StyledText] = []
+        do {
+            var combined = old[start].styledText
+            for index in (start + 1)..<(end + 1) {
+                combined = try combined.appending(StyledText(text: "\n")).appending(old[index].styledText)
+            }
+            let local = NSRange(location: localStart, length: range.length)
+            try combined.replace(combined.scalarRange(fromUTF16: local), with: replacement, style: writingCaretStyle)
+            var remainder = combined
+            while let newline = remainder.text.firstIndex(of: "\n") {
+                let offset = remainder.text.unicodeScalars.distance(from: remainder.text.startIndex, to: newline)
+                let (head, tail) = try remainder.split(at: offset)
+                styledParts.append(head); remainder = try tail.split(at: 1).1
+            }
+            styledParts.append(remainder)
+        } catch { errorMessage = "Select whole characters and try again."; return documentCaret ?? range }
         rememberUndoState()
         let parts = (prefix + replacement + suffix).components(separatedBy: "\n")
         var changed: [ScreenplayElement] = []
@@ -5920,11 +5962,16 @@ extension ScreenplayViewModel {
                 item = ScreenplayElement(type: nextElementType(after: changed.last!.type), text: "")
             }
             item.type = automaticElementType(for: text, currentType: item.type)
+            item.setStyledText(styledParts[index])
             item.text = normalizedText(for: item.type, text: text)
             if let mark = currentRevisionMark() { item.revisionMark = mark }
             changed.append(item)
         }
         document?.screenplay.elements.replaceSubrange(start...end, with: changed)
+        if changed.contains(where: { $0.runs != nil }) {
+            if document?.typography == nil { document?.typography = try? DocumentTypography() }
+            document?.formatVersion = "1.1"
+        }
         document?.ensureSceneSpineIDs()
         let retainedIDs = Set(changed.map(\.id))
         var noteDestinations: [UUID: UUID] = [:]
@@ -6082,6 +6129,7 @@ extension ScreenplayViewModel {
             redoStack = []
             typingGroup = nil
             caretRanges = [:]
+            legacyInsertionStyle = nil
             documentCaret = nil
             documentCaretToken = UUID()
             caretRestoration = nil
@@ -6090,5 +6138,79 @@ extension ScreenplayViewModel {
             selectInitialElement()
             errorMessage = "Recovered \(copy.title). Save this draft as a separate file."
         } catch { errorMessage = "Could not open recovery copy: \(error.localizedDescription)" }
+    }
+}
+
+extension ScreenplayViewModel {
+    var writingTypography: DocumentTypography { document?.typography ?? (try! DocumentTypography()) }
+    var writingCaretStyle: StyledText.Style {
+        if let legacyInsertionStyle { return legacyInsertionStyle }
+        let selection = documentCaret ?? NSRange(location: 0, length: 0)
+        guard let index = writingRanges.lastIndex(where: { $0.location <= selection.location }) else { return .init() }
+        let value = elements[index].styledText
+        let local = min((value.text as NSString).length, max(0, selection.location - writingRanges[index].location))
+        guard let scalar = try? value.scalarRange(fromUTF16: NSRange(location: local, length: 0)) else { return .init() }
+        let point = max(0, scalar.lowerBound - 1)
+        return value.resolvedRuns.first { point >= $0.start && point < $0.start + $0.length }?.style ?? .init()
+    }
+    func writingEmphasisActive(_ key: KeyPath<StyledText.Style, Bool?>) -> Bool {
+        let selection = documentCaret ?? NSRange(location: 0, length: 0)
+        if selection.length == 0 { return writingCaretStyle[keyPath: key] == true }
+        var found = false
+        for (index, range) in writingRanges.enumerated() {
+            let overlap = NSIntersectionRange(selection, range)
+            guard overlap.length > 0 else { continue }
+            let value = elements[index].styledText
+            guard let scalars = try? value.scalarRange(fromUTF16: NSRange(location: overlap.location - range.location, length: overlap.length)) else { return false }
+            found = true
+            let covered = value.resolvedRuns.filter { $0.style[keyPath: key] == true }.reduce(0) { total, run in
+                total + max(0, min(scalars.upperBound, run.start + run.length) - max(scalars.lowerBound, run.start))
+            }
+            if covered != scalars.count { return false }
+        }
+        return found
+    }
+    func toggleWritingEmphasis(_ key: WritableKeyPath<StyledText.Style, Bool?>) {
+        var patch = StyledText.Style(); patch[keyPath: key] = !writingEmphasisActive(key)
+        formatWritingSelection(patch)
+    }
+    func formatWritingSelection(_ patch: StyledText.Style) {
+        guard var candidate = document else { return }
+        let selection = documentCaret ?? NSRange(location: 0, length: 0)
+        if selection.length == 0 {
+            var style = writingCaretStyle
+            if let value = patch.bold { style.bold = value }
+            if let value = patch.italic { style.italic = value }
+            if let value = patch.underline { style.underline = value }
+            if let value = patch.strikethrough { style.strikethrough = value }
+            typingGroup = nil; legacyInsertionStyle = style
+            return
+        }
+        do {
+            var changed = false
+            for (index, range) in writingRanges.enumerated() {
+                let overlap = NSIntersectionRange(selection, range)
+                guard overlap.length > 0 else { continue }
+                var value = elements[index].styledText
+                try value.format(value.scalarRange(fromUTF16: NSRange(location: overlap.location - range.location, length: overlap.length)), patch: patch)
+                if value != elements[index].styledText { changed = true; candidate.screenplay.elements[index].setStyledText(value) }
+            }
+            guard changed else { return }
+            rememberUndoState()
+            candidate.formatVersion = "1.1"
+            candidate.typography = writingTypography
+            candidate.screenplay.revision += 1; candidate.project.metadata.modifiedAt = Date()
+            document = candidate; documentCaretToken = UUID(); autosave()
+        } catch { errorMessage = "The selection crosses an incomplete character. Select whole characters and try again." }
+    }
+    func changeWritingTypography(font: String? = nil, size: Double? = nil) {
+        guard var candidate = document,
+              let settings = try? DocumentTypography(fontFamily: font ?? writingTypography.fontFamily, fontSize: size ?? writingTypography.fontSize),
+              candidate.typography != settings else { return }
+        rememberUndoState()
+        candidate.formatVersion = "1.1"
+        candidate.typography = settings
+        candidate.screenplay.revision += 1; candidate.project.metadata.modifiedAt = Date()
+        document = candidate; documentCaretToken = UUID(); autosave()
     }
 }

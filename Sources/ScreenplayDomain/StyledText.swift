@@ -197,3 +197,51 @@ public struct DocumentTypography: Equatable, Codable {
         try self.init(paper: c.decode(String.self, forKey: .paper), fontFamily: c.decode(String.self, forKey: .fontFamily), fontSize: c.decode(Double.self, forKey: .fontSize))
     }
 }
+
+extension StyledText {
+    /// Reconcile a whole-text edit without moving unaffected formatting ranges.
+    public func replacingText(_ replacement: String, insertionStyle: Style? = nil) throws -> StyledText {
+        // Legacy cue normalization can expand a character (for example ß -> SS).
+        if replacement != text, replacement.unicodeScalars.elementsEqual(text.uppercased().unicodeScalars) {
+            var output: [Style] = [], offset = 0
+            let source = styles
+            for character in text {
+                let value = String(character)
+                output += Array(repeating: source[offset], count: value.uppercased().unicodeScalars.count)
+                offset += value.unicodeScalars.count
+            }
+            return try StyledText(text: replacement, runs: Self.compress(output))
+        }
+        let old = Array(text), new = Array(replacement)
+        var prefix = 0, suffix = 0
+        while prefix < min(old.count, new.count), String(old[prefix]).unicodeScalars.elementsEqual(String(new[prefix]).unicodeScalars) { prefix += 1 }
+        while suffix < min(old.count, new.count) - prefix,
+              String(old[old.count - suffix - 1]).unicodeScalars.elementsEqual(String(new[new.count - suffix - 1]).unicodeScalars) { suffix += 1 }
+        let start = String(old.prefix(prefix)).unicodeScalars.count
+        let end = text.unicodeScalars.count - String(old.suffix(suffix)).unicodeScalars.count
+        let inherited = styles.isEmpty ? Style() : styles[min(max(0, start - 1), styles.count - 1)]
+        var result = self
+        try result.replace(start..<end, with: String(new[prefix..<(new.count - suffix)]), style: insertionStyle ?? inherited)
+        return result
+    }
+}
+
+extension StyledText {
+    public func replacingOccurrences(of query: String, with replacement: String) throws -> StyledText {
+        guard !query.isEmpty else { return self }
+        var matches: [Range<Int>] = []
+        var cursor = text.startIndex
+        while cursor < text.endIndex,
+              let found = text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive], range: cursor..<text.endIndex) {
+            matches.append(try scalarRange(fromUTF16: NSRange(found, in: text)))
+            cursor = found.upperBound
+        }
+        var result = self
+        let originalStyles = styles
+        for range in matches.reversed() {
+            try result.replace(range, with: replacement,
+                style: range.lowerBound < originalStyles.count ? originalStyles[range.lowerBound] : .init())
+        }
+        return result
+    }
+}

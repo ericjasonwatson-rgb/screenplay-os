@@ -2831,6 +2831,14 @@ private struct ScreenplayPageView: View {
                 }
                 .disabled(model.document == nil)
             }.padding(8)
+            WritingFormattingBar(settings: model.writingTypography,
+                changeFont: { model.changeWritingTypography(font: $0) }, changeSize: { model.changeWritingTypography(size: $0) },
+                active: model.writingEmphasisActive, toggle: model.toggleWritingEmphasis,
+                clear: { model.formatWritingSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) })
+                .padding(.horizontal, 8).disabled(model.document == nil)
+            if let notice = PackageTypography.substitution(model.writingTypography) {
+                Text(notice).font(.caption).padding(.horizontal, 8)
+            }
             ScriptPageWell(width: 760 * model.pageZoom) {
                 ContinuousScreenplayEditor(model: model)
             }

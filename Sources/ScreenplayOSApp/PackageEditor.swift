@@ -146,6 +146,8 @@ final class PackageEditor: ObservableObject, Identifiable {
             self?.flushRecovery()
         }
     }
+    /// Await the scheduled debounce without forcing a synchronous recovery write.
+    func waitForScheduledRecovery() async { await recoveryTask?.value }
     @discardableResult func flushRecovery() -> Bool {
         recoveryTask?.cancel()
         guard let recoveryDirectory else { return false }
@@ -481,21 +483,6 @@ struct PackageEditorView: View {
     @State private var pageZoomPercent = 100
     @ObservedObject var editor: PackageEditor
     let close: () -> Void
-    private var formatMenu: some View {
-        Menu("Format") {
-                Toggle("Bold", isOn: Binding(get: { editor.emphasisActive(\.bold) }, set: { _ in editor.toggleEmphasis(\.bold) })).keyboardShortcut("b", modifiers: .command)
-                Toggle("Italic", isOn: Binding(get: { editor.emphasisActive(\.italic) }, set: { _ in editor.toggleEmphasis(\.italic) })).keyboardShortcut("i", modifiers: .command)
-                Toggle("Underline", isOn: Binding(get: { editor.emphasisActive(\.underline) }, set: { _ in editor.toggleEmphasis(\.underline) })).keyboardShortcut("u", modifiers: .command)
-                Toggle("Strikethrough", isOn: Binding(get: { editor.emphasisActive(\.strikethrough) }, set: { _ in editor.toggleEmphasis(\.strikethrough) }))
-                Button("Clear Emphasis") { editor.formatSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) }
-            }.fixedSize().disabled(findFocused)
-    }
-    private func emphasisButton(_ title: String, symbol: String, key: WritableKeyPath<StyledText.Style, Bool?>) -> some View {
-        Toggle(isOn: Binding(get: { editor.emphasisActive(key) }, set: { _ in editor.toggleEmphasis(key) })) {
-            Image(systemName: symbol).frame(width: 18)
-        }.toggleStyle(.button).accessibilityLabel(title)
-            .help(title + " for selected text or subsequent typing")
-    }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
@@ -537,29 +524,11 @@ struct PackageEditorView: View {
                     Button("Writing Help") { showWritingHelp = true }
                 }.fixedSize()
             }
-            HStack(spacing: 10) {
-                Picker("Font", selection: Binding(get: { editor.session.typography.fontFamily },
-                    set: { editor.changeTypography(font: $0) })) {
-                    // Include a requested missing family so the stored value remains visible.
-                    ForEach(Array(Set(NSFontManager.shared.availableFontFamilies + [editor.session.typography.fontFamily])).sorted(), id: \.self) { family in
-                        Text(family).tag(family)
-                    }
-                }.frame(width: 210).accessibilityLabel("Document font")
-                    .help("Font family for the entire document. This changes saved typography and printed output.")
-                Picker("Size", selection: Binding(get: { editor.session.typography.fontSize },
-                    set: { editor.changeTypography(size: $0) })) {
-                    ForEach(Array(Set([8.0, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72] + [editor.session.typography.fontSize])).sorted(), id: \.self) { size in
-                        Text(String(format: "%g pt", size)).tag(size)
-                    }
-                }.frame(width: 105).accessibilityLabel("Document font size")
-                    .help("Point size for the entire document. Use Zoom to change only the view.")
-                Divider().frame(height: 18)
-                emphasisButton("Bold", symbol: "bold", key: \.bold)
-                emphasisButton("Italic", symbol: "italic", key: \.italic)
-                emphasisButton("Underline", symbol: "underline", key: \.underline)
-                formatMenu
-                Spacer(minLength: 0)
-            }.controlSize(.small).disabled(findFocused)
+            WritingFormattingBar(settings: editor.session.typography,
+                changeFont: { editor.changeTypography(font: $0) }, changeSize: { editor.changeTypography(size: $0) },
+                active: editor.emphasisActive, toggle: editor.toggleEmphasis,
+                clear: { editor.formatSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) })
+                .disabled(findFocused)
             if editor.findVisible {
                 VStack(spacing: 6) {
                     HStack {

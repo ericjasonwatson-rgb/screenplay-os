@@ -113,7 +113,10 @@ enum ProductionPageLayout {
             func fragment(to offset: Int) {
                 guard offset > start else { return }
                 var part = element
-                part.text = String(characters[start..<offset])
+                let scalarStart = String(characters[..<start]).unicodeScalars.count
+                let scalarLength = String(characters[start..<offset]).unicodeScalars.count
+                if let tail = try? element.styledText.split(at: scalarStart).1,
+                   let segment = try? tail.split(at: scalarLength).0 { part.setStyledText(segment) }
                 part.externalIDs["screenplayos.printFragment"] = start == 0 ? "first" : "continued"
                 result.append(part)
                 start = offset
