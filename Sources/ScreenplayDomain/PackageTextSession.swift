@@ -14,6 +14,10 @@ public struct PackageTextSession {
     public var screenplayBytes: Data { session.document.data }
     public var canUndo: Bool { session.canUndo }
     public var canRedo: Bool { session.canRedo }
+    public var undoHistoryID: UUID? { session.undoHistoryID }
+    public var redoHistoryID: UUID? { session.redoHistoryID }
+    public var historyIDs: Set<UUID> { session.historyIDs }
+    public var historyBytes: Int { session.historyBytes }
 
     public init(files: [String: Data]) throws {
         // Companions can contain locks or references that this command cannot repair.
@@ -59,11 +63,11 @@ public struct PackageTextSession {
         try session.document.string(at: path(for: elementID))
     }
 
-    public mutating func replaceText(elementID: UUID, expectedRevision: UUID, expectedText: String, replacement: String) throws {
+    public mutating func replaceText(elementID: UUID, expectedRevision: UUID, expectedText: String, replacement: String, historyGroup: UUID? = nil) throws {
         guard expectedRevision == revision else { throw Failure.staleRevision }
         let path = try path(for: elementID)
         let before = screenplayBytes
-        try session.replaceString(at: path, expected: expectedText, with: replacement)
+        try session.replaceString(at: path, expected: expectedText, with: replacement, historyGroup: historyGroup)
         if screenplayBytes != before { revision = UUID() }
     }
 
@@ -114,12 +118,12 @@ public struct PackageTextSession {
     }
     /// Replace a contiguous paragraph span in one transaction, retaining the first ID.
     @discardableResult public mutating func editSpan(startID: UUID, endID: UUID, expectedRevision: UUID,
-        prefix: String, replacement: String, suffix: String, splitType: String? = nil) throws -> UUID {
+        prefix: String, replacement: String, suffix: String, splitType: String? = nil, historyGroup: UUID? = nil) throws -> UUID {
         guard expectedRevision == revision else { throw Failure.staleRevision }
         guard let first = indexes[startID], let last = indexes[endID], first <= last else { throw Failure.missingElement }
         if first == last && splitType == nil {
             try replaceText(elementID: startID, expectedRevision: expectedRevision,
-                            expectedText: text(for: startID), replacement: prefix + replacement + suffix)
+                            expectedText: text(for: startID), replacement: prefix + replacement + suffix, historyGroup: historyGroup)
             return startID
         }
         var candidate = self

@@ -13,7 +13,27 @@ final class PackageEditor: ObservableObject, Identifiable {
     }
     let source: URL
     let title: String
-    @Published private(set) var session: PackageTextSession
+    @Published private(set) var session: PackageTextSession {
+        didSet {
+            guard session.revision != oldValue.revision, !replayingHistory else { return }
+            if let id = session.undoHistoryID {
+                if selectionHistory[id] == nil { selectionHistory[id] = (writingSelection, writingSelection) }
+                pendingHistorySelection = id
+            }
+            selectionHistory = selectionHistory.filter { session.historyIDs.contains($0.key) }
+        }
+    }
+    var typingBoundary = UUID()
+    var writingSelection = NSRange(location: 0, length: 0)
+    var restoredWritingSelection: NSRange?
+    private var selectionHistory: [UUID: (before: NSRange, after: NSRange)] = [:]
+    private var pendingHistorySelection: UUID?
+    private var replayingHistory = false
+    func didRenderWritingSelection(_ range: NSRange) {
+        writingSelection = range
+        if let id = pendingHistorySelection { selectionHistory[id]?.after = range }
+        pendingHistorySelection = nil
+    }
     @Published var selected: UUID?
     @Published var draft = "" { didSet { scheduleRecovery() } }
     @Published var message: String?
@@ -151,14 +171,22 @@ final class PackageEditor: ObservableObject, Identifiable {
         selected = id; draft = (try? session.text(for: id)) ?? ""
     }
     func undo() {
+        typingBoundary = UUID()
         if pending { refreshDraft(); return }
         let oldIDs = Set(rows.map(\.id)), oldIndex = rows.firstIndex { $0.id == selected } ?? 0
-        session.undo(); restoreSelection(previousIDs: oldIDs, oldIndex: oldIndex); message = nil
+        restoredWritingSelection = session.undoHistoryID.flatMap { selectionHistory[$0]?.before }
+        pendingHistorySelection = nil; replayingHistory = true
+        session.undo(); replayingHistory = false
+        restoreSelection(previousIDs: oldIDs, oldIndex: oldIndex); message = nil
     }
     func redo() {
+        typingBoundary = UUID()
         guard !pending else { return }
         let oldIDs = Set(rows.map(\.id)), oldIndex = rows.firstIndex { $0.id == selected } ?? 0
-        session.redo(); restoreSelection(previousIDs: oldIDs, oldIndex: oldIndex); message = nil
+        restoredWritingSelection = session.redoHistoryID.flatMap { selectionHistory[$0]?.after }
+        pendingHistorySelection = nil; replayingHistory = true
+        session.redo(); replayingHistory = false
+        restoreSelection(previousIDs: oldIDs, oldIndex: oldIndex); message = nil
     }
     private func restoreSelection(previousIDs: Set<UUID>, oldIndex: Int) {
         if let restored = rows.first(where: { !previousIDs.contains($0.id) }) { selected = restored.id }
@@ -207,14 +235,15 @@ final class PackageEditor: ObservableObject, Identifiable {
         guard selected != id else { return }
         selected = id; refreshDraft()
     }
-    @discardableResult func editWritingSpan(start: UUID, end: UUID, prefix: String, replacement: String, suffix: String, splitType: String?) -> Bool {
+    @discardableResult func editWritingSpan(start: UUID, end: UUID, prefix: String, replacement: String, suffix: String, splitType: String?, historyGroup: UUID? = nil) -> Bool {
         do {
             selected = try session.editSpan(startID: start, endID: end, expectedRevision: session.revision,
-                prefix: prefix, replacement: replacement, suffix: suffix, splitType: splitType)
+                prefix: prefix, replacement: replacement, suffix: suffix, splitType: splitType, historyGroup: historyGroup)
             refreshDraft(); message = nil; return true
         } catch { message = "The edit could not be applied. Your previous text is retained."; return false }
     }
     func showPrintPreview() {
+        typingBoundary = UUID()
         guard apply() else { return }
         do {
             let result = try PackagePrintLayout.make(session)
@@ -232,6 +261,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         catch { message = "The PDF could not be exported. Your screenplay is unchanged." }
     }
     @discardableResult func save(to url: URL) -> Bool {
+        typingBoundary = UUID()
         guard apply() else { return false }
         flushRecovery()
         do {

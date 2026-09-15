@@ -40,13 +40,30 @@ struct PackageWritingProjection {
     }
 }
 
+/// Clipboard commands and focus changes end a typing group even for one character.
+final class PackageWritingNativeTextView: NSTextView {
+    var historyBoundary: (() -> Void)?
+    override func paste(_ sender: Any?) {
+        historyBoundary?(); super.paste(sender); historyBoundary?()
+    }
+    override func cut(_ sender: Any?) {
+        historyBoundary?(); super.cut(sender); historyBoundary?()
+    }
+    override func resignFirstResponder() -> Bool {
+        let result = super.resignFirstResponder()
+        if result { historyBoundary?() }
+        return result
+    }
+}
+
 /// One native text view provides continuous selection, navigation, and copying.
 struct PackageParagraphTextView: NSViewRepresentable {
     @ObservedObject var editor: PackageEditor
     func makeCoordinator() -> Coordinator { Coordinator(editor) }
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSTextView.scrollableTextView()
-        let text = scroll.documentView as! NSTextView
+        let scroll = PackageWritingNativeTextView.scrollableTextView()
+        let text = scroll.documentView as! PackageWritingNativeTextView
+        text.historyBoundary = { [weak editor] in editor?.typingBoundary = UUID() }
         text.isRichText = false
         text.isAutomaticQuoteSubstitutionEnabled = false
         text.isAutomaticDashSubstitutionEnabled = false
@@ -72,6 +89,8 @@ struct PackageParagraphTextView: NSViewRepresentable {
         var renderedRevision: UUID?
         var selected: UUID?
         var nativeEdit: (NSRange, String)?
+        var nativeSelection: NSRange?
+        var typingGroup: (id: UUID, element: UUID, caret: Int, backward: Bool, time: TimeInterval, revision: UUID, boundary: UUID)?
         init(_ editor: PackageEditor) { self.editor = editor; projection = PackageWritingProjection(editor.session) }
 
         static func attributes(for type: String) -> [NSAttributedString.Key: Any] {
@@ -108,11 +127,13 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 }
                 text.textStorage?.setAttributedString(content)
             }
+            let restored = editor.restoredWritingSelection
+            editor.restoredWritingSelection = nil
             let completionCaret = editor.completionCaret
             editor.completionCaret = nil
-            let location = completionCaret ?? caret ?? (selectionChanged ? projection.entries.first(where: { $0.id == editor.selected })?.range.location : nil) ?? oldRange.location
+            let location = restored?.location ?? completionCaret ?? caret ?? (selectionChanged ? projection.entries.first(where: { $0.id == editor.selected })?.range.location : nil) ?? oldRange.location
             let clamped = min(location, (projection.text as NSString).length)
-            text.setSelectedRange(NSRange(location: clamped, length: caret == nil && !selectionChanged ? min(oldRange.length, (projection.text as NSString).length - clamped) : 0))
+            text.setSelectedRange(NSRange(location: clamped, length: min(restored?.length ?? (caret == nil && completionCaret == nil && !selectionChanged ? oldRange.length : 0), (projection.text as NSString).length - clamped)))
             text.typingAttributes = Self.attributes(for: projection.position(clamped)?.0.type ?? "action")
             if let entry = projection.position(clamped)?.0 {
                 editor.selectWritingParagraph(entry.id)
@@ -120,6 +141,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             selected = editor.selected; renderedRevision = editor.session.revision
             if caret != nil || completionCaret != nil { text.scrollRangeToVisible(text.selectedRange()) }
             if completionCaret != nil { text.window?.makeFirstResponder(text) }
+            editor.didRenderWritingSelection(text.selectedRange())
             updateSuggestions(text)
         }
         func updateSuggestions(_ text: NSTextView) {
@@ -130,6 +152,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !rendering, let text = notification.object as? NSTextView, !text.hasMarkedText(),
                   let entry = projection.position(text.selectedRange().location)?.0 else { return }
+            if nativeEdit == nil { typingGroup = nil; editor.writingSelection = text.selectedRange() }
             selected = entry.id; editor.selectWritingParagraph(entry.id)
             text.typingAttributes = Self.attributes(for: entry.type)
             updateSuggestions(text)
@@ -139,8 +162,23 @@ struct PackageParagraphTextView: NSViewRepresentable {
                   let (last, end) = projection.position(NSMaxRange(range)) else { return false }
             let prefix = String(first.text[..<start]), suffix = String(last.text[end...])
             let nextType = ["character", "parenthetical"].contains(first.type) ? "dialogue" : "action"
+            let beforeSelection = nativeSelection ?? text.selectedRange()
+            nativeSelection = nil
+            editor.writingSelection = beforeSelection
+            let now = ProcessInfo.processInfo.systemUptime
+            let deleted = Range(range, in: projection.text).map { String(projection.text[$0]) } ?? ""
+            let insertion = range.length == 0 && replacement.count == 1 && !replacement.contains("\n")
+            let backward = replacement.isEmpty && deleted.count == 1 && NSMaxRange(range) == beforeSelection.location
+            let groupingAllowed = !split && first.id == last.id && beforeSelection.length == 0 && !text.hasMarkedText()
+                && !(NSApp.currentEvent?.modifierFlags.contains(.command) ?? false) && (insertion || backward)
+            let continueGroup = groupingAllowed && typingGroup.map {
+                $0.element == first.id && $0.caret == beforeSelection.location && $0.backward == backward
+                    && now - $0.time < 1 && $0.revision == editor.session.revision && $0.boundary == editor.typingBoundary
+            } == true
+            let groupID: UUID? = groupingAllowed ? (continueGroup ? typingGroup!.id : UUID()) : nil
             guard editor.editWritingSpan(start: first.id, end: last.id, prefix: prefix,
-                                         replacement: replacement, suffix: suffix, splitType: split ? nextType : nil) else { return false }
+                                         replacement: replacement, suffix: suffix, splitType: split ? nextType : nil, historyGroup: groupID) else { return false }
+            typingGroup = groupID.map { ($0, first.id, range.location + (replacement as NSString).length, backward, now, editor.session.revision, editor.typingBoundary) }
             if first.id == last.id && !split {
                 projection.updateParagraph(first.id, value: prefix + replacement + suffix)
                 // Native input already changed the characters. Restyle only this paragraph.
@@ -204,7 +242,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             return false
         }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
-            if !rendering, let replacementString { nativeEdit = (affectedCharRange, replacementString) }
+            if !rendering, let replacementString { nativeSelection = textView.selectedRange(); nativeEdit = (affectedCharRange, replacementString) }
             return true
         }
         func textDidChange(_ notification: Notification) {
