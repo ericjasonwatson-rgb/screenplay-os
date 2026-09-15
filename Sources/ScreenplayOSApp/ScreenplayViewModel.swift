@@ -29,13 +29,26 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
     private var packageEditorChanges: AnyCancellable?
+    weak var legacyWindow: NSWindow?
+    var packageWindows: PackageWindows?
+    func enablePackageWindows() {
+        if packageWindows == nil {
+            packageWindows = PackageWindows(model: self)
+            if let packageEditor { packageWindows?.present(packageEditor) }
+        }
+    }
+    private func presentPackage(_ editor: PackageEditor) {
+        editor.didSave = { [weak self] url in self?.recordRecentDocument(url) }
+        if let packageWindows { packageWindows.present(editor) }
+        else { packageEditor = editor }
+    }
     @Published var packageRecoveries: [PackageRecovery.Record] = []
     private var packageRecoveryDirectory: URL { recoveryDirectory.appendingPathComponent("Packages") }
     func refreshPackageRecoveries() { packageRecoveries = PackageRecovery.list(packageRecoveryDirectory) }
     func openPackageRecovery(_ record: PackageRecovery.Record) {
         do {
             let current = try PackageRecovery.read(packageRecoveryDirectory.appendingPathComponent(record.id.uuidString + ".json"))
-            packageEditor = try PackageEditor(recovery: current, directory: packageRecoveryDirectory)
+            presentPackage(try PackageEditor(recovery: current, directory: packageRecoveryDirectory))
         }
         catch { errorMessage = "This recovery copy could not be opened. It has been left intact." }
     }
@@ -848,6 +861,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func newDocument() {
+        legacyWindow?.makeKeyAndOrderFront(nil)
         guard saveBeforeReplacingDocument() else { return }
         let screenplay = Screenplay(
             metadata: ScreenplayMetadata(title: "Untitled Screenplay"),
@@ -1306,28 +1320,32 @@ final class ScreenplayViewModel: ObservableObject {
         case "screenplay":
             openPackagePreview(at: url)
         case "json":
+            legacyWindow?.makeKeyAndOrderFront(nil)
             loadOpenScreenplay(at: url)
         default:
+            legacyWindow?.makeKeyAndOrderFront(nil)
             loadFDX(at: url)
         }
     }
 
     func newPackage() {
-        guard packageEditor?.confirmClose() ?? true else { return }
         do {
-            packageEditor = try PackageEditor.newPackage(directory: packageRecoveryDirectory.appendingPathComponent("Drafts"), recoveryDirectory: packageRecoveryDirectory)
+            presentPackage(try PackageEditor.newPackage(directory: packageRecoveryDirectory.appendingPathComponent("Drafts"), recoveryDirectory: packageRecoveryDirectory))
             errorMessage = nil
         } catch { errorMessage = "The new package could not be created." }
     }
     func openPackagePreview(at url: URL) {
-        guard packageEditor?.confirmClose() ?? true else { return }
+        if let existing = packageWindows?.existing(at: url) {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
+        }
         if let editor = try? PackageEditor(source: url, recoveryDirectory: packageRecoveryDirectory) {
-            packageEditor = editor
+            presentPackage(editor)
             recordRecentDocument(url)
             errorMessage = nil
             return
         }
         do {
+            legacyWindow?.makeKeyAndOrderFront(nil)
             packagePreview = try PackagePreviewReader.read(url)
             errorMessage = nil
         } catch {
@@ -4574,6 +4592,11 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
         openDocument(at: recent.url)
+        if document == nil, packageEditor != nil || packagePreview != nil {
+            newDocument()
+            errorMessage = nil
+            return
+        }
         if document == nil {
             let reason = errorMessage ?? "The file could not be read."
             newDocument()
@@ -5991,8 +6014,11 @@ extension ScreenplayViewModel {
         return saveCurrentDocument(reportStatus: false)
     }
 
-    func confirmSafeClose() -> Bool {
-        if let packageEditor, !packageEditor.confirmClose() { return false }
+    func confirmSafeClose(includePackages: Bool = true) -> Bool {
+        if includePackages {
+            if let packageWindows { if !packageWindows.confirmAll() { return false } }
+            else if let packageEditor, !packageEditor.confirmClose() { return false }
+        }
         if prepareToClose() { return true }
         let alert = NSAlert()
         alert.messageText = "Your latest edits have not been saved to the screenplay."

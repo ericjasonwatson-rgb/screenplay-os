@@ -38,12 +38,19 @@ struct DocumentCloseGuard: NSViewRepresentable {
             if window === newWindow { return }
             if window?.delegate === self { window?.delegate = originalDelegate }
             window = newWindow
+            DispatchQueue.main.async { [weak self, weak newWindow] in self?.model.legacyWindow = newWindow }
             originalDelegate = newWindow?.delegate
             newWindow?.delegate = self
         }
 
+        func windowDidBecomeKey(_ notification: Notification) {
+            model.legacyWindow = window
+            model.packageEditor = nil
+            originalDelegate?.windowDidBecomeKey?(notification)
+        }
+
         func windowShouldClose(_ sender: NSWindow) -> Bool {
-            guard model.confirmSafeClose() else { return false }
+            guard model.confirmSafeClose(includePackages: false) else { return false }
             return originalDelegate?.windowShouldClose?(sender) ?? true
         }
 

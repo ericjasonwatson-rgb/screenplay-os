@@ -64,9 +64,6 @@ struct ContentView: View {
                 }
             )
         )
-        .sheet(item: $model.packageEditor) { editor in
-            PackageEditorView(editor: editor) { model.packageEditor = nil; model.refreshPackageRecoveries() }
-        }
         .sheet(item: $model.packagePreview) { preview in
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
         }

@@ -415,7 +415,7 @@ struct PackageEditorView: View {
                     Text(editor.currentURL?.lastPathComponent ?? "New package · Not yet saved").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Close") { if editor.confirmClose() { close() } }.keyboardShortcut(.cancelAction)
+                Button("Close", action: close)
             }
             HStack {
                 Button("Undo", action: editor.undo).disabled(!editor.canUndo)

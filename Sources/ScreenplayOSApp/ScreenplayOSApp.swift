@@ -15,7 +15,7 @@ struct ScreenplayOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
-                .onAppear { appDelegate.model = model }
+                .onAppear { appDelegate.model = model; model.enablePackageWindows() }
                 .background(DocumentCloseGuard(model: model))
                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
         }
@@ -71,9 +71,12 @@ struct ScreenplayOSApp: App {
                             }
                         }
                     }
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packagePreview != nil)
             }
             CommandGroup(replacing: .saveItem) {
+                Button("Close Window") { NSApp.keyWindow?.performClose(nil) }
+                    .keyboardShortcut("w", modifiers: [.command])
+                Divider()
                 Group {
                     Button("Save") {
                         model.save()
@@ -386,8 +389,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func requestQuit() {
         guard model?.confirmSafeClose() != false else { return }
         terminationApproved = true
-        // AppKit defers termination while the SwiftUI package sheet is open.
-        // Dismiss only after both package and underlying draft decisions succeed.
+        // Dismiss any read-only preview only after every editor and the legacy draft approve termination.
         model?.packageEditor = nil
         model?.packagePreview = nil
         DispatchQueue.main.async {
