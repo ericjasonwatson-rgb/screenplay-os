@@ -59,7 +59,10 @@ struct PackageParagraphTextView: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         let text = scroll.documentView as! NSTextView
         context.coordinator.editor = editor
-        guard !text.hasMarkedText() else { return }
+        guard !text.hasMarkedText() else {
+            editor.updateCharacterSuggestions(atEnd: false)
+            return
+        }
         context.coordinator.render(text)
     }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
@@ -105,7 +108,9 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 }
                 text.textStorage?.setAttributedString(content)
             }
-            let location = caret ?? (selectionChanged ? projection.entries.first(where: { $0.id == editor.selected })?.range.location : nil) ?? oldRange.location
+            let completionCaret = editor.completionCaret
+            editor.completionCaret = nil
+            let location = completionCaret ?? caret ?? (selectionChanged ? projection.entries.first(where: { $0.id == editor.selected })?.range.location : nil) ?? oldRange.location
             let clamped = min(location, (projection.text as NSString).length)
             text.setSelectedRange(NSRange(location: clamped, length: caret == nil && !selectionChanged ? min(oldRange.length, (projection.text as NSString).length - clamped) : 0))
             text.typingAttributes = Self.attributes(for: projection.position(clamped)?.0.type ?? "action")
@@ -113,13 +118,21 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 editor.selectWritingParagraph(entry.id)
             }
             selected = editor.selected; renderedRevision = editor.session.revision
-            if caret != nil { text.scrollRangeToVisible(text.selectedRange()) }
+            if caret != nil || completionCaret != nil { text.scrollRangeToVisible(text.selectedRange()) }
+            if completionCaret != nil { text.window?.makeFirstResponder(text) }
+            updateSuggestions(text)
+        }
+        func updateSuggestions(_ text: NSTextView) {
+            let range = text.selectedRange()
+            let entry = projection.position(range.location)?.0
+            editor.updateCharacterSuggestions(atEnd: !text.hasMarkedText() && range.length == 0 && entry.map { NSMaxRange($0.range) == range.location } == true)
         }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !rendering, let text = notification.object as? NSTextView, !text.hasMarkedText(),
                   let entry = projection.position(text.selectedRange().location)?.0 else { return }
             selected = entry.id; editor.selectWritingParagraph(entry.id)
             text.typingAttributes = Self.attributes(for: entry.type)
+            updateSuggestions(text)
         }
         func replace(_ range: NSRange, with replacement: String, split: Bool, in text: NSTextView) -> Bool {
             guard let (first, start) = projection.position(range.location),
@@ -142,6 +155,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 }
             }
             if text.hasMarkedText() {
+                editor.updateCharacterSuggestions(atEnd: false)
                 // Keep provisional composition recoverable without resetting the native IME.
                 projection = PackageWritingProjection(editor.session)
                 renderedRevision = nil
@@ -152,9 +166,38 @@ struct PackageParagraphTextView: NSViewRepresentable {
         }
         func textView(_ text: NSTextView, doCommandBy command: Selector) -> Bool {
             guard !text.hasMarkedText() else { return false }
+            if command == #selector(NSResponder.insertTab(_:)) || command == #selector(NSResponder.insertBacktab(_:)) {
+                let range = text.selectedRange()
+                guard let entry = projection.position(range.location)?.0,
+                      NSMaxRange(range) <= NSMaxRange(entry.range),
+                      let index = PackageTextSession.supportedTypes.firstIndex(of: entry.type) else { return true }
+                let types = PackageTextSession.supportedTypes
+                let delta = command == #selector(NSResponder.insertTab(_:)) ? 1 : -1
+                editor.selectWritingParagraph(entry.id)
+                editor.changeType(types[(index + delta + types.count) % types.count])
+                editor.dismissCharacterSuggestions()
+                render(text)
+                return true
+            }
+            if command == #selector(NSResponder.cancelOperation(_:)), !editor.characterSuggestions.isEmpty {
+                editor.dismissCharacterSuggestions(); return true
+            }
+            if command == #selector(NSResponder.moveDown(_:)), !editor.characterSuggestions.isEmpty {
+                editor.highlightedSuggestion = ((editor.highlightedSuggestion ?? -1) + 1) % editor.characterSuggestions.count
+                return true
+            }
+            if command == #selector(NSResponder.moveUp(_:)), let index = editor.highlightedSuggestion {
+                editor.highlightedSuggestion = index == 0 ? nil : index - 1
+                return true
+            }
             if command == #selector(NSResponder.insertNewline(_:)) {
                 let flags = NSApp.currentEvent?.modifierFlags ?? []
                 if flags.contains(.shift) || flags.contains(.option) { return false }
+                if let index = editor.highlightedSuggestion, editor.characterSuggestions.indices.contains(index) {
+                    _ = editor.acceptCharacterSuggestion(editor.characterSuggestions[index])
+                    render(text)
+                    return true
+                }
                 _ = replace(text.selectedRange(), with: "", split: true, in: text)
                 return true
             }

@@ -18,6 +18,46 @@ final class PackageEditor: ObservableObject, Identifiable {
     @Published var draft = "" { didSet { scheduleRecovery() } }
     @Published var message: String?
     @Published var printPreview: PrintPreviewSnapshot?
+    @Published var characterSuggestions: [String] = []
+    @Published var highlightedSuggestion: Int?
+    private var dismissedSuggestion: String?
+    private var suggestionContext: String?
+    var completionCaret: Int?
+
+    func updateCharacterSuggestions(atEnd: Bool) {
+        let context = (selected?.uuidString ?? "") + ":" + draft
+        if suggestionContext != context {
+            highlightedSuggestion = nil; dismissedSuggestion = nil; suggestionContext = context
+        }
+        guard atEnd, rows.first(where: { $0.id == selected })?.type == "character",
+              !draft.isEmpty, !draft.contains("\n"), context != dismissedSuggestion else {
+            characterSuggestions = []; highlightedSuggestion = nil; return
+        }
+        var seen = Set<String>()
+        characterSuggestions = session.paragraphs.compactMap { row -> String? in
+            guard row.type == "character", row.id != selected,
+                  let name = try? session.text(for: row.id), !name.contains("\n"),
+                  name.lowercased().hasPrefix(draft.lowercased()),
+                  name.lowercased() != draft.lowercased(),
+                  seen.insert(name.lowercased()).inserted else { return nil }
+            return name
+        }.prefix(5).map { $0 }
+        if let highlightedSuggestion, highlightedSuggestion >= characterSuggestions.count { self.highlightedSuggestion = nil }
+    }
+    func dismissCharacterSuggestions() {
+        dismissedSuggestion = suggestionContext
+        characterSuggestions = []; highlightedSuggestion = nil
+    }
+    @discardableResult func acceptCharacterSuggestion(_ name: String) -> Bool {
+        guard characterSuggestions.contains(name), let selected,
+              rows.first(where: { $0.id == selected })?.type == "character" else { return false }
+        draft = name
+        guard apply() else { return false }
+        let projection = PackageWritingProjection(session)
+        completionCaret = projection.entries.first(where: { $0.id == selected }).map { NSMaxRange($0.range) }
+        dismissCharacterSuggestions()
+        return true
+    }
     private var savedBytes: Data
     private var recoveryID = UUID()
     private let recoveryDirectory: URL?
@@ -270,12 +310,33 @@ struct PackageEditorView: View {
             } else {
                 PackageParagraphTextView(editor: editor)
             }
+            VStack(alignment: .leading, spacing: 4) {
+                if !editor.characterSuggestions.isEmpty {
+                    ScrollView(.horizontal) {
+                        HStack {
+                            Text("Characters:").foregroundStyle(.secondary)
+                            ForEach(Array(editor.characterSuggestions.enumerated()), id: \.element) { index, name in
+                                Button(name) { editor.acceptCharacterSuggestion(name) }
+                                    .fontWeight(editor.highlightedSuggestion == index ? .bold : .regular)
+                                    .foregroundStyle(editor.highlightedSuggestion == index ? Color.accentColor : Color.primary)
+                                    .lineLimit(1).frame(maxWidth: 140).help(name)
+                                    .accessibilityLabel("Use character " + name)
+                            }
+                            Button("Dismiss", action: editor.dismissCharacterSuggestions)
+                        }
+                    }
+                    Text("↓ selects a name; Return accepts it. Escape dismisses.").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Character names from this screenplay appear as you type a character cue.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }.frame(height: 48, alignment: .leading)
             HStack {
                 Button("Add Paragraph", action: editor.addParagraph)
                 Button("Delete Paragraph", action: editor.deleteParagraph).disabled(editor.selected == nil)
                 Spacer()
             }
-            Text("Return creates a paragraph. Backspace at its start joins the previous paragraph. Shift-Return inserts a line break. Print Preview shows derived pages. Production locks are not supported here.")
+            Text("Tab / Shift-Tab change paragraph type. Return creates a paragraph. Backspace at its start joins the previous paragraph. Shift-Return inserts a line break. Print Preview shows derived pages. Production locks are not supported here.")
                 .font(.caption).foregroundStyle(.secondary)
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }
