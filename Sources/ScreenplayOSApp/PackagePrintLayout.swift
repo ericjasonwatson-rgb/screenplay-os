@@ -11,7 +11,18 @@ enum PackagePrintLayout {
         let lineCharacterRanges: [NSRange]
         let text: String
     }
-    static func make(_ session: PackageTextSession) throws -> Result {
+    struct Plan {
+        let storage: NSTextStorage
+        let layout: NSLayoutManager
+        let text: String
+        let font: NSFont
+        let ranges: [NSRange]
+        let glyphRanges: [NSRange]
+        let headers: [String?]
+        let headerHeights: [CGFloat]
+        let footers: [Bool]
+    }
+    static func plan(_ session: PackageTextSession) throws -> Plan {
         let projection = PackageWritingProjection(session)
         let attributed = NSMutableAttributedString(string: projection.text)
         let font = PackageTypography.font(session.typography)
@@ -153,6 +164,13 @@ enum PackagePrintLayout {
             guard end > previousEnd, ranges.count < 10_000 else { throw PrintPDFError.renderFailed }
             previousEnd = end
         } while true
+        return Plan(storage: storage, layout: layout, text: projection.text, font: font, ranges: ranges,
+                    glyphRanges: glyphRanges, headers: headers, headerHeights: headerHeights, footers: footers)
+    }
+    static func make(_ session: PackageTextSession) throws -> Result {
+        let plan = try plan(session)
+        let layout = plan.layout, font = plan.font, ranges = plan.ranges, glyphRanges = plan.glyphRanges
+        let headers = plan.headers, headerHeights = plan.headerHeights, footers = plan.footers
         let data = NSMutableData()
         guard let consumer = CGDataConsumer(data: data as CFMutableData) else { throw PrintPDFError.renderFailed }
         var media = CGRect(x: 0, y: 0, width: PackagePageGeometry.width, height: PackagePageGeometry.height)
@@ -184,6 +202,6 @@ enum PackagePrintLayout {
                 lines.append(layout.characterRange(forGlyphRange: range, actualGlyphRange: nil))
             }
         }
-        return Result(data: data as Data, characterRanges: ranges, lineCharacterRanges: lines, text: projection.text)
+        return Result(data: data as Data, characterRanges: ranges, lineCharacterRanges: lines, text: plan.text)
     }
 }

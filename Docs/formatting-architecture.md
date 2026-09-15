@@ -28,7 +28,7 @@ Save snapshots, staged writes, conflict checks, retained generations and recover
 
 ## Remaining formatting work
 
-1. The writing surface remains continuous: page breaks, continuation cues and page numbers remain in Print Preview. Shared geometry aligns authored line wrapping but does not make the editor a paginated preview.
+1. Measure sustained typing on very long scripts before optimizing incremental pagination. The editor caches the plan by document revision, but text changes currently rebuild the full derived plan.
 2. Consider a separate indeterminate menu indicator for mixed selections. The current unchecked state covers both mixed and uniformly disabled selections.
 3. Test unavailable font variants and broader typography/pagination combinations before claiming arbitrary-font fidelity. A4 remains disabled.
 4. FDX/Fountain interchange requires explicit preservation/loss tests before rich round-trip claims. Legacy JSON editing has not been migrated to this package pipeline.
@@ -48,3 +48,11 @@ Verified in build 4b57d9c using only the synthetic Formatting Integration.screen
 Native TextKit line ranges are compared with the final PDF layout across all supported paragraph types, inline bold/italic, Courier and Helvetica at 12/16/24 points, and wide/narrow windows. Page width is held independently of the viewport. These checks cover line wrapping; editor pagination and continuation markers are not implemented.
 
 Live check: the synthetic Courier 24 pt formatting fixture now wraps into the same three action lines in the editor and Print Preview, with matching inline emphasis. Source text and saved typography were unchanged by the layout update. Full suite: 154 Swift tests, 37 Python tests and 14 self-tests passed.
+
+### Paginated writing
+
+The package editor and PDF exporter now share a non-PDF page-plan builder. A single native text view preserves continuous selection and editing while its layout delegate positions authored lines at their planned page coordinates. Page numbers, gaps and dialogue continuation labels are drawn separately from the editable text. Neither their labels nor page separators enter the stored screenplay or clipboard text. Layout is cached for selection-only changes; document edits repaginate. IME composition retains the existing deferred-render path.
+
+Native tests verify page-line positions against the PDF plan, hit testing on later pages, cross-page selection replacement, caret restoration, undo/redo, source-only saves and an empty first page. Production locks remain unsupported in this package editor.
+
+Live verification used Paginated Writing Check.screenplay: a visible page gap, page 2 number, MORE footer and ALEX continued header, followed by typing on page 4 with the caret scrolled into view. A white-color component exception found during the first live run was fixed by passing explicit theme state; drawing both themes is now regression-tested. Final suite: 156 Swift tests, 37 Python tests and 14 self-tests passed.

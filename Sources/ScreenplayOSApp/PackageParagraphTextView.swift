@@ -41,9 +41,77 @@ struct PackageWritingProjection {
 }
 
 /// Clipboard commands and focus changes end a typing group even for one character.
-final class PackageWritingNativeTextView: NSTextView {
+final class PackageWritingNativeTextView: NSTextView, NSLayoutManagerDelegate {
+    static let pageGap: CGFloat = 24
+    var darkPage = false
+    var pagePlan: PackagePrintLayout.Plan?
+    private var pageRevision: UUID?
+    private var plannedLines: [Int: NSRect] = [:]
+    private var plannedExtra: NSRect = .zero
+    var pageCount: Int { max(1, pagePlan?.ranges.count ?? 1) }
+    var pageStride: CGFloat { PackagePageGeometry.height + Self.pageGap }
+    var pageHeight: CGFloat { CGFloat(pageCount) * pageStride - Self.pageGap }
+    func paginate(_ session: PackageTextSession) throws {
+        guard pageRevision != session.revision else { return }
+        let plan = try PackagePrintLayout.plan(session)
+        var lines: [Int: NSRect] = [:]
+        for (page, range) in plan.glyphRanges.enumerated() {
+            plan.layout.enumerateLineFragments(forGlyphRange: range) { rect, _, _, glyphs, _ in
+                let start = plan.layout.characterIndexForGlyph(at: glyphs.location)
+                var target = rect
+                target.origin.y += CGFloat(page) * self.pageStride + plan.headerHeights[page]
+                lines[start] = target
+            }
+        }
+        pagePlan = plan; plannedLines = lines; pageRevision = session.revision
+        plannedExtra = plan.layout.extraLineFragmentRect
+        plannedExtra.origin.y += CGFloat(pageCount - 1) * pageStride + (plan.headerHeights.last ?? 0)
+        layoutManager?.delegate = self
+        layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+        if let container = textContainer, let manager = layoutManager {
+            manager.ensureLayout(for: container)
+            if string.isEmpty || string.hasSuffix("\n") {
+                var used = plannedExtra; used.size.width = 0
+                manager.setExtraLineFragmentRect(plannedExtra, usedRect: used, textContainer: container)
+            }
+        }
+        setFrameSize(NSSize(width: PackagePageGeometry.width, height: pageHeight))
+        needsDisplay = true
+    }
+    func layoutManager(_ layoutManager: NSLayoutManager, shouldSetLineFragmentRect lineFragmentRect: UnsafeMutablePointer<NSRect>,
+                       lineFragmentUsedRect: UnsafeMutablePointer<NSRect>, baselineOffset: UnsafeMutablePointer<CGFloat>,
+                       in textContainer: NSTextContainer, forGlyphRange glyphRange: NSRange) -> Bool {
+        let character = layoutManager.characterIndexForGlyph(at: glyphRange.location)
+        guard let target = plannedLines[character] else { return false }
+        lineFragmentRect.pointee.origin.y = target.origin.y
+        lineFragmentUsedRect.pointee.origin.y = target.origin.y
+        return true
+    }
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        let ink = StudioAppearance.ink(darkPage)
+        let font = pagePlan?.font ?? StudioAppearance.courier(size: 12)
+        for page in 0..<pageCount {
+            guard NSRect(x: 0, y: CGFloat(page) * pageStride - Self.pageGap, width: bounds.width, height: pageStride).intersects(rect) else { continue }
+            let offset = CGFloat(page) * pageStride
+            if page > 0 {
+                NSColor(calibratedWhite: 0.22, alpha: 1).setFill()
+                NSRect(x: 0, y: offset - Self.pageGap, width: bounds.width, height: Self.pageGap).fill()
+            }
+            ("\(page + 1)." as NSString).draw(at: NSPoint(x: 516, y: offset + 36), withAttributes: [.font: font, .foregroundColor: ink])
+            if let plan = pagePlan {
+                if let header = plan.headers[page] {
+                    (header as NSString).draw(with: NSRect(x: 252, y: offset + 72, width: 288, height: plan.headerHeights[page]),
+                        options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font, .foregroundColor: ink])
+                }
+                if plan.footers[page] {
+                    ("(MORE)" as NSString).draw(at: NSPoint(x: 252, y: offset + 700), withAttributes: [.font: font, .foregroundColor: ink])
+                }
+            }
+        }
+    }
     override func setFrameSize(_ newSize: NSSize) {
-        super.setFrameSize(NSSize(width: PackagePageGeometry.width, height: max(PackagePageGeometry.height, newSize.height)))
+        super.setFrameSize(NSSize(width: PackagePageGeometry.width, height: max(pageHeight, newSize.height)))
     }
     override var textContainerOrigin: NSPoint {
         NSPoint(x: PackagePageGeometry.left, y: PackagePageGeometry.top)
@@ -132,6 +200,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             guard !rendering else { return }
             let changed = renderedRevision != editor.session.revision || renderedDarkPage != editor.darkPageMode
             let dark = editor.darkPageMode
+            (text as? PackageWritingNativeTextView)?.darkPage = dark
             text.backgroundColor = StudioAppearance.paper(dark)
             text.enclosingScrollView?.backgroundColor = StudioAppearance.paper(dark)
             text.insertionPointColor = StudioAppearance.ink(dark)
@@ -158,6 +227,10 @@ struct PackageParagraphTextView: NSViewRepresentable {
                     }
                 }
                 text.textStorage?.setAttributedString(content)
+            }
+            if let native = text as? PackageWritingNativeTextView {
+                do { try native.paginate(editor.session) }
+                catch { editor.message = "Page layout could not be updated. Your text is retained." }
             }
             let findSelection = editor.requestedFindSelection
             editor.requestedFindSelection = nil
