@@ -73,8 +73,8 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var focusMode = false
     @Published var darkPageMode = false
     @Published var pageZoom = 1.0
-    @Published var navigationVisible = true
-    @Published var contextAssistantVisible = true
+    @Published var navigationVisible = false
+    @Published var contextAssistantVisible = false
     @Published var commandPaletteVisible = false
     @Published var commandPaletteQuery = ""
     @Published var contextAssistantPrompt = ""
@@ -900,7 +900,7 @@ final class ScreenplayViewModel: ObservableObject {
         workflowMode = .writing
         sidebarMode = .navigator
         focusMode = false
-        navigationVisible = true
+        navigationVisible = false
         contextAssistantVisible = false
         commandPaletteVisible = false
         selectInitialElement()
@@ -1966,8 +1966,8 @@ final class ScreenplayViewModel: ObservableObject {
 
     func resetWorkspaceLayout() {
         focusMode = false
-        navigationVisible = true
-        contextAssistantVisible = true
+        navigationVisible = false
+        contextAssistantVisible = false
         pageZoom = 1.0
         workflowMode = .writing
         sidebarMode = lastSidebarModeByWorkflow[.writing] ?? .navigator

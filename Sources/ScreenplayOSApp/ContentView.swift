@@ -45,6 +45,8 @@ struct ContentView: View {
                 }
             }
         }
+        .background { StudioSurface() }
+        .preferredColorScheme(.dark)
         .background(
             KeyCommandMonitor(
                 onDelete: {
@@ -322,6 +324,8 @@ private struct SidebarView: View {
         }
         .navigationTitle(model.title)
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(StudioAppearance.panel)
     }
 }
 
@@ -2098,7 +2102,7 @@ private struct BoardomaticBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(.bar)
+        .background(StudioAppearance.panel)
         .onReceive(timer) { _ in
             model.advanceBoardomaticTick()
         }
@@ -2684,7 +2688,7 @@ private struct DocumentIdentityBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 7)
-        .background(.bar)
+        .background(StudioAppearance.panel)
     }
 }
 
@@ -2710,7 +2714,7 @@ private struct BottomStatusBar: View {
                 .controlSize(.small)
 
                 Toggle(isOn: $model.darkPageMode) {
-                    Label("Page", systemImage: model.darkPageMode ? "moon" : "sun.max")
+                    Label("Dark Page", systemImage: model.darkPageMode ? "moon.fill" : "moon")
                 }
                 .toggleStyle(.button)
                 .controlSize(.small)
@@ -2727,7 +2731,7 @@ private struct BottomStatusBar: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
         }
-        .background(.bar)
+        .background(StudioAppearance.panel)
     }
 }
 
@@ -2834,7 +2838,9 @@ private struct ScreenplayPageView: View {
                 }
                 .disabled(model.document == nil)
             }.padding(8)
-            ContinuousScreenplayEditor(model: model)
+            ScriptPageWell(width: 760 * model.pageZoom) {
+                ContinuousScreenplayEditor(model: model)
+            }
             if let element = model.selectedElement {
                 HStack {
                     ElementFormatStrip(selectedType: element.type, leading: 0) { model.setType($0, for: element.id) }

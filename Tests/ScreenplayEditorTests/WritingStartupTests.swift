@@ -25,7 +25,8 @@ struct WritingStartupTests {
             #expect(model.elements.allSatisfy { $0.text.isEmpty })
             #expect(model.sourceURL == nil && model.saveURL == nil)
             #expect(model.workflowMode == .writing)
-            #expect(model.navigationVisible && !model.contextAssistantVisible)
+            #expect(!model.darkPageMode)
+            #expect(!model.navigationVisible && !model.contextAssistantVisible)
         }
     }
 
@@ -70,12 +71,12 @@ struct WritingStartupTests {
             let bytes = try Data(contentsOf: url)
             model.setWorkflowMode(.edit)
             model.contextAssistantVisible = true
-            model.navigationVisible = false
+            model.navigationVisible = true
             model.focusMode = true
             model.commandPaletteVisible = true
             model.newDocument()
             #expect(model.workflowMode == .writing && model.sidebarMode == .navigator)
-            #expect(model.navigationVisible && !model.contextAssistantVisible && !model.focusMode)
+            #expect(!model.navigationVisible && !model.contextAssistantVisible && !model.focusMode)
             #expect(!model.commandPaletteVisible)
             #expect(model.selectedElement?.type == .sceneHeading)
             #expect(model.elements.allSatisfy { $0.text.isEmpty })

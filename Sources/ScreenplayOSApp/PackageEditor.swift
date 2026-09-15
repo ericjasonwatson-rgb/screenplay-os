@@ -12,6 +12,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         return text.isEmpty ? row.type.replacingOccurrences(of: "_", with: " ").capitalized + " (empty)" : text
     }
     let source: URL
+    @Published var darkPageMode = false
     @Published private(set) var currentURL: URL?
     private var savedFiles: [String: Data] = [:]
     var didSave: ((URL) -> Void)?
@@ -423,6 +424,7 @@ struct PackageEditorView: View {
                 Spacer()
                 Text(editor.dirty ? "Unsaved changes" : "No unsaved changes").foregroundStyle(.secondary)
                 Button("Find", action: editor.showFind)
+                Toggle("Dark Page", isOn: $editor.darkPageMode).toggleStyle(.button)
                 Button("Print Preview", action: editor.showPrintPreview)
                 Button("Save") { editor.saveCurrent() }
                 Button("Save As…") { editor.savePanel() }
@@ -458,7 +460,7 @@ struct PackageEditorView: View {
             if editor.rows.isEmpty {
                 Text("This screenplay has no paragraphs. Add a paragraph to begin.").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                PackageParagraphTextView(editor: editor)
+                ScriptPageWell { PackageParagraphTextView(editor: editor) }
             }
             VStack(alignment: .leading, spacing: 4) {
                 if !editor.characterSuggestions.isEmpty {
@@ -494,6 +496,8 @@ struct PackageEditorView: View {
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }
         }.padding(16).frame(minWidth: 740, idealWidth: 850, minHeight: 520, idealHeight: 650)
+            .background(StudioAppearance.panel)
+            .preferredColorScheme(.dark)
             .safeAreaInset(edge: .top, spacing: 0) { PackageNavigationBar() }
             .interactiveDismissDisabled()
             .sheet(item: $editor.printPreview) { snapshot in

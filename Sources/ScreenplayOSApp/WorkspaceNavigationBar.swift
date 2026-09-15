@@ -31,7 +31,7 @@ struct WorkspaceNavigationBar: View {
         .controlSize(.small)
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(.bar)
+        .background(StudioAppearance.raised)
         .overlay(alignment: .bottom) { Divider() }
     }
 }
@@ -48,7 +48,7 @@ struct PackageNavigationBar: View {
         .font(.callout)
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(.bar)
+        .background(StudioAppearance.raised)
         .overlay(alignment: .bottom) { Divider() }
         .help("This package currently supports the Script editor.")
     }

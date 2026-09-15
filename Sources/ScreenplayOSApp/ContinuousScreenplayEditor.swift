@@ -75,8 +75,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 var range = ranges[index]
                 if index < ranges.count - 1 { range.length += 1 }
                 var attributes: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.monospacedSystemFont(ofSize: 13 * scale, weight: weight),
-                    .foregroundColor: model.darkPageMode ? NSColor.white : NSColor.labelColor,
+                    .font: StudioAppearance.courier(size: 14 * scale, bold: weight != .regular),
+                    .foregroundColor: StudioAppearance.ink(model.darkPageMode),
                     .paragraphStyle: style
                 ]
                 if let mark = element.revisionMark {
@@ -85,12 +85,14 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 if range.length > 0 { attributed.addAttributes(attributes, range: range) }
                 if element.id == model.selectedElementID { activeAttributes = attributes }
             }
-            view.textContainerInset = NSSize(width: 72 * scale, height: 42 * scale)
+            let paperWidth = max(576 * scale, view.enclosingScrollView?.contentSize.width ?? 0)
+            view.textContainerInset = NSSize(width: (paperWidth - 432 * scale) / 2, height: 48 * scale)
             view.textContainer?.containerSize = NSSize(width: 432 * scale, height: CGFloat.greatestFiniteMagnitude)
-            view.setFrameSize(NSSize(width: 576 * scale, height: max(view.frame.height, 792 * scale)))
-            view.minSize = NSSize(width: 576 * scale, height: 792 * scale)
-            view.backgroundColor = model.darkPageMode ? .black : .textBackgroundColor
-            view.insertionPointColor = model.darkPageMode ? .white : .textColor
+            view.setFrameSize(NSSize(width: paperWidth, height: max(view.frame.height, 792 * scale)))
+            view.minSize = NSSize(width: paperWidth, height: 792 * scale)
+            view.backgroundColor = StudioAppearance.paper(model.darkPageMode)
+            view.enclosingScrollView?.backgroundColor = StudioAppearance.paper(model.darkPageMode)
+            view.insertionPointColor = StudioAppearance.ink(model.darkPageMode)
             let changed = view.string != string
             if changed || view.textStorage?.isEqual(to: attributed) == false {
                 view.textStorage?.setAttributedString(attributed)
