@@ -470,6 +470,7 @@ final class PackageEditor: ObservableObject, Identifiable {
 struct PackageEditorView: View {
     @FocusState private var findFocused: Bool
     @State private var showWritingHelp = false
+    @State private var pageZoomPercent = 100
     @ObservedObject var editor: PackageEditor
     let close: () -> Void
     private var formatMenu: some View {
@@ -557,7 +558,9 @@ struct PackageEditorView: View {
             if editor.rows.isEmpty {
                 Text("This screenplay has no paragraphs. Add a paragraph to begin.").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScriptPageWell(width: PackagePageGeometry.width) { PackageParagraphTextView(editor: editor) }
+                ScriptPageWell(width: pageZoomPercent == 0 ? 10_000 : PackagePageGeometry.width * CGFloat(pageZoomPercent) / 100) {
+                    PackageParagraphTextView(editor: editor, zoomPercent: pageZoomPercent)
+                }
             }
             VStack(alignment: .leading, spacing: 4) {
                 if !editor.characterSuggestions.isEmpty {
@@ -585,7 +588,7 @@ struct PackageEditorView: View {
         }.padding(16).frame(minWidth: 740, idealWidth: 850, minHeight: 520, idealHeight: 650)
             .background(StudioAppearance.panel)
             .preferredColorScheme(.dark)
-            .safeAreaInset(edge: .top, spacing: 0) { PackageNavigationBar() }
+            .safeAreaInset(edge: .top, spacing: 0) { PackageNavigationBar(zoomPercent: $pageZoomPercent) }
             .interactiveDismissDisabled()
             .popover(isPresented: $showWritingHelp) {
                 VStack(alignment: .leading, spacing: 10) {

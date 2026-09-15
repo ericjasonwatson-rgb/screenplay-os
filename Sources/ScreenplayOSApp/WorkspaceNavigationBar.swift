@@ -39,17 +39,26 @@ struct WorkspaceNavigationBar: View {
 /// Minimal packages currently have one supported work surface. Keep their context
 /// visible without routing controls into a different, underlying legacy document.
 struct PackageNavigationBar: View {
+    @Binding var zoomPercent: Int
     var body: some View {
         HStack(spacing: 16) {
             HStack { Text("Mode").foregroundStyle(.secondary); Text("Script") }
             HStack { Text("Workspace").foregroundStyle(.secondary); Text("Editor") }
             Spacer()
+            Picker("Zoom", selection: $zoomPercent) {
+                Text("Fit Width").tag(0)
+                ForEach([50, 75, 100, 125, 150, 175, 200, 250, 300], id: \.self) { percent in
+                    Text("\(percent)%").tag(percent)
+                }
+            }
+            .pickerStyle(.menu).frame(width: 155)
+            .accessibilityLabel("Page zoom")
+            .help("Scale the writing view. Font sizes and printed pages stay unchanged.")
         }
         .font(.callout)
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
         .background(StudioAppearance.raised)
         .overlay(alignment: .bottom) { Divider() }
-        .help("This package currently supports the Script editor.")
     }
 }

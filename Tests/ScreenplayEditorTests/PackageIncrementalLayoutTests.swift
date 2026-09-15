@@ -25,6 +25,17 @@ struct PackageIncrementalLayoutTests {
                 #expect(a == b)
             }
         }
+        // Early edits retain TextKit containers, including after growth/shrinkage
+        // changes page count and continuation reservations.
+        let early = session.paragraphs[1].id
+        let original = try session.text(for: early)
+        for value in ["x" + original, String(repeating: original, count: 5), "Short.", original] {
+            try session.replaceText(elementID: early, expectedRevision: session.revision,
+                expectedText: session.text(for: early), replacement: value)
+            reused = try PackagePrintLayout.plan(session, reusing: reused)
+            verify(try PackagePrintLayout.plan(session), reused)
+            await Task.yield()
+        }
         for (iteration, position) in [34, 17, 0, 34].enumerated() {
             let id = session.paragraphs[position].id
             let old = try session.text(for: id)

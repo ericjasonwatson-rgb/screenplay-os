@@ -139,12 +139,41 @@ final class PackageWritingNativeTextView: NSTextView, NSLayoutManagerDelegate {
 }
 
 /// One native text view provides continuous selection, navigation, and copying.
+/// Presentation-only scaling: TextKit continues to lay out a 612-point page.
+final class PackageWritingScrollView: NSScrollView {
+    // Zero selects Fit Width. All other values are percentages.
+    var zoomPercent: Int = 100 { didSet { applyPageZoom() } }
+    private var applyingZoom = false
+    override func tile() {
+        super.tile()
+        applyPageZoom()
+    }
+    func applyPageZoom() {
+        guard !applyingZoom, documentView != nil, contentView.frame.width > 0 else { return }
+        applyingZoom = true
+        defer { applyingZoom = false }
+        let scale = zoomPercent == 0 ? contentView.frame.width / PackagePageGeometry.width : CGFloat(zoomPercent) / 100
+        let target = min(maxMagnification, max(minMagnification, scale))
+        if abs(magnification - target) > 0.0001 {
+            let visible = documentVisibleRect
+            setMagnification(target, centeredAt: NSPoint(x: visible.midX, y: visible.midY))
+        }
+    }
+}
+
 struct PackageParagraphTextView: NSViewRepresentable {
     @ObservedObject var editor: PackageEditor
+    var zoomPercent: Int = 100
     func makeCoordinator() -> Coordinator { Coordinator(editor) }
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = PackageWritingNativeTextView.scrollableTextView()
-        let text = scroll.documentView as! PackageWritingNativeTextView
+        let scroll = PackageWritingScrollView()
+        let text = PackageWritingNativeTextView(frame: .zero)
+        scroll.documentView = text
+        scroll.minMagnification = 0.25
+        scroll.maxMagnification = 3
+        // The persistent percentage control owns scale; gestures must not desync it.
+        scroll.allowsMagnification = false
+        scroll.zoomPercent = zoomPercent
         text.historyBoundary = { [weak editor] in editor?.typingBoundary = UUID() }
         text.formattingShortcut = { [weak editor] key in
             guard let editor else { return }
@@ -178,6 +207,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             return
         }
         context.coordinator.render(text)
+        (scroll as? PackageWritingScrollView)?.zoomPercent = zoomPercent
     }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         var editor: PackageEditor

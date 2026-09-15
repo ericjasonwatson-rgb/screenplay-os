@@ -60,3 +60,9 @@ Live verification used Paginated Writing Check.screenplay: a visible page gap, p
 ### Writing interface
 
 The package editor keeps title/save state and the core writing toolbar in two compact rows. Mode and Workspace remain visible above them. Document contains Save As, Print Preview, previous-version access and Close. Writing contains paper appearance, paragraph management and help. Character suggestions occupy space only when available. Recovery failures and font-substitution notices remain visible.
+
+### Page zoom
+
+The package editor has a persistent Zoom menu beside Mode and Workspace: 50–300% presets, a 100% default, and Fit Width that follows window resizing. Zoom is window-local presentation state; it never writes document typography, changes undo history, marks the document dirty, or changes PDF geometry. A native scroll-view magnification scales the complete page, including margins and generated page furniture. TextKit retains its 612-point page and 432-point text width. Above the viewport width, the page scrolls horizontally.
+
+Native integration checks cover scale, window resize, selection retention, unchanged revision/bytes/page ranges, scaled coordinate conversion, Unicode replacement and exact undo at 150%, and matching print page ranges.

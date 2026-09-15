@@ -26,6 +26,7 @@ enum PackagePrintLayout {
     }
     // Reuse consumes the editor-owned layout cache; callers needing a snapshot use a fresh plan.
     static func plan(_ session: PackageTextSession, reusing previous: Plan? = nil) throws -> Plan {
+        let measurementStart = Date()
         let projection = PackageWritingProjection(session)
         let attributed = NSMutableAttributedString(string: projection.text)
         let font = PackageTypography.font(session.typography)
@@ -37,6 +38,8 @@ enum PackagePrintLayout {
         for entry in projection.entries {
             PackageTypography.apply(try session.styledText(for: entry.id), settings: session.typography, to: attributed, offset: entry.range.location)
         }
+        let measurementAttributed = Date()
+        var replacement: (old: NSRange, new: NSRange)?
         var keptPages = 0
         var relayoutStart = 0
         if let previous, previous.typography == session.typography, previous.text != projection.text,
@@ -47,24 +50,39 @@ enum PackagePrintLayout {
             // Step back to a complete Unicode boundary before inspecting attributes.
             while common > 0, Range(NSRange(location: 0, length: common), in: projection.text) == nil || Range(NSRange(location: 0, length: common), in: previous.text) == nil { common -= 1 }
             let prefix = NSRange(location: 0, length: common)
-            if attributed.attributedSubstring(from: prefix).isEqual(to: previous.storage.attributedSubstring(from: prefix)),
+            let prefixMatches = attributed.attributedSubstring(from: prefix).isEqual(to: previous.storage.attributedSubstring(from: prefix))
+            if prefixMatches,
                let page = previous.ranges.lastIndex(where: { $0.location < common }) {
                 // Reconsider the preceding page as well: keep-with-next and continuation
                 // rules can pull text back across the boundary before the edit.
                 keptPages = max(0, page - 1)
                 relayoutStart = previous.ranges[keptPages].location
             }
+            // Keep TextKit's containers and replace only the changed attributed span.
+            // It can then reuse following layout when line wrapping converges.
+            if prefixMatches {
+                var suffix = 0
+                while suffix < min(old.count, new.count) - common,
+                      old[old.count - suffix - 1] == new[new.count - suffix - 1] { suffix += 1 }
+                while suffix > 0,
+                      Range(NSRange(location: new.count - suffix, length: suffix), in: projection.text) == nil ||
+                      Range(NSRange(location: old.count - suffix, length: suffix), in: previous.text) == nil { suffix -= 1 }
+                if !attributed.attributedSubstring(from: NSRange(location: new.count - suffix, length: suffix)).isEqual(
+                    to: previous.storage.attributedSubstring(from: NSRange(location: old.count - suffix, length: suffix))) { suffix = 0 }
+                replacement = (NSRange(location: common, length: old.count - common - suffix),
+                               NSRange(location: common, length: new.count - common - suffix))
+            }
         }
         let storage: NSTextStorage, layout: NSLayoutManager
-        if keptPages > 0, let previous {
+        if let replacement, let previous {
             storage = previous.storage; layout = previous.layout
-            while layout.textContainers.count > keptPages { layout.removeTextContainer(at: layout.textContainers.count - 1) }
-            storage.replaceCharacters(in: NSRange(location: relayoutStart, length: storage.length - relayoutStart),
-                with: attributed.attributedSubstring(from: NSRange(location: relayoutStart, length: attributed.length - relayoutStart)))
+            storage.replaceCharacters(in: replacement.old, with: attributed.attributedSubstring(from: replacement.new))
         } else {
+            keptPages = 0; relayoutStart = 0
             storage = NSTextStorage(attributedString: attributed)
             layout = NSLayoutManager(); storage.addLayoutManager(layout)
         }
+        let measurementLayout = Date()
         // A continuation belongs only to an uninterrupted cue/dialogue/parenthetical
         // block. Never invent a speaker for un-cued dialogue or cross an action/heading.
         var owners: [Int?] = [], owner: Int?
@@ -120,9 +138,16 @@ enum PackagePrintLayout {
                     options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]).height) + 8
             } ?? 0
             guard headerHeight < 500 else { throw PrintPDFError.renderFailed }
-            let container = NSTextContainer(containerSize: NSSize(width: PackagePageGeometry.textWidth, height: PackagePageGeometry.textHeight - headerHeight))
-            container.lineFragmentPadding = 0
-            layout.addTextContainer(container)
+            let size = NSSize(width: PackagePageGeometry.textWidth, height: PackagePageGeometry.textHeight - headerHeight)
+            let container: NSTextContainer
+            if ranges.count < layout.textContainers.count {
+                container = layout.textContainers[ranges.count]
+                if container.containerSize != size { container.containerSize = size }
+            } else {
+                container = NSTextContainer(containerSize: size)
+                container.lineFragmentPadding = 0
+                layout.addTextContainer(container)
+            }
             layout.ensureLayout(for: container)
             var glyphs = layout.glyphRange(for: container)
             func keepGroups() {
@@ -195,6 +220,10 @@ enum PackagePrintLayout {
             guard end > previousEnd, ranges.count < 10_000 else { throw PrintPDFError.renderFailed }
             previousEnd = end
         } while true
+        while layout.textContainers.count > ranges.count { layout.removeTextContainer(at: layout.textContainers.count - 1) }
+        if ProcessInfo.processInfo.environment["PACKAGE_BENCHMARK"] == "1" {
+            print("PLAN_MS attributed=\(measurementAttributed.timeIntervalSince(measurementStart) * 1000) setup=\(measurementLayout.timeIntervalSince(measurementAttributed) * 1000) pages=\(Date().timeIntervalSince(measurementLayout) * 1000)")
+        }
         return Plan(storage: storage, layout: layout, text: projection.text, font: font, ranges: ranges,
                     glyphRanges: glyphRanges, headers: headers, headerHeights: headerHeights, footers: footers, typography: session.typography, relayoutStart: relayoutStart)
     }
