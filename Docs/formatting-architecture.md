@@ -28,7 +28,7 @@ Save snapshots, staged writes, conflict checks, retained generations and recover
 
 ## Remaining formatting work
 
-1. Visually verify menu focus and native shortcuts in the running application; automated native-editor tests cover the command route and resulting attributes.
+1. Align editor page geometry with print layout. Live verification showed different line wrapping between the writing surface and Print Preview at 24 pt; the editor is not yet a page-faithful preview.
 2. Consider a separate indeterminate menu indicator for mixed selections. The current unchecked state covers both mixed and uniformly disabled selections.
 3. Test unavailable font variants and broader typography/pagination combinations before claiming arbitrary-font fidelity. A4 remains disabled.
 4. FDX/Fountain interchange requires explicit preservation/loss tests before rich round-trip claims. Legacy JSON editing has not been migrated to this package pipeline.
@@ -38,3 +38,7 @@ This implementation is not full draft-format conformance.
 ## Verification
 
 Domain coverage includes Unicode scalar spelling, grapheme boundaries, overlapping runs and explicit false, invalid ranges, and atomic history. Package integration coverage adds styled replacement, find/replace, split/join, exact undo, save/reopen, Save As, retained generations, recovery, external settings conflicts, interrupted settings writes, shared native/PDF rendering, fallback-font disclosure, and unsupported-content rejection.
+
+### Live verification
+
+Verified in build 4b57d9c using only the synthetic Formatting Integration.screenplay package: white page and four emphasis styles, Command-B toggle on/off, Command-I and Command-U, Clear Emphasis through the menu, bold subsequent typing, Undo, changing size from 16 to 24 pt, styled Print Preview, Save and reopen. Reopened menu retained Courier 24 pt and the document reported no unsaved changes. Font-family switching and mixed-state menu indicators were not exercised live. The previously stuck path sheet was dismissed using Command-period; the application then restarted normally.
