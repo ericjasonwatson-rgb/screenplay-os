@@ -10,7 +10,12 @@ public struct PackageTextSession {
     public struct Paragraph: Identifiable { public let id: UUID; public let type: String }
     public static let supportedTypes = ["scene_heading", "action", "character", "dialogue", "parenthetical", "transition", "general", "shot"]
     public private(set) var paragraphs: [Paragraph]
-    public let typography: DocumentTypography
+    public private(set) var typography: DocumentTypography
+    public var settingsBytes: Data? { session.companion }
+    public var currentFiles: [String: Data] {
+        var files = originalFiles; files["screenplay.json"] = screenplayBytes; files["settings.json"] = settingsBytes
+        return files
+    }
     private var indexes: [UUID: Int]
     public var screenplayBytes: Data { session.document.data }
     public var canUndo: Bool { session.canUndo }
@@ -64,10 +69,22 @@ public struct PackageTextSession {
             indexes[id] = index
         }
         self.originalFiles = files
-        self.session = try PreservedJSONSession(scriptBytes)
+        self.session = try PreservedJSONSession(scriptBytes, companion: files["settings.json"])
         self.indexes = indexes
         self.paragraphs = elements.map { Paragraph(id: UUID(uuidString: $0["id"] as! String)!, type: $0["type"] as! String) }
 
+    }
+
+    public mutating func setTypography(_ value: DocumentTypography, expectedRevision: UUID) throws {
+        guard revision == expectedRevision else { throw Failure.staleRevision }
+        guard value.paper == "US_LETTER" else { throw Failure.unsupportedContent }
+        guard value != typography else { return }
+        var settings = try PreservedJSON(settingsBytes ?? Data("{}".utf8))
+        try settings.setMember("formatting", at: [], value: JSONEncoder().encode(value))
+        var files = currentFiles; files["settings.json"] = settings.data
+        _ = try Self(files: files)
+        session.commit(session.document, companion: settings.data)
+        typography = value; revision = UUID()
     }
 
     public func text(for elementID: UUID) throws -> String {
@@ -96,6 +113,23 @@ public struct PackageTextSession {
         var candidate = session.document
         try writeStyled(value, id: elementID, into: &candidate)
         try commit(candidate)
+    }
+    public mutating func formatSelection(_ selection: NSRange, expectedRevision: UUID, patch: StyledText.Style) throws {
+        guard revision == expectedRevision else { throw Failure.staleRevision }
+        guard selection.location >= 0, selection.length >= 0 else { throw Failure.unsupportedContent }
+        let projection = paragraphs.map { try! text(for: $0.id) }.joined(separator: "\n")
+        guard selection.location <= projection.utf16.count, selection.length <= projection.utf16.count - selection.location else { throw Failure.unsupportedContent }
+        var candidate = self, offset = 0
+        for paragraph in paragraphs {
+            let value = try styledText(for: paragraph.id)
+            let range = NSIntersectionRange(selection, NSRange(location: offset, length: value.text.utf16.count))
+            if range.length > 0 {
+                let local = NSRange(location: range.location - offset, length: range.length)
+                try candidate.format(elementID: paragraph.id, expectedRevision: candidate.revision, range: value.scalarRange(fromUTF16: local), patch: patch)
+            }
+            offset += value.text.utf16.count + 1
+        }
+        try commit(candidate.session.document)
     }
     private func insertionStyle(_ value: StyledText, at offset: Int) -> StyledText.Style {
         let point = max(0, offset - 1)
@@ -280,7 +314,7 @@ public struct PackageTextSession {
 
     private mutating func commit(_ candidate: PreservedJSON, historyGroup: UUID? = nil) throws {
         guard candidate.data != screenplayBytes else { return }
-        var files = originalFiles; files["screenplay.json"] = candidate.data
+        var files = currentFiles; files["screenplay.json"] = candidate.data
         let validated = try Self(files: files)
         session.commit(candidate, historyGroup: historyGroup); revision = UUID()
         paragraphs = validated.paragraphs; indexes = validated.indexes
@@ -293,6 +327,7 @@ public struct PackageTextSession {
         guard canRedo else { return }; session.redo(); revision = UUID(); refreshProjection()
     }
     private mutating func refreshProjection() {
+        typography = try! Self(files: currentFiles).typography
         // History only contains previously validated states. Cache identity lookup
         // so rendering each row does not parse the whole screenplay repeatedly.
         let root = try! JSONSerialization.jsonObject(with: screenplayBytes) as! [String: Any]

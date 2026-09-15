@@ -36,7 +36,7 @@ enum PackageEditedCopy {
               target.path != sourcePath else { throw Failure.unsupported }
         guard try snapshot(source) == session.originalFiles else { throw Failure.changedSource }
         // Only manifest modification time and explicitly edited text can change.
-        var files = session.originalFiles
+        var files = session.currentFiles
         var manifest = try PreservedJSON(files["manifest.json"]!)
         let oldTime = try manifest.string(at: [.key("modified_at")])
         try manifest.replaceString(at: [.key("modified_at")], expected: oldTime,

@@ -31,6 +31,7 @@ enum PackageCurrentSave {
         var manifest = try PreservedJSON(files["manifest.json"]!)
         try manifest.replaceString(at: [.key("modified_at")], expected: manifest.string(at: [.key("modified_at")]),
                                    with: ISO8601DateFormatter().string(from: Date()))
+        files["settings.json"] = session.settingsBytes
         files["manifest.json"] = manifest.data; files["screenplay.json"] = session.screenplayBytes
         _ = try PackageTextSession(files: files)
         let stage = parent.appendingPathComponent(".screenplay-save-" + UUID().uuidString + ".screenplay")

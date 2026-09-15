@@ -1,6 +1,6 @@
 # Formatting architecture: foundation
 
-Status: domain foundation and package inline-formatting pipeline implemented. Formatting controls and document typography mutation remain pending.
+Status: domain foundation and package inline-formatting pipeline implemented. Document typography transactions and initial Format controls are enabled.
 
 ## Ownership
 
@@ -22,14 +22,14 @@ The conservative package editor accepts recognized inline runs and an optional s
 
 PackageTextSession submits text and run changes together to its existing document history. Replacement, find/replace, split and cross-paragraph edits preserve surviving emphasis and paragraph identity; undo restores exact prior screenplay bytes. New text inherits the resolved style immediately to its left, or the first scalar's style at paragraph start. Empty paragraphs use plain text. A future explicit insertion-style state will override this policy when formatting controls exist.
 
-Font family and point size are read from document settings; absence uses Courier 12. The same native font/style adapter feeds attributed editor text and measured PDF layout. Editor display uses a 14/12 scale independently of document point size. Missing font names show a substitution notice and use Courier without changing saved settings. Font variant availability and script-specific glyph fallback still depend on AppKit. Semantic paragraph types control layout; headings no longer receive implicit bold in the package editor.
+Font family and point size belong to document settings; absence uses Courier 12. The same native font/style adapter feeds attributed editor text and measured PDF layout. Editor display uses a 14/12 scale independently of document point size. Missing font names show a substitution notice and use Courier without changing saved settings. Font variant availability and script-specific glyph fallback still depend on AppKit. Semantic paragraph types control layout; headings no longer receive implicit bold in the package editor.
 
-Save snapshots, staged writes, conflict checks, retained generations and recovery include settings.json. Untouched settings bytes remain exact. Inline formatting modifies screenplay.json and participates in the existing dirty-state and undo tracking.
+Save snapshots, staged writes, conflict checks, retained generations and recovery include settings.json. Untouched settings bytes remain exact. Inline formatting modifies screenplay.json. Typography changes modify settings.json; the history kernel stores its optional exact bytes alongside screenplay bytes, counts both against the history budget, and restores absence on undo. Both participate in dirty-state, conflict checks and recovery. The Format menu exposes document font/size and selected-text emphasis. Multi-paragraph emphasis is a single transaction. Clear Emphasis removes inline emphasis without changing document typography.
 
-## Remaining gates before controls
+## Remaining formatting work
 
-1. Add document-level typography mutation to the same undo, dirty-state, save and recovery transaction. Reading/preserving/rendering settings is implemented; changing font family or size through the app is not.
-2. Route selection formatting and explicit insertion-style state through the editor, then add Format controls and shortcuts.
+1. Add explicit insertion-style state and keyboard shortcuts. Current emphasis controls require selected text; font and size apply to the entire document.
+2. Add mixed-selection state and individual emphasis toggles; the initial controls apply emphasis or clear all emphasis.
 3. Test unavailable font variants and broader typography/pagination combinations before claiming arbitrary-font fidelity. A4 remains disabled.
 4. FDX/Fountain interchange requires explicit preservation/loss tests before rich round-trip claims. Legacy JSON editing has not been migrated to this package pipeline.
 

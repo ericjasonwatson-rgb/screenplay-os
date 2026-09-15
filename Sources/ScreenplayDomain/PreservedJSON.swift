@@ -187,18 +187,20 @@ public struct PreservedJSON {
 /// Exact-byte undo/redo for an editing session; no filesystem side effects.
 public struct PreservedJSONSession {
     public private(set) var document: PreservedJSON
-    private struct State { let id: UUID; let bytes: Data; let group: UUID? }
+    /// Optional caller-validated companion bytes share the same transaction and history budget.
+    public private(set) var companion: Data?
+    private struct State { let id: UUID; let bytes: Data; let companion: Data?; let group: UUID? }
     private var undoStates: [State] = []
     private var redoStates: [State] = []
     public static let maximumHistoryBytes = 64 * 1024 * 1024
     public static let maximumHistorySteps = 200
-    public init(_ data: Data) throws { document = try PreservedJSON(data) }
+    public init(_ data: Data, companion: Data? = nil) throws { document = try PreservedJSON(data); self.companion = companion }
     public var canUndo: Bool { !undoStates.isEmpty }
     public var canRedo: Bool { !redoStates.isEmpty }
     public var undoHistoryID: UUID? { undoStates.last?.id }
     public var redoHistoryID: UUID? { redoStates.last?.id }
     public var historyIDs: Set<UUID> { Set((undoStates + redoStates).map(\.id)) }
-    public var historyBytes: Int { (undoStates + redoStates).reduce(0) { $0 + $1.bytes.count } }
+    public var historyBytes: Int { (undoStates + redoStates).reduce(0) { $0 + $1.bytes.count + ($1.companion?.count ?? 0) } }
     private mutating func trim() {
         while undoStates.count + redoStates.count > Self.maximumHistorySteps || historyBytes > Self.maximumHistoryBytes {
             if !undoStates.isEmpty { undoStates.removeFirst() }
@@ -212,20 +214,23 @@ public struct PreservedJSONSession {
         commit(candidate, historyGroup: historyGroup)
     }
     mutating func commit(_ candidate: PreservedJSON, historyGroup: UUID? = nil) {
-        guard candidate.data != document.data else { return }
+        commit(candidate, companion: companion, historyGroup: historyGroup)
+    }
+    mutating func commit(_ candidate: PreservedJSON, companion: Data?, historyGroup: UUID? = nil) {
+        guard candidate.data != document.data || companion != self.companion else { return }
         if historyGroup == nil || undoStates.last?.group != historyGroup || !redoStates.isEmpty {
-            undoStates.append(State(id: UUID(), bytes: document.data, group: historyGroup))
+            undoStates.append(State(id: UUID(), bytes: document.data, companion: self.companion, group: historyGroup))
         }
-        redoStates.removeAll(); document = candidate; trim()
+        redoStates.removeAll(); document = candidate; self.companion = companion; trim()
     }
     public mutating func undo() {
         guard let previous = undoStates.popLast() else { return }
-        redoStates.append(State(id: previous.id, bytes: document.data, group: nil))
-        document = try! PreservedJSON(previous.bytes); trim()
+        redoStates.append(State(id: previous.id, bytes: document.data, companion: self.companion, group: nil))
+        document = try! PreservedJSON(previous.bytes); companion = previous.companion; trim()
     }
     public mutating func redo() {
         guard let next = redoStates.popLast() else { return }
-        undoStates.append(State(id: next.id, bytes: document.data, group: nil))
-        document = try! PreservedJSON(next.bytes); trim()
+        undoStates.append(State(id: next.id, bytes: document.data, companion: self.companion, group: nil))
+        document = try! PreservedJSON(next.bytes); companion = next.companion; trim()
     }
 }

@@ -159,8 +159,7 @@ final class PackageEditor: ObservableObject, Identifiable {
                 try candidate.replaceText(elementID: selected, expectedRevision: candidate.revision,
                                           expectedText: candidate.text(for: selected), replacement: draft)
             }
-            var files = candidate.originalFiles
-            files["screenplay.json"] = candidate.screenplayBytes
+            let files = candidate.currentFiles
             try PackageRecovery.write(.init(version: 1, id: recoveryID, title: title,
                 originalSource: originalSource, savedAt: Date(), selected: selected, files: files), directory: recoveryDirectory)
             recoveryStatus = "Recovery saved locally"
@@ -191,7 +190,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         guard let selected, let text = try? session.text(for: selected) else { return false }
         return !text.unicodeScalars.elementsEqual(draft.unicodeScalars)
     }
-    var dirty: Bool { pending || session.screenplayBytes != savedBytes }
+    var dirty: Bool { pending || session.screenplayBytes != savedBytes || session.settingsBytes != savedFiles["settings.json"] }
     var canUndo: Bool { pending || session.canUndo }
     var canRedo: Bool { !pending && session.canRedo }
 
@@ -222,6 +221,25 @@ final class PackageEditor: ObservableObject, Identifiable {
     func select(_ id: UUID) {
         guard apply() else { return }
         selected = id; draft = (try? session.text(for: id)) ?? ""
+    }
+    func formatSelection(_ patch: StyledText.Style) {
+        let selection = writingSelection
+        guard selection.length > 0, apply() else { return }
+        typingBoundary = UUID()
+        do {
+            try session.formatSelection(selection, expectedRevision: session.revision, patch: patch)
+            restoredWritingSelection = selection
+            scheduleRecovery()
+        } catch { message = "Select complete characters to apply formatting." }
+    }
+    func changeTypography(font: String? = nil, size: Double? = nil) {
+        guard apply() else { return }
+        typingBoundary = UUID()
+        do {
+            let value = try DocumentTypography(fontFamily: font ?? session.typography.fontFamily, fontSize: size ?? session.typography.fontSize)
+            try session.setTypography(value, expectedRevision: session.revision)
+            scheduleRecovery()
+        } catch { message = "That font or size could not be applied." }
     }
     func undo() {
         typingBoundary = UUID()
@@ -429,6 +447,24 @@ struct PackageEditorView: View {
                 Button("Save") { editor.saveCurrent() }
                 Button("Save As…") { editor.savePanel() }
             }
+            Menu("Format") {
+                Menu("Document Font: " + editor.session.typography.fontFamily) {
+                    ForEach(NSFontManager.shared.availableFontFamilies.sorted(), id: \.self) { family in
+                        Button(family) { editor.changeTypography(font: family) }
+                    }
+                }
+                Menu("Document Size: " + String(format: "%g pt", editor.session.typography.fontSize)) {
+                    ForEach([8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72], id: \.self) { size in
+                        Button("\(size) pt") { editor.changeTypography(size: Double(size)) }
+                    }
+                }
+                Divider()
+                Button("Bold") { editor.formatSelection(.init(bold: true)) }.disabled(editor.writingSelection.length == 0)
+                Button("Italic") { editor.formatSelection(.init(italic: true)) }.disabled(editor.writingSelection.length == 0)
+                Button("Underline") { editor.formatSelection(.init(underline: true)) }.disabled(editor.writingSelection.length == 0)
+                Button("Strikethrough") { editor.formatSelection(.init(strikethrough: true)) }.disabled(editor.writingSelection.length == 0)
+                Button("Clear Emphasis") { editor.formatSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) }.disabled(editor.writingSelection.length == 0)
+            }.fixedSize()
             if editor.findVisible {
                 VStack(spacing: 6) {
                     HStack {

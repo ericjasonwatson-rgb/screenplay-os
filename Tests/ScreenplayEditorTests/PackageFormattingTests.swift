@@ -91,6 +91,11 @@ struct PackageFormattingTests {
         refresh()
         let text = try #require(find(host))
         let range = (text.string as NSString).range(of: "first")
+        editor.changeTypography(size: 24); refresh()
+        let resized = try #require(text.textStorage?.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont)
+        #expect(abs(resized.pointSize - 28) < 0.01)
+        editor.undo(); refresh()
+        #expect(editor.session.typography.fontSize == 16)
         let original = editor.session.screenplayBytes
         text.setSelectedRange(NSRange(location: range.location + 2, length: 0))
         text.insertText("X", replacementRange: text.selectedRange()); refresh()
@@ -126,5 +131,72 @@ struct PackageFormattingTests {
         files = session.originalFiles
         files["screenplay.json"] = Data(String(decoding: files["screenplay.json"]!, as: UTF8.self).replacingOccurrences(of: "\"bold\":true", with: "\"unknown\":true").utf8)
         #expect(throws: (any Error).self) { _ = try PackageTextSession(files: files) }
+    }
+}
+
+@Suite("Typography document transactions", .serialized) @MainActor
+struct TypographyTransactionTests {
+    @Test func interleavedHistoryRestoresAbsentAndExactSettings() throws {
+        let fixture = PackageTextSessionTests()
+        let files = try fixture.fixture()
+        var session = try PackageTextSession(files: files)
+        try session.setTypography(try .init(fontFamily: "Helvetica", fontSize: 18), expectedRevision: session.revision)
+        let settings = session.settingsBytes
+        try session.replaceText(elementID: fixture.first, expectedRevision: session.revision, expectedText: "first", replacement: "changed")
+        try session.setTypography(try .init(fontSize: 24), expectedRevision: session.revision)
+        session.undo(); #expect(session.settingsBytes == settings && session.typography.fontSize == 18)
+        session.undo(); #expect(try session.text(for: fixture.first) == "first")
+        #expect(session.settingsBytes == settings)
+        session.undo(); #expect(session.currentFiles == files && session.typography.fontSize == 12)
+        session.redo(); session.redo(); session.redo()
+        #expect(session.typography.fontSize == 24)
+        #expect(try session.text(for: fixture.first) == "changed")
+        let before = session.currentFiles
+        #expect(throws: (any Error).self) { try session.setTypography(try .init(paper: "A4"), expectedRevision: session.revision) }
+        #expect(session.currentFiles == before)
+    }
+    @Test func fontOnlySaveRecoveryUndoAndReopen() throws {
+        let (root, source, _, _) = try PackageEditedCopyTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recovery = root.appendingPathComponent("Recovery")
+        let editor = try PackageEditor(source: source, recoveryDirectory: recovery)
+        editor.changeTypography(font: "Helvetica", size: 18)
+        #expect(editor.dirty)
+        #expect(editor.flushRecovery())
+        let record = try #require(PackageRecovery.list(recovery).first)
+        #expect(try PackageTextSession(files: record.files).typography.fontSize == 18)
+        #expect(editor.saveCurrent() && !editor.dirty)
+        #expect(try PackageEditedCopy.load(source).typography.fontFamily == "Helvetica")
+        editor.undo(); #expect(editor.dirty && editor.session.settingsBytes == nil)
+        #expect(editor.saveCurrent() && !editor.dirty)
+        #expect(try PackageEditedCopy.load(source).settingsBytes == nil)
+        editor.redo(); #expect(editor.dirty && editor.session.typography.fontSize == 18)
+        #expect(editor.save(to: root.appendingPathComponent("Font Copy.screenplay")))
+        #expect(try PackageEditedCopy.load(root.appendingPathComponent("Font Copy.screenplay")).typography.fontSize == 18)
+    }
+    @Test func failedFontOnlySaveRetainsRecoveryAndOriginal() throws {
+        let (root, source, _, _) = try PackageEditedCopyTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recovery = root.appendingPathComponent("Recovery")
+        let editor = try PackageEditor(source: source, recoveryDirectory: recovery)
+        let before = try PackageEditedCopy.snapshot(source)
+        editor.changeTypography(size: 18)
+        #expect(!editor.saveCurrent { phase, _ in
+            if phase == "write:settings.json" { throw PackageEditedCopyTests.Injected.stop }
+        })
+        #expect(editor.dirty)
+        #expect(try PackageEditedCopy.snapshot(source) == before)
+        let record = try #require(PackageRecovery.list(recovery).first)
+        #expect(try PackageTextSession(files: record.files).typography.fontSize == 18)
+    }
+    @Test func selectionFormattingIsOneAtomicTransaction() throws {
+        let fixture = PackageTextSessionTests()
+        var session = try PackageTextSession(files: fixture.fixture())
+        let before = session.screenplayBytes
+        try session.formatSelection(NSRange(location: 3, length: 6), expectedRevision: session.revision, patch: .init(underline: true))
+        #expect(try session.styledText(for: fixture.second).resolvedRuns.first?.start == 3)
+        #expect(try session.styledText(for: fixture.first).resolvedRuns.first?.length == 2)
+        session.undo(); #expect(session.screenplayBytes == before && !session.canUndo)
+        session.redo(); #expect(session.screenplayBytes != before)
     }
 }
