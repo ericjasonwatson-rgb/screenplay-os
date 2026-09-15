@@ -222,9 +222,52 @@ final class PackageEditor: ObservableObject, Identifiable {
         guard apply() else { return }
         selected = id; draft = (try? session.text(for: id)) ?? ""
     }
+    @Published private(set) var insertionStyleOverride: StyledText.Style?
+    func moveWritingSelection(_ range: NSRange) {
+        if range != writingSelection { insertionStyleOverride = nil }
+        writingSelection = range
+    }
+    var caretStyle: StyledText.Style {
+        if let insertionStyleOverride { return insertionStyleOverride }
+        let projection = PackageWritingProjection(session)
+        guard let (entry, index) = projection.position(writingSelection.location),
+              let value = try? session.styledText(for: entry.id) else { return .init() }
+        let offset = entry.text.unicodeScalars.distance(from: entry.text.startIndex, to: index)
+        let point = max(0, offset - 1)
+        return value.resolvedRuns.first { point >= $0.start && point < $0.start + $0.length }?.style ?? .init()
+    }
+    func emphasisActive(_ key: KeyPath<StyledText.Style, Bool?>) -> Bool {
+        guard writingSelection.length > 0 else { return caretStyle[keyPath: key] == true }
+        var found = false
+        for entry in PackageWritingProjection(session).entries {
+            let overlap = NSIntersectionRange(writingSelection, entry.range)
+            guard overlap.length > 0, let value = try? session.styledText(for: entry.id),
+                  let scalars = try? value.scalarRange(fromUTF16: NSRange(location: overlap.location - entry.range.location, length: overlap.length)) else { continue }
+            found = true
+            let covered = value.resolvedRuns.filter { $0.style[keyPath: key] == true }.reduce(0) { total, run in
+                total + max(0, min(scalars.upperBound, run.start + run.length) - max(scalars.lowerBound, run.start))
+            }
+            if covered != scalars.count { return false }
+        }
+        return found
+    }
+    func toggleEmphasis(_ key: WritableKeyPath<StyledText.Style, Bool?>) {
+        var patch = StyledText.Style(); patch[keyPath: key] = !emphasisActive(key)
+        formatSelection(patch)
+    }
     func formatSelection(_ patch: StyledText.Style) {
         let selection = writingSelection
-        guard selection.length > 0, apply() else { return }
+        guard apply() else { return }
+        if selection.length == 0 {
+            var style = caretStyle
+            if let value = patch.bold { style.bold = value }
+            if let value = patch.italic { style.italic = value }
+            if let value = patch.underline { style.underline = value }
+            if let value = patch.strikethrough { style.strikethrough = value }
+            insertionStyleOverride = style; typingBoundary = UUID()
+            return
+        }
+        insertionStyleOverride = nil
         typingBoundary = UUID()
         do {
             try session.formatSelection(selection, expectedRevision: session.revision, patch: patch)
@@ -242,6 +285,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         } catch { message = "That font or size could not be applied." }
     }
     func undo() {
+        insertionStyleOverride = nil
         typingBoundary = UUID()
         if pending { refreshDraft(); return }
         let oldIDs = Set(rows.map(\.id)), oldIndex = rows.firstIndex { $0.id == selected } ?? 0
@@ -251,6 +295,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         restoreSelection(previousIDs: oldIDs, oldIndex: oldIndex); message = nil
     }
     func redo() {
+        insertionStyleOverride = nil
         typingBoundary = UUID()
         guard !pending else { return }
         let oldIDs = Set(rows.map(\.id)), oldIndex = rows.firstIndex { $0.id == selected } ?? 0
@@ -309,7 +354,7 @@ final class PackageEditor: ObservableObject, Identifiable {
     @discardableResult func editWritingSpan(start: UUID, end: UUID, prefix: String, replacement: String, suffix: String, splitType: String?, historyGroup: UUID? = nil) -> Bool {
         do {
             selected = try session.editSpan(startID: start, endID: end, expectedRevision: session.revision,
-                prefix: prefix, replacement: replacement, suffix: suffix, splitType: splitType, historyGroup: historyGroup)
+                prefix: prefix, replacement: replacement, suffix: suffix, splitType: splitType, historyGroup: historyGroup, insertionStyleOverride: insertionStyleOverride)
             refreshDraft(); message = nil; return true
         } catch { message = "The edit could not be applied. Your previous text is retained."; return false }
     }
@@ -459,12 +504,12 @@ struct PackageEditorView: View {
                     }
                 }
                 Divider()
-                Button("Bold") { editor.formatSelection(.init(bold: true)) }.disabled(editor.writingSelection.length == 0)
-                Button("Italic") { editor.formatSelection(.init(italic: true)) }.disabled(editor.writingSelection.length == 0)
-                Button("Underline") { editor.formatSelection(.init(underline: true)) }.disabled(editor.writingSelection.length == 0)
-                Button("Strikethrough") { editor.formatSelection(.init(strikethrough: true)) }.disabled(editor.writingSelection.length == 0)
-                Button("Clear Emphasis") { editor.formatSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) }.disabled(editor.writingSelection.length == 0)
-            }.fixedSize()
+                Toggle("Bold", isOn: Binding(get: { editor.emphasisActive(\.bold) }, set: { _ in editor.toggleEmphasis(\.bold) })).keyboardShortcut("b", modifiers: .command)
+                Toggle("Italic", isOn: Binding(get: { editor.emphasisActive(\.italic) }, set: { _ in editor.toggleEmphasis(\.italic) })).keyboardShortcut("i", modifiers: .command)
+                Toggle("Underline", isOn: Binding(get: { editor.emphasisActive(\.underline) }, set: { _ in editor.toggleEmphasis(\.underline) })).keyboardShortcut("u", modifiers: .command)
+                Toggle("Strikethrough", isOn: Binding(get: { editor.emphasisActive(\.strikethrough) }, set: { _ in editor.toggleEmphasis(\.strikethrough) }))
+                Button("Clear Emphasis") { editor.formatSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) }
+            }.fixedSize().disabled(findFocused)
             if editor.findVisible {
                 VStack(spacing: 6) {
                     HStack {

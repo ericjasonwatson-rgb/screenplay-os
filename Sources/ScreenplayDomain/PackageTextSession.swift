@@ -265,17 +265,17 @@ public struct PackageTextSession {
     }
     /// Replace a contiguous paragraph span in one transaction, retaining the first ID.
     @discardableResult public mutating func editSpan(startID: UUID, endID: UUID, expectedRevision: UUID,
-        prefix: String, replacement: String, suffix: String, splitType: String? = nil, historyGroup: UUID? = nil) throws -> UUID {
+        prefix: String, replacement: String, suffix: String, splitType: String? = nil, historyGroup: UUID? = nil, insertionStyleOverride: StyledText.Style? = nil) throws -> UUID {
         guard expectedRevision == revision else { throw Failure.staleRevision }
         guard let first = indexes[startID], let last = indexes[endID], first <= last else { throw Failure.missingElement }
         let firstStyled = try styledText(for: startID), lastStyled = try styledText(for: endID)
-        if !firstStyled.runs.isEmpty || !lastStyled.runs.isEmpty {
+        if insertionStyleOverride != nil || !firstStyled.runs.isEmpty || !lastStyled.runs.isEmpty {
             guard firstStyled.text.unicodeScalars.starts(with: prefix.unicodeScalars),
                   lastStyled.text.unicodeScalars.reversed().starts(with: suffix.unicodeScalars.reversed()),
                   first != last || prefix.unicodeScalars.count + suffix.unicodeScalars.count <= firstStyled.text.unicodeScalars.count else { throw Failure.staleRevision }
             let leading = try firstStyled.split(at: prefix.unicodeScalars.count).0
             let trailing = try lastStyled.split(at: lastStyled.text.unicodeScalars.count - suffix.unicodeScalars.count).1
-            let insertion = try StyledText(text: replacement, runs: replacement.isEmpty ? [] : [.init(start: 0, length: replacement.unicodeScalars.count, style: insertionStyle(firstStyled, at: prefix.unicodeScalars.count))])
+            let insertion = try StyledText(text: replacement, runs: replacement.isEmpty ? [] : [.init(start: 0, length: replacement.unicodeScalars.count, style: insertionStyleOverride ?? insertionStyle(firstStyled, at: prefix.unicodeScalars.count))])
             var value = try leading.appending(insertion)
             if splitType == nil { value = try value.appending(trailing) }
             var candidate = self

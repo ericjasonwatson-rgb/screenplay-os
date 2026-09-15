@@ -43,6 +43,14 @@ struct PackageWritingProjection {
 /// Clipboard commands and focus changes end a typing group even for one character.
 final class PackageWritingNativeTextView: NSTextView {
     var historyBoundary: (() -> Void)?
+    var formattingShortcut: ((String) -> Void)?
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock)
+        if window?.firstResponder === self, flags == .command, let key = event.charactersIgnoringModifiers?.lowercased(), ["b", "i", "u"].contains(key), let formattingShortcut {
+            formattingShortcut(key); return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
     override func paste(_ sender: Any?) {
         historyBoundary?(); super.paste(sender); historyBoundary?()
     }
@@ -64,6 +72,10 @@ struct PackageParagraphTextView: NSViewRepresentable {
         let scroll = PackageWritingNativeTextView.scrollableTextView()
         let text = scroll.documentView as! PackageWritingNativeTextView
         text.historyBoundary = { [weak editor] in editor?.typingBoundary = UUID() }
+        text.formattingShortcut = { [weak editor] key in
+            guard let editor else { return }
+            editor.toggleEmphasis(key == "b" ? \.bold : key == "i" ? \.italic : \.underline)
+        }
         text.isRichText = false
         text.isAutomaticQuoteSubstitutionEnabled = false
         text.isAutomaticDashSubstitutionEnabled = false
@@ -164,7 +176,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !rendering, let text = notification.object as? NSTextView, !text.hasMarkedText(),
                   let entry = projection.position(text.selectedRange().location)?.0 else { return }
-            if nativeEdit == nil { typingGroup = nil; editor.writingSelection = text.selectedRange() }
+            if nativeEdit == nil { typingGroup = nil; editor.moveWritingSelection(text.selectedRange()) }
             selected = entry.id; editor.selectWritingParagraph(entry.id)
             text.typingAttributes = Self.attributes(for: entry.type, dark: editor.darkPageMode, settings: editor.session.typography)
             updateSuggestions(text)

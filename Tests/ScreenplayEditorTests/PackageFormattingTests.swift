@@ -200,3 +200,60 @@ struct TypographyTransactionTests {
         session.redo(); #expect(session.screenplayBytes != before)
     }
 }
+
+@Suite("Caret formatting", .serialized) @MainActor
+struct CaretFormattingTests {
+    @Test func nativeShortcutTypingToggleAndMovement() throws {
+        let (root, source, _, _) = try PackageEditedCopyTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let editor = try PackageEditor(source: source, recoveryDirectory: root.appendingPathComponent("Recovery"))
+        let host = NSHostingView(rootView: PackageParagraphTextView(editor: editor))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 500), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = host
+        defer { window.close() }
+        func refresh() { host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.03)) }
+        func find(_ v: NSView) -> PackageWritingNativeTextView? { (v as? PackageWritingNativeTextView) ?? v.subviews.lazy.compactMap { find($0) }.first }
+        refresh()
+        let text = try #require(find(host))
+        window.makeFirstResponder(text)
+        text.setSelectedRange(NSRange(location: 2, length: 0)); refresh()
+        let original = editor.session.screenplayBytes
+        func shortcut(_ key: String) throws {
+            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: 0))
+            #expect(text.performKeyEquivalent(with: event)); refresh()
+        }
+        try shortcut("b"); try shortcut("i"); try shortcut("u")
+        #expect(!editor.dirty && !editor.canUndo)
+        #expect(editor.emphasisActive(\.bold) && editor.emphasisActive(\.italic) && editor.emphasisActive(\.underline))
+        text.insertText("X", replacementRange: text.selectedRange()); refresh()
+        let font = try #require(text.textStorage?.attribute(.font, at: 2, effectiveRange: nil) as? NSFont)
+        #expect(NSFontManager.shared.traits(of: font).contains([.boldFontMask, .italicFontMask]))
+        #expect(text.textStorage?.attribute(.underlineStyle, at: 2, effectiveRange: nil) as? Int == 1)
+        #expect(editor.dirty)
+        try shortcut("b")
+        text.insertText("Y", replacementRange: text.selectedRange()); refresh()
+        let unbold = try #require(text.textStorage?.attribute(.font, at: 3, effectiveRange: nil) as? NSFont)
+        #expect(!NSFontManager.shared.traits(of: unbold).contains(.boldFontMask))
+        #expect(NSFontManager.shared.traits(of: unbold).contains(.italicFontMask))
+        editor.undo(); refresh(); editor.undo(); refresh()
+        #expect(editor.session.screenplayBytes == original)
+        try shortcut("b")
+        text.setSelectedRange(NSRange(location: 0, length: 0)); refresh()
+        #expect(editor.insertionStyleOverride == nil && !editor.emphasisActive(\.bold))
+    }
+    @Test func mixedSelectionToggleAndCaretClear() throws {
+        let (root, source, id) = try PackageFormattingTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let editor = try PackageEditor(source: source)
+        editor.moveWritingSelection(NSRange(location: 0, length: 12))
+        #expect(!editor.emphasisActive(\.bold))
+        editor.toggleEmphasis(\.bold)
+        #expect(editor.emphasisActive(\.bold))
+        editor.toggleEmphasis(\.bold)
+        #expect(!editor.emphasisActive(\.bold))
+        #expect(try editor.session.styledText(for: id).resolvedRuns.first?.style.italic == true)
+        editor.moveWritingSelection(NSRange(location: 9, length: 0))
+        editor.formatSelection(.init(bold: false, italic: false, underline: false, strikethrough: false))
+        #expect(editor.insertionStyleOverride != nil && !editor.emphasisActive(\.italic))
+    }
+}
