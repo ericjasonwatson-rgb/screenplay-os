@@ -24,7 +24,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         }
     }
     var typingBoundary = UUID()
-    var writingSelection = NSRange(location: 0, length: 0)
+    @Published var writingSelection = NSRange(location: 0, length: 0)
     var restoredWritingSelection: NSRange?
     private var selectionHistory: [UUID: (before: NSRange, after: NSRange)] = [:]
     private var pendingHistorySelection: UUID?
@@ -77,6 +77,51 @@ final class PackageEditor: ObservableObject, Identifiable {
         completionCaret = projection.entries.first(where: { $0.id == selected }).map { NSMaxRange($0.range) }
         dismissCharacterSuggestions()
         return true
+    }
+    @Published var findVisible = false
+    @Published var findQuery = ""
+    @Published var replacementText = ""
+    @Published var matchCase = false
+    @Published var findFocusRequest = UUID()
+    @Published var requestedFindSelection: NSRange?
+    var findMatches: [(match: PackageTextSession.TextMatch, range: NSRange)] {
+        let projection = PackageWritingProjection(session)
+        let starts = Dictionary(uniqueKeysWithValues: projection.entries.map { ($0.id, $0.range.location) })
+        return session.find(findQuery, caseSensitive: matchCase).compactMap { match in
+            starts[match.elementID].map { (match, NSRange(location: $0 + match.range.location, length: match.range.length)) }
+        }
+    }
+    var currentFindMatch: Int? { findMatches.firstIndex { $0.range == writingSelection } }
+    func showFind() {
+        typingBoundary = UUID(); dismissCharacterSuggestions()
+        findVisible = true; findFocusRequest = UUID()
+    }
+    func closeFind() {
+        findVisible = false; requestedFindSelection = writingSelection
+    }
+    func navigateFind(backward: Bool = false) {
+        typingBoundary = UUID()
+        let matches = findMatches
+        guard !matches.isEmpty else { return }
+        let index = backward
+            ? (matches.lastIndex { $0.range.location < writingSelection.location } ?? matches.count - 1)
+            : (matches.firstIndex { $0.range.location >= NSMaxRange(writingSelection) } ?? 0)
+        requestedFindSelection = matches[index].range
+    }
+    func replaceFound(all: Bool) {
+        typingBoundary = UUID()
+        guard apply() else { return }
+        let matches = findMatches
+        let chosen = all ? matches : matches.filter { $0.range == writingSelection }
+        guard !chosen.isEmpty else { return }
+        do {
+            try session.replaceMatches(chosen.map(\.match), expectedRevision: session.revision, replacement: replacementText)
+            if !all, let first = chosen.first {
+                requestedFindSelection = NSRange(location: first.range.location, length: (replacementText as NSString).length)
+            }
+            refreshDraft(); scheduleRecovery()
+            message = "Replaced \(chosen.count) match\(chosen.count == 1 ? "" : "es")."
+        } catch { message = "The matches changed. Search again before replacing; your screenplay is unchanged." }
     }
     private var savedBytes: Data
     private var recoveryID = UUID()
@@ -307,6 +352,7 @@ final class PackageEditor: ObservableObject, Identifiable {
 }
 
 struct PackageEditorView: View {
+    @FocusState private var findFocused: Bool
     @ObservedObject var editor: PackageEditor
     let close: () -> Void
     var body: some View {
@@ -324,8 +370,29 @@ struct PackageEditorView: View {
                 Button("Redo", action: editor.redo).disabled(!editor.canRedo)
                 Spacer()
                 Text(editor.dirty ? "Unsaved changes" : "No unsaved changes").foregroundStyle(.secondary)
+                Button("Find", action: editor.showFind)
                 Button("Print Preview", action: editor.showPrintPreview)
                 Button("Save Edited Copy…") { editor.savePanel() }
+            }
+            if editor.findVisible {
+                VStack(spacing: 6) {
+                    HStack {
+                        TextField("Find", text: $editor.findQuery).focused($findFocused)
+                            .onSubmit { editor.navigateFind() }.accessibilityLabel("Find text")
+                        Toggle("Match case", isOn: $editor.matchCase)
+                        Button("Previous") { editor.navigateFind(backward: true) }.disabled(editor.findMatches.isEmpty)
+                        Button("Next") { editor.navigateFind() }.disabled(editor.findMatches.isEmpty)
+                        Button("Done", action: editor.closeFind)
+                    }
+                    HStack {
+                        TextField("Replace with", text: $editor.replacementText).accessibilityLabel("Replacement text")
+                        Text(editor.findQuery.isEmpty ? "" : "\(editor.findMatches.count) matches").foregroundStyle(.secondary)
+                        Button("Replace") { editor.replaceFound(all: false) }.disabled(editor.currentFindMatch == nil)
+                        Button("Replace All") { editor.replaceFound(all: true) }.disabled(editor.findMatches.isEmpty)
+                    }
+                }.onExitCommand(perform: editor.closeFind)
+                    .onAppear { findFocused = true }
+                    .onChange(of: editor.findFocusRequest) { _ in findFocused = true }
             }
             Divider()
             if let row = editor.rows.first(where: { $0.id == editor.selected }) {

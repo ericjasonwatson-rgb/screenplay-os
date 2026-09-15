@@ -71,6 +71,52 @@ public struct PackageTextSession {
         if screenplayBytes != before { revision = UUID() }
     }
 
+    public struct TextMatch {
+        public let elementID: UUID
+        public let range: NSRange
+        public let text: String
+    }
+    /// Literal matches within authored paragraphs; never crosses structural boundaries.
+    public func find(_ query: String, caseSensitive: Bool = false) -> [TextMatch] {
+        guard !query.isEmpty else { return [] }
+        var matches: [TextMatch] = []
+        for paragraph in paragraphs {
+            guard let value = try? text(for: paragraph.id) else { continue }
+            let source = value as NSString
+            var offset = 0
+            while offset < source.length {
+                let range = source.range(of: query, options: caseSensitive ? [] : [.caseInsensitive],
+                    range: NSRange(location: offset, length: source.length - offset))
+                guard range.location != NSNotFound, range.length > 0 else { break }
+                if source.rangeOfComposedCharacterSequences(for: range) == range {
+                    matches.append(TextMatch(elementID: paragraph.id, range: range, text: source.substring(with: range)))
+                }
+                offset = NSMaxRange(range)
+            }
+        }
+        return matches
+    }
+    /// Validate the entire request before publishing one exact-byte undo transaction.
+    public mutating func replaceMatches(_ matches: [TextMatch], expectedRevision: UUID, replacement: String) throws {
+        guard expectedRevision == revision else { throw Failure.staleRevision }
+        var candidate = session.document
+        for (id, edits) in Dictionary(grouping: matches, by: \.elementID) {
+            let original = try text(for: id)
+            var value = original
+            var upper = (original as NSString).length
+            for match in edits.sorted(by: { $0.range.location > $1.range.location }) {
+                guard match.range.location >= 0, match.range.length > 0, NSMaxRange(match.range) <= upper,
+                      let range = Range(match.range, in: value),
+                      (value as NSString).rangeOfComposedCharacterSequences(for: match.range) == match.range,
+                      value[range].unicodeScalars.elementsEqual(match.text.unicodeScalars) else { throw Failure.staleRevision }
+                value.replaceSubrange(range, with: replacement)
+                upper = match.range.location
+            }
+            try candidate.replaceString(at: path(for: id), expected: original, with: value)
+        }
+        try commit(candidate)
+    }
+
     public mutating func changeType(elementID: UUID, expectedRevision: UUID, type: String) throws {
         guard expectedRevision == revision else { throw Failure.staleRevision }
         guard Self.supportedTypes.contains(type) else { throw Failure.unsupportedContent }

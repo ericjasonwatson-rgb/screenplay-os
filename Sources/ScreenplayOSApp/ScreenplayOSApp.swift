@@ -6,6 +6,12 @@ struct ScreenplayOSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = ScreenplayViewModel()
 
+    private var packageFieldEditor: NSTextView? {
+        guard model.packageEditor != nil, let text = NSApp.keyWindow?.firstResponder as? NSTextView,
+              text.isFieldEditor else { return nil }
+        return text
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
@@ -100,14 +106,25 @@ struct ScreenplayOSApp: App {
             CommandGroup(replacing: .undoRedo) {
                 Group {
                     Button("Undo") {
-                        if let editor = model.packageEditor { editor.undo() } else { model.undo() }
+                        if let field = packageFieldEditor { field.undoManager?.undo() }
+                        else if let editor = model.packageEditor { editor.undo() } else { model.undo() }
                     }
                     .keyboardShortcut("z", modifiers: [.command])
-                    .disabled(!(model.packageEditor?.canUndo ?? model.canUndo))
-                    Button("Redo") { if let editor = model.packageEditor { editor.redo() } else { model.redo() } }
+                    .disabled(packageFieldEditor == nil && !(model.packageEditor?.canUndo ?? model.canUndo))
+                    Button("Redo") {
+                        if let field = packageFieldEditor { field.undoManager?.redo() }
+                        else if let editor = model.packageEditor { editor.redo() } else { model.redo() }
+                    }
                         .keyboardShortcut("z", modifiers: [.command, .shift])
-                        .disabled(!(model.packageEditor?.canRedo ?? model.canRedo))
+                        .disabled(packageFieldEditor == nil && !(model.packageEditor?.canRedo ?? model.canRedo))
                 }.disabled(model.packagePreview != nil)
+            }
+            CommandGroup(after: .textEditing) {
+                if let editor = model.packageEditor {
+                    Button("Find…", action: editor.showFind).keyboardShortcut("f", modifiers: [.command])
+                    Button("Find Next") { editor.navigateFind() }.keyboardShortcut("g", modifiers: [.command])
+                    Button("Find Previous") { editor.navigateFind(backward: true) }.keyboardShortcut("g", modifiers: [.command, .shift])
+                }
             }
             CommandMenu("Workspace") {
                 Group {

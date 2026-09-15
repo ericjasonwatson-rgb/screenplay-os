@@ -109,7 +109,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             guard !rendering else { return }
             let changed = renderedRevision != editor.session.revision
             let selectionChanged = selected != editor.selected
-            guard changed || selectionChanged || caret != nil else { return }
+            guard changed || selectionChanged || caret != nil || editor.requestedFindSelection != nil else { return }
             rendering = true
             defer { rendering = false }
             let oldRange = text.selectedRange()
@@ -127,7 +127,9 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 }
                 text.textStorage?.setAttributedString(content)
             }
-            let restored = editor.restoredWritingSelection
+            let findSelection = editor.requestedFindSelection
+            editor.requestedFindSelection = nil
+            let restored = findSelection ?? editor.restoredWritingSelection
             editor.restoredWritingSelection = nil
             let completionCaret = editor.completionCaret
             editor.completionCaret = nil
@@ -139,8 +141,8 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 editor.selectWritingParagraph(entry.id)
             }
             selected = editor.selected; renderedRevision = editor.session.revision
-            if caret != nil || completionCaret != nil { text.scrollRangeToVisible(text.selectedRange()) }
-            if completionCaret != nil { text.window?.makeFirstResponder(text) }
+            if caret != nil || completionCaret != nil || restored != nil { text.scrollRangeToVisible(text.selectedRange()) }
+            if completionCaret != nil || (findSelection != nil && !editor.findVisible) { text.window?.makeFirstResponder(text) }
             editor.didRenderWritingSelection(text.selectedRange())
             updateSuggestions(text)
         }
@@ -219,6 +221,9 @@ struct PackageParagraphTextView: NSViewRepresentable {
             }
             if command == #selector(NSResponder.cancelOperation(_:)), !editor.characterSuggestions.isEmpty {
                 editor.dismissCharacterSuggestions(); return true
+            }
+            if command == #selector(NSResponder.cancelOperation(_:)), editor.findVisible {
+                editor.closeFind(); return true
             }
             if command == #selector(NSResponder.moveDown(_:)), !editor.characterSuggestions.isEmpty {
                 editor.highlightedSuggestion = ((editor.highlightedSuggestion ?? -1) + 1) % editor.characterSuggestions.count
