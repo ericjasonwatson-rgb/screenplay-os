@@ -22,23 +22,27 @@ struct ContentView: View {
     @ObservedObject var model: ScreenplayViewModel
 
     var body: some View {
-        ZStack(alignment: .top) {
-            if model.visibleWorkspaceRegions.contains(.navigation) {
-                NavigationSplitView {
+        VStack(spacing: 0) {
+            WorkspaceNavigationBar(model: model)
+            ZStack(alignment: .top) {
+                NavigationSplitView(columnVisibility: Binding(
+                    get: { model.visibleWorkspaceRegions.contains(.navigation) ? .all : .detailOnly },
+                    set: { visibility in
+                        if !model.focusMode { model.navigationVisible = visibility != .detailOnly }
+                    }
+                )) {
                     SidebarView(model: model)
                         .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
                 } detail: {
                     EditorWorkspaceView(model: model)
                 }
-            } else {
-                EditorWorkspaceView(model: model)
-            }
 
-            if model.commandPaletteVisible {
-                CommandPaletteView(model: model)
-                    .padding(.top, 44)
-                    .transition(.opacity)
-                    .zIndex(5)
+                if model.commandPaletteVisible {
+                    CommandPaletteView(model: model)
+                        .padding(.top, 44)
+                        .transition(.opacity)
+                        .zIndex(5)
+                }
             }
         }
         .background(
@@ -258,25 +262,6 @@ private struct SidebarView: View {
 
     var body: some View {
         List {
-            Picker("Mode", selection: Binding(
-                get: { model.workflowMode },
-                set: { model.setWorkflowMode($0) }
-            )) {
-                ForEach(WorkflowMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.menu)
-            .controlSize(.small)
-
-            Picker("Workspace", selection: $model.sidebarMode) {
-                ForEach(model.sidebarModesForCurrentWorkflow) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.menu)
-            .controlSize(.small)
-
             Section("Document") {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.documentDisplayName)

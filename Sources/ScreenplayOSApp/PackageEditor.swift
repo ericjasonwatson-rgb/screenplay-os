@@ -494,6 +494,7 @@ struct PackageEditorView: View {
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }
         }.padding(16).frame(minWidth: 740, idealWidth: 850, minHeight: 520, idealHeight: 650)
+            .safeAreaInset(edge: .top, spacing: 0) { PackageNavigationBar() }
             .interactiveDismissDisabled()
             .sheet(item: $editor.printPreview) { snapshot in
                 PrintPreviewSheet(snapshot: snapshot, export: editor.exportPrintPreview)
