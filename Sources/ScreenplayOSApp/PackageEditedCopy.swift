@@ -82,7 +82,7 @@ enum PackageEditedCopy {
         }
     }
 
-    private static func snapshot(_ root: URL) throws -> [String: Data] {
+    static func snapshot(_ root: URL) throws -> [String: Data] {
         let descriptor = open(root.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
         guard descriptor >= 0 else { throw Failure.system(errno) }
         defer { close(descriptor) }
@@ -112,7 +112,7 @@ enum PackageEditedCopy {
         return result
     }
 
-    private static func writeNew(_ url: URL, data: Data) throws {
+    static func writeNew(_ url: URL, data: Data) throws {
         let file = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
         guard file >= 0 else { throw Failure.system(errno) }
         defer { close(file) }
@@ -127,7 +127,7 @@ enum PackageEditedCopy {
         }
         guard fsync(file) == 0, fcntl(file, F_FULLFSYNC) == 0 else { throw Failure.system(errno) }
     }
-    private static func syncDirectory(_ url: URL) throws {
+    static func syncDirectory(_ url: URL) throws {
         let file = open(url.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
         guard file >= 0 else { throw Failure.system(errno) }
         defer { close(file) }

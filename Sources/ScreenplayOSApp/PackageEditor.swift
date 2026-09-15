@@ -12,6 +12,10 @@ final class PackageEditor: ObservableObject, Identifiable {
         return text.isEmpty ? row.type.replacingOccurrences(of: "_", with: " ").capitalized + " (empty)" : text
     }
     let source: URL
+    @Published private(set) var currentURL: URL?
+    private var savedFiles: [String: Data] = [:]
+    var didSave: ((URL) -> Void)?
+    @Published var previousVersionURL: URL?
     let title: String
     @Published private(set) var session: PackageTextSession {
         didSet {
@@ -171,6 +175,7 @@ final class PackageEditor: ObservableObject, Identifiable {
     convenience init(recovery: PackageRecovery.Record, directory: URL) throws {
         let restored = try PackageRecovery.materialize(recovery, directory: directory)
         try self.init(source: restored, recoveryDirectory: directory)
+        currentURL = nil
         recoveryID = recovery.id
         originalSource = recovery.originalSource
         savedBytes = Data()
@@ -192,8 +197,10 @@ final class PackageEditor: ObservableObject, Identifiable {
     init(source: URL, recoveryDirectory: URL? = nil) throws {
         let loaded = try PackageEditedCopy.load(source)
         self.source = source
+        self.currentURL = source
         self.originalSource = source
         self.recoveryDirectory = recoveryDirectory
+        savedFiles = loaded.originalFiles
         session = loaded
         savedBytes = loaded.screenplayBytes
         let manifest = try PreservedJSON(loaded.originalFiles["manifest.json"]!)
@@ -307,14 +314,22 @@ final class PackageEditor: ObservableObject, Identifiable {
     }
     @discardableResult func save(to url: URL) -> Bool {
         typingBoundary = UUID()
+        let target = url.standardizedFileURL.resolvingSymlinksInPath().path
+        for package in [source, currentURL].compactMap({ $0 }) {
+            let path = package.standardizedFileURL.resolvingSymlinksInPath().path
+            guard target != path, !target.hasPrefix(path + "/") else {
+                message = "Choose a new location outside the current package."; return false
+            }
+        }
         guard apply() else { return false }
         flushRecovery()
         do {
-            let result = try PackageEditedCopy.save(session, source: source, destination: url)
-            savedBytes = session.screenplayBytes
-            discardRecovery()
+            let result = try PackageCurrentSave.write(session, base: savedFiles, destination: url, replacing: false)
+            adoptSave(result)
             message = "Saved and verified: " + result.destination.path
             return true
+        } catch let error as PackageCurrentSave.RetainedFailure {
+            message = "Save could not be verified. Your edits remain open. Retained output: " + error.location.path
         } catch let error as PackageEditedCopy.RetainedFailure {
             message = "Save could not be verified. Keep this editor open. Retained output (may be incomplete): " + error.recoveryURL.path
         } catch {
@@ -322,12 +337,49 @@ final class PackageEditor: ObservableObject, Identifiable {
         }
         return false
     }
+    private func adoptSave(_ result: PackageCurrentSave.Receipt) {
+        previousVersionURL = result.previous
+        currentURL = result.destination; originalSource = result.destination
+        savedFiles = result.files; savedBytes = session.screenplayBytes
+        discardRecovery(); didSave?(result.destination)
+    }
+    @discardableResult func saveCurrent(checkpoint: (String, URL) throws -> Void = { _, _ in }) -> Bool {
+        guard let currentURL else { return savePanel() }
+        typingBoundary = UUID()
+        guard apply() else { return false }
+        flushRecovery()
+        do {
+            let result = try PackageCurrentSave.write(session, base: savedFiles, destination: currentURL, replacing: true, checkpoint: checkpoint)
+            adoptSave(result)
+            message = "Saved: " + result.destination.path
+
+            return true
+        } catch let error as PackageCurrentSave.RetainedFailure {
+            message = "Save not verified. Keep editing or save a new copy. Retained files: " + error.location.path
+        } catch {
+            message = "Save stopped: the file changed outside this editor or is unavailable. Your edits remain here. Save a new copy to keep both versions."
+        }
+        return false
+    }
+    static func newPackage(directory: URL, title: String = "Untitled Screenplay", recoveryDirectory: URL? = nil) throws -> PackageEditor {
+        let source = directory.appendingPathComponent(UUID().uuidString + ".screenplay")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        let id = UUID().uuidString, time = ISO8601DateFormatter().string(from: Date())
+        let manifest = ["format": "open-screenplay", "format_version": "1.0", "document_id": id,
+                        "title": title, "author": "", "created_at": time, "modified_at": time]
+        let script: [String: Any] = ["id": id, "elements": [["id": UUID().uuidString, "type": "scene_heading", "text": ""]]]
+        try JSONSerialization.data(withJSONObject: manifest).write(to: source.appendingPathComponent("manifest.json"), options: .atomic)
+        try JSONSerialization.data(withJSONObject: script).write(to: source.appendingPathComponent("screenplay.json"), options: .atomic)
+        let editor = try PackageEditor(source: source, recoveryDirectory: recoveryDirectory)
+        editor.currentURL = nil; editor.savedBytes = Data(); editor.flushRecovery()
+        return editor
+    }
     @discardableResult func savePanel() -> Bool {
         let panel = NSSavePanel()
-        panel.title = "Save Edited Copy"
-        panel.directoryURL = originalSource.deletingLastPathComponent()
+        panel.title = "Save Package As"
+        panel.directoryURL = currentURL?.deletingLastPathComponent() ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         panel.prompt = "Save Copy"
-        panel.nameFieldStringValue = originalSource.deletingPathExtension().lastPathComponent + " Edited.screenplay"
+        panel.nameFieldStringValue = currentURL == nil ? title + ".screenplay" : originalSource.deletingPathExtension().lastPathComponent + " Copy.screenplay"
         guard panel.runModal() == .OK, var url = panel.url else { return false }
         if url.pathExtension != "screenplay" { url.appendPathExtension("screenplay") }
         return save(to: url)
@@ -337,13 +389,13 @@ final class PackageEditor: ObservableObject, Identifiable {
         flushRecovery()
         let alert = NSAlert()
         alert.messageText = "Save your package edits before closing?"
-        alert.informativeText = "These edits have not been saved to a copy. The original package is unchanged."
+        alert.informativeText = "These edits have not been saved to the current file. Keep editing, save, or retain recovery before closing."
         alert.addButton(withTitle: "Keep Editing")
-        alert.addButton(withTitle: "Save Edited Copy…")
+        alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Discard Changes")
         if recoveryDirectory != nil { alert.addButton(withTitle: "Keep Recovery for Later") }
         switch alert.runModal() {
-        case .alertSecondButtonReturn: return savePanel()
+        case .alertSecondButtonReturn: return saveCurrent()
         case .alertThirdButtonReturn: discardRecovery(); return true
         case NSApplication.ModalResponse(rawValue: 1003): return flushRecovery()
         default: return false
@@ -360,7 +412,7 @@ struct PackageEditorView: View {
             HStack {
                 VStack(alignment: .leading) {
                     Text(editor.title.isEmpty ? "Untitled Screenplay" : editor.title).font(.headline)
-                    Text("Experimental package editor · Save to a new copy").foregroundStyle(.secondary)
+                    Text(editor.currentURL?.lastPathComponent ?? "New package · Not yet saved").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Close") { if editor.confirmClose() { close() } }.keyboardShortcut(.cancelAction)
@@ -372,7 +424,8 @@ struct PackageEditorView: View {
                 Text(editor.dirty ? "Unsaved changes" : "No unsaved changes").foregroundStyle(.secondary)
                 Button("Find", action: editor.showFind)
                 Button("Print Preview", action: editor.showPrintPreview)
-                Button("Save Edited Copy…") { editor.savePanel() }
+                Button("Save") { editor.saveCurrent() }
+                Button("Save As…") { editor.savePanel() }
             }
             if editor.findVisible {
                 VStack(spacing: 6) {
@@ -435,6 +488,9 @@ struct PackageEditorView: View {
             }
             Text("Tab / Shift-Tab change paragraph type. Return creates a paragraph. Backspace at its start joins the previous paragraph. Shift-Return inserts a line break. Print Preview shows derived pages. Production locks are not supported here.")
                 .font(.caption).foregroundStyle(.secondary)
+            if let previous = editor.previousVersionURL {
+                Button("Show Previous Version") { NSWorkspace.shared.activateFileViewerSelecting([previous]) }
+            }
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }
         }.padding(16).frame(minWidth: 740, idealWidth: 850, minHeight: 520, idealHeight: 650)

@@ -22,6 +22,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var packagePreview: PackagePreview?
     @Published var packageEditor: PackageEditor? {
         didSet {
+            packageEditor?.didSave = { [weak self] url in self?.recordRecentDocument(url) }
             packageEditorChanges = packageEditor?.objectWillChange.sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
@@ -1311,9 +1312,18 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
+    func newPackage() {
+        guard packageEditor?.confirmClose() ?? true else { return }
+        do {
+            packageEditor = try PackageEditor.newPackage(directory: packageRecoveryDirectory.appendingPathComponent("Drafts"), recoveryDirectory: packageRecoveryDirectory)
+            errorMessage = nil
+        } catch { errorMessage = "The new package could not be created." }
+    }
     func openPackagePreview(at url: URL) {
+        guard packageEditor?.confirmClose() ?? true else { return }
         if let editor = try? PackageEditor(source: url, recoveryDirectory: packageRecoveryDirectory) {
             packageEditor = editor
+            recordRecentDocument(url)
             errorMessage = nil
             return
         }

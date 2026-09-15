@@ -1,0 +1,25 @@
+# Minimal package document workflow
+
+This macOS workflow applies only to the supported two-file package profile. Unsupported companions, fields, locks, and richer packages retain the existing read-only boundary. It does not migrate legacy documents or establish full draft-format conformance. New Screenplay remains the legacy action; New Package (Command-Shift-N) explicitly starts the package workflow.
+
+Opening a supported package establishes its current save URL and exact baseline inventory. Save (Command-S) writes to that URL. Save As (Command-Shift-S) creates an exclusively new destination and adopts it after verification; later saves update that destination. Save As can retain local edits when the original has changed externally. It refuses the original/current path and paths inside those packages. New packages start with a new document UUID and one blank scene heading, retain local recovery, and ask for a destination on first Save. First save preserves those identities. Opening and successful saves record the package in Open Recent. The package sheet still must be closed before using the main New/Open menus; the legacy draft remains behind it.
+
+## Publication and conflict behavior
+
+PackageCurrentSave serializes cooperating ScreenplayOS writers using a stable sibling lock file and a nonblocking advisory lock. A busy writer causes a save failure rather than blocking typing indefinitely. Lock files are not unlinked, since replacing their inode could split the lock across two writers. macOS file coordination was evaluated but returned Cocoa error 512 in the test environment; this adapter does not claim participation in other applications' coordination protocols.
+
+For replacement, read and compare the complete current two-file inventory against the last verified baseline. Build a complete candidate beside the destination, flush both files, sync its directory, and compare staged bytes. Recheck the destination immediately before publication. RENAME_SWAP exchanges the entire candidate and existing package; the old package remains at the staging path. New destinations instead use RENAME_EXCL. Sync the parent directory, verify the displaced package still matches the expected baseline, and verify the published bytes. Only then adopt the destination/baseline and report saved. Filesystems that cannot provide the required operations fail without a weaker fallback.
+
+External applications need not honor our advisory lock. Prepublication changes stop the save. A race at publication is detected by the displaced-generation check; both generations remain, the save reports failure, and live edits/recovery remain dirty. No blind rollback can overwrite a further external edit. This is conflict detection with retained generations, not a universal cross-application compare-and-swap guarantee. Publication failure does not imply that the named destination is unchanged: a late failure may occur after the complete candidate was exchanged into place.
+
+No individual core-file rename is used to publish an edited package. Failures retain staging/output and local recovery instead of clearing dirty state. Postpublication ambiguity requires saving a new copy or explicit recovery; the baseline is not silently advanced. Closing or quitting offers Keep Editing, Save, Discard, or Keep Recovery; a failed Save prevents closure.
+
+## Retention and limits
+
+Previous complete packages are retained beside the destination as hidden .screenplay-save-UUID.screenplay directories. Show Previous Version reveals the most recent retained package in Finder. No automatic pruning is implemented; repeated saves consume disk space. These are local prior generations, not cloud backup or a named-version system. Sibling .save-lock files and new-package draft directories are also retained. New/Save actions remain explicit; recovery is automatic, but ordinary package saving is not continuous autosave.
+
+## Verification
+
+The full suite passed 134 Swift tests, 37 Python tests, and 14 self-tests. New tests cover repeated same-file saves, prior-generation byte preservation, Undo after save, external-edit refusal and Save As recovery, fault injection after staging/each file/before publication/after publication/readback, competing writer exclusion, symlink rejection, unsupported companion preservation, and New → first Save → Recent reopening while retaining the legacy draft. Fault-injection results verify complete recoverable generations at the tested interruption points; they are not a claim of physical power-loss certification on every filesystem.
+
+The release app built successfully. Native workflow verification remains pending: after a normal quit and relaunch, the computer-use service reports ScreenplayOS running but times out when connecting to its window. Automated New/Save/Recent coverage passed; this does not substitute for the on-screen check. The user has been asked to bring the app forward so that verification can resume.

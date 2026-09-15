@@ -33,6 +33,8 @@ struct ScreenplayOSApp: App {
             }
             CommandGroup(replacing: .newItem) {
                 Group {
+                    Button("New Package", action: model.newPackage)
+                        .keyboardShortcut("n", modifiers: [.command, .shift])
                     Button("New Screenplay") {
                         model.newDocument()
                     }
@@ -99,8 +101,9 @@ struct ScreenplayOSApp: App {
                     .keyboardShortcut("p", modifiers: [.command, .option])
                 }.disabled(model.packageSheetOpen)
                 if let editor = model.packageEditor {
-                    Button("Save Edited Copy…") { editor.savePanel() }
+                    Button("Save Package") { editor.saveCurrent() }
                         .keyboardShortcut("s", modifiers: [.command])
+                    Button("Save Package As…") { editor.savePanel() }.keyboardShortcut("s", modifiers: [.command, .shift])
                 }
             }
             CommandGroup(replacing: .undoRedo) {
