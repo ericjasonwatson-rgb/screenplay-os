@@ -94,7 +94,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
         var typingGroup: (id: UUID, element: UUID, caret: Int, backward: Bool, time: TimeInterval, revision: UUID, boundary: UUID)?
         init(_ editor: PackageEditor) { self.editor = editor; projection = PackageWritingProjection(editor.session) }
 
-        static func attributes(for type: String, dark: Bool = false) -> [NSAttributedString.Key: Any] {
+        static func attributes(for type: String, dark: Bool = false, settings: DocumentTypography? = nil) -> [NSAttributedString.Key: Any] {
             let style = NSMutableParagraphStyle(); style.paragraphSpacing = 14
             switch type {
             case "character": style.firstLineHeadIndent = 190; style.headIndent = 190
@@ -103,7 +103,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             case "transition": style.alignment = .right
             default: break
             }
-            let font = NSFont(name: type == "scene_heading" ? "Courier-Bold" : "Courier", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+            let font = PackageTypography.font(settings ?? (try! DocumentTypography()), displayScale: 14.0 / 12.0)
             return [.font: font, .foregroundColor: StudioAppearance.ink(dark), .paragraphStyle: style]
         }
         func render(_ text: NSTextView, caret: Int? = nil) {
@@ -124,10 +124,15 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 let font = (NSFont(name: "Courier", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular))
                 content.addAttributes([.font: font, .foregroundColor: StudioAppearance.ink(dark)], range: NSRange(location: 0, length: content.length))
                 for entry in projection.entries {
-                    let attributes = Self.attributes(for: entry.type, dark: editor.darkPageMode)
+                    let attributes = Self.attributes(for: entry.type, dark: editor.darkPageMode, settings: editor.session.typography)
                     let length = entry.range.length + (NSMaxRange(entry.range) < content.length ? 1 : 0)
                     if length > 0 {
                         content.addAttributes(attributes, range: NSRange(location: entry.range.location, length: length))
+                    }
+                }
+                for entry in projection.entries {
+                    if let styled = try? editor.session.styledText(for: entry.id) {
+                        PackageTypography.apply(styled, settings: editor.session.typography, to: content, offset: entry.range.location, displayScale: 14.0 / 12.0)
                     }
                 }
                 text.textStorage?.setAttributedString(content)
@@ -141,7 +146,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             let location = restored?.location ?? completionCaret ?? caret ?? (selectionChanged ? projection.entries.first(where: { $0.id == editor.selected })?.range.location : nil) ?? oldRange.location
             let clamped = min(location, (projection.text as NSString).length)
             text.setSelectedRange(NSRange(location: clamped, length: min(restored?.length ?? (caret == nil && completionCaret == nil && !selectionChanged ? oldRange.length : 0), (projection.text as NSString).length - clamped)))
-            text.typingAttributes = Self.attributes(for: projection.position(clamped)?.0.type ?? "action", dark: dark)
+            text.typingAttributes = Self.attributes(for: projection.position(clamped)?.0.type ?? "action", dark: dark, settings: editor.session.typography)
             if let entry = projection.position(clamped)?.0 {
                 editor.selectWritingParagraph(entry.id)
             }
@@ -161,7 +166,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
                   let entry = projection.position(text.selectedRange().location)?.0 else { return }
             if nativeEdit == nil { typingGroup = nil; editor.writingSelection = text.selectedRange() }
             selected = entry.id; editor.selectWritingParagraph(entry.id)
-            text.typingAttributes = Self.attributes(for: entry.type, dark: editor.darkPageMode)
+            text.typingAttributes = Self.attributes(for: entry.type, dark: editor.darkPageMode, settings: editor.session.typography)
             updateSuggestions(text)
         }
         func replace(_ range: NSRange, with replacement: String, split: Bool, in text: NSTextView) -> Bool {
@@ -193,7 +198,12 @@ struct PackageParagraphTextView: NSViewRepresentable {
                    let updated = projection.entries.first(where: { $0.id == first.id }) {
                     rendering = true
                     let length = updated.range.length + (NSMaxRange(updated.range) < (projection.text as NSString).length ? 1 : 0)
-                    text.textStorage?.addAttributes(Self.attributes(for: updated.type, dark: editor.darkPageMode), range: NSRange(location: updated.range.location, length: length))
+                    text.textStorage?.addAttributes(Self.attributes(for: updated.type, dark: editor.darkPageMode, settings: editor.session.typography), range: NSRange(location: updated.range.location, length: length))
+                    if let storage = text.textStorage, let styled = try? editor.session.styledText(for: updated.id) {
+                        storage.removeAttribute(.underlineStyle, range: NSRange(location: updated.range.location, length: length))
+                        storage.removeAttribute(.strikethroughStyle, range: NSRange(location: updated.range.location, length: length))
+                        PackageTypography.apply(styled, settings: editor.session.typography, to: storage, offset: updated.range.location, displayScale: 14.0 / 12.0)
+                    }
                     rendering = false
                     renderedRevision = editor.session.revision
                     selected = editor.selected

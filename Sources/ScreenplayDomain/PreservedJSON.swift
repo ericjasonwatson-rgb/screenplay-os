@@ -76,6 +76,24 @@ public struct PreservedJSON {
         self = try PreservedJSON(candidate)
     }
 
+    func valueData(at path: [Component]) throws -> Data {
+        guard let range = values[path] else { throw Failure.malformed }
+        return data.subdata(in: range)
+    }
+    mutating func setMember(_ key: String, at path: [Component], value: Data) throws {
+        _ = try PreservedJSON(value)
+        guard let object = values[path], data[object.lowerBound] == 123 else { throw Failure.malformed }
+        var candidate = data
+        if let range = values[path + [.key(key)]] { candidate.replaceSubrange(range, with: value) }
+        else {
+            let hasMembers = values.keys.contains { $0.count == path.count + 1 && Array($0.prefix(path.count)) == path }
+            var member = Data((hasMembers ? "," : "").utf8)
+            member.append(try JSONEncoder().encode(key)); member.append(58); member.append(value)
+            candidate.insert(contentsOf: member, at: object.upperBound - 1)
+        }
+        self = try PreservedJSON(candidate)
+    }
+
     private struct Parser {
         let bytes: [UInt8]
         var position = 0

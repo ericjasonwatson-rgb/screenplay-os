@@ -87,7 +87,7 @@ enum PackageEditedCopy {
         guard descriptor >= 0 else { throw Failure.system(errno) }
         defer { close(descriptor) }
         let names = try FileManager.default.contentsOfDirectory(atPath: root.path)
-        guard Set(names) == ["manifest.json", "screenplay.json"] else { throw Failure.unsupported }
+        guard Set(names).isSubset(of: ["manifest.json", "screenplay.json", "settings.json"]), Set(names).isSuperset(of: ["manifest.json", "screenplay.json"]) else { throw Failure.unsupported }
         var result: [String: Data] = [:]
         for name in names {
             let file = openat(descriptor, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)

@@ -494,6 +494,9 @@ struct PackageEditorView: View {
                 Button("Show Previous Version") { NSWorkspace.shared.activateFileViewerSelecting([previous]) }
             }
             if let recovery = editor.recoveryStatus { Text(recovery).font(.caption).foregroundStyle(.secondary) }
+            if let substitution = PackageTypography.substitution(editor.session.typography) {
+                Text(substitution).font(.callout)
+            }
             if let message = editor.message { Text(message).font(.callout).textSelection(.enabled) }
         }.padding(16).frame(minWidth: 740, idealWidth: 850, minHeight: 520, idealHeight: 650)
             .background(StudioAppearance.panel)

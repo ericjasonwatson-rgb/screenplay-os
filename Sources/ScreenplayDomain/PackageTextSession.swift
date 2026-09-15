@@ -10,6 +10,7 @@ public struct PackageTextSession {
     public struct Paragraph: Identifiable { public let id: UUID; public let type: String }
     public static let supportedTypes = ["scene_heading", "action", "character", "dialogue", "parenthetical", "transition", "general", "shot"]
     public private(set) var paragraphs: [Paragraph]
+    public let typography: DocumentTypography
     private var indexes: [UUID: Int]
     public var screenplayBytes: Data { session.document.data }
     public var canUndo: Bool { session.canUndo }
@@ -21,10 +22,16 @@ public struct PackageTextSession {
 
     public init(files: [String: Data]) throws {
         // Companions can contain locks or references that this command cannot repair.
-        guard Set(files.keys) == ["manifest.json", "screenplay.json"],
+        guard Set(files.keys).isSubset(of: ["manifest.json", "screenplay.json", "settings.json"]),
               let manifestBytes = files["manifest.json"], let scriptBytes = files["screenplay.json"] else {
             throw Failure.unsupportedContent
         }
+        if let settings = files["settings.json"] {
+            let preserved = try PreservedJSON(settings)
+            guard let root = try JSONSerialization.jsonObject(with: settings) as? [String: Any], Set(root.keys) == ["formatting"] else { throw Failure.unsupportedContent }
+            typography = try JSONDecoder().decode(DocumentTypography.self, from: preserved.valueData(at: [.key("formatting")]))
+            guard typography.paper == "US_LETTER" else { throw Failure.unsupportedContent }
+        } else { typography = try DocumentTypography() }
         let manifest = try PreservedJSON(manifestBytes)
         let script = try PreservedJSON(scriptBytes)
         guard let metadata = try JSONSerialization.jsonObject(with: manifestBytes) as? [String: Any],
@@ -43,12 +50,16 @@ public struct PackageTextSession {
         let types: Set<String> = ["scene_heading", "action", "character", "dialogue", "parenthetical", "transition", "general", "shot"]
         for (index, element) in elements.enumerated() {
             // Any additional field may carry formatting, revision marks, or parsed references.
-            guard Set(element.keys) == ["id", "type", "text"],
+            guard Set(element.keys).isSubset(of: ["id", "type", "text", "runs"]),
                   let type = element["type"] as? String, types.contains(type), element["text"] is String else {
                 throw Failure.unsupportedContent
             }
             guard let rawID = element["id"] as? String, let id = UUID(uuidString: rawID), indexes[id] == nil else {
                 throw Failure.invalidIdentity
+            }
+            if let runs = element["runs"] {
+                let decoded = try JSONDecoder().decode([StyledText.Run].self, from: JSONSerialization.data(withJSONObject: runs))
+                _ = try StyledText(text: element["text"] as! String, runs: decoded)
             }
             indexes[id] = index
         }
@@ -63,8 +74,52 @@ public struct PackageTextSession {
         try session.document.string(at: path(for: elementID))
     }
 
+    public func styledText(for id: UUID) throws -> StyledText {
+        guard let index = indexes[id] else { throw Failure.missingElement }
+        let item = try session.document.valueData(at: [.key("elements"), .index(index)])
+        let object = try JSONSerialization.jsonObject(with: item) as! [String: Any]
+        let runs = try object["runs"].map { try JSONDecoder().decode([StyledText.Run].self, from: JSONSerialization.data(withJSONObject: $0)) } ?? []
+        return try StyledText(text: text(for: id), runs: runs)
+    }
+    private func writeStyled(_ value: StyledText, id: UUID, into candidate: inout PreservedJSON) throws {
+        guard let index = indexes[id] else { throw Failure.missingElement }
+        let path: [PreservedJSON.Component] = [.key("elements"), .index(index)]
+        try candidate.replaceString(at: path + [.key("text")], expected: candidate.string(at: path + [.key("text")]), with: value.text)
+        try candidate.setMember("runs", at: path, value: JSONEncoder().encode(value.runs))
+    }
+    public mutating func format(elementID: UUID, expectedRevision: UUID, range: Range<Int>, patch: StyledText.Style) throws {
+        guard revision == expectedRevision else { throw Failure.staleRevision }
+        var value = try styledText(for: elementID)
+        let original = value
+        try value.format(range, patch: patch)
+        guard value != original else { return }
+        var candidate = session.document
+        try writeStyled(value, id: elementID, into: &candidate)
+        try commit(candidate)
+    }
+    private func insertionStyle(_ value: StyledText, at offset: Int) -> StyledText.Style {
+        let point = max(0, offset - 1)
+        return value.resolvedRuns.first { point >= $0.start && point < $0.start + $0.length }?.style ?? .init()
+    }
+
     public mutating func replaceText(elementID: UUID, expectedRevision: UUID, expectedText: String, replacement: String, historyGroup: UUID? = nil) throws {
         guard expectedRevision == revision else { throw Failure.staleRevision }
+        let old = try styledText(for: elementID)
+        guard old.text.unicodeScalars.elementsEqual(expectedText.unicodeScalars) else { throw Failure.staleRevision }
+        if !old.runs.isEmpty {
+            let a = Array(old.text), b = Array(replacement)
+            var prefix = 0, suffix = 0
+            while prefix < min(a.count, b.count), String(a[prefix]).unicodeScalars.elementsEqual(String(b[prefix]).unicodeScalars) { prefix += 1 }
+            while suffix < min(a.count, b.count) - prefix, String(a[a.count - suffix - 1]).unicodeScalars.elementsEqual(String(b[b.count - suffix - 1]).unicodeScalars) { suffix += 1 }
+            let start = String(a.prefix(prefix)).unicodeScalars.count
+            let end = old.text.unicodeScalars.count - String(a.suffix(suffix)).unicodeScalars.count
+            var value = old
+            try value.replace(start..<end, with: String(b[prefix..<(b.count - suffix)]), style: insertionStyle(old, at: start))
+            var candidate = session.document
+            try writeStyled(value, id: elementID, into: &candidate)
+            try commit(candidate, historyGroup: historyGroup)
+            return
+        }
         let path = try path(for: elementID)
         let before = screenplayBytes
         try session.replaceString(at: path, expected: expectedText, with: replacement, historyGroup: historyGroup)
@@ -103,16 +158,23 @@ public struct PackageTextSession {
         for (id, edits) in Dictionary(grouping: matches, by: \.elementID) {
             let original = try text(for: id)
             var value = original
+            var styled = try styledText(for: id)
+            let hasStyles = !styled.runs.isEmpty
             var upper = (original as NSString).length
             for match in edits.sorted(by: { $0.range.location > $1.range.location }) {
                 guard match.range.location >= 0, match.range.length > 0, NSMaxRange(match.range) <= upper,
                       let range = Range(match.range, in: value),
                       (value as NSString).rangeOfComposedCharacterSequences(for: match.range) == match.range,
                       value[range].unicodeScalars.elementsEqual(match.text.unicodeScalars) else { throw Failure.staleRevision }
+                if hasStyles {
+                    let scalar = try styled.scalarRange(fromUTF16: match.range)
+                    try styled.replace(scalar, with: replacement, style: insertionStyle(styled, at: scalar.lowerBound))
+                }
                 value.replaceSubrange(range, with: replacement)
                 upper = match.range.location
             }
-            try candidate.replaceString(at: path(for: id), expected: original, with: value)
+            if hasStyles { try writeStyled(styled, id: id, into: &candidate) }
+            else { try candidate.replaceString(at: path(for: id), expected: original, with: value) }
         }
         try commit(candidate)
     }
@@ -155,6 +217,11 @@ public struct PackageTextSession {
     /// One undo transaction retains the old identity on the prefix and creates the suffix.
     @discardableResult public mutating func split(elementID: UUID, expectedRevision: UUID, prefix: String, suffix: String, nextType: String) throws -> UUID {
         guard expectedRevision == revision else { throw Failure.staleRevision }
+        let original = try styledText(for: elementID)
+        if !original.runs.isEmpty {
+            return try editSpan(startID: elementID, endID: elementID, expectedRevision: expectedRevision,
+                prefix: prefix, replacement: "", suffix: suffix, splitType: nextType)
+        }
         var candidateSession = self
         try candidateSession.replaceText(elementID: elementID, expectedRevision: candidateSession.revision,
                                          expectedText: candidateSession.text(for: elementID), replacement: prefix)
@@ -167,6 +234,31 @@ public struct PackageTextSession {
         prefix: String, replacement: String, suffix: String, splitType: String? = nil, historyGroup: UUID? = nil) throws -> UUID {
         guard expectedRevision == revision else { throw Failure.staleRevision }
         guard let first = indexes[startID], let last = indexes[endID], first <= last else { throw Failure.missingElement }
+        let firstStyled = try styledText(for: startID), lastStyled = try styledText(for: endID)
+        if !firstStyled.runs.isEmpty || !lastStyled.runs.isEmpty {
+            guard firstStyled.text.unicodeScalars.starts(with: prefix.unicodeScalars),
+                  lastStyled.text.unicodeScalars.reversed().starts(with: suffix.unicodeScalars.reversed()),
+                  first != last || prefix.unicodeScalars.count + suffix.unicodeScalars.count <= firstStyled.text.unicodeScalars.count else { throw Failure.staleRevision }
+            let leading = try firstStyled.split(at: prefix.unicodeScalars.count).0
+            let trailing = try lastStyled.split(at: lastStyled.text.unicodeScalars.count - suffix.unicodeScalars.count).1
+            let insertion = try StyledText(text: replacement, runs: replacement.isEmpty ? [] : [.init(start: 0, length: replacement.unicodeScalars.count, style: insertionStyle(firstStyled, at: prefix.unicodeScalars.count))])
+            var value = try leading.appending(insertion)
+            if splitType == nil { value = try value.appending(trailing) }
+            var candidate = self
+            for id in paragraphs[(first + 1)..<(last + 1)].map(\.id) { try candidate.delete(elementID: id, expectedRevision: candidate.revision) }
+            var document = candidate.session.document
+            try candidate.writeStyled(value, id: startID, into: &document)
+            try candidate.commit(document)
+            var selected = startID
+            if let splitType {
+                selected = try candidate.insert(after: startID, expectedRevision: candidate.revision, type: splitType, text: trailing.text)
+                document = candidate.session.document
+                try candidate.writeStyled(trailing, id: selected, into: &document)
+                try candidate.commit(document)
+            }
+            try commit(candidate.session.document, historyGroup: historyGroup)
+            return selected
+        }
         if first == last && splitType == nil {
             try replaceText(elementID: startID, expectedRevision: expectedRevision,
                             expectedText: text(for: startID), replacement: prefix + replacement + suffix, historyGroup: historyGroup)
@@ -186,11 +278,11 @@ public struct PackageTextSession {
         return selected
     }
 
-    private mutating func commit(_ candidate: PreservedJSON) throws {
+    private mutating func commit(_ candidate: PreservedJSON, historyGroup: UUID? = nil) throws {
         guard candidate.data != screenplayBytes else { return }
         var files = originalFiles; files["screenplay.json"] = candidate.data
         let validated = try Self(files: files)
-        session.commit(candidate); revision = UUID()
+        session.commit(candidate, historyGroup: historyGroup); revision = UUID()
         paragraphs = validated.paragraphs; indexes = validated.indexes
     }
 

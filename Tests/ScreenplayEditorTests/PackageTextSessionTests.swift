@@ -63,13 +63,13 @@ struct PackageTextSessionTests {
         }
         var session = try PackageTextSession(files: fixture())
         let before = session.screenplayBytes, revision = session.revision
-        #expect(throws: PreservedJSON.Failure.self) {
+        #expect(throws: PackageTextSession.Failure.self) {
             try session.replaceText(elementID: first, expectedRevision: revision, expectedText: "stale", replacement: "wrong")
         }
         #expect(session.screenplayBytes == before && session.revision == revision && !session.canUndo)
     }
     @Test func blocksRichElementsUnknownTypesAndDuplicateIDs() throws {
-        for field in ["runs", "scene", "revision", "page_locks", "future"] {
+        for field in ["scene", "revision", "page_locks", "future"] {
             var files = try fixture()
             var root = try JSONSerialization.jsonObject(with: files["screenplay.json"]!) as! [String: Any]
             var elements = root["elements"] as! [[String: Any]]

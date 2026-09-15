@@ -1,6 +1,6 @@
 # Formatting architecture: foundation
 
-Status: implemented domain foundation; package integration and formatting controls are not enabled.
+Status: domain foundation and package inline-formatting pipeline implemented. Formatting controls and document typography mutation remain pending.
 
 ## Ownership
 
@@ -16,16 +16,25 @@ Interactive range conversion validates both UTF-16 and Unicode-scalar offsets an
 
 StyledTextHistory is a paragraph command harness backed by the existing PreservedJSONSession byte-history kernel. It validates expected revisions, commits candidate state only after successful commands, and restores text/runs together. It is not a second live UI undo stack. Integration must submit the entire text/run/paragraph-identity change to PackageTextSession's existing document transaction, including multi-paragraph edits and find/replace.
 
-## Gates before controls
+## Package integration
 
-1. Extend the preserving package projection for recognized runs and settings.json, retaining all original bytes outside the explicit change. Unknown semantics still block editing.
-2. Update every creative command: replacement, paste, cut, split, join, deletion, paragraph type changes, find/replace and cross-paragraph edits. Preserve UUIDs and use one document-wide undo transaction. No string-only command may silently drop runs.
-3. Feed the same resolved inline styles and document typography into native attributed text and PDF layout. Resolve fonts at the adapter boundary, disclose substitution, distinguish display zoom from document size, and remeasure pagination.
-4. Expand save snapshots, staging, conflict checks, retained generations and recovery to include settings and runs. Test Save, Save As, repeated save, restart, interruption and external changes with styled fixtures.
-5. Only then expose a Format control and shortcuts. FDX/Fountain interchange needs explicit preservation/loss tests before rich round-trip claims.
+The conservative package editor accepts recognized inline runs and an optional settings.json containing only formatting. Unsupported companions, unknown keys, malformed runs, duplicate JSON keys and unsupported paper sizes still reject editing. US Letter is the only enabled paper size. Existing files are not migrated.
 
-No package support guard was relaxed in this change. Current application saves, migration behavior and export remain unchanged. This foundation is not full rich-text editing, completed draft-format conformance, or a finished typography pipeline.
+PackageTextSession submits text and run changes together to its existing document history. Replacement, find/replace, split and cross-paragraph edits preserve surviving emphasis and paragraph identity; undo restores exact prior screenplay bytes. New text inherits the resolved style immediately to its left, or the first scalar's style at paragraph start. Empty paragraphs use plain text. A future explicit insertion-style state will override this policy when formatting controls exist.
+
+Font family and point size are read from document settings; absence uses Courier 12. The same native font/style adapter feeds attributed editor text and measured PDF layout. Editor display uses a 14/12 scale independently of document point size. Missing font names show a substitution notice and use Courier without changing saved settings. Font variant availability and script-specific glyph fallback still depend on AppKit. Semantic paragraph types control layout; headings no longer receive implicit bold in the package editor.
+
+Save snapshots, staged writes, conflict checks, retained generations and recovery include settings.json. Untouched settings bytes remain exact. Inline formatting modifies screenplay.json and participates in the existing dirty-state and undo tracking.
+
+## Remaining gates before controls
+
+1. Add document-level typography mutation to the same undo, dirty-state, save and recovery transaction. Reading/preserving/rendering settings is implemented; changing font family or size through the app is not.
+2. Route selection formatting and explicit insertion-style state through the editor, then add Format controls and shortcuts.
+3. Test unavailable font variants and broader typography/pagination combinations before claiming arbitrary-font fidelity. A4 remains disabled.
+4. FDX/Fountain interchange requires explicit preservation/loss tests before rich round-trip claims. Legacy JSON editing has not been migrated to this package pipeline.
+
+This implementation is not full draft-format conformance.
 
 ## Verification
 
-Domain tests cover overlap resolution, explicit false, exact Unicode serialization, grapheme/UTF-16 conversion, overflow rejection, run movement across replacement, split/join, clear emphasis, stale and failed transactions, undo/redo, malformed and unknown styles, document typography serialization, and canonically equivalent text preservation. The full suite passed 142 Swift tests, 37 Python tests and 14 self-tests: 193 checks. No UI changed, so no new native interaction test was required for this isolated domain foundation.
+Domain coverage includes Unicode scalar spelling, grapheme boundaries, overlapping runs and explicit false, invalid ranges, and atomic history. Package integration coverage adds styled replacement, find/replace, split/join, exact undo, save/reopen, Save As, retained generations, recovery, external settings conflicts, interrupted settings writes, shared native/PDF rendering, fallback-font disclosure, and unsupported-content rejection.

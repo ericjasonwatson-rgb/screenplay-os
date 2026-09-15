@@ -13,7 +13,7 @@ enum PackagePrintLayout {
     static func make(_ session: PackageTextSession) throws -> Result {
         let projection = PackageWritingProjection(session)
         let attributed = NSMutableAttributedString(string: projection.text)
-        let font = NSFont(name: "Courier", size: 12) ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        let font = PackageTypography.font(session.typography)
         for entry in projection.entries {
             let style = NSMutableParagraphStyle()
             style.minimumLineHeight = 14
@@ -27,6 +27,9 @@ enum PackagePrintLayout {
             }
             let range = NSRange(location: entry.range.location, length: entry.range.length + (NSMaxRange(entry.range) < attributed.length ? 1 : 0))
             attributed.addAttributes([.font: font, .foregroundColor: NSColor.black, .paragraphStyle: style], range: range)
+        }
+        for entry in projection.entries {
+            PackageTypography.apply(try session.styledText(for: entry.id), settings: session.typography, to: attributed, offset: entry.range.location)
         }
         let storage = NSTextStorage(attributedString: attributed)
         let layout = NSLayoutManager()
