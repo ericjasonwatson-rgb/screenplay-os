@@ -93,7 +93,7 @@ struct PackageFormattingTests {
         let range = (text.string as NSString).range(of: "first")
         editor.changeTypography(size: 24); refresh()
         let resized = try #require(text.textStorage?.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont)
-        #expect(abs(resized.pointSize - 28) < 0.01)
+        #expect(abs(resized.pointSize - 24) < 0.01)
         editor.undo(); refresh()
         #expect(editor.session.typography.fontSize == 16)
         let original = editor.session.screenplayBytes
@@ -101,7 +101,7 @@ struct PackageFormattingTests {
         text.insertText("X", replacementRange: text.selectedRange()); refresh()
         #expect(try editor.session.text(for: id) == "fiXrst")
         let font = try #require(text.textStorage?.attribute(.font, at: range.location + 2, effectiveRange: nil) as? NSFont)
-        #expect(abs(font.pointSize - 16 * 14.0 / 12.0) < 0.01)
+        #expect(abs(font.pointSize - 16) < 0.01)
         #expect(NSFontManager.shared.traits(of: font).contains(.boldFontMask))
         #expect(text.textStorage?.attribute(.underlineStyle, at: range.location + 2, effectiveRange: nil) as? Int == 1)
         editor.undo(); refresh()

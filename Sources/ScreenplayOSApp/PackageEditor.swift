@@ -541,7 +541,7 @@ struct PackageEditorView: View {
             if editor.rows.isEmpty {
                 Text("This screenplay has no paragraphs. Add a paragraph to begin.").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScriptPageWell { PackageParagraphTextView(editor: editor) }
+                ScriptPageWell(width: PackagePageGeometry.width) { PackageParagraphTextView(editor: editor) }
             }
             VStack(alignment: .leading, spacing: 4) {
                 if !editor.characterSuggestions.isEmpty {

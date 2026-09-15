@@ -42,6 +42,12 @@ struct PackageWritingProjection {
 
 /// Clipboard commands and focus changes end a typing group even for one character.
 final class PackageWritingNativeTextView: NSTextView {
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(NSSize(width: PackagePageGeometry.width, height: max(PackagePageGeometry.height, newSize.height)))
+    }
+    override var textContainerOrigin: NSPoint {
+        NSPoint(x: PackagePageGeometry.left, y: PackagePageGeometry.top)
+    }
     var historyBoundary: (() -> Void)?
     var formattingShortcut: ((String) -> Void)?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -80,7 +86,18 @@ struct PackageParagraphTextView: NSViewRepresentable {
         text.isAutomaticQuoteSubstitutionEnabled = false
         text.isAutomaticDashSubstitutionEnabled = false
         text.allowsUndo = false
-        text.textContainerInset = NSSize(width: 48, height: 48)
+        scroll.hasHorizontalScroller = true
+        scroll.hasVerticalScroller = true
+        text.isHorizontallyResizable = false
+        text.isVerticallyResizable = true
+        text.autoresizingMask = []
+        text.minSize = NSSize(width: PackagePageGeometry.width, height: PackagePageGeometry.height)
+        text.maxSize = NSSize(width: PackagePageGeometry.width, height: CGFloat.greatestFiniteMagnitude)
+        text.setFrameSize(text.minSize)
+        text.textContainerInset = NSSize(width: (PackagePageGeometry.left + PackagePageGeometry.right) / 2, height: PackagePageGeometry.top)
+        text.textContainer?.widthTracksTextView = false
+        text.textContainer?.containerSize = NSSize(width: PackagePageGeometry.textWidth, height: CGFloat.greatestFiniteMagnitude)
+        text.textContainer?.lineFragmentPadding = 0
         text.setAccessibilityLabel("Screenplay text")
         text.delegate = context.coordinator
         return scroll
@@ -107,15 +124,8 @@ struct PackageParagraphTextView: NSViewRepresentable {
         init(_ editor: PackageEditor) { self.editor = editor; projection = PackageWritingProjection(editor.session) }
 
         static func attributes(for type: String, dark: Bool = false, settings: DocumentTypography? = nil) -> [NSAttributedString.Key: Any] {
-            let style = NSMutableParagraphStyle(); style.paragraphSpacing = 14
-            switch type {
-            case "character": style.firstLineHeadIndent = 190; style.headIndent = 190
-            case "dialogue": style.firstLineHeadIndent = 95; style.headIndent = 95; style.tailIndent = -70
-            case "parenthetical": style.firstLineHeadIndent = 135; style.headIndent = 135; style.tailIndent = -95
-            case "transition": style.alignment = .right
-            default: break
-            }
-            let font = PackageTypography.font(settings ?? (try! DocumentTypography()), displayScale: 14.0 / 12.0)
+            let style = PackagePageGeometry.paragraphStyle(for: type)
+            let font = PackageTypography.font(settings ?? (try! DocumentTypography()), displayScale: 1)
             return [.font: font, .foregroundColor: StudioAppearance.ink(dark), .paragraphStyle: style]
         }
         func render(_ text: NSTextView, caret: Int? = nil) {
@@ -133,7 +143,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
             if changed {
                 projection = PackageWritingProjection(editor.session)
                 let content = NSMutableAttributedString(string: projection.text)
-                let font = (NSFont(name: "Courier", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular))
+                let font = (NSFont(name: "Courier", size: 12) ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular))
                 content.addAttributes([.font: font, .foregroundColor: StudioAppearance.ink(dark)], range: NSRange(location: 0, length: content.length))
                 for entry in projection.entries {
                     let attributes = Self.attributes(for: entry.type, dark: editor.darkPageMode, settings: editor.session.typography)
@@ -144,7 +154,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
                 }
                 for entry in projection.entries {
                     if let styled = try? editor.session.styledText(for: entry.id) {
-                        PackageTypography.apply(styled, settings: editor.session.typography, to: content, offset: entry.range.location, displayScale: 14.0 / 12.0)
+                        PackageTypography.apply(styled, settings: editor.session.typography, to: content, offset: entry.range.location, displayScale: 1)
                     }
                 }
                 text.textStorage?.setAttributedString(content)
@@ -214,7 +224,7 @@ struct PackageParagraphTextView: NSViewRepresentable {
                     if let storage = text.textStorage, let styled = try? editor.session.styledText(for: updated.id) {
                         storage.removeAttribute(.underlineStyle, range: NSRange(location: updated.range.location, length: length))
                         storage.removeAttribute(.strikethroughStyle, range: NSRange(location: updated.range.location, length: length))
-                        PackageTypography.apply(styled, settings: editor.session.typography, to: storage, offset: updated.range.location, displayScale: 14.0 / 12.0)
+                        PackageTypography.apply(styled, settings: editor.session.typography, to: storage, offset: updated.range.location, displayScale: 1)
                     }
                     rendering = false
                     renderedRevision = editor.session.revision
