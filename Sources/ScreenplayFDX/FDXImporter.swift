@@ -3,9 +3,12 @@ import ScreenplayDomain
 
 public enum FDXImportError: Error, LocalizedError {
     case unreadableXML
+    case notScreenplay
 
     public var errorDescription: String? {
         switch self {
+        case .notScreenplay:
+            return "This file is not a Final Draft screenplay with a script Content section."
         case .unreadableXML:
             return "The FDX file could not be parsed as XML."
         }
@@ -31,6 +34,15 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
     private var activeParagraphDepth: Int?
     private var activeTextDepth: Int?
     private var parseError: Error?
+    private var titleParagraphs: [FDXParagraph] = []
+    private var paragraphIsTitle = false
+    private var textStyle = StyledText.Style()
+    private var validRoot = false
+    private var hasContent = false
+    private var importWarnings: Set<String> = []
+    private var settingType: String?
+    private var capsTypes: Set<String> = []
+    private var textAllCaps = false
 
     public func importFile(at url: URL, title: String? = nil, author: String = "") throws -> FDXImportResult {
         let data = try Data(contentsOf: url)
@@ -46,6 +58,13 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
         activeParagraphDepth = nil
         activeTextDepth = nil
         parseError = nil
+        titleParagraphs = []
+        validRoot = false
+        hasContent = false
+        importWarnings = []
+        capsTypes = []
+        settingType = nil
+        textAllCaps = false
 
         let parser = XMLParser(data: data)
         parser.delegate = self
@@ -54,17 +73,24 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
             throw parseError ?? FDXImportError.unreadableXML
         }
 
-        let importedParagraphs = paragraphs.filter {
-            $0.type == "Page Break" || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-
-        let elements = importedParagraphs.map { paragraph in
-            ScreenplayElement(
-                id: UUID(),
+        guard validRoot, hasContent else { throw FDXImportError.notScreenplay }
+        let importedParagraphs = paragraphs
+        var elements: [ScreenplayElement] = []
+        for paragraph in importedParagraphs {
+            if paragraph.startsNewPage, paragraph.type != "Page Break" {
+                elements.append(ScreenplayElement(type: .pageBreak, text: ""))
+            }
+            var element = ScreenplayElement(
                 type: ElementType(fdxParagraphType: paragraph.type),
-                text: paragraph.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                text: paragraph.text,
                 externalIDs: paragraph.id.map { ["fdx_paragraph_id": $0] } ?? [:]
             )
+            var styled = try StyledText(text: paragraph.text, runs: paragraph.runs)
+            if capsTypes.contains(paragraph.type) {
+                styled = try styled.replacingText(styled.text.uppercased())
+            }
+            element.setStyledText(styled)
+            elements.append(element)
         }
 
         let screenplay = Screenplay(
@@ -76,10 +102,20 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
             screenplayID: screenplay.id
         )
 
-        return FDXImportResult(
-            document: OpenScreenplayDocument(project: project, screenplay: screenplay),
-            warnings: warnings(for: importedParagraphs)
-        )
+        var document = OpenScreenplayDocument(project: project, screenplay: screenplay)
+        if elements.contains(where: { !($0.runs ?? []).isEmpty }) { document.formatVersion = "1.1" }
+        let titleLines = titleParagraphs.map(\.text).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if !titleLines.isEmpty {
+            // Preserve arbitrary title-page wording separately, without guessing author/contact roles.
+            document.titlePage = TitlePage(title: titleLines[0], subtitle: titleLines.dropFirst().joined(separator: "\n"))
+            importWarnings.insert("Title-page text was kept separately; its layout and author/contact fields need review in Title Page.")
+        }
+        if !capsTypes.isEmpty {
+            importWarnings.insert("Final Draft AllCaps element settings were applied to imported text.")
+        }
+        importWarnings.insert("Import uses ScreenplayOS page layout and fonts. Final Draft pagination, production metadata, and custom title-page layout are not reproduced.")
+        return FDXImportResult(document: document,
+            warnings: warnings(for: importedParagraphs) + importWarnings.sorted())
     }
 
     public func parser(
@@ -89,23 +125,37 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes attributeDict: [String: String] = [:]
     ) {
-        let parentElement = elementStack.last
         elementStack.append(elementName)
-
-        switch elementName {
-        case "Paragraph" where parentElement == "Content":
-            currentParagraph = FDXParagraph(
-                type: attributeDict["Type"] ?? "General",
-                id: attributeDict["id"],
-                text: ""
-            )
+        if elementStack.count == 1 {
+            validRoot = elementName == "FinalDraft" && (attributeDict["DocumentType"] ?? "Script") == "Script"
+        }
+        if elementStack == ["FinalDraft", "Content"] { hasContent = true }
+        if elementStack == ["FinalDraft", "ElementSettings"] { settingType = attributeDict["Type"] }
+        if elementStack == ["FinalDraft", "ElementSettings", "FontSpec"],
+           (attributeDict["Style"] ?? "").split(separator: "+").contains("AllCaps"), let settingType {
+            capsTypes.insert(settingType)
+        }
+        let scriptParagraph = elementStack == ["FinalDraft", "Content", "Paragraph"]
+        let titleParagraph = elementStack == ["FinalDraft", "TitlePage", "Content", "Paragraph"]
+        if scriptParagraph || titleParagraph {
+            paragraphIsTitle = titleParagraph
+            currentParagraph = FDXParagraph(type: attributeDict["Type"] ?? "General",
+                id: attributeDict["id"], text: "", startsNewPage: attributeDict["StartsNewPage"] == "Yes")
             activeParagraphDepth = elementStack.count
-        case "Text" where activeParagraphDepth != nil:
+        } else if elementName == "Text", let depth = activeParagraphDepth, elementStack.count == depth + 1 {
             insideText = true
             activeTextDepth = elementStack.count
             currentText = ""
-        default:
-            break
+            let styles = Set((attributeDict["Style"] ?? "").split(separator: "+").map(String.init))
+            textAllCaps = styles.contains("AllCaps")
+            textStyle = StyledText.Style(bold: styles.contains("Bold") ? true : nil,
+                italic: styles.contains("Italic") ? true : nil,
+                underline: styles.contains("Underline") ? true : nil,
+                strikethrough: styles.contains("Strikeout") ? true : nil)
+            let unsupported = styles.subtracting(["Bold", "Italic", "Underline", "Strikeout", "Normal", "AllCaps"])
+            if !paragraphIsTitle, !unsupported.isEmpty {
+                importWarnings.insert("Unsupported text styles: " + unsupported.sorted().joined(separator: ", ") + ". Text was retained.")
+            }
         }
     }
 
@@ -123,13 +173,19 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
     ) {
         switch elementName {
         case "Text" where activeTextDepth == elementStack.count:
+            if textAllCaps { currentText = currentText.uppercased() }
+            if textStyle != StyledText.Style(), !currentText.isEmpty {
+                let start = currentParagraph?.text.unicodeScalars.count ?? 0
+                currentParagraph?.runs.append(StyledText.Run(start: start,
+                    length: currentText.unicodeScalars.count, style: textStyle))
+            }
             currentParagraph?.text += currentText
             insideText = false
             activeTextDepth = nil
             currentText = ""
         case "Paragraph" where activeParagraphDepth == elementStack.count:
             if let paragraph = currentParagraph {
-                paragraphs.append(paragraph)
+                if paragraphIsTitle { titleParagraphs.append(paragraph) } else { paragraphs.append(paragraph) }
             }
             currentParagraph = nil
             activeParagraphDepth = nil
@@ -158,6 +214,8 @@ private struct FDXParagraph: Equatable {
     var type: String
     var id: String?
     var text: String
+    var startsNewPage: Bool = false
+    var runs: [StyledText.Run] = []
 }
 
 private extension ElementType {

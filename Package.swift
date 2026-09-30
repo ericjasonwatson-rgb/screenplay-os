@@ -15,7 +15,7 @@ let package = Package(
     targets: [
         .testTarget(
             name: "ScreenplayEditorTests",
-            dependencies: ["ScreenplayOSApp", "ScreenplayDomain"]
+            dependencies: ["ScreenplayOSApp", "ScreenplayDomain", "ScreenplayFDX"]
         ),
         .target(name: "ScreenplayDomain"),
         .target(

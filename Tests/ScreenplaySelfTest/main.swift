@@ -497,7 +497,7 @@ func testImportsDefendersFixture() throws {
     let sceneIDs = scenes.compactMap(\.spineID)
     let editorialBeats = result.document.editorialSpine.sequences.flatMap(\.beats)
 
-    try expect(elements.count == 352, "Defenders import element count changed.")
+    try expect(elements.count == 353, "Defenders import element count changed.")
     try expect(scenes.count == 21, "Defenders import scene count changed.")
     try expect(sceneIDs.count == scenes.count, "Defenders scenes are missing spine IDs.")
     try expect(Set(sceneIDs).count == scenes.count, "Defenders scene spine IDs are not unique.")
