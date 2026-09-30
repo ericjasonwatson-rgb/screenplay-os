@@ -12,10 +12,7 @@ private enum WorkspacePaneLayout {
     static let visualWorkbenchMinWidth: CGFloat = 420
     static let visualWorkbenchIdealWidth: CGFloat = 540
     static let visualWorkbenchMaxWidth: CGFloat = 720
-    static let editWorkbenchMinWidth: CGFloat = 620
-    static let storySpineMinWidth: CGFloat = 280
-    static let storySpineIdealWidth: CGFloat = 320
-    static let storySpineMaxWidth: CGFloat = 400
+    static let editWorkbenchMinWidth: CGFloat = 360
 }
 
 struct ContentView: View {
@@ -1540,7 +1537,7 @@ private struct EditorWorkspaceView: View {
 
     private var minimumWorkspaceWidth: CGFloat {
         switch model.workflowMode {
-        case .edit: return 1140
+        case .edit: return 660
         case .boards: return 940
         default: return 880
         }
@@ -2233,18 +2230,19 @@ private struct EditWorkspaceView: View {
     @ObservedObject var model: ScreenplayViewModel
 
     var body: some View {
-        HSplitView {
-            ScriptPreviewPane(model: model, title: "Scene Script")
-                .frame(
-                    minWidth: WorkspacePaneLayout.scriptContextMinWidth,
-                    idealWidth: WorkspacePaneLayout.scriptContextIdealWidth,
-                    maxWidth: WorkspacePaneLayout.scriptContextMaxWidth
-                )
+        VSplitView {
+            HSplitView {
+                ScriptPreviewPane(model: model, title: "Scene Script")
+                    .frame(minWidth: 260, idealWidth: 320, maxWidth: 440)
+                EditWorkbenchPane(model: model)
+                    .frame(minWidth: WorkspacePaneLayout.editWorkbenchMinWidth)
+            }
+            .frame(minHeight: 240)
 
-            EditWorkbenchPane(model: model)
-                .frame(minWidth: WorkspacePaneLayout.editWorkbenchMinWidth)
+            LinearEditSpineView(model: model)
+                .frame(minHeight: 200, idealHeight: 240, maxHeight: 360)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(ScreenplayOSTokens.Palette.appBackground)
     }
 }
 
@@ -2252,140 +2250,33 @@ private struct EditWorkbenchPane: View {
     @ObservedObject var model: ScreenplayViewModel
 
     var body: some View {
-        HSplitView {
-            VStack(spacing: 0) {
-                WorkspaceHeader(
-                    title: "Edit",
-                    subtitle: "Viewer and timeline for the visible scene.",
-                    focus: "TIME",
-                    trailing: model.editTimelineDurationText
-                )
-                .padding(16)
-
-                BoardomaticBar(model: model)
-
-                ZStack {
-                    Rectangle()
-                        .fill(Color.black.opacity(0.82))
-                    VStack(spacing: 12) {
-                        Image(systemName: "play.rectangle")
-                            .font(.system(size: 42))
-                            .foregroundStyle(.secondary)
-                        Text(model.activeBoardFrame?.label ?? model.selectedSceneBreakdown?.heading ?? "No timeline clip selected")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.9))
-                            .multilineTextAlignment(.center)
-                        if let frame = model.activeBoardFrame {
-                            Text(String(format: "%.1fs", frame.durationSeconds))
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.white.opacity(0.58))
-                        }
-                    }
-                }
-                .aspectRatio(16.0 / 9.0, contentMode: .fit)
-                .padding(.horizontal, 16)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Edit Spine Timeline")
-                        .font(.system(size: 13, weight: .semibold))
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 4) {
-                            ForEach(model.editClipsForSelectedScene) { clip in
-                                Button {
-                                    if let boardFrameID = clip.boardFrameID,
-                                       let frame = model.boardFrames.first(where: { $0.id == boardFrameID }) {
-                                        model.selectBoardFrame(frame)
-                                    }
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(clip.label)
-                                            .font(.caption)
-                                            .lineLimit(1)
-                                        Text(String(format: "%.1fs  %@", clip.timelineDurationSeconds, clip.sourceKind.displayName))
-                                            .font(.caption2.monospacedDigit())
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(width: max(80, min(220, clip.timelineDurationSeconds * 28)), height: 54, alignment: .leading)
-                                    .padding(.horizontal, 8)
-                                    .background(model.activeBoardFrame?.id == clip.boardFrameID ? Color.accentColor.opacity(0.22) : ScreenplayOSTokens.Palette.panelBackground)
-                                    .overlay(
-                                        Rectangle()
-                                            .stroke(model.activeBoardFrame?.id == clip.boardFrameID ? Color.accentColor : ScreenplayOSTokens.Palette.separator, lineWidth: ScreenplayOSTokens.Spacing.hairline)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-                .padding(16)
-
-                Spacer()
-            }
-
-            StorySpinePane(model: model)
-                .frame(
-                    minWidth: WorkspacePaneLayout.storySpineMinWidth,
-                    idealWidth: WorkspacePaneLayout.storySpineIdealWidth,
-                    maxWidth: WorkspacePaneLayout.storySpineMaxWidth
-                )
-        }
-        .background(ScreenplayOSTokens.Palette.appBackground)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(ScreenplayOSTokens.Palette.separator)
-                .frame(width: ScreenplayOSTokens.Spacing.hairline)
-        }
-    }
-}
-
-private struct StorySpinePane: View {
-    @ObservedObject var model: ScreenplayViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Label("Story Spine", systemImage: "list.bullet.indent")
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer()
-            }
-            .padding(12)
-            Divider()
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(model.editorialBeats) { beat in
-                        Button {
-                            model.selectEditorialBeat(beat)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text("\(beat.sceneSpineID) \(beat.title)")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .lineLimit(2)
-                                Text("\(beat.shotIDs.count) shots | \(beat.boardFrameIDs.count) boards | \(beat.editClips.count) clips | \(String(format: "%.1fs", beat.editDurationSeconds))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 7)
-                            .overlay(alignment: .bottom) {
-                                Rectangle()
-                                    .fill(ScreenplayOSTokens.Palette.separator)
-                                    .frame(height: ScreenplayOSTokens.Spacing.hairline)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+        VStack(spacing: 0) {
+            WorkspaceHeader(title: "Edit", subtitle: "Selected scene", focus: "TIME",
+                            trailing: model.editTimelineDurationText)
                 .padding(12)
+            BoardomaticBar(model: model)
+            ZStack {
+                Rectangle().fill(Color.black.opacity(0.82))
+                VStack(spacing: 12) {
+                    Image(systemName: "play.rectangle")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.secondary)
+                    Text(model.activeBoardFrame?.label ?? model.selectedSceneBreakdown?.heading ?? "Select a scene below")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                    if let frame = model.activeBoardFrame {
+                        Text(String(format: "%.1fs", frame.durationSeconds))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.58))
+                    }
+                }
+                .padding(16)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(12)
         }
         .background(ScreenplayOSTokens.Palette.appBackground)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(ScreenplayOSTokens.Palette.separator)
-                .frame(width: ScreenplayOSTokens.Spacing.hairline)
-        }
     }
 }
 
