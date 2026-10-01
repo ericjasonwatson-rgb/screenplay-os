@@ -13,6 +13,11 @@ final class ScreenplayViewModel: ObservableObject {
             // Includes nested edits, production-context changes, Undo/Redo and Open.
             // Selection and workspace changes can reuse the same derived summaries.
             sceneBreakdownCache = nil
+            if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.outline.first?.template != document?.outline.first?.template,
+               let name = document?.outline.first?.template,
+               let kind = OutlineTemplateKind.allCases.first(where: { $0.displayName == name }) {
+                selectedOutlineTemplate = kind
+            }
             editIsPlaying = false
             editPlayheadSeconds = 0
         }

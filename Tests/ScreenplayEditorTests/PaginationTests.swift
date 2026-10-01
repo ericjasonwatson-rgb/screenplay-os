@@ -119,6 +119,7 @@ struct PaginationTests {
             #expect(model.elements == source)
             model.undo()
             #expect(model.outlineBeats == savedBeats)
+            #expect(model.selectedOutlineTemplate == .saveTheCat)
             let url = try #require(model.saveURL)
             model.loadOpenScreenplay(at: url)
             #expect(model.outlineBeats == savedBeats)
