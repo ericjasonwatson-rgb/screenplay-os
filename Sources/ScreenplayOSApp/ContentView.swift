@@ -2240,7 +2240,7 @@ private struct EditWorkspaceView: View {
             .frame(minHeight: 240)
 
             LinearEditSpineView(model: model)
-                .frame(minHeight: 200, idealHeight: 240, maxHeight: 360)
+                .frame(minHeight: 260, idealHeight: 300, maxHeight: 420)
         }
         .background(ScreenplayOSTokens.Palette.appBackground)
     }
@@ -2254,7 +2254,7 @@ private struct EditWorkbenchPane: View {
             WorkspaceHeader(title: "Edit", subtitle: "Selected scene", focus: "TIME",
                             trailing: model.editTimelineDurationText)
                 .padding(12)
-            BoardomaticBar(model: model)
+            EditPlaybackBar(model: model)
             ZStack {
                 Rectangle().fill(Color.black.opacity(0.82))
                 VStack(spacing: 12) {

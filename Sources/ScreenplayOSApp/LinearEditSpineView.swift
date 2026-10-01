@@ -13,7 +13,7 @@ struct LinearEditSpineView: View {
             HStack(spacing: 12) {
                 Label("Edit Spine", systemImage: "film")
                     .font(.system(size: 13, weight: .semibold))
-                Text("Scene order · \(model.editorialBeats.count) scenes")
+                Text("Edit order · \(model.editorialBeats.count) scenes")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Text("Zoom").font(.caption)
@@ -25,6 +25,7 @@ struct LinearEditSpineView: View {
             }
             .padding(12)
             Divider()
+            EditTimeLane(model: model, zoom: zoom)
             if model.editorialBeats.isEmpty {
                 Text("Your screenplay scenes will appear here from left to right.")
                     .foregroundStyle(.secondary).padding(20)
@@ -58,7 +59,12 @@ struct LinearEditSpineView: View {
             Text(beat.sceneSpineID)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(selected ? Color.accentColor : .secondary)
-            Button { model.selectEditorialBeat(beat) } label: {
+            Button {
+                model.pauseEditPlayback()
+                if let first = model.timedEditClips.first(where: { $0.clip.sceneSpineID == beat.sceneSpineID }) {
+                    model.seekEdit(to: first.start)
+                } else { model.selectEditorialBeat(beat) }
+            } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(beat.title).font(.system(size: 12, weight: .semibold)).lineLimit(2)
                     Spacer(minLength: 0)
@@ -73,6 +79,10 @@ struct LinearEditSpineView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                Button("Move Earlier in Edit") { model.moveEditorialBeat(beat.id, direction: -1) }
+                Button("Move Later in Edit") { model.moveEditorialBeat(beat.id, direction: 1) }
+            }
             .accessibilityLabel("\(beat.sceneSpineID), \(beat.title)")
             .accessibilityAddTraits(selected ? .isSelected : [])
             if !beat.editClips.isEmpty {
@@ -80,10 +90,8 @@ struct LinearEditSpineView: View {
                     HStack(spacing: 2) {
                         ForEach(beat.editClips.sorted { $0.timelineStartSeconds < $1.timelineStartSeconds }) { clip in
                             Button {
-                                model.selectEditorialBeat(beat)
-                                if let boardID = clip.boardFrameID,
-                                   let frame = model.boardFrames.first(where: { $0.id == boardID }) {
-                                    model.selectBoardFrame(frame)
+                                if let entry = model.timedEditClips.first(where: { $0.id == clip.id }) {
+                                    model.seekEdit(to: entry.start)
                                 }
                             } label: {
                                 Text(clip.label).font(.caption2).lineLimit(1)

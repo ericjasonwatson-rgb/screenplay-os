@@ -73,7 +73,7 @@ public struct OpenScreenplayDocument: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         format = try container.decode(String.self, forKey: .format)
         formatVersion = try container.decode(String.self, forKey: .formatVersion)
-        guard format == "open-screenplay", ["1.0", "1.1"].contains(formatVersion) else {
+        guard format == "open-screenplay", ["1.0", "1.1", "1.2"].contains(formatVersion) else {
             throw DecodingError.dataCorruptedError(forKey: .formatVersion, in: container, debugDescription: "Unsupported legacy screenplay version")
         }
         project = try container.decode(Project.self, forKey: .project)
@@ -132,7 +132,7 @@ public struct OpenScreenplayDocument: Codable, Equatable {
     }
 
     public mutating func ensureEditorialSpine() {
-        editorialSpine.ensureSceneBeats(for: screenplay.elements)
+        editorialSpine.ensureSceneBeats(for: screenplay.elements, preserveOrder: formatVersion == "1.2")
         editorialSpine.syncEditReferences(shots: shots, boardFrames: boardFrames)
     }
 }
@@ -923,7 +923,7 @@ public struct EditorialSpine: Codable, Equatable {
         self.sequences = sequences
     }
 
-    public mutating func ensureSceneBeats(for elements: [ScreenplayElement]) {
+    public mutating func ensureSceneBeats(for elements: [ScreenplayElement], preserveOrder: Bool = false) {
         let scenes = elements.filter { $0.type == .sceneHeading }
         guard !scenes.isEmpty else {
             sequences = sequences.map { sequence in
@@ -971,8 +971,12 @@ public struct EditorialSpine: Codable, Equatable {
             scene.spineID.map { ($0, index) }
         })
         for sequenceIndex in sequences.indices {
-            sequences[sequenceIndex].beats.sort {
-                (sceneOrderByID[$0.sceneSpineID] ?? Int.max) < (sceneOrderByID[$1.sceneSpineID] ?? Int.max)
+            if preserveOrder {
+                sequences[sequenceIndex].beats.sort { $0.order < $1.order }
+            } else {
+                sequences[sequenceIndex].beats.sort {
+                    (sceneOrderByID[$0.sceneSpineID] ?? Int.max) < (sceneOrderByID[$1.sceneSpineID] ?? Int.max)
+                }
             }
             for beatIndex in sequences[sequenceIndex].beats.indices {
                 sequences[sequenceIndex].beats[beatIndex].order = beatIndex + 1

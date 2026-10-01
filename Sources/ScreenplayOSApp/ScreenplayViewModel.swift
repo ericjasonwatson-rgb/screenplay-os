@@ -13,6 +13,8 @@ final class ScreenplayViewModel: ObservableObject {
             // Includes nested edits, production-context changes, Undo/Redo and Open.
             // Selection and workspace changes can reuse the same derived summaries.
             sceneBreakdownCache = nil
+            editIsPlaying = false
+            editPlayheadSeconds = 0
         }
     }
     private var sceneBreakdownCache: [SceneBreakdown]?
@@ -83,6 +85,8 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var selectedOutlineTemplate: OutlineTemplateKind = .heroJourney
     @Published var snapshotName = ""
     @Published var draftScriptNote = ""
+    @Published var editIsPlaying = false
+    @Published var editPlayheadSeconds = 0.0
     @Published private(set) var boardomaticIsPlaying = false
     @Published private(set) var boardomaticPlayheadSeconds = 0.0
     @Published private(set) var contextAssistantJobs: [ContextAssistantJob] = []
@@ -587,9 +591,8 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     var editorialBeats: [EditorialBeat] {
-        (document?.editorialSpine.sequences ?? [])
-            .flatMap(\.beats)
-            .sorted { $0.order < $1.order }
+        (document?.editorialSpine.sequences ?? []).sorted { $0.order < $1.order }
+            .flatMap { $0.beats.sorted { $0.order < $1.order } }
     }
 
     var editClipsForSelectedScene: [EditClip] {
@@ -1243,12 +1246,12 @@ final class ScreenplayViewModel: ObservableObject {
     func showOpenPanel() {
         let panel = NSOpenPanel()
         let fdxType = UTType(filenameExtension: "fdx") ?? .xml
-        panel.allowedContentTypes = [fdxType, .json, .folder, .package]
+        panel.allowedContentTypes = [fdxType, .json, .folder, .package, .pdf, .plainText, UTType(filenameExtension: "docx")!]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.treatsFilePackagesAsDirectories = false
         panel.canChooseFiles = true
-        panel.title = "Open Screenplay or Final Draft FDX"
+        panel.title = "Open or Import Screenplay"
         panel.prompt = "Open"
 
         if panel.runModal() == .OK, let url = panel.url {
@@ -1324,9 +1327,14 @@ final class ScreenplayViewModel: ObservableObject {
         case "json":
             legacyWindow?.makeKeyAndOrderFront(nil)
             loadOpenScreenplay(at: url)
-        default:
+        case "pdf", "docx", "txt", "text", "fountain":
+            legacyWindow?.makeKeyAndOrderFront(nil)
+            reviewTextImport(at: url)
+        case "fdx":
             legacyWindow?.makeKeyAndOrderFront(nil)
             loadFDX(at: url)
+        default:
+            errorMessage = "Unsupported file type. Open a screenplay, FDX, DOCX, PDF, or text file."
         }
     }
 
@@ -1356,30 +1364,76 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func loadFDX(at url: URL) {
-        guard saveBeforeReplacingDocument() else { return }
         do {
             let result = try importer.importFile(at: url)
-            document = result.document
-            lastSavedDocument = nil
-            diskVersion = nil
-            saveProblem = nil
-            undoStack = []
-            redoStack = []
-            typingGroup = nil
-            caretRanges = [:]
-            legacyInsertionStyle = nil
-            documentCaret = nil
-            documentCaretToken = UUID()
-            caretRestoration = nil
-            sourceURL = url
-            saveURL = nil
-            snapshots = []
-            selectInitialElement()
-            recordRecentDocument(url)
-            errorMessage = result.warnings.isEmpty ? nil : result.warnings.joined(separator: "\n")
-        } catch {
-            errorMessage = error.localizedDescription
+            acceptImportedDocument(result.document, source: url, warnings: result.warnings)
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func acceptImportedDocument(_ imported: OpenScreenplayDocument, source url: URL, warnings: [String]) {
+        guard saveBeforeReplacingDocument() else { return }
+        document = imported
+        lastSavedDocument = nil
+        diskVersion = nil
+        saveProblem = nil
+        undoStack = []
+        redoStack = []
+        typingGroup = nil
+        caretRanges = [:]
+        legacyInsertionStyle = nil
+        documentCaret = nil
+        documentCaretToken = UUID()
+        caretRestoration = nil
+        sourceURL = url
+        saveURL = nil
+        snapshots = []
+        selectInitialElement()
+        recordRecentDocument(url)
+        errorMessage = warnings.isEmpty ? nil : warnings.joined(separator: "\n")
+    }
+
+    func reviewTextImport(at url: URL) {
+        do {
+            let extraction = try ScreenplayTextImport.extract(url)
+            let alert = NSAlert()
+            alert.messageText = "Review imported text"
+            alert.informativeText = extraction.notice + "\nKeep Paragraphs preserves text without guessing roles. Detect Structure guesses headings, cues, and dialogue; review those choices after import. The source file stays unchanged."
+            alert.addButton(withTitle: "Keep Paragraphs")
+            alert.addButton(withTitle: "Detect Structure")
+            alert.addButton(withTitle: "Cancel")
+            let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 620, height: 320))
+            let text = NSTextView(frame: scroll.bounds)
+            text.isEditable = false
+            text.string = extraction.text
+            text.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+            text.isVerticallyResizable = true
+            text.textContainer?.widthTracksTextView = true
+            scroll.hasVerticalScroller = true
+            scroll.documentView = text
+            alert.accessoryView = scroll
+            let response = alert.runModal()
+            guard response == .alertFirstButtonReturn || response == .alertSecondButtonReturn else { return }
+            let imported = ScreenplayTextImport.document(extraction, title: url.deletingPathExtension().lastPathComponent,
+                detectStructure: response == .alertSecondButtonReturn)
+            acceptImportedDocument(imported, source: url, warnings: [extraction.notice])
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func moveEditorialBeat(_ beatID: UUID, direction: Int) {
+        guard var updated = document, let path = editorialBeatIndexPath(for: beatID) else { return }
+        let destination = path.beat + direction
+        guard updated.editorialSpine.sequences[path.sequence].beats.indices.contains(destination) else { return }
+        rememberUndoState()
+        pauseEditPlayback()
+        updated.formatVersion = "1.2"
+        updated.editorialSpine.sequences[path.sequence].beats.swapAt(path.beat, destination)
+        for i in updated.editorialSpine.sequences[path.sequence].beats.indices {
+            updated.editorialSpine.sequences[path.sequence].beats[i].order = i + 1
         }
+        updated.ensureEditorialSpine()
+        document = updated
+        editPlayheadSeconds = 0
+        autosave()
     }
 
     func loadOpenScreenplay(at url: URL) {
@@ -3340,7 +3394,7 @@ final class ScreenplayViewModel: ObservableObject {
         }
         if document?.screenplay.elements[index].runs != nil {
             if document?.typography == nil { document?.typography = try? DocumentTypography() }
-            document?.formatVersion = "1.1"
+            if document?.formatVersion != "1.2" { document?.formatVersion = "1.1" }
         }
         assignSceneSpineIDIfNeeded(at: index)
         markRevisionIfNeeded(at: index)
@@ -5970,7 +6024,7 @@ extension ScreenplayViewModel {
         document?.screenplay.elements.replaceSubrange(start...end, with: changed)
         if changed.contains(where: { $0.runs != nil }) {
             if document?.typography == nil { document?.typography = try? DocumentTypography() }
-            document?.formatVersion = "1.1"
+            if document?.formatVersion != "1.2" { document?.formatVersion = "1.1" }
         }
         document?.ensureSceneSpineIDs()
         let retainedIDs = Set(changed.map(\.id))
@@ -6197,7 +6251,7 @@ extension ScreenplayViewModel {
             }
             guard changed else { return }
             rememberUndoState()
-            candidate.formatVersion = "1.1"
+            if candidate.formatVersion != "1.2" { candidate.formatVersion = "1.1" }
             candidate.typography = writingTypography
             candidate.screenplay.revision += 1; candidate.project.metadata.modifiedAt = Date()
             document = candidate; documentCaretToken = UUID(); autosave()
@@ -6208,7 +6262,7 @@ extension ScreenplayViewModel {
               let settings = try? DocumentTypography(fontFamily: font ?? writingTypography.fontFamily, fontSize: size ?? writingTypography.fontSize),
               candidate.typography != settings else { return }
         rememberUndoState()
-        candidate.formatVersion = "1.1"
+        if candidate.formatVersion != "1.2" { candidate.formatVersion = "1.1" }
         candidate.typography = settings
         candidate.screenplay.revision += 1; candidate.project.metadata.modifiedAt = Date()
         document = candidate; documentCaretToken = UUID(); autosave()
