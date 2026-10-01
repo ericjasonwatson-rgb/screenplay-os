@@ -16,10 +16,11 @@ struct WorkspaceNavigationBar: View {
                 ForEach(WorkflowMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
             }
             .frame(width: 180)
-            Picker("Workspace", selection: $model.sidebarMode) {
+            Picker("Workspace", selection: Binding(get: { model.sidebarMode }, set: { model.showSidebarMode($0); model.focusMode = false; model.navigationVisible = true })) {
                 ForEach(model.sidebarModesForCurrentWorkflow) { mode in Text(mode.rawValue).tag(mode) }
             }
             .frame(width: 240)
+            .help("Choose what appears in the document sidebar. Mode changes the main work surface.")
             Spacer(minLength: 0)
             PageZoomControl(percent: Binding(get: { Int((model.pageZoom * 100).rounded()) },
                 set: { model.pageZoom = Double($0) / 100 }),

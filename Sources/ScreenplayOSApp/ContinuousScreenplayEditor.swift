@@ -42,6 +42,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         var pending: (NSRange, String, NSRange)?
         var restorationToken: UUID?
         var selectedID: UUID?
+        var writingProjection = ScreenplayWritingProjection(elements: [])
         init(_ model: ScreenplayViewModel) { self.model = model }
 
         fileprivate func render(_ view: WritingTextView) {
@@ -49,10 +50,11 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             updating = true
             defer { updating = false }
             let scale = CGFloat(model.pageZoom)
-            let oldSelection = view.selectedRange()
-            let string = model.writingText
+            let oldSelection = writingProjection.sourceRange(view.selectedRange())
+            writingProjection = ScreenplayWritingProjection(elements: model.elements)
+            let string = writingProjection.text
             let attributed = NSMutableAttributedString(string: string)
-            let ranges = model.writingRanges
+            let ranges = writingProjection.ranges
             var activeAttributes: [NSAttributedString.Key: Any] = [:]
             for (index, element) in model.elements.enumerated() {
                 let style = ScreenplayBodyLayout.editorStyle(for: element.type, scale: scale)
@@ -68,7 +70,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 }
                 if range.length > 0 { attributed.addAttributes(attributes, range: range) }
                 if element.runs != nil {
-                    PackageTypography.apply(element.styledText, settings: model.writingTypography, to: attributed, offset: ranges[index].location, displayScale: scale)
+                    PackageTypography.apply((try? element.styledText.replacingText(element.type == .sceneHeading ? element.text.uppercased() : element.text)) ?? element.styledText, settings: model.writingTypography, to: attributed, offset: ranges[index].location, displayScale: scale)
                 }
                 if element.id == model.selectedElementID { activeAttributes = attributes }
             }
@@ -83,7 +85,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             }
             let projection = model.printedLayout
             view.pageGuides = projection.unmappedElementIDs.isEmpty ? projection.pages.indices.compactMap { index in
-                projection.firstSourceCaret(onPage: index).map { PrintedPageGuide(label: projection.pages[index].label, offset: $0.location) }
+                projection.firstSourceCaret(onPage: index).map { PrintedPageGuide(label: projection.pages[index].label, offset: writingProjection.displayRange($0).location) }
             } : []
             view.guideInk = StudioAppearance.ink(model.darkPageMode)
             view.needsDisplay = true
@@ -94,11 +96,12 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 selection = caret
             } else if moved || (restore && model.documentCaret == nil) {
                 if let index = model.elements.firstIndex(where: { $0.id == model.selectedElementID }) {
-                    selection = NSRange(location: NSMaxRange(ranges[index]), length: 0)
+                    selection = NSRange(location: NSMaxRange(model.writingRanges[index]), length: 0)
                 }
             } else if changed, let caret = model.documentCaret {
                 selection = caret
             }
+            selection = writingProjection.displayRange(selection)
             let count = (string as NSString).length
             selection.location = min(selection.location, count)
             selection.length = min(selection.length, count - selection.location)
@@ -139,9 +142,9 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             var editRange = range
             var inserted = replacement
             var beforeSelection = selection
-            let original = model.writingText as NSString
+            let original = writingProjection.text as NSString
             if NSMaxRange(range) > original.length || original.replacingCharacters(in: range, with: replacement) != view.string {
-                let old = Array(model.writingText)
+                let old = Array(writingProjection.text)
                 let new = Array(view.string)
                 var prefix = 0
                 while prefix < min(old.count, new.count), old[prefix] == new[prefix] { prefix += 1 }
@@ -154,22 +157,23 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 beforeSelection = model.documentCaret ?? editRange
             }
             updating = true
-            let caret = model.replaceWritingText(in: editRange, with: inserted,
-                groupable: inserted.count <= 1 && !inserted.contains("\n"), selection: beforeSelection)
+            let caret = model.replaceWritingText(in: writingProjection.sourceRange(editRange), with: inserted,
+                groupable: inserted.count <= 1 && !inserted.contains("\n"), selection: writingProjection.sourceRange(beforeSelection))
             updating = false
             // Normalize casing and structural edits immediately, before the next keystroke.
             selectedID = model.selectedElementID
             render(view)
             updating = true
-            view.setSelectedRange(caret)
-            view.scrollRangeToVisible(caret)
+            let displayedCaret = writingProjection.displayRange(caret)
+            view.setSelectedRange(displayedCaret)
+            view.scrollRangeToVisible(displayedCaret)
             updating = false
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !updating, let view = notification.object as? NSTextView,
-                  view.string == model.writingText else { return }
-            model.rememberDocumentCaret(view.selectedRange())
+                  view.string == writingProjection.text else { return }
+            model.rememberDocumentCaret(writingProjection.sourceRange(view.selectedRange()))
             selectedID = model.selectedElementID
         }
     }

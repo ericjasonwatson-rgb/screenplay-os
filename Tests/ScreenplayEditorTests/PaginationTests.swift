@@ -27,6 +27,104 @@ struct PaginationTests {
         try body(model, directory)
     }
 
+    @Test func whitespaceAndBlankPagesSurviveNewLocksButOldLocksKeepTheirPolicy() throws {
+        let source = [ScreenplayElement(type: .sceneHeading, text: "  int. café - day  ")]
+            + (0..<55).map { _ in ScreenplayElement(type: .action, text: "") }
+            + [ScreenplayElement(type: .action, text: "  Last line.  ")]
+        try withDocument(source) { model, directory in
+            let before = model.printedPages.map { $0.elements.map(\.text) }
+            #expect(before.count > 1)
+            #expect(before.flatMap { $0 }.count == source.count)
+            #expect(before.first?.first == source[0].text.uppercased())
+            #expect(model.printedLayout.unmappedElementIDs.isEmpty)
+            model.lockProductionPages()
+            #expect(model.document?.screenplay.pageLock?.preservesWhitespace == true)
+            #expect(model.printedPages.map { $0.elements.map(\.text) } == before)
+            let saved = try #require(model.saveURL)
+            model.loadOpenScreenplay(at: saved)
+            #expect(model.printedPages.map { $0.elements.map(\.text) } == before)
+            #expect(model.elements.map(\.text) == source.map(\.text))
+            var old = try #require(model.document)
+            old.screenplay.pageLock = ProductionPageLock(text: "INT. CAFÉ - DAY\nLast line.", pageStarts: [0])
+            let legacyURL = directory.appendingPathComponent("old-lock.json")
+            let bytes = try JSONEncoder.openScreenplayEncoder().encode(old)
+            try bytes.write(to: legacyURL)
+            model.loadOpenScreenplay(at: legacyURL)
+            #expect(!model.printPreservesWhitespace)
+            #expect(model.printedPages.flatMap(\.elements).map(\.text) == ["INT. CAFÉ - DAY", "Last line."])
+            #expect(model.printedLayout.unmappedElementIDs.isEmpty)
+            #expect(try Data(contentsOf: legacyURL) == bytes)
+        }
+    }
+
+    @Test func uppercaseHeadingDisplayPreservesSourceAndMapsNativeEditing() throws {
+        let source = [ScreenplayElement(type: .sceneHeading, text: "int. straße 👩🏽‍🚀 - day"),
+                      ScreenplayElement(type: .action, text: "A café waits.")]
+        try withDocument(source) { model, _ in
+            let bytes = try Data(contentsOf: #require(model.saveURL))
+            let projection = ScreenplayWritingProjection(elements: model.elements)
+            #expect(projection.text == source[0].text.uppercased() + "\n" + source[1].text)
+            let sourceSharp = (source[0].text as NSString).range(of: "ß")
+            let displaySharp = projection.displayRange(sourceSharp)
+            #expect((projection.text as NSString).substring(with: displaySharp) == "SS")
+            #expect(projection.sourceRange(displaySharp) == sourceSharp)
+            #expect(projection.sourceRange(projection.ranges[1]) == model.writingRanges[1])
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            host.layoutSubtreeIfNeeded()
+            func find(_ view: NSView) -> WritingTextView? {
+                if let value = view as? WritingTextView { return value }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            let editor = try #require(find(host))
+            #expect(editor.string == projection.text)
+            #expect(model.elements.map(\.text) == source.map(\.text))
+            #expect(try Data(contentsOf: #require(model.saveURL)) == bytes)
+            let range = projection.ranges[1]
+            editor.setSelectedRange(range)
+            #expect(editor.shouldChangeText(in: range, replacementString: "A different café."))
+            editor.textStorage?.replaceCharacters(in: range, with: "A different café.")
+            editor.didChangeText()
+            #expect(model.elements[0].text == source[0].text)
+            #expect(model.elements[1].text == "A different café.")
+            model.undo()
+            #expect(model.elements.map(\.text) == source.map(\.text))
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+            editor.setSelectedRange(displaySharp)
+            #expect(editor.shouldChangeText(in: displaySharp, replacementString: "x"))
+            editor.textStorage?.replaceCharacters(in: displaySharp, with: "x")
+            editor.didChangeText()
+            #expect(model.elements[0].text == "INT. STRAXE 👩🏽‍🚀 - DAY")
+            #expect(model.elements[1].text == source[1].text)
+            model.undo()
+            #expect(model.elements.map(\.text) == source.map(\.text))
+        }
+    }
+
+    @Test func beatTemplateReplacementIsUndoableAndKeepsScenes() throws {
+        try withDocument([ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY")]) { model, _ in
+            let source = model.elements
+            model.selectedOutlineTemplate = .saveTheCat
+            model.seedSelectedOutlineTemplate()
+            #expect(model.outlineBeats.count == 15)
+            let beat = try #require(model.outlineBeats.first)
+            model.bindingForOutlineNotes(beat).wrappedValue = "Keep this authored note."
+            model.linkSelectedScene(to: beat)
+            let savedBeats = model.outlineBeats
+            model.selectedOutlineTemplate = .heroJourney
+            model.seedSelectedOutlineTemplate()
+            #expect(model.outlineBeats.count == 12)
+            #expect(model.elements == source)
+            model.undo()
+            #expect(model.outlineBeats == savedBeats)
+            let url = try #require(model.saveURL)
+            model.loadOpenScreenplay(at: url)
+            #expect(model.outlineBeats == savedBeats)
+        }
+    }
+
     @Test func continuousEditorMatchesPrintWrappingAndSpacingWithoutChangingSavedSource() throws {
         let types: [ElementType] = [.sceneHeading, .action, .character, .dialogue, .parenthetical, .transition, .shot, .general]
         let elements = types.map { ScreenplayElement(type: $0, text: "ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE") }
@@ -125,7 +223,7 @@ struct PaginationTests {
             let fragments = items.filter { !$0.isContinuation && $0.element.id == dialogue.id }
             #expect(fragments.count > 1)
             let spans = try fragments.map { try #require($0.sourceSpan).elementRange }
-            #expect(spans.first?.location == 2)
+            #expect(spans.first?.location == 0)
             for pair in zip(spans, spans.dropFirst()) { #expect(NSMaxRange(pair.0) == pair.1.location) }
             #expect(items.first { $0.element.id == repeated.id }?.sourceSpan?.documentRange != items.first { $0.element.id == other.id }?.sourceSpan?.documentRange)
             #expect(model.document == before)
@@ -187,7 +285,7 @@ struct PaginationTests {
                 #expect(model.currentPrintedPageStatus.contains("PDF page \(projection.pages[index].label) ·"))
             }
             let blankEntry = try #require(projection.sourceEntries.last)
-            #expect(projection.pageIndex(containing: blankEntry.documentRange.location) == nil)
+            #expect(projection.pageIndex(containing: blankEntry.documentRange.location) == projection.pages.count - 1)
             #expect(projection.pageIndex(containing: -1) == nil)
             #expect(projection.firstSourceCaret(onPage: projection.pages.count) == nil)
             let selected = model.documentCaret
@@ -230,7 +328,7 @@ struct PaginationTests {
             #expect(fragments.count > 1)
             let spans = try fragments.map { try #require($0.sourceSpan).elementRange }
             #expect(spans.first?.location == 0)
-            #expect(spans.last.map(NSMaxRange) == (speech.text.trimmingCharacters(in: .whitespacesAndNewlines) as NSString).length)
+            #expect(spans.last.map(NSMaxRange) == (speech.text as NSString).length)
             for pair in zip(spans, spans.dropFirst()) { #expect(NSMaxRange(pair.0) == pair.1.location) }
             for item in fragments {
                 let span = try #require(item.sourceSpan)
@@ -622,7 +720,7 @@ struct PaginationTests {
             #expect(pages.dropFirst().allSatisfy { $0.elements.first?.text == "MARA (CONT'D)" })
             #expect(pages.flatMap(\.elements).allSatisfy { !$0.text.contains("(CONT'D) (CONT'D)") })
             let final = source.last!
-            #expect(pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == final.id }.map(\.text).joined() == final.text.trimmingCharacters(in: .whitespaces))
+            #expect(pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == final.id }.map(\.text).joined() == final.text)
         }
     }
 
@@ -651,7 +749,7 @@ struct PaginationTests {
             let pages = model.printedPages
             #expect(pages.count > 1)
             #expect(pages.allSatisfy { $0.elements.map(\.blockHeight).reduce(0, +) <= 648 })
-            #expect(pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == dialogue.id }.map(\.text).joined() == dialogue.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            #expect(pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == dialogue.id }.map(\.text).joined() == dialogue.text)
         }
     }
 

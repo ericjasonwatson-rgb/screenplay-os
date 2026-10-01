@@ -330,34 +330,8 @@ private struct OutlineSections: View {
     @ObservedObject var model: ScreenplayViewModel
 
     var body: some View {
-        Section("Outline") {
-            Picker("Template", selection: $model.selectedOutlineTemplate) {
-                ForEach(OutlineTemplateKind.allCases) { template in
-                    Text(template.displayName).tag(template)
-                }
-            }
-            .pickerStyle(.menu)
-
-            Button {
-                model.seedSelectedOutlineTemplate()
-            } label: {
-                Label(model.outlineBeats.isEmpty ? "Use Template" : "Reset Template", systemImage: "map")
-            }
-            .buttonStyle(.bordered)
-
-            Text("\(model.outlineBeats.count) beats")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(model.outlineCoverageSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let selected = model.selectedSceneBreakdown {
-                Text("Selected scene: \(selected.editSpineID)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        Section("Beat Sheet") {
+            BeatSheetTemplateControls(model: model)
         }
 
         if model.outlineBeats.isEmpty {
@@ -372,6 +346,37 @@ private struct OutlineSections: View {
                     OutlineBeatCard(model: model, beat: beat)
                 }
             }
+        }
+    }
+}
+
+private struct BeatSheetTemplateControls: View {
+    @ObservedObject var model: ScreenplayViewModel
+    @State private var replacing = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(model.outlineBeats.first.map { "Current structure: \($0.template)" } ?? "Choose a story structure")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Picker("Structure", selection: $model.selectedOutlineTemplate) {
+                    ForEach(OutlineTemplateKind.allCases) { template in
+                        Text(template.displayName).tag(template)
+                    }
+                }.pickerStyle(.menu)
+                Button(model.outlineBeats.isEmpty ? "Create Beat Sheet" : "Replace Beat Sheet…") {
+                    if model.outlineBeats.isEmpty { model.seedSelectedOutlineTemplate() }
+                    else { replacing = true }
+                }
+            }
+            Text(model.outlineCoverageSummary).font(.caption).foregroundStyle(.secondary)
+        }
+        .confirmationDialog("Replace the current beat sheet?", isPresented: $replacing) {
+            Button("Replace with \(model.selectedOutlineTemplate.displayName)", role: .destructive) {
+                model.seedSelectedOutlineTemplate()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This replaces beat names, notes, and scene links. Screenplay scenes stay intact. You can undo the replacement.")
         }
     }
 }
@@ -1227,7 +1232,7 @@ private struct SceneBreakdownCard: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 42, alignment: .leading)
-                Text(breakdown.heading)
+                Text(breakdown.heading.uppercased())
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(2)
             }
@@ -1563,12 +1568,20 @@ private struct OutlineWorkspaceView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     WorkspaceHeader(
-                        title: "Outline",
-                        subtitle: "Story structure from the actual screenplay scenes.",
+                        title: "Beat Sheet",
+                        subtitle: "Story beats linked to your screenplay scenes.",
                         focus: "STORY",
                         trailing: "\(model.sceneBreakdowns.count) scenes"
                     )
 
+                    BeatSheetTemplateControls(model: model)
+                    ForEach(model.outlineBeats) { beat in
+                        OutlineBeatCard(model: model, beat: beat)
+                            .padding(10)
+                            .background(ScreenplayOSTokens.Palette.panelBackground)
+                    }
+                    Divider()
+                    Text("Scenes").font(.headline)
                     HStack(spacing: 8) {
                         Button {
                             model.addSceneAfterSelectedScene()
@@ -1634,7 +1647,7 @@ private struct OutlineSceneCard: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 44, alignment: .leading)
-                Text(breakdown.heading)
+                Text(breakdown.heading.uppercased())
                     .font(.system(size: 15, weight: .semibold))
                     .lineLimit(2)
                 Spacer()
@@ -1787,14 +1800,16 @@ private struct ScriptPreviewPane: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(model.selectedSceneScriptElements) { element in
-                        Text(element.text.isEmpty ? element.type.displayName : element.text)
-                            .font(.system(size: element.type == .sceneHeading ? 13 : 12, weight: element.type == .sceneHeading ? .semibold : .regular, design: .monospaced))
-                            .foregroundStyle(element.text.isEmpty ? .secondary : .primary)
+                        Text(element.text.isEmpty ? element.type.displayName : (element.type == .sceneHeading ? element.text.uppercased() : element.text))
+                            .font(Font(PackageTypography.font(model.writingTypography)))
+                            .foregroundStyle(Color(nsColor: StudioAppearance.ink(model.darkPageMode)).opacity(element.text.isEmpty ? 0.5 : 1))
                             .frame(maxWidth: .infinity, alignment: element.type == .character || element.type == .dialogue ? .center : .leading)
                     }
                 }
                 .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .background(Color(nsColor: StudioAppearance.paper(model.darkPageMode)))
         }
         .background(ScreenplayOSTokens.Palette.appBackground)
         .overlay(alignment: .leading) {

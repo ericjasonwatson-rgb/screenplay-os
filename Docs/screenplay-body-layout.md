@@ -86,3 +86,29 @@ whitespace/blank-paragraph policy and shared page-placement work are still
 required for full on-screen/PDF layout agreement. A native-host test checks
 monotonic guide locations, PDF labels, zoom round trips, cross-boundary selection,
 and unchanged document text and saved bytes.
+
+## Whitespace and heading display — 2026-10-01
+
+Ordinary print pagination now includes authored blank paragraphs and retains
+leading/trailing whitespace. Empty paragraphs take vertical space even when they
+land at a page boundary; they are not lost in the paragraph-splitting loop.
+Source projections include these paragraphs and allow page navigation to them.
+This supersedes the earlier notes above about omitted blanks and trimmed text.
+
+New production locks record optional `preservesWhitespace: true` alongside their
+existing Character-based anchors. Missing/false means the historical trim-and-
+omit-blank policy. Existing locks are neither rewritten nor reinterpreted on open.
+New-lock tests cover blank-only pages, exact whitespace, lock/reopen equality, and
+legacy-lock output. This is an extension of the prototype lock record, not a
+released Open Screenplay Format production-lock standard. Older app builds do
+not understand the new policy and must not be used for lock-conformant output
+from newly locked documents.
+
+The continuous editor uses an ephemeral uppercase scene-heading projection.
+UTF-16 source/display ranges account for Unicode expansions, including ß → SS.
+Viewing does not rewrite imported headings. Editing, formatting selections, page
+navigation, undo, and native caret restoration continue to use source positions.
+Ordinary paragraphs use direct spans and mapped boundaries use binary search.
+Other existing print-only capitalization (character cues, transitions, shots)
+and the separate page-placement engine remain differences: this is not full
+editable page parity.

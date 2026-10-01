@@ -227,7 +227,7 @@ final class ScreenplayViewModel: ObservableObject {
                 number: offset + 1,
                 editSpineID: spineID,
                 elementID: elements[startIndex].id,
-                heading: heading.isEmpty ? "Untitled Scene" : heading,
+                heading: heading.isEmpty ? "UNTITLED SCENE" : heading.uppercased(),
                 pageNumber: pageLabels[elements[startIndex].id],
                 elementCount: sceneElements.count,
                 actionBeatCount: sceneElements.filter { $0.type == .action || $0.type == .shot }.count,
@@ -257,7 +257,7 @@ final class ScreenplayViewModel: ObservableObject {
         let lock = document?.screenplay.pageLock
         if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.projection }
         let pages = paginate(lockedPrintElements())
-        let projection = ScriptPrintProjection(pages: pages, source: source)
+        let projection = ScriptPrintProjection(pages: pages, source: source, preservesWhitespace: printPreservesWhitespace)
         printCache = (source, lock, document?.typography, projection)
         return projection
     }
@@ -4277,7 +4277,7 @@ final class ScreenplayViewModel: ObservableObject {
 
     private func paginate(_ sourceElements: [ScreenplayElement], includeEmptyElements: Bool = false, splitLongElements: Bool = true) -> [ScreenplayPage] {
         let visibleElements = sourceElements.filter {
-            includeEmptyElements || $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            includeEmptyElements || printPreservesWhitespace || $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
 
         var pages: [ScreenplayPage] = []
@@ -4362,7 +4362,7 @@ final class ScreenplayViewModel: ObservableObject {
             let canSplit = [.action, .dialogue, .parenthetical, .general].contains(element.type)
             let needsSplit = item.blockHeight > heightLimit ||
                 (canSplit && usedHeight + item.blockHeight > heightLimit)
-            if !splitLongElements || !needsSplit {
+            if !splitLongElements || !needsSplit || item.text.isEmpty {
                 if !currentItems.isEmpty && usedHeight + min(requiredHeight, heightLimit) > heightLimit {
                     if isSpeech && earlierDialogue { appendMore(for: element, speaker: speaker) }
                     finishPage()
@@ -4523,7 +4523,7 @@ final class ScreenplayViewModel: ObservableObject {
         if element.externalIDs["screenplayos.printFragment"] == "continued" {
             spec = PDFLayoutSpec(x: spec.x, width: spec.width, before: 0, after: spec.after, alignment: spec.alignment, weight: spec.weight)
         }
-        let text = element.externalIDs["screenplayos.printFragment"] != nil ? element.text : normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        let text = element.externalIDs["screenplayos.printFragment"] != nil ? element.text : normalizedText(for: element.type, text: printPreservesWhitespace ? element.text : element.text.trimmingCharacters(in: .whitespacesAndNewlines))
         let rich = NSMutableAttributedString(string: text, attributes: scriptPDFAttributes(type: element.type, alignment: spec.alignment, weight: spec.weight))
         if let styled = try? element.styledText.replacingText(text), element.runs != nil {
             PackageTypography.apply(styled, settings: writingTypography, to: rich, offset: 0)
@@ -6090,6 +6090,11 @@ extension ScreenplayViewModel {
 extension ScreenplayViewModel {
     var pagesAreLocked: Bool { document?.screenplay.pageLock != nil }
 
+    /// Existing locks retain the policy under which their character anchors were frozen.
+    var printPreservesWhitespace: Bool {
+        document?.screenplay.pageLock.map { $0.preservesWhitespace == true } ?? true
+    }
+
     func lockProductionPages() {
         guard document != nil, !pagesAreLocked else { return }
         let source = canonicalPrintElements()
@@ -6113,7 +6118,7 @@ extension ScreenplayViewModel {
         // The first page includes insertions at the beginning of the screenplay.
         if !boundaries.isEmpty { boundaries[0] = 0 }
         rememberUndoState()
-        document?.screenplay.pageLock = ProductionPageLock(text: source.map(\.text).joined(separator: "\n"), pageStarts: boundaries, elements: source.map { ProductionLockElement(id: $0.id, text: $0.text) })
+        document?.screenplay.pageLock = ProductionPageLock(text: source.map(\.text).joined(separator: "\n"), pageStarts: boundaries, elements: source.map { ProductionLockElement(id: $0.id, text: $0.text) }, preservesWhitespace: true)
         document?.project.metadata.modifiedAt = Date()
         autosave()
     }
@@ -6127,9 +6132,9 @@ extension ScreenplayViewModel {
     }
 
     private func canonicalPrintElements() -> [ScreenplayElement] {
-        elements.filter { $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map {
+        elements.filter { printPreservesWhitespace || $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map {
             var element = $0
-            element.text = normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            element.text = normalizedText(for: element.type, text: printPreservesWhitespace ? element.text : element.text.trimmingCharacters(in: .whitespacesAndNewlines))
             return element
         }
     }

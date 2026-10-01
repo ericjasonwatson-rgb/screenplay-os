@@ -1293,9 +1293,12 @@ public struct ProductionPageLock: Codable, Equatable {
     public var pageStarts: [Int]
     /// Optional for compatibility with locks saved before paragraph identities were recorded.
     public var elements: [ProductionLockElement]?
-    public init(text: String, pageStarts: [Int], elements: [ProductionLockElement]? = nil) {
+    /// Nil retains the historical trim-and-omit-blank print policy.
+    public var preservesWhitespace: Bool?
+    public init(text: String, pageStarts: [Int], elements: [ProductionLockElement]? = nil, preservesWhitespace: Bool? = nil) {
         self.text = text
         self.pageStarts = pageStarts
+        self.preservesWhitespace = preservesWhitespace
         self.elements = elements
     }
 }

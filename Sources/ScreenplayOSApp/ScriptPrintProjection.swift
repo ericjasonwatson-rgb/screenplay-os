@@ -16,7 +16,7 @@ struct ScriptPrintProjection {
     let sourceEntries: [SourceEntry]
     let unmappedElementIDs: Set<UUID>
 
-    init(pages: [ScreenplayPage], source: [ScreenplayElement]) {
+    init(pages: [ScreenplayPage], source: [ScreenplayElement], preservesWhitespace: Bool = false) {
         var offset = 0
         var entries: [SourceEntry] = []
         var maps: [UUID: TextMap] = [:]
@@ -24,7 +24,7 @@ struct ScriptPrintProjection {
             let length = (element.text as NSString).length
             entries.append(SourceEntry(elementID: element.id, type: element.type, text: element.text,
                 documentRange: NSRange(location: offset, length: length)))
-            maps[element.id] = TextMap(element: element, documentOffset: offset)
+            maps[element.id] = TextMap(element: element, documentOffset: offset, preservesWhitespace: preservesWhitespace)
             offset += length + 1 // The editor joins elements with one newline.
         }
         var consumed: [UUID: Int] = [:]
@@ -48,8 +48,8 @@ struct ScriptPrintProjection {
             }
             return ScreenplayPage(number: page.number, elements: items, lockedLabel: page.lockedLabel)
         }
-        for entry in entries where entry.type != .pageBreak && !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            if let map = maps[entry.elementID], consumed[entry.elementID, default: 0] != (map.displayed as NSString).length {
+        for entry in entries where entry.type != .pageBreak && (preservesWhitespace || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+            if let map = maps[entry.elementID], (consumed[entry.elementID] == nil || consumed[entry.elementID] != (map.displayed as NSString).length) {
                 unmapped.insert(entry.elementID)
             }
         }
@@ -97,12 +97,12 @@ struct ScriptPrintProjection {
         let sourceLength: Int
         let directSourceStart: Int?
 
-        init(element: ScreenplayElement, documentOffset: Int) {
+        init(element: ScreenplayElement, documentOffset: Int, preservesWhitespace: Bool) {
             elementID = element.id
             self.documentOffset = documentOffset
             let original = element.text as NSString
             sourceLength = original.length
-            let text = element.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = preservesWhitespace ? element.text : element.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let start = text.isEmpty ? 0 : original.range(of: text, options: .literal).location
             let uppercase = [.sceneHeading, .character, .transition, .shot].contains(element.type)
             directSourceStart = uppercase ? nil : start
