@@ -55,3 +55,18 @@ for page placement and PDF before exposing editable page boundaries.
 Keep authored blank paragraphs, Unicode selections, explicit breaks, undo, and
 production-lock identity in acceptance tests. Never inject display-only markers
 or page gaps into the saved screenplay to simulate pagination.
+
+## Printed-page navigation
+
+The bottom page status is now a menu of PDF page labels, excluding the title page.
+Choosing a page restores the editor caret to its first authored fragment, skipping
+synthetic continuation markers. The status follows the start of the current
+selection. At an exact fragment boundary, the caret belongs to the following
+fragment. Leading/trailing whitespace follows its own paragraph; unprinted blank
+paragraphs and breaks show only the total page count. Omitted pages without text
+cannot be navigation targets. Incomplete source mappings disable navigation.
+
+Navigation changes only selection and its restoration token, not screenplay text,
+undo history, or saved bytes. Regression checks include a long Unicode dialogue
+spanning pages, exact boundaries, invalid targets, and unchanged saved content.
+The editor remains continuous: this menu does not render editable page gaps.

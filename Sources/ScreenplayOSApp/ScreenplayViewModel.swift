@@ -262,6 +262,23 @@ final class ScreenplayViewModel: ObservableObject {
         return projection
     }
 
+    var currentPrintedPageStatus: String {
+        let projection = printedLayout
+        let offset = documentCaret?.location ?? selectedElementID.flatMap { id in
+            projection.sourceEntries.first { $0.elementID == id }?.documentRange.location
+        }
+        guard let offset, let index = projection.pageIndex(containing: offset) else {
+            return "PDF: \(projection.pages.count) pages"
+        }
+        return "PDF page \(projection.pages[index].label) · \(projection.pages.count) pages"
+    }
+
+    func navigateToPrintedPage(_ index: Int) {
+        guard let caret = printedLayout.firstSourceCaret(onPage: index) else { return }
+        rememberDocumentCaret(caret)
+        documentCaretToken = UUID()
+    }
+
     func printedPageLabel(for editingPage: ScreenplayPage, using pages: [ScreenplayPage]) -> String {
         let ids = Set(editingPage.elements.map { $0.element.id })
         let numbers = pages.filter { page in page.elements.contains { ids.contains($0.element.id) } }.map(\.label)

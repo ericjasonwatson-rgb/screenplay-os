@@ -2590,7 +2590,15 @@ private struct BottomStatusBar: View {
         ScrollView(.horizontal) {
             HStack(spacing: 10) {
                 StatusCapsule(systemImage: "list.number", text: model.selectedElementPosition)
-                StatusCapsule(systemImage: "doc.on.doc", text: "\(model.printedPages.count) pages")
+                Menu {
+                    ForEach(Array(model.printedLayout.pages.enumerated()), id: \.offset) { index, page in
+                        Button("PDF page \(page.label)") { model.navigateToPrintedPage(index) }
+                            .disabled(model.printedLayout.firstSourceCaret(onPage: index) == nil)
+                    }
+                } label: {
+                    StatusCapsule(systemImage: "doc.on.doc", text: model.currentPrintedPageStatus)
+                }
+                .help("Go to the source text on a printed page. Page numbers exclude the title page.")
                 StatusCapsule(systemImage: "pencil.and.outline", text: model.revisionStatusText)
                 StatusCapsule(systemImage: "rectangle.stack", text: model.productionContextSummary)
                 StatusCapsule(systemImage: "doc.text.magnifyingglass", text: model.currentSceneTitle)

@@ -133,6 +133,34 @@ struct PaginationTests {
         }
     }
 
+    @Test func pageNavigationUsesSplitFragmentBoundariesAndDoesNotSave() throws {
+        let cue = ScreenplayElement(type: .character, text: "MARA")
+        let speech = ScreenplayElement(type: .dialogue, text: "  " + String(repeating: "Café 👩🏽‍🚀 returns. ", count: 220) + "  ")
+        let blank = ScreenplayElement(type: .action, text: "")
+        try withDocument([cue, speech, blank]) { model, _ in
+            let original = model.document
+            let url = try #require(model.saveURL), bytes = try Data(contentsOf: url)
+            let projection = model.printedLayout
+            #expect(projection.pages.count > 1)
+            for index in projection.pages.indices {
+                let caret = try #require(projection.firstSourceCaret(onPage: index))
+                #expect(projection.pageIndex(containing: caret.location) == index)
+                model.navigateToPrintedPage(index)
+                #expect(model.documentCaret == caret)
+                #expect(model.currentPrintedPageStatus.contains("PDF page \(projection.pages[index].label) ·"))
+            }
+            let blankEntry = try #require(projection.sourceEntries.last)
+            #expect(projection.pageIndex(containing: blankEntry.documentRange.location) == nil)
+            #expect(projection.pageIndex(containing: -1) == nil)
+            #expect(projection.firstSourceCaret(onPage: projection.pages.count) == nil)
+            let selected = model.documentCaret
+            model.navigateToPrintedPage(-1)
+            #expect(model.documentCaret == selected)
+            #expect(model.document == original)
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
     @Test func printProjectionRejectsMismatchedAndMissingFragments() throws {
         let first = ScreenplayElement(type: .action, text: "Same words.")
         let second = ScreenplayElement(type: .action, text: "Same words.")

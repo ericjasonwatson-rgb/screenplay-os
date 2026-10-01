@@ -57,6 +57,34 @@ struct ScriptPrintProjection {
         unmappedElementIDs = unmapped
     }
 
+    /// Half-open spans assign a boundary caret to the following fragment.
+    /// Unprinted blanks/breaks have no page; do not guess from a neighbouring scene.
+    func pageIndex(containing offset: Int) -> Int? {
+        guard unmappedElementIDs.isEmpty, offset >= 0,
+              let entry = sourceEntries.last(where: { $0.documentRange.location <= offset }),
+              offset <= NSMaxRange(entry.documentRange) else { return nil }
+        var candidates: [(Int, NSRange)] = []
+        for (index, page) in pages.enumerated() {
+            for item in page.elements {
+                if let span = item.sourceSpan, span.elementID == entry.elementID {
+                    candidates.append((index, span.documentRange))
+                }
+            }
+        }
+        if let exact = candidates.first(where: { NSLocationInRange(offset, $0.1) }) { return exact.0 }
+        // Leading/trailing whitespace belongs to this element's first/last printed fragment.
+        guard let first = candidates.first, let last = candidates.last else { return nil }
+        if offset < first.1.location { return first.0 }
+        if offset >= NSMaxRange(last.1) { return last.0 }
+        return nil
+    }
+
+    func firstSourceCaret(onPage index: Int) -> NSRange? {
+        guard unmappedElementIDs.isEmpty, pages.indices.contains(index),
+              let span = pages[index].elements.compactMap(\.sourceSpan).first else { return nil }
+        return NSRange(location: span.documentRange.location, length: 0)
+    }
+
     private struct TextMap {
         struct Segment {
             let displayed: NSRange
