@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import PDFKit
+import SwiftUI
 import Testing
 import ScreenplayDomain
 @testable import ScreenplayOSApp
@@ -24,6 +25,68 @@ struct PaginationTests {
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
         model.loadOpenScreenplay(at: url)
         try body(model, directory)
+    }
+
+    @Test func continuousEditorMatchesPrintWrappingAndSpacingWithoutChangingSavedSource() throws {
+        let types: [ElementType] = [.sceneHeading, .action, .character, .dialogue, .parenthetical, .transition, .shot, .general]
+        let elements = types.map { ScreenplayElement(type: $0, text: "ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE") }
+            + [ScreenplayElement(type: .action, text: ""), ScreenplayElement(type: .pageBreak, text: "")]
+        try withDocument(elements) { model, _ in
+            // Exercise the actual attributed fragments consumed by PDF drawing.
+            model.changeWritingTypography(font: "Courier", size: 12)
+            let sourceURL = try #require(model.saveURL)
+            let saved = try Data(contentsOf: sourceURL)
+            let original = model.document
+            let pages = model.printedPages
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            func find(_ view: NSView) -> NSTextView? {
+                if let text = view as? NSTextView { return text }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            func lines(_ layout: NSLayoutManager, range: NSRange, source: NSString) -> [(String, CGFloat)] {
+                var result: [(String, CGFloat)] = []
+                layout.enumerateLineFragments(forGlyphRange: layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)) { rect, _, _, glyphs, _ in
+                    let chars = NSIntersectionRange(range, layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil))
+                    if chars.length > 0 { result.append((source.substring(with: chars), rect.minY + layout.location(forGlyphAt: glyphs.location).y)) }
+                }
+                return result
+            }
+            for zoom: CGFloat in [1.0, 2.0] {
+                model.pageZoom = Double(zoom)
+                host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+                let editor = try #require(find(host))
+                let layout = try #require(editor.layoutManager)
+                layout.ensureLayout(for: try #require(editor.textContainer))
+                for (index, element) in elements.prefix(types.count).enumerated() {
+                    let range = model.writingRanges[index]
+                    let printed = try #require(pages.flatMap(\.elements).first { $0.element.id == element.id && !$0.isContinuation })
+                    let rich = try #require(printed.attributed)
+                    let storage = NSTextStorage(attributedString: rich)
+                    let printLayout = NSLayoutManager(); storage.addLayoutManager(printLayout)
+                    let container = NSTextContainer(size: NSSize(width: printed.layout.width, height: 10000))
+                    container.lineFragmentPadding = 0; printLayout.addTextContainer(container); printLayout.ensureLayout(for: container)
+                    let screenLines = lines(layout, range: range, source: editor.string as NSString)
+                    let printLines = lines(printLayout, range: NSRange(location: 0, length: rich.length), source: rich.string as NSString)
+                    #expect(screenLines.map { $0.0 } == printLines.map { $0.0 }, "Wrapping differs for \(element.type) at \(zoom)")
+                    if screenLines.count > 1 && printLines.count > 1 {
+                        // TextKit rounds line metrics at the displayed font size.
+                        #expect(abs((screenLines[1].1 - screenLines[0].1) / zoom - (printLines[1].1 - printLines[0].1)) <= (zoom == 1 ? 0.1 : 0.5))
+                    }
+                    let style = try #require(editor.textStorage?.attribute(.paragraphStyle, at: range.location, effectiveRange: nil) as? NSParagraphStyle)
+                    #expect(style.paragraphSpacingBefore / zoom == printed.layout.before)
+                    #expect(style.paragraphSpacing / zoom == printed.layout.after)
+                    #expect(style.headIndent / zoom == printed.layout.x - 108)
+                    #expect((432 * zoom + style.tailIndent - style.headIndent) / zoom == printed.layout.width)
+                }
+                #expect(model.document == original)
+                #expect(model.elements.suffix(2).map(\.text) == ["", ""])
+                #expect(model.printedPages.map { $0.elements.map(\.text) } == pages.map { $0.elements.map(\.text) })
+                #expect(try Data(contentsOf: sourceURL) == saved)
+            }
+        }
     }
 
     @Test func warmMeasurementsMatchFreshPaginationAfterTextAndTypeChanges() throws {

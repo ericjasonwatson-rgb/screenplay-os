@@ -15,7 +15,11 @@ instance timeout remains undiagnosed.
 F02 is partially repaired: the legacy writing surface and script-body PDF now
 both resolve the document typography, defaulting to regular Courier 12. Explicit
 font choices and inline emphasis remain authoritative. Zoom scales screen text
-only; viewing does not upgrade the document format. Spacing, pagination, title
+only; viewing does not upgrade the document format. A subsequent bounded repair
+shares legacy element widths, indents, paragraph spacing, alignment, and line
+spacing between the continuous editor and PDF. This corrects the editor's wider
+transition column, extra four-point paragraph gaps, and missing General spacing.
+See [body-layout verification](screenplay-body-layout.md). Pagination, title
 page templates, and the two writing engines still need alignment. Existing
 unstyled PDFs may wrap differently after replacing the system monospaced font;
 this repair does not establish page parity. Other findings remain open.

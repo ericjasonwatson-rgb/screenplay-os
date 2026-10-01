@@ -4563,6 +4563,7 @@ final class ScreenplayViewModel: ObservableObject {
     private func scriptPDFAttributes(type: ElementType, alignment: NSTextAlignment, weight: NSFont.Weight) -> [NSAttributedString.Key: Any] {
         var attributes = pdfAttributes(alignment: alignment, weight: weight, size: 12)
         attributes[.font] = PackageTypography.font(writingTypography)
+        attributes[.paragraphStyle] = ScreenplayBodyLayout.textStyle(alignment: alignment)
         return attributes
     }
 
@@ -4579,24 +4580,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func pdfLayoutSpec(for type: ElementType) -> PDFLayoutSpec {
-        switch type {
-        case .sceneHeading:
-            return PDFLayoutSpec(x: 108, width: 432, before: 24, after: 0, alignment: .left, weight: .semibold)
-        case .action, .general:
-            return PDFLayoutSpec(x: 108, width: 432, before: 12, after: 0, alignment: .left, weight: .regular)
-        case .character:
-            return PDFLayoutSpec(x: 252, width: 270, before: 12, after: 0, alignment: .left, weight: .semibold)
-        case .dialogue:
-            return PDFLayoutSpec(x: 180, width: 252, before: 0, after: 0, alignment: .left, weight: .regular)
-        case .parenthetical:
-            return PDFLayoutSpec(x: 216, width: 180, before: 0, after: 0, alignment: .left, weight: .regular)
-        case .transition:
-            return PDFLayoutSpec(x: 396, width: 115, before: 12, after: 0, alignment: .right, weight: .semibold)
-        case .shot:
-            return PDFLayoutSpec(x: 108, width: 432, before: 12, after: 0, alignment: .left, weight: .semibold)
-        case .pageBreak:
-            return PDFLayoutSpec(x: 108, width: 432, before: 24, after: 24, alignment: .center, weight: .regular)
-        }
+        ScreenplayBodyLayout.spec(for: type)
     }
 
     private func autosave() {

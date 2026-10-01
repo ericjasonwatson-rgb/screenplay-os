@@ -55,22 +55,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             let ranges = model.writingRanges
             var activeAttributes: [NSAttributedString.Key: Any] = [:]
             for (index, element) in model.elements.enumerated() {
-                let style = NSMutableParagraphStyle()
-                var leading: CGFloat = 0
-                var trailing: CGFloat = 0
-                switch element.type {
-                case .character: leading = 144; trailing = 18
-                case .dialogue: leading = 72; trailing = 108
-                case .parenthetical: leading = 108; trailing = 144
-                case .transition: leading = 240; trailing = 29; style.alignment = .right
-                default: break
-                }
-                style.firstLineHeadIndent = leading * scale
-                style.headIndent = leading * scale
-                style.tailIndent = -trailing * scale
-                style.paragraphSpacingBefore = (element.type == .sceneHeading ? 24 :
-                    [.action, .character, .shot, .transition].contains(element.type) ? 12 : 0) * scale
-                style.paragraphSpacing = 4 * scale
+                let style = ScreenplayBodyLayout.editorStyle(for: element.type, scale: scale)
                 var range = ranges[index]
                 if index < ranges.count - 1 { range.length += 1 }
                 var attributes: [NSAttributedString.Key: Any] = [
@@ -88,8 +73,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 if element.id == model.selectedElementID { activeAttributes = attributes }
             }
             let paperWidth = max(576 * scale, view.enclosingScrollView?.contentSize.width ?? 0)
-            view.textContainerInset = NSSize(width: (paperWidth - 432 * scale) / 2, height: 48 * scale)
-            view.textContainer?.containerSize = NSSize(width: 432 * scale, height: CGFloat.greatestFiniteMagnitude)
+            view.textContainerInset = NSSize(width: (paperWidth - ScreenplayBodyLayout.textWidth * scale) / 2, height: 48 * scale)
+            view.textContainer?.containerSize = NSSize(width: ScreenplayBodyLayout.textWidth * scale, height: CGFloat.greatestFiniteMagnitude)
             view.setFrameSize(NSSize(width: paperWidth, height: max(view.frame.height, 792 * scale)))
             view.minSize = NSSize(width: paperWidth, height: 792 * scale)
             view.backgroundColor = StudioAppearance.paper(model.darkPageMode)
