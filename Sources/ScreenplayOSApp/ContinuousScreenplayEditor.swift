@@ -81,6 +81,12 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             if changed || view.textStorage?.isEqual(to: attributed) == false {
                 view.textStorage?.setAttributedString(attributed)
             }
+            let projection = model.printedLayout
+            view.pageGuides = projection.unmappedElementIDs.isEmpty ? projection.pages.indices.compactMap { index in
+                projection.firstSourceCaret(onPage: index).map { PrintedPageGuide(label: projection.pages[index].label, offset: $0.location) }
+            } : []
+            view.guideInk = StudioAppearance.ink(model.darkPageMode)
+            view.needsDisplay = true
             var selection = oldSelection
             let restore = restorationToken != model.documentCaretToken
             let moved = selectedID != model.selectedElementID
@@ -177,7 +183,54 @@ private final class WritingScrollView: NSScrollView {
     }
 }
 
-private final class WritingTextView: NSTextView {
+struct PrintedPageGuide: Equatable {
+    let label: String
+    let offset: Int
+}
+
+final class WritingTextView: NSTextView {
+    var pageGuides: [PrintedPageGuide] = []
+    var guideInk = NSColor.labelColor
+
+    /// Uses the editable source glyph, never a fabricated newline or attachment.
+    func pageGuidePoint(_ guide: PrintedPageGuide) -> NSPoint? {
+        guard guide.offset >= 0, guide.offset < (string as NSString).length,
+              let manager = layoutManager else { return nil }
+        let range = NSRange(location: guide.offset, length: 1)
+        manager.ensureLayout(forCharacterRange: range)
+        let glyph = manager.glyphIndexForCharacter(at: guide.offset)
+        let rect = manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+        let location = manager.location(forGlyphAt: glyph)
+        return NSPoint(x: textContainerOrigin.x + rect.minX + location.x,
+                       y: textContainerOrigin.y + rect.minY)
+    }
+
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        guard let manager = layoutManager, let container = textContainer else { return }
+        // Only ask for glyph positions in the area being painted, avoiding full
+        // document layout merely to draw guides far below the viewport.
+        let local = rect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y)
+        let glyphs = manager.glyphRange(forBoundingRect: local, in: container)
+        let characters = manager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        let font = NSFont.systemFont(ofSize: 9 * displayScale)
+        for guide in pageGuides where NSLocationInRange(guide.offset, characters) {
+            guard let point = pageGuidePoint(guide) else { continue }
+            let label = "PDF \(guide.label)" as NSString
+            let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: guideInk.withAlphaComponent(0.55)]
+            let width = label.size(withAttributes: attributes).width
+            label.draw(at: NSPoint(x: max(4, textContainerOrigin.x - width - 12 * displayScale), y: point.y), withAttributes: attributes)
+            // A short tick marks the exact source start when the PDF break falls
+            // within a continuous editor line. It is paint only, not editable text.
+            guideInk.withAlphaComponent(0.35).setStroke()
+            let tick = NSBezierPath()
+            tick.move(to: NSPoint(x: point.x, y: point.y))
+            tick.line(to: NSPoint(x: point.x, y: point.y + 3 * displayScale))
+            tick.lineWidth = 0.5
+            tick.stroke()
+        }
+    }
+
     var displayScale: CGFloat = 1
     private var layingOutPage = false
 

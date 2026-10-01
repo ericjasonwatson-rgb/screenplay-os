@@ -133,6 +133,43 @@ struct PaginationTests {
         }
     }
 
+    @Test func nativePageGuidesFollowSourceWithoutEnteringEditableText() throws {
+        let source = [ScreenplayElement(type: .character, text: "MARA"),
+            ScreenplayElement(type: .dialogue, text: String(repeating: "Café 👩🏽‍🚀 waits. ", count: 200))]
+        try withDocument(source) { model, _ in
+            let before = model.document, url = try #require(model.saveURL)
+            let bytes = try Data(contentsOf: url)
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            func find(_ view: NSView) -> WritingTextView? {
+                if let text = view as? WritingTextView { return text }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            for zoom in [1.0, 1.25, 1.0] {
+                model.pageZoom = zoom
+                host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+                let text = try #require(find(host))
+                #expect(text.pageGuides.count == model.printedPages.count)
+                #expect(text.pageGuides.count > 1)
+                var previous: CGFloat = -1
+                for guide in text.pageGuides {
+                    let point = try #require(text.pageGuidePoint(guide))
+                    #expect(point.y > previous); previous = point.y
+                    #expect(model.printedLayout.pageIndex(containing: guide.offset).map { model.printedPages[$0].label } == guide.label)
+                }
+                let boundary = text.pageGuides[1].offset
+                text.setSelectedRange(NSRange(location: boundary - 1, length: 2))
+                #expect(text.selectedRange() == NSRange(location: boundary - 1, length: 2))
+                #expect(text.string == model.writingText)
+                #expect(!text.string.contains("PDF"))
+                #expect(model.document == before)
+                #expect(try Data(contentsOf: url) == bytes)
+            }
+        }
+    }
+
     @Test func pageNavigationUsesSplitFragmentBoundariesAndDoesNotSave() throws {
         let cue = ScreenplayElement(type: .character, text: "MARA")
         let speech = ScreenplayElement(type: .dialogue, text: "  " + String(repeating: "Café 👩🏽‍🚀 returns. ", count: 220) + "  ")

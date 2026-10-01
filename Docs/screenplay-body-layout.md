@@ -70,3 +70,19 @@ Navigation changes only selection and its restoration token, not screenplay text
 undo history, or saved bytes. Regression checks include a long Unicode dialogue
 spanning pages, exact boundaries, invalid targets, and unchanged saved content.
 The editor remains continuous: this menu does not render editable page gaps.
+
+## Source-anchored PDF page guides
+
+The continuous editor paints a small `PDF <label>` in the margin beside the
+first authored source position of each printed page. A short tick identifies
+the exact start if it falls within a continuous-editor line. Guides use the
+existing source mapping and TextKit glyph positions; they add no text,
+attachments, saved breaks, or selectable continuation labels. Drawing considers
+only source positions within the repaint area. Incomplete mappings suppress
+guides rather than guessing.
+
+These are navigation guides, not separate editable paper sheets. The remaining
+whitespace/blank-paragraph policy and shared page-placement work are still
+required for full on-screen/PDF layout agreement. A native-host test checks
+monotonic guide locations, PDF labels, zoom round trips, cross-boundary selection,
+and unchanged document text and saved bytes.
