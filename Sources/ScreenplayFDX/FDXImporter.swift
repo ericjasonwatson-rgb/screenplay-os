@@ -1,12 +1,18 @@
 import Foundation
 import ScreenplayDomain
 
-public enum FDXImportError: Error, LocalizedError {
+public enum FDXImportError: Error, LocalizedError, Equatable {
     case unreadableXML
     case notScreenplay
+    case dualDialogueRequiresReview
+    case unsupportedDualDialogue
 
     public var errorDescription: String? {
         switch self {
+        case .dualDialogueRequiresReview:
+            return "This screenplay contains dual dialogue. Review a sequential-text copy before importing; side-by-side dialogue is not supported yet."
+        case .unsupportedDualDialogue:
+            return "This dual-dialogue structure cannot be safely converted. The screenplay was not imported and the original FDX is unchanged."
         case .notScreenplay:
             return "This file is not a Final Draft screenplay with a script Content section."
         case .unreadableXML:
@@ -43,13 +49,17 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
     private var settingType: String?
     private var capsTypes: Set<String> = []
     private var textAllCaps = false
+    private var dualWrapper: FDXParagraph?
+    private var dualChildTypes: [String] = []
+    private var hasDualDialogue = false
+    private var wrapperHasDualDialogue = false
 
-    public func importFile(at url: URL, title: String? = nil, author: String = "") throws -> FDXImportResult {
+    public func importFile(at url: URL, title: String? = nil, author: String = "", allowSequentialDualDialogue: Bool = false) throws -> FDXImportResult {
         let data = try Data(contentsOf: url)
-        return try importData(data, title: title ?? url.deletingPathExtension().lastPathComponent, author: author)
+        return try importData(data, title: title ?? url.deletingPathExtension().lastPathComponent, author: author, allowSequentialDualDialogue: allowSequentialDualDialogue)
     }
 
-    public func importData(_ data: Data, title: String, author: String = "") throws -> FDXImportResult {
+    public func importData(_ data: Data, title: String, author: String = "", allowSequentialDualDialogue: Bool = false) throws -> FDXImportResult {
         paragraphs = []
         currentParagraph = nil
         currentText = ""
@@ -65,6 +75,10 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
         capsTypes = []
         settingType = nil
         textAllCaps = false
+        dualWrapper = nil
+        dualChildTypes = []
+        hasDualDialogue = false
+        wrapperHasDualDialogue = false
 
         let parser = XMLParser(data: data)
         parser.delegate = self
@@ -74,6 +88,10 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
         }
 
         guard validRoot, hasContent else { throw FDXImportError.notScreenplay }
+        if hasDualDialogue, !allowSequentialDualDialogue { throw FDXImportError.dualDialogueRequiresReview }
+        if hasDualDialogue {
+            importWarnings.insert("Dual dialogue was converted to sequential speeches in source order. Both speakers and their text are retained, but simultaneous delivery and side-by-side layout are not represented. Keep the original FDX.")
+        }
         let importedParagraphs = paragraphs
         var elements: [ScreenplayElement] = []
         for paragraph in importedParagraphs {
@@ -137,11 +155,40 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
         }
         let scriptParagraph = elementStack == ["FinalDraft", "Content", "Paragraph"]
         let titleParagraph = elementStack == ["FinalDraft", "TitlePage", "Content", "Paragraph"]
-        if scriptParagraph || titleParagraph {
+        let dualPath = ["FinalDraft", "Content", "Paragraph", "DualDialogue"]
+        if elementName == "DualDialogue", elementStack.starts(with: ["FinalDraft", "Content"]), elementStack != dualPath {
+            parseError = FDXImportError.unsupportedDualDialogue; parser.abortParsing(); return
+        }
+        let dualChild = elementStack == dualPath + ["Paragraph"]
+        if elementStack.starts(with: dualPath),
+           (elementStack.count == 5 && !["Paragraph", "SpellCheckIgnoreLists"].contains(elementName) ||
+            elementStack.count == 6 && elementStack[4] == "Paragraph" && elementName != "Text") {
+            parseError = FDXImportError.unsupportedDualDialogue; parser.abortParsing(); return
+        }
+        if elementStack == dualPath {
+            guard !wrapperHasDualDialogue, let wrapper = currentParagraph, wrapper.text.isEmpty else {
+                parseError = FDXImportError.unsupportedDualDialogue; parser.abortParsing(); return
+            }
+            wrapperHasDualDialogue = true
+            hasDualDialogue = true
+            dualWrapper = wrapper
+            dualChildTypes = []
+            currentParagraph = nil
+            activeParagraphDepth = nil
+        }
+        if scriptParagraph || titleParagraph || dualChild {
             paragraphIsTitle = titleParagraph
             currentParagraph = FDXParagraph(type: attributeDict["Type"] ?? "General",
                 id: attributeDict["id"], text: "", startsNewPage: attributeDict["StartsNewPage"] == "Yes")
             activeParagraphDepth = elementStack.count
+            if dualChild {
+                let type = attributeDict["Type"] ?? "General"
+                guard ["Character", "Dialogue", "Parenthetical"].contains(type) else {
+                    parseError = FDXImportError.unsupportedDualDialogue; parser.abortParsing(); return
+                }
+                if dualChildTypes.isEmpty, dualWrapper?.startsNewPage == true { currentParagraph?.startsNewPage = true }
+                dualChildTypes.append(type)
+            }
         } else if elementName == "Text", let depth = activeParagraphDepth, elementStack.count == depth + 1 {
             insideText = true
             activeTextDepth = elementStack.count
@@ -183,8 +230,24 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
             insideText = false
             activeTextDepth = nil
             currentText = ""
+        case "DualDialogue" where elementStack == ["FinalDraft", "Content", "Paragraph", "DualDialogue"]:
+            // Each side must begin with a cue and contain dialogue. Unknown shapes fail closed.
+            let cues = dualChildTypes.indices.filter { dualChildTypes[$0] == "Character" }
+            guard cues.count == 2, cues.first == 0,
+                  dualChildTypes[1..<cues[1]].contains("Dialogue"),
+                  dualChildTypes[(cues[1] + 1)...].contains("Dialogue") else {
+                parseError = FDXImportError.unsupportedDualDialogue; parser.abortParsing(); return
+            }
+            currentParagraph = dualWrapper
+            activeParagraphDepth = 3
+            dualWrapper = nil
         case "Paragraph" where activeParagraphDepth == elementStack.count:
-            if let paragraph = currentParagraph {
+            if wrapperHasDualDialogue, elementStack.count == 3 {
+                guard currentParagraph?.text.isEmpty == true else {
+                    parseError = FDXImportError.unsupportedDualDialogue; parser.abortParsing(); return
+                }
+                wrapperHasDualDialogue = false
+            } else if let paragraph = currentParagraph {
                 if paragraphIsTitle { titleParagraphs.append(paragraph) } else { paragraphs.append(paragraph) }
             }
             currentParagraph = nil
@@ -197,7 +260,7 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
     }
 
     public func parser(_ parser: XMLParser, parseErrorOccurred parseError: Error) {
-        self.parseError = parseError
+        if self.parseError == nil { self.parseError = parseError }
     }
 
     private func warnings(for paragraphs: [FDXParagraph]) -> [String] {

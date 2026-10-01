@@ -3,6 +3,15 @@
 Date: 2026-10-01. ScreenplayOS implementation reviewed: `2be428f`.
 Reference application: installed Final Draft **13.4.0 Build 120**, macOS.
 
+## Follow-up status
+
+The first repair is implemented in [FDX import verification](fdx-import.md):
+default import rejects dual dialogue, and the Mac app offers an explicitly
+reviewed sequential conversion that retains both speeches. The audit evidence
+below remains the historical reproduction at `2be428f`. Native acceptance
+verification encountered a tool timeout; see the verification limits in that
+document. The other findings remain open.
+
 ## Verdict
 
 ScreenplayOS is a working writing prototype, **not yet a dependable Final Draft replacement**. Its editor safety work, native selection, undo, recovery, basic formatting, and PDF output are useful foundations. They do not establish screenwriting parity. Pause new Edit/Boards/media features until the writing release gates below pass.

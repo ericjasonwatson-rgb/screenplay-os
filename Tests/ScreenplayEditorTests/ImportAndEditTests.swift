@@ -14,6 +14,35 @@ import ScreenplayDomain
         try body(ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: defaults), directory)
     }
 
+    @Test func dualDialogueReviewCancellationAndAcceptanceProtectDocuments() throws {
+        try fixture { model, directory in
+            model.newDocument()
+            let before = model.document
+            let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let bytes = try Data(contentsOf: root.appendingPathComponent("Docs/AuditEvidence/fd13-dual-dialogue.fdx"))
+            let source = directory.appendingPathComponent("dual.fdx")
+            try bytes.write(to: source)
+            var reviews = 0
+            model.loadFDX(at: source, reviewSequentialDialogue: { result in
+                reviews += 1
+                #expect(result.document.screenplay.elements.count == 6)
+                return false
+            })
+            #expect(reviews == 1)
+            #expect(model.document == before)
+            model.loadFDX(at: source, reviewSequentialDialogue: { _ in reviews += 1; return true })
+            #expect(reviews == 2)
+            #expect(model.elements.map(\.text).suffix(4) == ["ALICE", "AUDIT LEFT WORDS.", "BOB", "AUDIT RIGHT WORDS."])
+            let imported = model.elements
+            model.save()
+            let saved = try #require(model.saveURL)
+            #expect(saved != source)
+            model.loadOpenScreenplay(at: saved)
+            #expect(model.elements == imported)
+            #expect(try Data(contentsOf: source) == bytes)
+        }
+    }
+
     @Test func independentOrderSurvivesSaveReopenFormattingAndUndo() throws {
         try fixture { model, directory in
             let script = Screenplay(metadata: ScreenplayMetadata(title: "Order"), elements: [

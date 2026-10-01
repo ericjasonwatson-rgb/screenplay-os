@@ -1363,11 +1363,41 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    func loadFDX(at url: URL) {
+    func loadFDX(at url: URL, reviewSequentialDialogue: ((FDXImportResult) -> Bool)? = nil) {
         do {
-            let result = try importer.importFile(at: url)
+            // Parse and review the same bytes, even if the source changes while a dialog is open.
+            let data = try Data(contentsOf: url)
+            let title = url.deletingPathExtension().lastPathComponent
+            let result: FDXImportResult
+            do { result = try importer.importData(data, title: title) }
+            catch FDXImportError.dualDialogueRequiresReview {
+                result = try importer.importData(data, title: title, allowSequentialDualDialogue: true)
+                guard (reviewSequentialDialogue ?? reviewSequentialFDXImport)(result) else { return }
+            }
             acceptImportedDocument(result.document, source: url, warnings: result.warnings)
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    private func reviewSequentialFDXImport(_ result: FDXImportResult) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Import dual dialogue as sequential speeches?"
+        alert.informativeText = "Both speakers and their dialogue are preserved in source order, one after another. Side-by-side layout and simultaneous delivery are not retained. Review the text below before importing a separate native copy. Keep the original FDX."
+        alert.addButton(withTitle: "Import Sequential Copy")
+        alert.addButton(withTitle: "Cancel")
+        // Return defaults to cancelling a structural conversion; acceptance is deliberate.
+        alert.buttons[0].keyEquivalent = ""
+        alert.buttons[1].keyEquivalent = "\r"
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 620, height: 320))
+        let text = NSTextView(frame: scroll.bounds)
+        text.isEditable = false
+        text.string = result.document.screenplay.elements.map { "[\($0.type.displayName)] \($0.text)" }.joined(separator: "\n\n")
+        text.font = StudioAppearance.courier(size: 12)
+        text.isVerticallyResizable = true
+        text.textContainer?.widthTracksTextView = true
+        scroll.hasVerticalScroller = true
+        scroll.documentView = text
+        alert.accessoryView = scroll
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     func acceptImportedDocument(_ imported: OpenScreenplayDocument, source url: URL, warnings: [String]) {
