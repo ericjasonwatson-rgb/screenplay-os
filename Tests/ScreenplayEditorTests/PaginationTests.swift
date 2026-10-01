@@ -54,10 +54,14 @@ struct PaginationTests {
                 }
                 return result
             }
-            for zoom: CGFloat in [1.0, 2.0] {
+            for zoom: CGFloat in [1.0, 2.0, 1.0] {
                 model.pageZoom = Double(zoom)
                 host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.05))
                 let editor = try #require(find(host))
+                let scroll = try #require(editor.enclosingScrollView)
+                let expectedWidth = max(576 * zoom, scroll.contentSize.width)
+                #expect(editor.frame.width == expectedWidth)
+                #expect(editor.textContainerInset.width == (expectedWidth - 432 * zoom) / 2)
                 let layout = try #require(editor.layoutManager)
                 layout.ensureLayout(for: try #require(editor.textContainer))
                 for (index, element) in elements.prefix(types.count).enumerated() {

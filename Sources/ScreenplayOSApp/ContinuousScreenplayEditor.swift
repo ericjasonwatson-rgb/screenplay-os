@@ -9,7 +9,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model) }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSScrollView()
+        let scroll = WritingScrollView()
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = true
@@ -72,11 +72,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 }
                 if element.id == model.selectedElementID { activeAttributes = attributes }
             }
-            let paperWidth = max(576 * scale, view.enclosingScrollView?.contentSize.width ?? 0)
-            view.textContainerInset = NSSize(width: (paperWidth - ScreenplayBodyLayout.textWidth * scale) / 2, height: 48 * scale)
-            view.textContainer?.containerSize = NSSize(width: ScreenplayBodyLayout.textWidth * scale, height: CGFloat.greatestFiniteMagnitude)
-            view.setFrameSize(NSSize(width: paperWidth, height: max(view.frame.height, 792 * scale)))
-            view.minSize = NSSize(width: paperWidth, height: 792 * scale)
+            view.displayScale = scale
+            view.layoutPage(in: view.enclosingScrollView?.contentSize.width ?? 0)
             view.backgroundColor = StudioAppearance.paper(model.darkPageMode)
             view.enclosingScrollView?.backgroundColor = StudioAppearance.paper(model.darkPageMode)
             view.insertionPointColor = StudioAppearance.ink(model.darkPageMode)
@@ -172,7 +169,34 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
     }
 }
 
+private final class WritingScrollView: NSScrollView {
+    override func tile() {
+        super.tile()
+        // SwiftUI may resize the page well after updateNSView has rendered.
+        (documentView as? WritingTextView)?.layoutPage(in: contentSize.width)
+    }
+}
+
 private final class WritingTextView: NSTextView {
+    var displayScale: CGFloat = 1
+    private var layingOutPage = false
+
+    func layoutPage(in availableWidth: CGFloat) {
+        guard !layingOutPage else { return }
+        layingOutPage = true
+        defer { layingOutPage = false }
+        let width = max(576 * displayScale, availableWidth)
+        let minimum = NSSize(width: width, height: 792 * displayScale)
+        let inset = NSSize(width: (width - ScreenplayBodyLayout.textWidth * displayScale) / 2, height: 48 * displayScale)
+        // Lower the previous minimum before shrinking after zoom-out.
+        if minSize != minimum { minSize = minimum }
+        if textContainerInset != inset { textContainerInset = inset }
+        let containerSize = NSSize(width: ScreenplayBodyLayout.textWidth * displayScale, height: CGFloat.greatestFiniteMagnitude)
+        if textContainer?.containerSize != containerSize { textContainer?.containerSize = containerSize }
+        let size = NSSize(width: width, height: max(frame.height, minimum.height))
+        if frame.size != size { setFrameSize(size) }
+    }
+
     var cycleType: ((Bool) -> Void)?
     var formattingShortcut: ((String) -> Void)?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {

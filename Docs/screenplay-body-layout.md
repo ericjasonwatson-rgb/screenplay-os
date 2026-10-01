@@ -10,6 +10,9 @@ The editor previously gave transitions 163 points of width while PDF used 115,
 added four points after every paragraph, and gave General paragraphs no leading
 space while PDF used 12. Those differences are removed. Zoom scales the editor's
 metrics only. Page count and printed text remain independent of zoom.
+The native scroll view also refreshes page geometry after SwiftUI resizes the
+page well, and lowers the previous minimum width before zooming out. This fixes
+text remaining shifted sideways after returning from a larger zoom.
 
 ## Verification
 
@@ -17,7 +20,8 @@ The native-host regression compares wrapped text lines for all eight text elemen
 types against the attributed fragments actually supplied to PDF drawing, at 100%
 and 200%. It compares glyph baselines (line rectangles include paragraph-leading
 space), allows up to half a point of normalized TextKit rounding at 200%, and
-checks indents and paragraph spacing. Blank elements and explicit page-break
+checks indents and paragraph spacing, then returns to 100% and checks the editor
+width and centered text inset. Blank elements and explicit page-break
 records remain in the source. Viewing and zooming leave saved source bytes and
 in-memory document values unchanged. The existing suite also covers continuation
 markers, explicit breaks, production locks, text/style persistence, selection,
