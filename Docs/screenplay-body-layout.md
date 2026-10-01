@@ -36,9 +36,22 @@ Its text normalization and blank-paragraph handling also need reconciliation.
 The `.screenplay` package editor has a separate TextKit pagination plan; this
 change does not merge those engines or migrate documents.
 
-The next architectural step is a source-preserving layout projection with stable
-source ranges for every printed fragment and synthetic continuation marker. Use
-one plan for page placement and PDF before exposing editable page boundaries.
+`printedLayout` now wraps the existing PDF pages in a `ScriptPrintProjection`.
+Every authored fragment carries an element-local and document-global UTF-16 source
+range. The mapping handles print-only whitespace trimming and uppercase expansion
+(such as ß to SS), and never searches another element for matching text. Synthetic
+continuation markers have no editable source span. Blank paragraphs and explicit
+breaks remain in the projection's complete source-entry list even when current
+print policy omits them. Mismatched or missing fragments are reported through
+`unmappedElementIDs`; future editable consumers must reject incomplete mappings.
+The projection is cached with the document, typography, and production lock and
+is never persisted. Production-locked fragments map against the original source,
+not the temporary normalized stream. Tests cover Unicode, repeated text, trimming,
+blank/break retention, synthetic markers, locked reopen, and fail-closed mapping.
+
+This adds source identity to the current print plan; it does not yet move either
+renderer onto a unified page-placement engine. The next step is to use one plan
+for page placement and PDF before exposing editable page boundaries.
 Keep authored blank paragraphs, Unicode selections, explicit breaks, undo, and
 production-lock identity in acceptance tests. Never inject display-only markers
 or page gaps into the saved screenplay to simulate pagination.

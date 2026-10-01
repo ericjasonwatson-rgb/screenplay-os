@@ -248,15 +248,18 @@ final class ScreenplayViewModel: ObservableObject {
         paginate(elements, includeEmptyElements: true, splitLongElements: false)
     }
 
-    private var printCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography?, pages: [ScreenplayPage])?
+    private var printCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography?, projection: ScriptPrintProjection)?
 
-    var printedPages: [ScreenplayPage] {
+    var printedPages: [ScreenplayPage] { printedLayout.pages }
+
+    var printedLayout: ScriptPrintProjection {
         let source = elements
         let lock = document?.screenplay.pageLock
-        if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.pages }
+        if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.projection }
         let pages = paginate(lockedPrintElements())
-        printCache = (source, lock, document?.typography, pages)
-        return pages
+        let projection = ScriptPrintProjection(pages: pages, source: source)
+        printCache = (source, lock, document?.typography, projection)
+        return projection
     }
 
     func printedPageLabel(for editingPage: ScreenplayPage, using pages: [ScreenplayPage]) -> String {
@@ -5636,6 +5639,7 @@ struct PaginatedElement: Identifiable {
     let blockHeight: CGFloat
     var isContinuation: Bool = false
     var attributed: NSAttributedString? = nil
+    var sourceSpan: PrintSourceSpan? = nil
 
     var id: UUID {
         element.id

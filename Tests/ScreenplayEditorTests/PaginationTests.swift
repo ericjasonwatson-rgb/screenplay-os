@@ -93,6 +93,89 @@ struct PaginationTests {
         }
     }
 
+    @Test func printProjectionMapsUnicodeFragmentsAndRetainsUnprintedSourceEntries() throws {
+        let heading = ScreenplayElement(type: .sceneHeading, text: "  int. straße - day  ")
+        let cue = ScreenplayElement(type: .character, text: "MARA")
+        let dialogue = ScreenplayElement(type: .dialogue, text: "  " + String(repeating: "Café 👩🏽‍🚀 waits. ", count: 220) + "  ")
+        let blank = ScreenplayElement(type: .action, text: "")
+        let breakElement = ScreenplayElement(type: .pageBreak, text: "")
+        let repeated = ScreenplayElement(type: .action, text: "Same words.")
+        let other = ScreenplayElement(type: .action, text: "Same words.")
+        let source = [heading, cue, dialogue, blank, breakElement, repeated, other]
+        try withDocument(source) { model, _ in
+            let before = model.document
+            let url = try #require(model.saveURL), saved = try Data(contentsOf: url)
+            let projection = model.printedLayout
+            #expect(projection.unmappedElementIDs.isEmpty)
+            #expect(projection.sourceEntries.map(\.elementID) == source.map(\.id))
+            #expect(projection.sourceEntries.map(\.text) == source.map(\.text))
+            let text = model.writingText as NSString
+            for entry in projection.sourceEntries { #expect(text.substring(with: entry.documentRange) == entry.text) }
+            let items = projection.pages.flatMap(\.elements)
+            #expect(items.contains { $0.isContinuation })
+            for item in items {
+                if item.isContinuation { #expect(item.sourceSpan == nil); continue }
+                let span = try #require(item.sourceSpan)
+                let element = try #require(source.first { $0.id == span.elementID })
+                let selected = (element.text as NSString).substring(with: span.elementRange)
+                #expect(text.substring(with: span.documentRange) == selected)
+                #expect(Range(span.elementRange, in: element.text) != nil)
+                #expect(item.text == (element.id == heading.id ? selected.uppercased() : selected))
+            }
+            let fragments = items.filter { !$0.isContinuation && $0.element.id == dialogue.id }
+            #expect(fragments.count > 1)
+            let spans = try fragments.map { try #require($0.sourceSpan).elementRange }
+            #expect(spans.first?.location == 2)
+            for pair in zip(spans, spans.dropFirst()) { #expect(NSMaxRange(pair.0) == pair.1.location) }
+            #expect(items.first { $0.element.id == repeated.id }?.sourceSpan?.documentRange != items.first { $0.element.id == other.id }?.sourceSpan?.documentRange)
+            #expect(model.document == before)
+            #expect(try Data(contentsOf: url) == saved)
+        }
+    }
+
+    @Test func printProjectionRejectsMismatchedAndMissingFragments() throws {
+        let first = ScreenplayElement(type: .action, text: "Same words.")
+        let second = ScreenplayElement(type: .action, text: "Same words.")
+        try withDocument([first, second]) { model, _ in
+            let items = model.printedPages.flatMap(\.elements)
+            let item = try #require(items.first)
+            let wrong = PaginatedElement(element: item.element, text: "Different words.", layout: item.layout,
+                textHeight: item.textHeight, blockHeight: item.blockHeight)
+            let projection = ScriptPrintProjection(pages: [ScreenplayPage(number: 1, elements: [wrong, items[1]])], source: [first, second])
+            #expect(projection.unmappedElementIDs == [first.id])
+            #expect(projection.pages[0].elements[0].sourceSpan == nil)
+            #expect(projection.pages[0].elements[1].sourceSpan?.elementID == second.id)
+            let missing = ScriptPrintProjection(pages: [], source: [first, second])
+            #expect(missing.unmappedElementIDs == [first.id, second.id])
+            #expect(missing.sourceEntries.count == 2)
+        }
+    }
+
+    @Test func lockedPrintProjectionMapsRepeatedFragmentsAfterReopen() throws {
+        let cue = ScreenplayElement(type: .character, text: "MARA")
+        let speech = ScreenplayElement(type: .dialogue, text: String(repeating: "Same café 👩🏽‍🚀 words. ", count: 220))
+        try withDocument([cue, speech]) { model, _ in
+            model.lockProductionPages()
+            let url = try #require(model.saveURL)
+            model.loadOpenScreenplay(at: url)
+            let before = model.document, bytes = try Data(contentsOf: url)
+            let projection = model.printedLayout
+            #expect(projection.unmappedElementIDs.isEmpty)
+            let fragments = projection.pages.flatMap(\.elements).filter { !$0.isContinuation && $0.element.id == speech.id }
+            #expect(fragments.count > 1)
+            let spans = try fragments.map { try #require($0.sourceSpan).elementRange }
+            #expect(spans.first?.location == 0)
+            #expect(spans.last.map(NSMaxRange) == (speech.text.trimmingCharacters(in: .whitespacesAndNewlines) as NSString).length)
+            for pair in zip(spans, spans.dropFirst()) { #expect(NSMaxRange(pair.0) == pair.1.location) }
+            for item in fragments {
+                let span = try #require(item.sourceSpan)
+                #expect((speech.text as NSString).substring(with: span.elementRange) == item.text)
+            }
+            #expect(model.document == before)
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
     @Test func warmMeasurementsMatchFreshPaginationAfterTextAndTypeChanges() throws {
         let action = ScreenplayElement(type: .action, text: String(repeating: "A passage with many words. ", count: 45))
         try withDocument([ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"), action]) { model, directory in
