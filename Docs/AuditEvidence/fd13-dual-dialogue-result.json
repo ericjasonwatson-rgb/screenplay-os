@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-01",
+  "revision": "2be428f",
+  "reference": "Final Draft 13.4.0 Build 120, created via native UI",
+  "source_sha256": "58b73852d1fb47d4f28905a120dd34acd63aafb95fe635d74a61285fd0183492",
+  "fixture": "fd13-dual-dialogue.fdx",
+  "fixture_sha256": "3fa8efe43777dff55d9690ff9f17f9e95147edd2f5071c17d7b809032e585516",
+  "expected_texts": [
+    "INT. AUDIT ROOM - DAY",
+    "Two speakers interrupt each other.",
+    "ALICE",
+    "AUDIT LEFT WORDS.",
+    "BOB",
+    "AUDIT RIGHT WORDS."
+  ],
+  "actual_elements": [
+    {
+      "type": "scene_heading",
+      "text": "INT. AUDIT ROOM - DAY"
+    },
+    {
+      "type": "action",
+      "text": "Two speakers interrupt each other."
+    },
+    {
+      "type": "general",
+      "text": ""
+    }
+  ],
+  "missing_texts": [
+    "ALICE",
+    "AUDIT LEFT WORDS.",
+    "BOB",
+    "AUDIT RIGHT WORDS."
+  ],
+  "result": "FAIL: dual dialogue text omitted; original FDX unchanged"
+}

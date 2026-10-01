@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<FinalDraft DocumentType="Script" Template="No" Version="6">
+  <Content>
+    <Paragraph Type="Scene Heading" id="7a293570-93b1-4cb8-98cc-4a36947bee00">
+      <SceneProperties Length="1/8" Page="1" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="336a3643-93d4-4cf1-83d4-6b00fa6a0eec" />
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="65d0e1fd-c64a-4af6-b135-4bde49d023cb" />
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. AUDIT ROOM - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="e14b490a-593a-414c-a5f4-3d8f98979f99">
+      <Text>Two speakers interrupt each other.</Text>
+    </Paragraph>
+    <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="General" id="bf07644c-97fe-4b35-9b32-b9065253aeee">
+      <DualDialogue>
+        <SpellCheckIgnoreLists>
+          <IgnoredRanges />
+          <IgnoredWords />
+        </SpellCheckIgnoreLists>
+        <Paragraph Type="Character" id="eedad9fe-892d-499b-9315-2902055ed286">
+          <Text>ALICE</Text>
+        </Paragraph>
+        <Paragraph Type="Dialogue" id="640a9b14-67a7-425d-9134-a861563a0b9a">
+          <Text>AUDIT LEFT WORDS.</Text>
+        </Paragraph>
+        <Paragraph Type="Character" id="9345ae57-15ea-49f1-b66c-255d067596b1">
+          <Text>BOB</Text>
+        </Paragraph>
+        <Paragraph Type="Dialogue" id="f7969180-dbd6-47f9-8174-f87b15f14a81">
+          <Text>AUDIT RIGHT WORDS.</Text>
+        </Paragraph>
+      </DualDialogue>
+    </Paragraph>
+  </Content>
+</FinalDraft>
