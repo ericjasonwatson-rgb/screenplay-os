@@ -60,8 +60,9 @@ preservation. The CLI now reports expected import errors with exit status 1
 instead of an uncaught-error crash.
 
 Live verification displayed both speeches in the review and confirmed Return
-cancellation retained the original blank draft. After clicking acceptance, the
-computer-use service timed out repeatedly on the isolated test application.
-The accepted editor state was not verified live; the automated acceptance and
-save/reopen cases pass. This limitation remains open and is not counted as a
-successful live import.
+cancellation retained the original blank draft. The isolated test application
+subsequently timed out in computer-use; its cause remains undiagnosed. Repeating
+acceptance in the packaged release application succeeded: all six body elements
+appeared, including both speakers and speeches, and a separate native copy was
+saved. Disk verification confirmed the six elements and unchanged original FDX
+bytes. The user's existing screenplay also remained byte-for-byte unchanged.

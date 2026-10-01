@@ -4562,7 +4562,7 @@ final class ScreenplayViewModel: ObservableObject {
 
     private func scriptPDFAttributes(type: ElementType, alignment: NSTextAlignment, weight: NSFont.Weight) -> [NSAttributedString.Key: Any] {
         var attributes = pdfAttributes(alignment: alignment, weight: weight, size: 12)
-        if let settings = document?.typography { attributes[.font] = PackageTypography.font(settings) }
+        attributes[.font] = PackageTypography.font(writingTypography)
         return attributes
     }
 

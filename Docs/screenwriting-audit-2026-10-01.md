@@ -8,9 +8,17 @@ Reference application: installed Final Draft **13.4.0 Build 120**, macOS.
 The first repair is implemented in [FDX import verification](fdx-import.md):
 default import rejects dual dialogue, and the Mac app offers an explicitly
 reviewed sequential conversion that retains both speeches. The audit evidence
-below remains the historical reproduction at `2be428f`. Native acceptance
-verification encountered a tool timeout; see the verification limits in that
-document. The other findings remain open.
+below remains the historical reproduction at `2be428f`. Native acceptance and
+separate saving now pass in the packaged release; the earlier isolated test
+instance timeout remains undiagnosed.
+
+F02 is partially repaired: the legacy writing surface and script-body PDF now
+both resolve the document typography, defaulting to regular Courier 12. Explicit
+font choices and inline emphasis remain authoritative. Zoom scales screen text
+only; viewing does not upgrade the document format. Spacing, pagination, title
+page templates, and the two writing engines still need alignment. Existing
+unstyled PDFs may wrap differently after replacing the system monospaced font;
+this repair does not establish page parity. Other findings remain open.
 
 ## Verdict
 

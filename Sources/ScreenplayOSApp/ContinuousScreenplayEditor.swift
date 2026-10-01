@@ -71,11 +71,10 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 style.paragraphSpacingBefore = (element.type == .sceneHeading ? 24 :
                     [.action, .character, .shot, .transition].contains(element.type) ? 12 : 0) * scale
                 style.paragraphSpacing = 4 * scale
-                let weight: NSFont.Weight = [.sceneHeading, .character, .transition, .shot].contains(element.type) ? .semibold : .regular
                 var range = ranges[index]
                 if index < ranges.count - 1 { range.length += 1 }
                 var attributes: [NSAttributedString.Key: Any] = [
-                    .font: model.document?.typography.map { PackageTypography.font($0, displayScale: scale) } ?? StudioAppearance.courier(size: 14 * scale, bold: weight != .regular),
+                    .font: PackageTypography.font(model.writingTypography, displayScale: scale),
                     .foregroundColor: StudioAppearance.ink(model.darkPageMode),
                     .paragraphStyle: style
                 ]

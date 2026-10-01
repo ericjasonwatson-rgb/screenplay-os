@@ -85,6 +85,41 @@ struct LegacyFormattingTests {
             #expect(model.elements[4].id != model.elements[1].id)
         }
     }
+    @Test func defaultCourierMatchesPDFAndZoomDoesNotChangeDocument() async throws {
+        try await withModel { model in
+            let original = try creativeState(model.document)
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            @MainActor func find(_ view: NSView) -> NSTextView? {
+                if let text = view as? NSTextView { return text }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            for zoom in [1.0, 2.0] {
+                model.pageZoom = zoom
+                host.layoutSubtreeIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+                let text = try #require(find(host))
+                for range in model.writingRanges.prefix(2) {
+                    let font = try #require(text.textStorage?.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont)
+                    #expect(font.familyName == "Courier" && font.pointSize == 12 * zoom)
+                    #expect(!NSFontManager.shared.traits(of: font).contains(.boldFontMask))
+                }
+                let pdf = try #require(PDFDocument(data: model.makePrintPDF()))
+                let page = try #require(pdf.page(at: 1)?.attributedString)
+                let heading = (page.string as NSString).range(of: "INT. ROOM - DAY")
+                #expect(heading.location != NSNotFound)
+                if heading.location != NSNotFound {
+                    let font = try #require(page.attribute(.font, at: heading.location, effectiveRange: nil) as? NSFont)
+                    #expect(font.familyName == "Courier" && abs(font.pointSize - 12) < 0.01)
+                    #expect(!NSFontManager.shared.traits(of: font).contains(.boldFontMask))
+                }
+                #expect(try creativeState(model.document) == original)
+                #expect(model.document?.typography == nil && model.document?.formatVersion == "1.0")
+            }
+        }
+    }
     @Test func nativeStylesSelectionAndTypingAgreeWithSavedRuns() async throws {
         try await withModel { model in
             let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
