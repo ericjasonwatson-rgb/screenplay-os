@@ -5,7 +5,7 @@ import ScreenplayDomain
 @MainActor
 struct PrintedWritingLayout {
     let id = UUID()
-    struct Line { let y: CGFloat; let height: CGFloat; let baseline: CGFloat }
+    struct Line: Equatable { let y: CGFloat; let height: CGFloat; let baseline: CGFloat }
     struct Mark { let text: String; let rect: NSRect; let attributes: [NSAttributedString.Key: Any] }
     final class MeasurementCache {
         struct Key: Hashable { let text: String; let width: CGFloat }

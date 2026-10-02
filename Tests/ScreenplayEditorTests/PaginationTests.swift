@@ -109,6 +109,46 @@ struct PaginationTests {
         }
     }
 
+    @Test func incrementalNativeLayoutMatchesFreshPlanAfterEdits() throws {
+        let source = (0..<8).flatMap { index in
+            [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM \(index) - DAY"),
+             ScreenplayElement(type: .action, text: String(repeating: "A café 👩🏽‍🚀 waits. ", count: 45))]
+        }
+        try withDocument(source) { model, _ in
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            func find(_ view: NSView) -> WritingTextView? {
+                if let text = view as? WritingTextView { return text }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            host.layoutSubtreeIfNeeded()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+            let editor = try #require(find(host))
+            for index in [15, 7, 1, 15] {
+                let projection = ScreenplayWritingProjection(elements: model.elements)
+                editor.setSelectedRange(NSRange(location: NSMaxRange(projection.ranges[index]), length: 0))
+                editor.insertText(" More words 👩🏽‍🚀.", replacementRange: editor.selectedRange())
+                host.layoutSubtreeIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+                let plan = try #require(editor.pagePlan)
+                let fresh = try #require(PrintedWritingLayout(print: model.printedLayout,
+                    writing: ScreenplayWritingProjection(elements: model.elements), typography: model.writingTypography))
+                #expect(plan.lines == fresh.lines)
+                let manager = try #require(editor.layoutManager), container = try #require(editor.textContainer)
+                manager.ensureLayout(for: container)
+                var actual: [Int: CGFloat] = [:]
+                manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { rect, _, _, glyphs, _ in
+                    actual[manager.characterIndexForGlyph(at: glyphs.location)] = rect.minY
+                }
+                for (offset, line) in fresh.lines {
+                    #expect(abs(try #require(actual[offset]) - line.y) < 0.01)
+                }
+            }
+        }
+    }
+
     @Test func cachedPageMeasurementsFollowTypographyChanges() throws {
         let source = [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"),
             ScreenplayElement(type: .action, text: String(repeating: "A long changing line. ", count: 80))]
@@ -442,7 +482,14 @@ struct PaginationTests {
                 // before SwiftUI has applied the requested document caret.
                 text.delegate?.textViewDidChangeSelection?(Notification(name: NSTextView.didChangeSelectionNotification, object: text))
                 #expect(model.documentCaret == model.printedLayout.firstSourceCaret(onPage: 2))
-                try await Task.sleep(for: .milliseconds(100))
+                // SwiftUI rendering and the viewport notification are separately queued.
+                // Await the observable result rather than assuming a fixed frame budget
+                // while other native-window tests are sharing the main actor.
+                let deadline = Date().addingTimeInterval(2)
+                repeat {
+                    host.layoutSubtreeIfNeeded()
+                    try await Task.sleep(for: .milliseconds(20))
+                } while model.scriptViewport.pageLabel != plan.labels[2] && Date() < deadline
                 #expect(model.scriptViewport.pageLabel == plan.labels[2])
                 #expect(model.requestedPrintedPageLabel == nil)
                 #expect(model.documentCaret == model.printedLayout.firstSourceCaret(onPage: 2))
@@ -520,6 +567,50 @@ struct PaginationTests {
             }
             #expect(model.document == before)
             #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
+    @Test func reusedScenePrefixMatchesFreshPaginationAcrossEdits() throws {
+        let source = (0..<12).flatMap { index in
+            [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM \(index) - DAY"),
+             ScreenplayElement(type: .action, text: "Alice enters. " + String(repeating: "A long café passage 👩🏽‍🚀. ", count: 60)),
+             ScreenplayElement(type: .character, text: "MARA"),
+             ScreenplayElement(type: .dialogue, text: String(repeating: "Something worth saying. ", count: 80))]
+        }
+        try withDocument(source) { model, directory in
+            _ = model.printedPages
+            @MainActor func compareFresh() throws {
+                let warm = model.printedPages
+                let url = directory.appendingPathComponent("fresh.json")
+                try JSONEncoder.openScreenplayEncoder().encode(try #require(model.document)).write(to: url)
+                let suite = "ScenePrefix.\(UUID())"
+                let prefs = try #require(UserDefaults(suiteName: suite))
+                defer { prefs.removePersistentDomain(forName: suite) }
+                let fresh = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
+                fresh.loadOpenScreenplay(at: url)
+                #expect(warm.map(\.label) == fresh.printedPages.map(\.label))
+                #expect(warm.map { $0.elements.map(\.text) } == fresh.printedPages.map { $0.elements.map(\.text) })
+                #expect(warm.map { $0.elements.map(\.blockHeight) } == fresh.printedPages.map { $0.elements.map(\.blockHeight) })
+                #expect(model.printedLayout.unmappedElementIDs.isEmpty)
+            }
+            let last = try #require(model.elements.last)
+            model.binding(for: last).wrappedValue += " Extra words."
+            try compareFresh()
+            #expect(model.lastPaginationReusedElementCount > 0)
+            model.undo()
+            try compareFresh()
+            model.redo()
+            try compareFresh()
+            // Changing a late cue changes an earlier first introduction's casing.
+            let cue = model.elements[46]
+            model.binding(for: cue).wrappedValue = "Alice"
+            try compareFresh()
+            #expect(model.lastPaginationReusedElementCount == 0)
+            let heading = model.elements[24]
+            model.binding(for: heading).wrappedValue = "EXT. A DIFFERENT PLACE - NIGHT"
+            try compareFresh()
+            model.setType(.action, for: heading.id)
+            try compareFresh()
         }
     }
 

@@ -12,7 +12,7 @@ The previous local app failed strict code-signature verification with “code ha
 
 The packager now creates and signs a fresh complete bundle in a temporary staging directory, verifies it, copies file contents without Finder metadata/ACLs, and verifies the installed result. It supports Developer ID signing and a preconfigured notarytool profile, but defaults to ad-hoc local signing. A valid ad-hoc signature is **not** Apple notarization or approval for downloaded distribution.
 
-The owner has no Apple Developer Program membership yet. The review ZIP therefore remains unnotarized and can still be blocked by Gatekeeper. Do not advise reviewers to disable Gatekeeper. Normal distribution remains blocked on membership, a Developer ID Application certificate, notarization credentials, and successful notarization. See Apple's [Developer ID guidance](https://developer.apple.com/developer-id/).
+The owner reports payment complete, with Apple Developer Program enrollment pending. The review ZIP therefore remains unnotarized and can still be blocked by Gatekeeper. Do not advise reviewers to disable Gatekeeper. Normal distribution remains blocked on membership, a Developer ID Application certificate, notarization credentials, and successful notarization. See Apple's [Developer ID guidance](https://developer.apple.com/developer-id/).
 
 ## Verification record
 

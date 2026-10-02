@@ -189,13 +189,15 @@ struct NativeEditorTests {
         window.isReleasedWhenClosed = false
         window.contentView = host
         defer { window.close() }
-        func find(_ view: NSView) -> NSTextView? {
-            if let text = view as? NSTextView { return text }
+        func find(_ view: NSView) -> WritingTextView? {
+            if let text = view as? WritingTextView { return text }
             return view.subviews.lazy.compactMap { find($0) }.first
         }
         window.orderFront(nil)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         let text = try #require(find(host))
+        #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
+        window.makeFirstResponder(text)
         print("SCREENPLAYOS_BENCHMARK_PAGES=\(model.printedPages.count) ELEMENTS=\(model.elements.count)")
         let position = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_POSITION"] ?? "end"
         print("SCREENPLAYOS_BENCHMARK_POSITION=\(position) NAVIGATOR=\(model.navigationVisible)")

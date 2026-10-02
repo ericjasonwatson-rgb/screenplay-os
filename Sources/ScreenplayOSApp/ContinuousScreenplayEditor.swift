@@ -72,6 +72,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         var writingProjection = ScreenplayWritingProjection(elements: [])
         private var projectedElements: [ScreenplayElement]?
         let measurements = PrintedWritingLayout.MeasurementCache()
+        let textRenderCache = WritingTextRenderCache()
+        var nativeEditRange: NSRange?
         var pageCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography, plan: PrintedWritingLayout?)?
         init(_ model: ScreenplayViewModel) { self.model = model }
 
@@ -87,27 +89,14 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 projectedElements = model.elements
             }
             let string = writingProjection.text
-            let attributed = NSMutableAttributedString(string: string)
-            let ranges = writingProjection.ranges
-            var activeAttributes: [NSAttributedString.Key: Any] = [:]
-            for (index, element) in model.elements.enumerated() {
-                let style = ScreenplayBodyLayout.editorStyle(for: element.type, scale: scale)
-                var range = ranges[index]
-                if index < ranges.count - 1 { range.length += 1 }
-                var attributes: [NSAttributedString.Key: Any] = [
-                    .font: PackageTypography.font(model.writingTypography, displayScale: scale),
-                    .foregroundColor: StudioAppearance.ink(model.darkPageMode),
-                    .paragraphStyle: style
-                ]
-                if let mark = element.revisionMark {
-                    attributes[.backgroundColor] = NSColor(mark.color.swiftUIColor).withAlphaComponent(0.15)
-                }
-                if range.length > 0 { attributed.addAttributes(attributes, range: range) }
-                if element.runs != nil {
-                    PackageTypography.apply((try? element.styledText.replacingText(model.displayedText(for: element))) ?? element.styledText, settings: model.writingTypography, to: attributed, offset: ranges[index].location, displayScale: scale)
-                }
-                if element.id == model.selectedElementID { activeAttributes = attributes }
-            }
+            let changed = view.string != string
+            let activeAttributes: [NSAttributedString.Key: Any]
+            if let storage = view.textStorage {
+                activeAttributes = textRenderCache.update(storage, elements: model.elements,
+                    projection: writingProjection, typography: model.writingTypography,
+                    dark: model.darkPageMode, selectedID: model.selectedElementID, nativeEdit: nativeEditRange)
+            } else { activeAttributes = [:] }
+            nativeEditRange = nil
             view.displayScale = scale
             view.layoutPage(in: (view.enclosingScrollView?.contentSize.width ?? 0) / CGFloat(model.pageZoom))
             view.backgroundColor = StudioAppearance.paper(model.darkPageMode)
@@ -115,10 +104,6 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             view.enclosingScrollView?.verticalScroller?.knobStyle = model.darkPageMode ? .light : .dark
             view.enclosingScrollView?.horizontalScroller?.knobStyle = model.darkPageMode ? .light : .dark
             view.insertionPointColor = StudioAppearance.ink(model.darkPageMode)
-            let changed = view.string != string
-            if changed || view.textStorage?.isEqual(to: attributed) == false {
-                view.textStorage?.setAttributedString(attributed)
-            }
             let projection = model.printedLayout
             view.pageGuides = projection.unmappedElementIDs.isEmpty ? projection.pages.indices.compactMap { index in
                 projection.firstSourceCaret(onPage: index).map { PrintedPageGuide(label: projection.pages[index].label, offset: writingProjection.displayRange($0).location) }
@@ -128,7 +113,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 pageCache = (model.elements, model.document?.screenplay.pageLock, model.writingTypography,
                     PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography, cache: measurements))
             }
-            view.setPagePlan(pageCache?.plan)
+            view.setPagePlan(pageCache?.plan, invalidatedFrom: textRenderCache.lastReplacementRange?.location)
             if let plan = view.pagePlan {
                 pagePositions = plan.labels.enumerated().map { ($0.element, CGFloat($0.offset) * PrintedWritingLayout.stride * view.displayScale) }
             } else {
@@ -222,6 +207,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             updating = false
             // Normalize casing and structural edits immediately, before the next keystroke.
             selectedID = model.selectedElementID
+            nativeEditRange = editRange
             render(view)
             updating = true
             let displayedCaret = writingProjection.displayRange(caret)
@@ -289,14 +275,22 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
 
     private(set) var pagePlan: PrintedWritingLayout?
     private var attemptedPlanID: UUID?
-    func setPagePlan(_ plan: PrintedWritingLayout?) {
+    func setPagePlan(_ plan: PrintedWritingLayout?, invalidatedFrom: Int? = nil) {
         if let id = plan?.id, attemptedPlanID == id { return }
         attemptedPlanID = plan?.id
+        var start = 0
+        if let previous = pagePlan, let plan, let invalidatedFrom {
+            let changedLines = previous.lines.keys.filter { previous.lines[$0] != plan.lines[$0] }
+                + plan.lines.keys.filter { previous.lines[$0] == nil }
+            start = min(invalidatedFrom, changedLines.min() ?? invalidatedFrom)
+        }
+        start = min(max(0, start), (string as NSString).length)
+        let invalidated = NSRange(location: start, length: (string as NSString).length - start)
         // Validate natural wrapping before applying page coordinates. A mismatched
         // line can otherwise make TextKit repeatedly backtrack during layout.
         pagePlan = nil
         layoutManager?.delegate = self
-        layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+        layoutManager?.invalidateLayout(forCharacterRange: invalidated, actualCharacterRange: nil)
         if let manager = layoutManager, let container = textContainer {
             manager.ensureLayout(for: container)
         }
@@ -314,7 +308,7 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
                 return
             }
             pagePlan = plan
-            manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+            manager.invalidateLayout(forCharacterRange: invalidated, actualCharacterRange: nil)
             manager.ensureLayout(for: container)
             if string.isEmpty || string.hasSuffix("\n"), let line = plan.lines[(string as NSString).length] {
                 let rect = NSRect(x: 0, y: line.y * displayScale, width: container.containerSize.width, height: line.height * displayScale)

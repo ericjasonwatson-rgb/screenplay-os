@@ -278,7 +278,7 @@ final class ScreenplayViewModel: ObservableObject {
         let source = elements
         let lock = document?.screenplay.pageLock
         if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.projection }
-        let pages = paginate(lockedPrintElements())
+        let pages = paginate(lockedPrintElements(), reuseScenePrefix: lock == nil)
         let projection = ScriptPrintProjection(pages: pages, source: source, preservesWhitespace: printPreservesWhitespace, casing: screenplayCasing, previous: printCache?.projection)
         printCache = (source, lock, document?.typography, projection)
         return projection
@@ -4331,7 +4331,26 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
-    private func paginate(_ sourceElements: [ScreenplayElement], includeEmptyElements: Bool = false, splitLongElements: Bool = true) -> [ScreenplayPage] {
+    private struct PaginationCheckpoint {
+        let index: Int
+        let pageCount: Int
+        let items: [PaginatedElement]
+        let height: CGFloat
+        let pageNumber: Int
+    }
+    private struct PaginationCache {
+        let elements: [ScreenplayElement]
+        let displayed: [String]
+        let typography: DocumentTypography
+        let preservesWhitespace: Bool
+        let pages: [ScreenplayPage]
+        let checkpoints: [PaginationCheckpoint]
+    }
+    private var paginationCache: PaginationCache?
+    private(set) var lastPaginationReusedElementCount = 0
+
+    private func paginate(_ sourceElements: [ScreenplayElement], includeEmptyElements: Bool = false, splitLongElements: Bool = true,
+                          reuseScenePrefix: Bool = false) -> [ScreenplayPage] {
         let visibleElements = sourceElements.filter {
             includeEmptyElements || printPreservesWhitespace || $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
@@ -4343,6 +4362,31 @@ final class ScreenplayViewModel: ObservableObject {
         var lockedBase = sourceElements.first?.externalIDs["screenplayos.lockStart"].flatMap(Int.init)
         var overflow = 0
         var index = 0
+        var checkpoints: [PaginationCheckpoint] = []
+        let casing = reuseScenePrefix ? screenplayCasing : [:]
+        let displayed = reuseScenePrefix ? visibleElements.map {
+            ScreenplayCasing.render($0.text, ranges: casing[$0.id, default: []])
+        } : []
+        lastPaginationReusedElementCount = 0
+        if reuseScenePrefix, let cache = paginationCache,
+           cache.typography == writingTypography, cache.preservesWhitespace == printPreservesWhitespace {
+            var dirty = 0
+            while dirty < min(cache.elements.count, visibleElements.count),
+                  cache.elements[dirty] == visibleElements[dirty], cache.displayed[dirty] == displayed[dirty] {
+                dirty += 1
+            }
+            // Keep-together and dialogue lookahead stop at scene headings. Restart at
+            // a preceding heading, never at the edited heading itself.
+            if let checkpoint = cache.checkpoints.last(where: { $0.index < dirty }) {
+                index = checkpoint.index
+                pages = Array(cache.pages.prefix(checkpoint.pageCount))
+                currentItems = checkpoint.items
+                usedHeight = checkpoint.height
+                pageNumber = checkpoint.pageNumber
+                checkpoints = cache.checkpoints.filter { $0.index < index }
+                lastPaginationReusedElementCount = index
+            }
+        }
 
         func finishPage() {
             let label = lockedBase.map { String($0) + (overflow == 0 ? "" : ProductionPageLayout.suffix(overflow)) }
@@ -4381,6 +4425,10 @@ final class ScreenplayViewModel: ObservableObject {
 
         while index < visibleElements.count {
             let element = visibleElements[index]
+            if reuseScenePrefix && element.type == .sceneHeading {
+                checkpoints.append(PaginationCheckpoint(index: index, pageCount: pages.count,
+                    items: currentItems, height: usedHeight, pageNumber: pageNumber))
+            }
 
             if element.type == .pageBreak {
                 if let base = element.externalIDs["screenplayos.lockBoundary"].flatMap(Int.init) {
@@ -4473,6 +4521,13 @@ final class ScreenplayViewModel: ObservableObject {
             finishPage()
         }
 
+        if reuseScenePrefix {
+            paginationCache = PaginationCache(elements: visibleElements, displayed: displayed,
+                typography: writingTypography, preservesWhitespace: printPreservesWhitespace,
+                pages: pages, checkpoints: checkpoints)
+        } else {
+            paginationCache = nil
+        }
         return pages
     }
 
