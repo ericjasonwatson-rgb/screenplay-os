@@ -27,6 +27,88 @@ struct PaginationTests {
         try body(model, directory)
     }
 
+    @Test func displayedCasingCoversIntroductionsCuesAndExtensionsWithoutChangingProse() throws {
+        let source = [ScreenplayElement(type: .sceneHeading, text: "int. room - day"),
+            ScreenplayElement(type: .action, text: "Alice (30s) enters. Alice waits for Bob."),
+            ScreenplayElement(type: .character, text: "Alice (v.o.)"),
+            ScreenplayElement(type: .parenthetical, text: "(whispers)"),
+            ScreenplayElement(type: .dialogue, text: "Alice is here."),
+            ScreenplayElement(type: .character, text: "Bob (o.s.)"),
+            ScreenplayElement(type: .parenthetical, text: "(v.o.)"),
+            ScreenplayElement(type: .transition, text: "fade in:")]
+        try withDocument(source) { model, _ in
+            let expected = ["INT. ROOM - DAY", "ALICE (30s) enters. Alice waits for BOB.",
+                "ALICE (V.O.)", "(whispers)", "Alice is here.", "BOB (O.S.)", "(V.O.)", "FADE IN:"]
+            #expect(ScreenplayWritingProjection(elements: source).text == expected.joined(separator: "\n"))
+            #expect(model.printedPages.flatMap(\.elements).map(\.text) == expected)
+            #expect(model.printedLayout.unmappedElementIDs.isEmpty)
+            #expect(model.elements.map(\.text) == source.map(\.text))
+        }
+    }
+
+    @Test func importedTitleTailMovesSeparatelyWithSnapshotUndoAndPDF() throws {
+        let body = [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"), ScreenplayElement(type: .action, text: "The end.")]
+        let source = body + ["Script Title", "Written by", "Name of First Writer", "Based on, If Any", "Address", "Phone Number"].map { ScreenplayElement(type: .general, text: $0) }
+        try withDocument(source) { model, _ in
+            let original = model.document
+            #expect(model.hasImportedTitlePageTail)
+            model.moveImportedTitlePageTail()
+            #expect(!model.hasImportedTitlePageTail)
+            #expect(model.elements == Array(original!.screenplay.elements.prefix(body.count)))
+            #expect(model.titlePage.subtitle.contains("Name of First Writer"))
+            #expect(!model.snapshots.isEmpty)
+            let pdf = try #require(PDFDocument(data: model.makePrintPDF()))
+            #expect(pdf.page(at: 0)?.string?.contains("Name of First Writer") == true)
+            #expect(pdf.page(at: 1)?.string?.contains("Name of First Writer") == false)
+            model.undo()
+            #expect(model.elements == original?.screenplay.elements)
+            #expect(model.titlePage == original?.titlePage)
+            model.redo()
+            let url = try #require(model.saveURL)
+            model.loadOpenScreenplay(at: url)
+            #expect(model.elements == Array(original!.screenplay.elements.prefix(body.count)))
+            #expect(model.titlePage.subtitle.contains("Phone Number"))
+        }
+    }
+
+    @Test func editablePageLinesMatchPrintedFragmentsAtEveryZoom() throws {
+        let source = [ScreenplayElement(type: .sceneHeading, text: "int. room - day"),
+            ScreenplayElement(type: .action, text: "Mara (30s) waits."),
+            ScreenplayElement(type: .character, text: "Mara (v.o.)"),
+            ScreenplayElement(type: .dialogue, text: String(repeating: "Café 👩🏽‍🚀 waits for another day. ", count: 240)),
+            ScreenplayElement(type: .action, text: ""), ScreenplayElement(type: .pageBreak, text: ""),
+            ScreenplayElement(type: .transition, text: "cut to black.")]
+        try withDocument(source) { model, _ in
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            func find(_ view: NSView) -> WritingTextView? {
+                if let value = view as? WritingTextView { return value }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            for zoom in [1.0, 1.25, 0.8, 1.0] {
+                model.pageZoom = zoom; host.layoutSubtreeIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+                let editor = try #require(find(host)), plan = try #require(editor.pagePlan)
+                let layout = try #require(editor.layoutManager), container = try #require(editor.textContainer)
+                layout.ensureLayout(for: container)
+                var actual: [Int: CGFloat] = [:]
+                layout.enumerateLineFragments(forGlyphRange: layout.glyphRange(for: container)) { rect, _, _, glyphs, _ in
+                    actual[layout.characterIndexForGlyph(at: glyphs.location)] = rect.minY
+                }
+                for (start, line) in plan.lines {
+                    let y = try #require(actual[start], "Missing native line at \(start), zoom \(zoom)")
+                    #expect(abs(y - line.y) < 0.01)
+                }
+                #expect(plan.labels == model.printedPages.map(\.label))
+                #expect(plan.labels.count > 1)
+                #expect(!editor.string.contains("PDF 1"))
+                #expect(model.elements.map(\.text) == source.map(\.text))
+            }
+        }
+    }
+
     @Test func whitespaceAndBlankPagesSurviveNewLocksButOldLocksKeepTheirPolicy() throws {
         let source = [ScreenplayElement(type: .sceneHeading, text: "  int. café - day  ")]
             + (0..<55).map { _ in ScreenplayElement(type: .action, text: "") }
@@ -158,9 +240,10 @@ struct PaginationTests {
                 host.layoutSubtreeIfNeeded(); RunLoop.current.run(until: Date().addingTimeInterval(0.05))
                 let editor = try #require(find(host))
                 let scroll = try #require(editor.enclosingScrollView)
-                let expectedWidth = max(576 * zoom, scroll.contentSize.width)
+                let expectedWidth = max(576, scroll.contentSize.width / zoom)
+                #expect(scroll.magnification == zoom)
                 #expect(editor.frame.width == expectedWidth)
-                #expect(editor.textContainerInset.width == (expectedWidth - 432 * zoom) / 2)
+                #expect(editor.textContainerInset.width == (expectedWidth - 432) / 2)
                 let layout = try #require(editor.layoutManager)
                 layout.ensureLayout(for: try #require(editor.textContainer))
                 for (index, element) in elements.prefix(types.count).enumerated() {
@@ -176,13 +259,13 @@ struct PaginationTests {
                     #expect(screenLines.map { $0.0 } == printLines.map { $0.0 }, "Wrapping differs for \(element.type) at \(zoom)")
                     if screenLines.count > 1 && printLines.count > 1 {
                         // TextKit rounds line metrics at the displayed font size.
-                        #expect(abs((screenLines[1].1 - screenLines[0].1) / zoom - (printLines[1].1 - printLines[0].1)) <= (zoom == 1 ? 0.1 : 0.5))
+                        #expect(abs((screenLines[1].1 - screenLines[0].1) - (printLines[1].1 - printLines[0].1)) <= (zoom == 1 ? 0.1 : 0.5))
                     }
                     let style = try #require(editor.textStorage?.attribute(.paragraphStyle, at: range.location, effectiveRange: nil) as? NSParagraphStyle)
-                    #expect(style.paragraphSpacingBefore / zoom == printed.layout.before)
-                    #expect(style.paragraphSpacing / zoom == printed.layout.after)
-                    #expect(style.headIndent / zoom == printed.layout.x - 108)
-                    #expect((432 * zoom + style.tailIndent - style.headIndent) / zoom == printed.layout.width)
+                    #expect(style.paragraphSpacingBefore == printed.layout.before)
+                    #expect(style.paragraphSpacing == printed.layout.after)
+                    #expect(style.headIndent == printed.layout.x - 108)
+                    #expect((432 + style.tailIndent - style.headIndent) == printed.layout.width)
                 }
                 #expect(model.document == original)
                 #expect(model.elements.suffix(2).map(\.text) == ["", ""])

@@ -13,6 +13,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = true
+        scroll.minMagnification = 0.5; scroll.maxMagnification = 3
+        scroll.allowsMagnification = false
         let view = WritingTextView(frame: NSRect(x: 0, y: 0, width: 612, height: 792))
         view.isRichText = false
         view.allowsUndo = false
@@ -43,13 +45,15 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         var restorationToken: UUID?
         var selectedID: UUID?
         var writingProjection = ScreenplayWritingProjection(elements: [])
+        var pageCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography, plan: PrintedWritingLayout?)?
         init(_ model: ScreenplayViewModel) { self.model = model }
 
         fileprivate func render(_ view: WritingTextView) {
             guard !updating, !view.hasMarkedText() else { return }
             updating = true
             defer { updating = false }
-            let scale = CGFloat(model.pageZoom)
+            let scale: CGFloat = 1
+            (view.enclosingScrollView as? WritingScrollView)?.pageZoom = CGFloat(model.pageZoom)
             let oldSelection = writingProjection.sourceRange(view.selectedRange())
             writingProjection = ScreenplayWritingProjection(elements: model.elements)
             let string = writingProjection.text
@@ -70,12 +74,12 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 }
                 if range.length > 0 { attributed.addAttributes(attributes, range: range) }
                 if element.runs != nil {
-                    PackageTypography.apply((try? element.styledText.replacingText(element.type == .sceneHeading ? element.text.uppercased() : element.text)) ?? element.styledText, settings: model.writingTypography, to: attributed, offset: ranges[index].location, displayScale: scale)
+                    PackageTypography.apply((try? element.styledText.replacingText(model.displayedText(for: element))) ?? element.styledText, settings: model.writingTypography, to: attributed, offset: ranges[index].location, displayScale: scale)
                 }
                 if element.id == model.selectedElementID { activeAttributes = attributes }
             }
             view.displayScale = scale
-            view.layoutPage(in: view.enclosingScrollView?.contentSize.width ?? 0)
+            view.layoutPage(in: (view.enclosingScrollView?.contentSize.width ?? 0) / CGFloat(model.pageZoom))
             view.backgroundColor = StudioAppearance.paper(model.darkPageMode)
             view.enclosingScrollView?.backgroundColor = StudioAppearance.paper(model.darkPageMode)
             view.insertionPointColor = StudioAppearance.ink(model.darkPageMode)
@@ -88,6 +92,15 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 projection.firstSourceCaret(onPage: index).map { PrintedPageGuide(label: projection.pages[index].label, offset: writingProjection.displayRange($0).location) }
             } : []
             view.guideInk = StudioAppearance.ink(model.darkPageMode)
+            if pageCache?.elements != model.elements || pageCache?.lock != model.document?.screenplay.pageLock || pageCache?.typography != model.writingTypography {
+                pageCache = (model.elements, model.document?.screenplay.pageLock, model.writingTypography,
+                    PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography))
+            }
+            view.setPagePlan(pageCache?.plan)
+            let available = view.pagePlan != nil
+            if model.writingPageLayoutAvailable != available {
+                DispatchQueue.main.async { [weak self] in self?.model.writingPageLayoutAvailable = available }
+            }
             view.needsDisplay = true
             var selection = oldSelection
             let restore = restorationToken != model.documentCaretToken
@@ -180,10 +193,21 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
 }
 
 private final class WritingScrollView: NSScrollView {
+    var pageZoom: CGFloat = 1 { didSet { applyZoom() } }
+    private var applyingZoom = false
     override func tile() {
         super.tile()
-        // SwiftUI may resize the page well after updateNSView has rendered.
-        (documentView as? WritingTextView)?.layoutPage(in: contentSize.width)
+        applyZoom()
+        (documentView as? WritingTextView)?.layoutPage(in: contentSize.width / pageZoom)
+    }
+    private func applyZoom() {
+        guard !applyingZoom, documentView != nil else { return }
+        applyingZoom = true
+        defer { applyingZoom = false }
+        if abs(magnification - pageZoom) > 0.0001 {
+            let visible = documentVisibleRect
+            setMagnification(pageZoom, centeredAt: NSPoint(x: visible.midX, y: visible.midY))
+        }
     }
 }
 
@@ -192,7 +216,7 @@ struct PrintedPageGuide: Equatable {
     let offset: Int
 }
 
-final class WritingTextView: NSTextView {
+final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
     var pageGuides: [PrintedPageGuide] = []
     var guideInk = NSColor.labelColor
 
@@ -209,29 +233,73 @@ final class WritingTextView: NSTextView {
                        y: textContainerOrigin.y + rect.minY)
     }
 
+    private(set) var pagePlan: PrintedWritingLayout?
+    private var attemptedPlanID: UUID?
+    func setPagePlan(_ plan: PrintedWritingLayout?) {
+        if let id = plan?.id, attemptedPlanID == id { return }
+        attemptedPlanID = plan?.id
+        // Validate natural wrapping before applying page coordinates. A mismatched
+        // line can otherwise make TextKit repeatedly backtrack during layout.
+        pagePlan = nil
+        layoutManager?.delegate = self
+        layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+        if let manager = layoutManager, let container = textContainer {
+            manager.ensureLayout(for: container)
+            if string.isEmpty || string.hasSuffix("\n"), let line = plan?.lines[(string as NSString).length] {
+                let rect = NSRect(x: 0, y: line.y * displayScale, width: container.containerSize.width, height: line.height * displayScale)
+                manager.setExtraLineFragmentRect(rect, usedRect: rect, textContainer: container)
+            }
+        }
+        if let plan, let manager = layoutManager, let container = textContainer {
+            var starts = Set<Int>()
+            manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { _, _, _, range, _ in
+                starts.insert(manager.characterIndexForGlyph(at: range.location))
+            }
+            if string.isEmpty || string.hasSuffix("\n") { starts.insert((string as NSString).length) }
+            guard Set(plan.lines.keys).isSubset(of: starts) else {
+                // Never draw a mixture of paged and continuous coordinates.
+                pagePlan = nil
+                manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+                manager.ensureLayout(for: container)
+                return
+            }
+            pagePlan = plan
+            manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+            manager.ensureLayout(for: container)
+            setFrameSize(NSSize(width: frame.width, height: (CGFloat(plan.labels.count) * PrintedWritingLayout.stride - 24) * displayScale))
+        }
+    }
+    func layoutManager(_ manager: NSLayoutManager, shouldSetLineFragmentRect rect: UnsafeMutablePointer<NSRect>,
+        lineFragmentUsedRect used: UnsafeMutablePointer<NSRect>, baselineOffset: UnsafeMutablePointer<CGFloat>,
+        in container: NSTextContainer, forGlyphRange glyphs: NSRange) -> Bool {
+        let start = manager.characterIndexForGlyph(at: glyphs.location)
+        guard let line = pagePlan?.lines[start] else { return false }
+        rect.pointee.origin.y = line.y * displayScale
+        used.pointee.origin.y = line.y * displayScale
+        rect.pointee.size.height = line.height * displayScale
+        used.pointee.size.height = line.height * displayScale
+        baselineOffset.pointee = line.baseline * displayScale
+        return true
+    }
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
-        guard let manager = layoutManager, let container = textContainer else { return }
-        // Only ask for glyph positions in the area being painted, avoiding full
-        // document layout merely to draw guides far below the viewport.
-        let local = rect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y)
-        let glyphs = manager.glyphRange(forBoundingRect: local, in: container)
-        let characters = manager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
-        let font = NSFont.systemFont(ofSize: 9 * displayScale)
-        for guide in pageGuides where NSLocationInRange(guide.offset, characters) {
-            guard let point = pageGuidePoint(guide) else { continue }
-            let label = "PDF \(guide.label)" as NSString
-            let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: guideInk.withAlphaComponent(0.55)]
-            let width = label.size(withAttributes: attributes).width
-            label.draw(at: NSPoint(x: max(4, textContainerOrigin.x - width - 12 * displayScale), y: point.y), withAttributes: attributes)
-            // A short tick marks the exact source start when the PDF break falls
-            // within a continuous editor line. It is paint only, not editable text.
-            guideInk.withAlphaComponent(0.35).setStroke()
-            let tick = NSBezierPath()
-            tick.move(to: NSPoint(x: point.x, y: point.y))
-            tick.line(to: NSPoint(x: point.x, y: point.y + 3 * displayScale))
-            tick.lineWidth = 0.5
-            tick.stroke()
+        guard let plan = pagePlan else { return }
+        for (index, label) in plan.labels.enumerated() {
+            let top = CGFloat(index) * PrintedWritingLayout.stride * displayScale
+            if index > 0 {
+                NSColor(calibratedWhite: 0.24, alpha: 1).setFill()
+                NSRect(x: 0, y: top - 24 * displayScale, width: bounds.width, height: 24 * displayScale).fill()
+            }
+            (label + "." as String).draw(at: NSPoint(x: textContainerOrigin.x + 432 * displayScale, y: top + 36 * displayScale),
+                withAttributes: [.font: StudioAppearance.courier(size: 12 * displayScale), .foregroundColor: guideInk])
+        }
+        for mark in plan.marks {
+            var attrs = mark.attributes
+            if let font = attrs[.font] as? NSFont { attrs[.font] = NSFont(descriptor: font.fontDescriptor, size: font.pointSize * displayScale) }
+            attrs[.foregroundColor] = guideInk
+            let area = NSRect(x: textContainerOrigin.x + (mark.rect.minX - 108) * displayScale, y: mark.rect.minY * displayScale,
+                width: mark.rect.width * displayScale, height: mark.rect.height * displayScale)
+            if area.intersects(rect) { mark.text.draw(in: area, withAttributes: attrs) }
         }
     }
 
@@ -244,7 +312,7 @@ final class WritingTextView: NSTextView {
         defer { layingOutPage = false }
         let width = max(576 * displayScale, availableWidth)
         let minimum = NSSize(width: width, height: 792 * displayScale)
-        let inset = NSSize(width: (width - ScreenplayBodyLayout.textWidth * displayScale) / 2, height: 48 * displayScale)
+        let inset = NSSize(width: (width - ScreenplayBodyLayout.textWidth * displayScale) / 2, height: 72 * displayScale)
         // Lower the previous minimum before shrinking after zoom-out.
         if minSize != minimum { minSize = minimum }
         if textContainerInset != inset { textContainerInset = inset }

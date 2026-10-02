@@ -86,7 +86,7 @@ struct NativeEditorTests {
         model.pageZoom = 1.2
         refresh()
         let zoomStyle = try #require(view.textStorage?.attribute(.paragraphStyle, at: range.location, effectiveRange: nil) as? NSParagraphStyle)
-        #expect(abs(zoomStyle.headIndent - 86.4) < 0.001)
+        #expect(abs(zoomStyle.headIndent - 72) < 0.001)
     }
     @Test func completeWindowPreservesWritingThroughPaneChangesAndReopening() throws {
         _ = NSApplication.shared
@@ -126,7 +126,7 @@ struct NativeEditorTests {
         #expect(model.writingText == original + " Writing check.")
         model.undo()
         refresh()
-        #expect(find(host)?.string == original)
+        #expect(find(host)?.string == ScreenplayWritingProjection(elements: model.elements).text)
         model.redo()
         refresh()
         let selection = NSRange(location: 100, length: 12)
@@ -154,7 +154,7 @@ struct NativeEditorTests {
         model.setWorkflowMode(.writing)
         refresh()
         #expect(model.selectedSceneBreakdown?.elementID == scene.elementID)
-        #expect(find(host)?.string == model.writingText)
+        #expect(find(host)?.string == ScreenplayWritingProjection(elements: model.elements).text)
         model.save()
         #expect(model.prepareToClose())
         let saved = model.writingText

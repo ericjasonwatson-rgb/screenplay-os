@@ -103,7 +103,7 @@ struct LegacyFormattingTests {
                 let text = try #require(find(host))
                 for range in model.writingRanges.prefix(2) {
                     let font = try #require(text.textStorage?.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont)
-                    #expect(font.familyName == "Courier" && font.pointSize == 12 * zoom)
+                    #expect(font.familyName == "Courier" && font.pointSize == 12)
                     #expect(!NSFontManager.shared.traits(of: font).contains(.boldFontMask))
                 }
                 let pdf = try #require(PDFDocument(data: model.makePrintPDF()))

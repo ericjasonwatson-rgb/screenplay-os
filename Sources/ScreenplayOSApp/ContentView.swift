@@ -67,6 +67,7 @@ struct ContentView: View {
                 }
             )
         )
+        .sheet(isPresented: $model.titlePagePresented) { ScreenplayTitlePageEditor(model: model) }
         .sheet(item: $model.packagePreview) { preview in
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
         }
@@ -1632,7 +1633,7 @@ private struct OutlineWorkspaceView: View {
                     maxWidth: WorkspacePaneLayout.compactWorkbenchMaxWidth
                 )
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(ScreenplayOSTokens.Palette.workspaceBackground)
     }
 }
 
@@ -1800,7 +1801,7 @@ private struct ScriptPreviewPane: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(model.selectedSceneScriptElements) { element in
-                        Text(element.text.isEmpty ? element.type.displayName : (element.type == .sceneHeading ? element.text.uppercased() : element.text))
+                        Text(element.text.isEmpty ? element.type.displayName : model.displayedText(for: element))
                             .font(Font(PackageTypography.font(model.writingTypography)))
                             .foregroundStyle(Color(nsColor: StudioAppearance.ink(model.darkPageMode)).opacity(element.text.isEmpty ? 0.5 : 1))
                             .frame(maxWidth: .infinity, alignment: element.type == .character || element.type == .dialogue ? .center : .leading)
@@ -1839,7 +1840,7 @@ private struct ShotWorkspaceView: View {
                     maxWidth: WorkspacePaneLayout.compactWorkbenchMaxWidth
                 )
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(ScreenplayOSTokens.Palette.workspaceBackground)
     }
 }
 
@@ -2018,7 +2019,7 @@ private struct BoardsWorkspaceView: View {
                     maxWidth: WorkspacePaneLayout.visualWorkbenchMaxWidth
                 )
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(ScreenplayOSTokens.Palette.workspaceBackground)
     }
 }
 
@@ -2737,6 +2738,7 @@ private struct ScreenplayPageView: View {
                         .help("Preserve current page numbers; additions use lettered pages and deletions retain omitted pages.")
                 }
                 Spacer()
+                Button("Title Page") { model.titlePagePresented = true }
                 Button {
                     do { preview = try PrintPreviewSnapshot(data: model.makePrintPDF(), pageLabels: model.printedPages.map(\.label)) }
                     catch { model.errorMessage = error.localizedDescription }
@@ -2752,6 +2754,10 @@ private struct ScreenplayPageView: View {
                 .padding(.horizontal, 8).disabled(model.document == nil)
             if let notice = PackageTypography.substitution(model.writingTypography) {
                 Text(notice).font(.caption).padding(.horizontal, 8)
+            }
+            if !model.writingPageLayoutAvailable {
+                Text("Continuous view: this layout cannot yet show exact editable pages. Use Print Preview for page placement.")
+                    .font(.caption).padding(.horizontal, 8)
             }
             ScriptPageWell(width: 760 * model.pageZoom) {
                 ContinuousScreenplayEditor(model: model)

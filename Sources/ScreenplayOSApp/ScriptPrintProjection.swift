@@ -16,7 +16,7 @@ struct ScriptPrintProjection {
     let sourceEntries: [SourceEntry]
     let unmappedElementIDs: Set<UUID>
 
-    init(pages: [ScreenplayPage], source: [ScreenplayElement], preservesWhitespace: Bool = false) {
+    init(pages: [ScreenplayPage], source: [ScreenplayElement], preservesWhitespace: Bool = false, casing: [UUID: [NSRange]]? = nil) {
         var offset = 0
         var entries: [SourceEntry] = []
         var maps: [UUID: TextMap] = [:]
@@ -24,7 +24,7 @@ struct ScriptPrintProjection {
             let length = (element.text as NSString).length
             entries.append(SourceEntry(elementID: element.id, type: element.type, text: element.text,
                 documentRange: NSRange(location: offset, length: length)))
-            maps[element.id] = TextMap(element: element, documentOffset: offset, preservesWhitespace: preservesWhitespace)
+            maps[element.id] = TextMap(element: element, documentOffset: offset, preservesWhitespace: preservesWhitespace, casing: casing?[element.id])
             offset += length + 1 // The editor joins elements with one newline.
         }
         var consumed: [UUID: Int] = [:]
@@ -97,7 +97,7 @@ struct ScriptPrintProjection {
         let sourceLength: Int
         let directSourceStart: Int?
 
-        init(element: ScreenplayElement, documentOffset: Int, preservesWhitespace: Bool) {
+        init(element: ScreenplayElement, documentOffset: Int, preservesWhitespace: Bool, casing: [NSRange]?) {
             elementID = element.id
             self.documentOffset = documentOffset
             let original = element.text as NSString
@@ -105,8 +105,9 @@ struct ScriptPrintProjection {
             let text = preservesWhitespace ? element.text : element.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let start = text.isEmpty ? 0 : original.range(of: text, options: .literal).location
             let uppercase = [.sceneHeading, .character, .transition, .shot].contains(element.type)
-            directSourceStart = uppercase ? nil : start
-            if !uppercase {
+            let caps = preservesWhitespace ? (casing ?? (uppercase ? [NSRange(location: 0, length: original.length)] : [])) : (uppercase ? [NSRange(location: 0, length: original.length)] : [])
+            directSourceStart = caps.isEmpty ? start : nil
+            if caps.isEmpty {
                 displayed = text
                 segments = []
                 return
@@ -116,7 +117,7 @@ struct ScriptPrintProjection {
             var displayOffset = 0
             for character in text {
                 let raw = String(character)
-                let rendered = uppercase ? raw.uppercased() : raw
+                let rendered = caps.contains { NSLocationInRange(sourceOffset, $0) } ? raw.uppercased() : raw
                 let rawLength = (raw as NSString).length
                 let renderedLength = (rendered as NSString).length
                 segments.append(Segment(displayed: NSRange(location: displayOffset, length: renderedLength),

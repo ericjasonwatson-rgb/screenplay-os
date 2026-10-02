@@ -79,6 +79,8 @@ final class ScreenplayViewModel: ObservableObject {
     }
     @Published var focusMode = false
     @Published var darkPageMode = false
+    @Published var titlePagePresented = false
+    @Published var writingPageLayoutAvailable = true
     @Published var pageZoom = 1.0
     @Published var navigationVisible = false
     @Published var contextAssistantVisible = false
@@ -257,12 +259,23 @@ final class ScreenplayViewModel: ObservableObject {
 
     var printedPages: [ScreenplayPage] { printedLayout.pages }
 
+    func displayedText(for element: ScreenplayElement) -> String {
+        ScreenplayCasing.render(element.text, ranges: screenplayCasing[element.id, default: []])
+    }
+    private var casingCache: (elements: [ScreenplayElement], ranges: [UUID: [NSRange]])?
+    var screenplayCasing: [UUID: [NSRange]] {
+        if let cache = casingCache, cache.elements == elements { return cache.ranges }
+        let ranges = ScreenplayCasing.ranges(in: elements)
+        casingCache = (elements, ranges)
+        return ranges
+    }
+
     var printedLayout: ScriptPrintProjection {
         let source = elements
         let lock = document?.screenplay.pageLock
         if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.projection }
         let pages = paginate(lockedPrintElements())
-        let projection = ScriptPrintProjection(pages: pages, source: source, preservesWhitespace: printPreservesWhitespace)
+        let projection = ScriptPrintProjection(pages: pages, source: source, preservesWhitespace: printPreservesWhitespace, casing: screenplayCasing)
         printCache = (source, lock, document?.typography, projection)
         return projection
     }
@@ -1794,7 +1807,7 @@ final class ScreenplayViewModel: ObservableObject {
         case .showFormat:
             showSidebarMode(.assistant, workflow: .writing)
         case .showTitlePage:
-            showSidebarMode(.titlePage, workflow: .writing)
+            titlePagePresented = true
         case .showBreakdown:
             showSidebarMode(.breakdown, workflow: .directing)
         case .showBoards:
@@ -2338,6 +2351,36 @@ final class ScreenplayViewModel: ObservableObject {
             document?.project.metadata.modifiedAt = Date()
             autosave()
         }
+    }
+
+    private static let importedTitlePlaceholders = ["Script Title", "Written by", "Name of First Writer", "Based on, If Any", "Address", "Phone Number"]
+    var hasImportedTitlePageTail: Bool {
+        let tail = elements.suffix(Self.importedTitlePlaceholders.count)
+        return tail.count == Self.importedTitlePlaceholders.count && tail.allSatisfy { $0.type == .general }
+            && tail.map(\.text) == Self.importedTitlePlaceholders
+    }
+    /// Repairs only the exact old-importer template suffix, never guessed prose.
+    func moveImportedTitlePageTail() {
+        guard hasImportedTitlePageTail, let current = document, let saveURL else { return }
+        do {
+            let directory = snapshotsDirectory(for: saveURL)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let backup = directory.appendingPathComponent(snapshotFileName(label: "Before Title Page Repair", date: Date()))
+            try DocumentFileWriter.write(JSONEncoder.openScreenplayEncoder().encode(current), to: backup, overwriteExisting: false)
+            rememberUndoState()
+            document?.screenplay.elements.removeLast(Self.importedTitlePlaceholders.count)
+            // Preserve the imported wording on the title page; it remains editable.
+            let wording = Self.importedTitlePlaceholders.joined(separator: "\n")
+            let existing = document?.titlePage.subtitle ?? ""
+            document?.titlePage.subtitle = existing.isEmpty ? wording : existing + "\n\n" + wording
+            document?.screenplay.revision += 1
+            document?.project.metadata.modifiedAt = Date()
+            selectedElementID = elements.last?.id
+            documentCaret = nil; documentCaretToken = UUID()
+            loadSnapshots()
+            autosave()
+            titlePagePresented = true
+        } catch { errorMessage = "Title-page repair was not applied: \(error.localizedDescription)" }
     }
 
     func syncTitlePageFromProject() {
@@ -3616,6 +3659,9 @@ final class ScreenplayViewModel: ObservableObject {
         switch type {
         case .sceneHeading, .character, .transition, .shot:
             return text.uppercased()
+        case .parenthetical:
+            let element = ScreenplayElement(type: type, text: text)
+            return ScreenplayCasing.render(text, ranges: ScreenplayCasing.ranges(in: [element])[element.id, default: []])
         default:
             return text
         }
@@ -4214,19 +4260,19 @@ final class ScreenplayViewModel: ObservableObject {
     private func drawTitlePage(_ titlePage: TitlePage, in context: CGContext, pageRect: CGRect) {
         context.beginPDFPage(nil)
         withPDFGraphicsContext(context) {
-            let centerRect = CGRect(x: 108, y: 390, width: 396, height: 120)
             let titleText = [
                 titlePage.title.isEmpty ? title : titlePage.title,
                 titlePage.subtitle,
-                titlePage.author.isEmpty ? "" : "by \(titlePage.author)"
+                titlePage.author.isEmpty ? "" : "Written by\n\n\(titlePage.author)"
             ]
                 .filter { !$0.isEmpty }
                 .joined(separator: "\n\n")
 
-            titleText.draw(
-                in: centerRect,
-                withAttributes: pdfAttributes(alignment: .center, weight: .regular, size: 12)
-            )
+            let attributes: [NSAttributedString.Key: Any] = [.font: StudioAppearance.courier(size: 12),
+                .paragraphStyle: ScreenplayBodyLayout.textStyle(alignment: .center)]
+            let height = ceil((titleText as NSString).boundingRect(with: NSSize(width: 396, height: 600),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attributes).height)
+            titleText.draw(in: CGRect(x: 108, y: max(150, 550 - height), width: 396, height: height + 4), withAttributes: attributes)
 
             let footerText = [titlePage.draftDate, titlePage.contact]
                 .filter { !$0.isEmpty }
@@ -4528,7 +4574,7 @@ final class ScreenplayViewModel: ObservableObject {
         if element.externalIDs["screenplayos.printFragment"] == "continued" {
             spec = PDFLayoutSpec(x: spec.x, width: spec.width, before: 0, after: spec.after, alignment: spec.alignment, weight: spec.weight)
         }
-        let text = element.externalIDs["screenplayos.printFragment"] != nil ? element.text : normalizedText(for: element.type, text: printPreservesWhitespace ? element.text : element.text.trimmingCharacters(in: .whitespacesAndNewlines))
+        let text = element.externalIDs["screenplayos.printFragment"] != nil ? element.text : printPreservesWhitespace ? displayedText(for: element) : normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
         let rich = NSMutableAttributedString(string: text, attributes: scriptPDFAttributes(type: element.type, alignment: spec.alignment, weight: spec.weight))
         if let styled = try? element.styledText.replacingText(text), element.runs != nil {
             PackageTypography.apply(styled, settings: writingTypography, to: rich, offset: 0)
@@ -6139,7 +6185,7 @@ extension ScreenplayViewModel {
     private func canonicalPrintElements() -> [ScreenplayElement] {
         elements.filter { printPreservesWhitespace || $0.type == .pageBreak || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map {
             var element = $0
-            element.text = normalizedText(for: element.type, text: printPreservesWhitespace ? element.text : element.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            element.text = printPreservesWhitespace ? displayedText(for: element) : normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
             return element
         }
     }

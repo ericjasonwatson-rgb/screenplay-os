@@ -15,13 +15,16 @@ struct ScreenplayWritingProjection {
     init(elements: [ScreenplayElement]) {
         var output = "", ranges: [NSRange] = [], segments: [Segment] = []
         var sourceOffset = 0, displayOffset = 0
+        let casing = ScreenplayCasing.ranges(in: elements)
         for (index, element) in elements.enumerated() {
             let start = displayOffset
             // Ordinary paragraphs need one identity span, not a record per character.
-            let pieces = element.type == .sceneHeading && element.text != element.text.uppercased()
-                ? element.text.map(String.init) : [element.text]
+            let caps = casing[element.id, default: []]
+            let pieces = caps.isEmpty ? [element.text] : element.text.map(String.init)
+            var localOffset = 0
             for raw in pieces where !raw.isEmpty {
-                let shown = element.type == .sceneHeading ? raw.uppercased() : raw
+                let shown = caps.contains { NSLocationInRange(localOffset, $0) } ? raw.uppercased() : raw
+                localOffset += (raw as NSString).length
                 let sourceCount = (raw as NSString).length, displayCount = (shown as NSString).length
                 segments.append(Segment(source: NSRange(location: sourceOffset, length: sourceCount),
                     display: NSRange(location: displayOffset, length: displayCount)))

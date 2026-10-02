@@ -272,8 +272,7 @@ struct ScreenplayOSApp: App {
                     .keyboardShortcut("k", modifiers: [.command, .option])
 
                     Button("Show Title Page") {
-                        model.setWorkflowMode(.writing)
-                        model.sidebarMode = .titlePage
+                        model.titlePagePresented = true
                     }
                     .keyboardShortcut("t", modifiers: [.command, .option])
 
