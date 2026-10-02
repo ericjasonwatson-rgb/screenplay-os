@@ -1,21 +1,27 @@
 import SwiftUI
 import ScreenplayDomain
 
-/// A scene-order overview. Untimed scenes stay visible without inventing runtime.
+/// Scene order with optional script estimates, separate from timed clips.
 struct LinearEditSpineView: View {
     @ObservedObject var model: ScreenplayViewModel
     @State private var zoom = 1.0
+    @AppStorage("editSpine.showDurationEstimates") private var showEstimates = false
 
     private var selectedScene: String? { model.selectedSceneBreakdown?.editSpineID }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let estimates = showEstimates ? SceneDurationEstimate.byScene(in: model.elements) : [:]
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 Label("Edit Spine", systemImage: "film")
                     .font(.system(size: 13, weight: .semibold))
                 Text("Edit order · \(model.editorialBeats.count) scenes")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
+                Toggle("Estimates", isOn: $showEstimates)
+                    .toggleStyle(StudioToggleStyle())
+                    .accessibilityLabel("Show scene duration estimates")
+                    .help(SceneTimingDisplay.assumptions)
                 Text("Zoom").font(.caption)
                 Slider(value: $zoom, in: 0.5...2)
                     .frame(width: 100)
@@ -34,7 +40,7 @@ struct LinearEditSpineView: View {
                     ScrollView(.horizontal) {
                         LazyHStack(alignment: .top, spacing: 4) {
                             ForEach(model.editorialBeats) { beat in
-                                scene(beat).id(beat.sceneSpineID)
+                                scene(beat, estimate: estimates[beat.sceneSpineID]).id(beat.sceneSpineID)
                             }
                         }
                         .padding(12)
@@ -52,7 +58,8 @@ struct LinearEditSpineView: View {
         .background(ScreenplayOSTokens.Palette.panelBackground)
     }
 
-    private func scene(_ beat: EditorialBeat) -> some View {
+    private func scene(_ beat: EditorialBeat, estimate: SceneDurationEstimate?) -> some View {
+        let timing = SceneTimingDisplay(beat: beat, scriptEstimate: estimate, showEstimate: showEstimates)
         let selected = selectedScene == beat.sceneSpineID
         let width = CGFloat(220 * zoom)
         return VStack(alignment: .leading, spacing: 6) {
@@ -68,11 +75,15 @@ struct LinearEditSpineView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(beat.title.uppercased()).font(.system(size: 12, weight: .semibold)).lineLimit(2)
                     Spacer(minLength: 0)
-                    Text(beat.editClips.isEmpty ? "No timed clips" : String(format: "%.1fs · %d clips", beat.editDurationSeconds, beat.editClips.count))
+                    Text(timing.timing)
                         .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                    if let estimate = timing.estimate {
+                        Text(estimate).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                            .help(SceneTimingDisplay.assumptions)
+                    }
                 }
                 .padding(10)
-                .frame(width: width, height: 80, alignment: .leading)
+                .frame(width: width, height: showEstimates ? 104 : 80, alignment: .leading)
                 .background(selected ? Color.accentColor.opacity(0.22) : Color.primary.opacity(0.06))
                 .overlay(Rectangle().stroke(selected ? Color.accentColor : ScreenplayOSTokens.Palette.separator,
                                             lineWidth: selected ? 2 : 1))

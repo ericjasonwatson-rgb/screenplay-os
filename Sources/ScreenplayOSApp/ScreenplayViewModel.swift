@@ -13,6 +13,7 @@ final class ScreenplayViewModel: ObservableObject {
             // Includes nested edits, production-context changes, Undo/Redo and Open.
             // Selection and workspace changes can reuse the same derived summaries.
             sceneBreakdownCache = nil
+            if oldValue?.screenplay.elements != document?.screenplay.elements { writingSourceCache = nil }
             if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.outline.first?.template != document?.outline.first?.template,
                let name = document?.outline.first?.template,
                let kind = OutlineTemplateKind.allCases.first(where: { $0.displayName == name }) {
@@ -22,6 +23,7 @@ final class ScreenplayViewModel: ObservableObject {
             editPlayheadSeconds = 0
         }
     }
+    private var writingSourceCache: (text: String, ranges: [NSRange])?
     private var sceneBreakdownCache: [SceneBreakdown]?
     @Published private(set) var sourceURL: URL?
     @Published private(set) var saveURL: URL?
@@ -275,7 +277,7 @@ final class ScreenplayViewModel: ObservableObject {
         let lock = document?.screenplay.pageLock
         if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.projection }
         let pages = paginate(lockedPrintElements())
-        let projection = ScriptPrintProjection(pages: pages, source: source, preservesWhitespace: printPreservesWhitespace, casing: screenplayCasing)
+        let projection = ScriptPrintProjection(pages: pages, source: source, preservesWhitespace: printPreservesWhitespace, casing: screenplayCasing, previous: printCache?.projection)
         printCache = (source, lock, document?.typography, projection)
         return projection
     }
@@ -4576,7 +4578,7 @@ final class ScreenplayViewModel: ObservableObject {
         }
         let text = element.externalIDs["screenplayos.printFragment"] != nil ? element.text : printPreservesWhitespace ? displayedText(for: element) : normalizedText(for: element.type, text: element.text.trimmingCharacters(in: .whitespacesAndNewlines))
         let rich = NSMutableAttributedString(string: text, attributes: scriptPDFAttributes(type: element.type, alignment: spec.alignment, weight: spec.weight))
-        if let styled = try? element.styledText.replacingText(text), element.runs != nil {
+        if element.runs != nil, let styled = try? element.styledText.replacingText(text) {
             PackageTypography.apply(styled, settings: writingTypography, to: rich, offset: 0)
         }
         let formatted = document?.typography != nil || element.runs != nil
@@ -6014,17 +6016,21 @@ private extension Array where Element: Hashable {
 
 
 extension ScreenplayViewModel {
-    var writingText: String { elements.map(\.text).joined(separator: "\n") }
-
-    /// Each separator belongs to the preceding element; offsets use AppKit's UTF-16 units.
-    var writingRanges: [NSRange] {
+    private var writingSource: (text: String, ranges: [NSRange]) {
+        if let writingSourceCache { return writingSourceCache }
         var offset = 0
-        return elements.map {
+        let ranges = elements.map {
             let range = NSRange(location: offset, length: ($0.text as NSString).length)
             offset = NSMaxRange(range) + 1
             return range
         }
+        let value = (elements.map(\.text).joined(separator: "\n"), ranges)
+        writingSourceCache = value
+        return value
     }
+    var writingText: String { writingSource.text }
+    /// Separators belong to the preceding element; offsets use AppKit UTF-16.
+    var writingRanges: [NSRange] { writingSource.ranges }
 
     func rememberDocumentCaret(_ range: NSRange) {
         if documentCaret != range { typingGroup = nil; legacyInsertionStyle = nil }

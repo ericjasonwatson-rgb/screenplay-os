@@ -24,9 +24,7 @@ struct WritingFormattingBar: View {
         }.frame(maxWidth: .infinity, alignment: .leading).controlSize(.small)
     }
     @ViewBuilder private var typographyControls: some View {
-        Picker("Font", selection: Binding(get: { settings.fontFamily }, set: changeFont)) {
-            ForEach(Array(Set(NSFontManager.shared.availableFontFamilies + [settings.fontFamily])).sorted(), id: \.self) { Text($0).tag($0) }
-        }.frame(width: 170).accessibilityLabel("Document font")
+        FontFamilyPicker(selection: settings.fontFamily, change: changeFont).frame(width: 170).accessibilityLabel("Document font")
             .help("Font family for the screenplay and printed script.")
         Picker("Size", selection: Binding(get: { settings.fontSize }, set: changeSize)) {
             ForEach(Array(Set([8.0, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72] + [settings.fontSize])).sorted(), id: \.self) {
@@ -54,4 +52,54 @@ struct WritingFormattingBar: View {
         Toggle(isOn: binding(key)) { Image(systemName: symbol).frame(width: 18) }
             .toggleStyle(StudioToggleStyle()).accessibilityLabel(title).help(title + " for selected text or subsequent typing")
     }
+}
+
+/// Keep the installed-font menu native and stable while text/selection changes.
+/// Refresh its inventory when opened, so newly installed fonts remain available.
+struct FontFamilyPicker: NSViewRepresentable {
+    let selection: String
+    let change: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(change: change) }
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let button = FixedFontPopUpButton(frame: .zero, pullsDown: false)
+        button.controlSize = .small
+        button.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        button.setAccessibilityLabel("Document font")
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.choose(_:))
+        button.menu?.delegate = context.coordinator
+        context.coordinator.button = button
+        button.addItem(withTitle: selection)
+        return button
+    }
+    func updateNSView(_ button: NSPopUpButton, context: Context) {
+        button.isEnabled = context.environment.isEnabled
+        context.coordinator.change = change
+        if button.item(withTitle: selection) == nil { button.addItem(withTitle: selection) }
+        if button.selectedItem?.title != selection { button.selectItem(withTitle: selection) }
+    }
+    final class Coordinator: NSObject, NSMenuDelegate {
+        var change: (String) -> Void
+        weak var button: NSPopUpButton?
+        init(change: @escaping (String) -> Void) { self.change = change }
+        @objc func choose(_ sender: NSPopUpButton) {
+            if let title = sender.selectedItem?.title { change(title) }
+        }
+        func menuNeedsUpdate(_ menu: NSMenu) { refresh(selection: button?.selectedItem?.title ?? "Courier") }
+        func refresh(selection: String) {
+            guard let button else { return }
+            let families = Array(Set(NSFontManager.shared.availableFontFamilies + [selection])).sorted()
+            if button.itemTitles != families {
+                button.removeAllItems()
+                button.addItems(withTitles: families)
+            }
+            button.selectItem(withTitle: selection)
+        }
+    }
+}
+
+/// Font names must not force a scan of the entire menu during every layout pass.
+private final class FixedFontPopUpButton: NSPopUpButton {
+    override var intrinsicContentSize: NSSize { NSSize(width: 170, height: 22) }
 }

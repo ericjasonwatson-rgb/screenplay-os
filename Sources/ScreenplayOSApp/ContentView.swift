@@ -28,7 +28,11 @@ struct ContentView: View {
                         if !model.focusMode { model.navigationVisible = visibility != .detailOnly }
                     }
                 )) {
-                    SidebarView(model: model)
+                    Group {
+                        if model.visibleWorkspaceRegions.contains(.navigation) {
+                            SidebarView(model: model)
+                        }
+                    }
                         .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
                 } detail: {
                     EditorWorkspaceView(model: model)
@@ -2613,14 +2617,8 @@ private struct BottomStatusBar: View {
         ScrollView(.horizontal) {
             HStack(spacing: 10) {
                 StatusCapsule(systemImage: "list.number", text: model.selectedElementPosition)
-                Menu {
-                    ForEach(Array(model.printedLayout.pages.enumerated()), id: \.offset) { index, page in
-                        Button("PDF page \(page.label)") { model.navigateToPrintedPage(index) }
-                            .disabled(model.printedLayout.firstSourceCaret(onPage: index) == nil)
-                    }
-                } label: {
-                    StatusCapsule(systemImage: "doc.on.doc", text: model.currentPrintedPageStatus)
-                }
+                PrintedPageMenu(model: model)
+                    .fixedSize()
                 .help("Go to the source text on a printed page. Page numbers exclude the title page.")
                 StatusCapsule(systemImage: "pencil.and.outline", text: model.revisionStatusText)
                 if model.workflowMode != .writing {

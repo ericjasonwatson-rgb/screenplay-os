@@ -31,6 +31,8 @@ enum ScreenplayCasing {
         return result
     }
     static func render(_ text: String, ranges: [NSRange]) -> String {
+        guard !ranges.isEmpty else { return text }
+        if ranges.contains(NSRange(location: 0, length: (text as NSString).length)) { return text.uppercased() }
         var offset = 0
         return text.map { character in
             let raw = String(character)

@@ -11,6 +11,7 @@ struct ScreenplayWritingProjection {
     let ranges: [NSRange]
     private let segments: [Segment]
     private let sourceLength: Int
+    private let displayLength: Int
 
     init(elements: [ScreenplayElement]) {
         var output = "", ranges: [NSRange] = [], segments: [Segment] = []
@@ -37,14 +38,14 @@ struct ScreenplayWritingProjection {
                 output += "\n"; sourceOffset += 1; displayOffset += 1
             }
         }
-        text = output; self.ranges = ranges; self.segments = segments; sourceLength = sourceOffset
+        text = output; self.ranges = ranges; self.segments = segments; sourceLength = sourceOffset; displayLength = displayOffset
     }
 
     func sourceRange(_ range: NSRange) -> NSRange { map(range, toDisplay: false) }
     func displayRange(_ range: NSRange) -> NSRange { map(range, toDisplay: true) }
 
     private func map(_ range: NSRange, toDisplay: Bool) -> NSRange {
-        let limit = toDisplay ? (text as NSString).length : sourceLength
+        let limit = toDisplay ? displayLength : sourceLength
         func boundary(_ offset: Int, trailing: Bool) -> Int {
             // Half-open spans make exact boundaries belong to the next character.
             var lower = 0, upper = segments.count

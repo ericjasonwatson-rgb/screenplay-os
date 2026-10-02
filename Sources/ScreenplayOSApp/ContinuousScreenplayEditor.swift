@@ -45,6 +45,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         var restorationToken: UUID?
         var selectedID: UUID?
         var writingProjection = ScreenplayWritingProjection(elements: [])
+        private var projectedElements: [ScreenplayElement]?
         let measurements = PrintedWritingLayout.MeasurementCache()
         var pageCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography, plan: PrintedWritingLayout?)?
         init(_ model: ScreenplayViewModel) { self.model = model }
@@ -56,7 +57,10 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             let scale: CGFloat = 1
             (view.enclosingScrollView as? WritingScrollView)?.pageZoom = CGFloat(model.pageZoom)
             let oldSelection = writingProjection.sourceRange(view.selectedRange())
-            writingProjection = ScreenplayWritingProjection(elements: model.elements)
+            if projectedElements != model.elements {
+                writingProjection = ScreenplayWritingProjection(elements: model.elements)
+                projectedElements = model.elements
+            }
             let string = writingProjection.text
             let attributed = NSMutableAttributedString(string: string)
             let ranges = writingProjection.ranges
@@ -102,7 +106,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             if model.writingPageLayoutAvailable != available {
                 DispatchQueue.main.async { [weak self] in self?.model.writingPageLayoutAvailable = available }
             }
-            view.needsDisplay = true
+            view.setNeedsDisplay(view.visibleRect)
             var selection = oldSelection
             let restore = restorationToken != model.documentCaretToken
             let moved = selectedID != model.selectedElementID
@@ -267,7 +271,8 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
                 let rect = NSRect(x: 0, y: line.y * displayScale, width: container.containerSize.width, height: line.height * displayScale)
                 manager.setExtraLineFragmentRect(rect, usedRect: rect, textContainer: container)
             }
-            setFrameSize(NSSize(width: frame.width, height: (CGFloat(plan.labels.count) * PrintedWritingLayout.stride - 24) * displayScale))
+            let size = NSSize(width: frame.width, height: (CGFloat(plan.labels.count) * PrintedWritingLayout.stride - 24) * displayScale)
+            if frame.size != size { setFrameSize(size) }
         }
     }
     func layoutManager(_ manager: NSLayoutManager, shouldSetLineFragmentRect rect: UnsafeMutablePointer<NSRect>,
@@ -285,14 +290,19 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
         guard let plan = pagePlan else { return }
+        let redraw = rect.intersection(visibleRect)
+        guard !redraw.isEmpty else { return }
+        let labelAttributes: [NSAttributedString.Key: Any] = [.font: StudioAppearance.courier(size: 12 * displayScale), .foregroundColor: guideInk]
         for (index, label) in plan.labels.enumerated() {
             let top = CGFloat(index) * PrintedWritingLayout.stride * displayScale
+            let pageArea = NSRect(x: 0, y: top - 24 * displayScale, width: bounds.width, height: PrintedWritingLayout.stride * displayScale)
+            guard pageArea.intersects(redraw) else { continue }
             if index > 0 {
                 NSColor(calibratedWhite: 0.24, alpha: 1).setFill()
                 NSRect(x: 0, y: top - 24 * displayScale, width: bounds.width, height: 24 * displayScale).fill()
             }
             (label + "." as String).draw(at: NSPoint(x: textContainerOrigin.x + 432 * displayScale, y: top + 36 * displayScale),
-                withAttributes: [.font: StudioAppearance.courier(size: 12 * displayScale), .foregroundColor: guideInk])
+                withAttributes: labelAttributes)
         }
         for mark in plan.marks {
             var attrs = mark.attributes
@@ -300,7 +310,7 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
             attrs[.foregroundColor] = guideInk
             let area = NSRect(x: textContainerOrigin.x + (mark.rect.minX - 108) * displayScale, y: mark.rect.minY * displayScale,
                 width: mark.rect.width * displayScale, height: mark.rect.height * displayScale)
-            if area.intersects(rect) { mark.text.draw(in: area, withAttributes: attrs) }
+            if area.intersects(redraw) { mark.text.draw(in: area, withAttributes: attrs) }
         }
     }
 

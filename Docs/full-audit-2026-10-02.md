@@ -41,3 +41,31 @@ The release median improved about 9.4%, but remains unsuitable as the long-scrip
 Evidence logs are in workspace work/: full-audit-tests.log, audit-trailing-blank.log (reproduced failure), full-audit-fixed-tests.log, full-audit-benchmark.log, audit-render-profile.log, audit-cached-benchmark.log, full-audit-final-tests.log, and full-audit-release-tests.log.
 
 Release validation also passed all 243 checks. Existing test-harness warnings remain in LegacyFormattingTests around RunLoop use in async contexts and main-actor isolation; these are Swift 6 migration work, not failures in the current language mode. No clean-warning-build claim is made.
+
+## Responsiveness and Edit estimates follow-up
+
+The high-priority follow-up preserved synchronous safe saves, print-derived page placement, authored text and the existing file format. Changes:
+
+- Collapsed navigation no longer builds its scene list.
+- Font choices use a stable native control, populate when opened, and have a fixed intrinsic width. This avoids repeated installed-font inventory construction and measurement during typing. Page navigation also populates on opening.
+- Source text/ranges and unchanged source-to-print mappings are reused. Caches are invalidated by source changes, including Undo/Redo; casing and whitespace policies participate in print-map reuse. Cache contents are bounded to the current source.
+- Ordinary unchanged text bypasses per-character casing work. Plain paragraphs no longer build styled-text transformations before discovering that they have no formatting runs.
+- Writing projections reuse unchanged source and retain their computed UTF-16 length. Page decoration drawing is restricted to visible pages, and unchanged text-view frame sizes are not reassigned.
+- Edit spine has an optional, persistent **Estimates** display preference. Script ranges refresh from current scene text and remain distinct from board/placeholder timings. See [scene duration assumptions and current limits](edit-scene-duration-estimates.md).
+
+Same-machine Release benchmark, 15 synchronous insert/layout/display cycles per run, isolated copies:
+
+| Scenario | Median | Maximum |
+|---|---:|---:|
+| Before follow-up, 132 pages / 2,004 elements, end | 607.6 ms | 886.5 ms |
+| After follow-up, same fixture, end | 259.0 ms | 270.8 ms |
+| After, middle | 253.9 ms | 268.3 ms |
+| After, beginning | 248.8 ms | 261.4 ms |
+| After, middle with navigator open | 279.7 ms | 317.2 ms |
+| After, 11 pages / 167 elements, end | 113.0 ms | 124.0 ms |
+
+The comparable end-of-document median improved approximately 57%. These are synchronous harness timings, not measured physical key-to-screen latency. They establish a substantial reduction, **not resolution of feature-length responsiveness**. Full print pagination, attributed-text rebuilding and full native page-layout validation remain on the typing path; incremental pagination/layout is still the leading engineering priority. Do not trade away save protection or source/print agreement to hide this cost.
+
+Validation: Debug and Release each passed 198 Swift tests in 36 suites, 37 Python checks, and 14 self-tests (249 checks per configuration). New coverage exercises cache invalidation through insert/Undo/Redo/typography changes, source-span agreement with a fresh projection, Unicode fast paths, font selection, scene estimate changes, toggle behavior, and measured-versus-planned timing precedence. Existing UI journey tests also cover panel visibility, selection retention, mode switching and save/reopen. No new live visual-inspection claim is made. Existing Swift 6 test-harness migration warnings remain.
+
+Evidence: `work/responsiveness-profile.log`, `responsiveness-full-debug.log`, `responsiveness-full-release.log`, and `responsiveness-final-{end,middle,start,navigator,short}.log`. The profiler subprocess could not obtain a process sample in this environment; no sampling result is claimed. Temporary instrumentation was removed.

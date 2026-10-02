@@ -16,15 +16,35 @@ struct ScriptPrintProjection {
     let sourceEntries: [SourceEntry]
     let unmappedElementIDs: Set<UUID>
 
-    init(pages: [ScreenplayPage], source: [ScreenplayElement], preservesWhitespace: Bool = false, casing: [UUID: [NSRange]]? = nil) {
+    private struct CachedMap {
+        let element: ScreenplayElement
+        let whitespace: Bool
+        let casing: [NSRange]?
+        let map: TextMap
+    }
+    private let cachedMaps: [UUID: CachedMap]
+
+    init(pages: [ScreenplayPage], source: [ScreenplayElement], preservesWhitespace: Bool = false, casing: [UUID: [NSRange]]? = nil, previous: ScriptPrintProjection? = nil) {
         var offset = 0
         var entries: [SourceEntry] = []
         var maps: [UUID: TextMap] = [:]
+        var cache: [UUID: CachedMap] = [:]
         for element in source {
             let length = (element.text as NSString).length
             entries.append(SourceEntry(elementID: element.id, type: element.type, text: element.text,
                 documentRange: NSRange(location: offset, length: length)))
-            maps[element.id] = TextMap(element: element, documentOffset: offset, preservesWhitespace: preservesWhitespace, casing: casing?[element.id])
+            let caps = casing?[element.id]
+            let map: TextMap
+            if let old = previous?.cachedMaps[element.id], old.element == element,
+               old.whitespace == preservesWhitespace, old.casing == caps {
+                var reused = old.map
+                reused.documentOffset = offset
+                map = reused
+            } else {
+                map = TextMap(element: element, documentOffset: offset, preservesWhitespace: preservesWhitespace, casing: caps)
+            }
+            maps[element.id] = map
+            cache[element.id] = CachedMap(element: element, whitespace: preservesWhitespace, casing: caps, map: map)
             offset += length + 1 // The editor joins elements with one newline.
         }
         var consumed: [UUID: Int] = [:]
@@ -53,6 +73,7 @@ struct ScriptPrintProjection {
                 unmapped.insert(entry.elementID)
             }
         }
+        cachedMaps = cache
         sourceEntries = entries
         unmappedElementIDs = unmapped
     }
@@ -91,7 +112,7 @@ struct ScriptPrintProjection {
             let source: NSRange
         }
         let elementID: UUID
-        let documentOffset: Int
+        var documentOffset: Int
         let displayed: String
         let segments: [Segment]
         let sourceLength: Int
