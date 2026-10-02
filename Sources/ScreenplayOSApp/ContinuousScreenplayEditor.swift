@@ -12,7 +12,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         let scroll = WritingScrollView()
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
-        scroll.autohidesScrollers = true
+        scroll.autohidesScrollers = false
+        scroll.scrollerStyle = .legacy
         scroll.minMagnification = 0.5; scroll.maxMagnification = 3
         scroll.allowsMagnification = false
         let view = WritingTextView(frame: NSRect(x: 0, y: 0, width: 612, height: 792))
@@ -28,6 +29,10 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         view.textContainer?.lineFragmentPadding = 0
         view.delegate = context.coordinator
         scroll.documentView = view
+        scroll.viewportChanged = { [weak coordinator = context.coordinator] in
+            coordinator?.updateVisiblePage()
+        }
+        context.coordinator.scrollView = scroll
         context.coordinator.render(view)
         return scroll
     }
@@ -40,6 +45,26 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
 
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         var model: ScreenplayViewModel
+        weak var scrollView: NSScrollView?
+        var pagePositions: [(label: String, y: CGFloat)] = []
+        var pendingViewportUpdate = false
+
+        func updateVisiblePage() {
+            guard !pendingViewportUpdate else { return }
+            pendingViewportUpdate = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pendingViewportUpdate = false
+                guard let scroll = self.scrollView else { return }
+                // Read document coordinates so zoom never changes the page identity.
+                let top = scroll.documentVisibleRect.minY
+                let label = self.pagePositions.last(where: { $0.y <= top + 1 })?.label ?? self.pagePositions.first?.label
+                if self.model.scriptViewport.pageLabel != label {
+                    self.model.scriptViewport.pageLabel = label
+                }
+            }
+        }
+
         var updating = false
         var pending: (NSRange, String, NSRange)?
         var restorationToken: UUID?
@@ -102,6 +127,14 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                     PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography, cache: measurements))
             }
             view.setPagePlan(pageCache?.plan)
+            if let plan = view.pagePlan {
+                pagePositions = plan.labels.enumerated().map { ($0.element, CGFloat($0.offset) * PrintedWritingLayout.stride * view.displayScale) }
+            } else {
+                pagePositions = view.pageGuides.compactMap { guide in
+                    view.pageGuidePoint(guide).map { (guide.label, $0.y) }
+                }
+            }
+            updateVisiblePage()
             let available = view.pagePlan != nil
             if model.writingPageLayoutAvailable != available {
                 DispatchQueue.main.async { [weak self] in self?.model.writingPageLayoutAvailable = available }
@@ -136,7 +169,14 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             }
             if moved || restore {
                 view.scrollRangeToVisible(selection)
-                if moved {
+                if let label = model.requestedPrintedPageLabel,
+                   let page = pagePositions.first(where: { $0.label == label }),
+                   let scroll = view.enclosingScrollView {
+                    scroll.contentView.scroll(to: NSPoint(x: scroll.documentVisibleRect.minX, y: page.y))
+                    scroll.reflectScrolledClipView(scroll.contentView)
+                }
+                model.requestedPrintedPageLabel = nil
+                if moved || restore {
                     DispatchQueue.main.async { [weak view] in
                         guard let view, let window = view.window else { return }
                         window.makeFirstResponder(view)
@@ -198,6 +238,12 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
 }
 
 private final class WritingScrollView: NSScrollView {
+    var viewportChanged: (() -> Void)?
+    override func reflectScrolledClipView(_ clipView: NSClipView) {
+        super.reflectScrolledClipView(clipView)
+        viewportChanged?()
+    }
+
     var pageZoom: CGFloat = 1 { didSet { applyZoom() } }
     private var applyingZoom = false
     override func tile() {

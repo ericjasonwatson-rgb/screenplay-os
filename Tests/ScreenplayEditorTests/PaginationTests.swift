@@ -395,6 +395,59 @@ struct PaginationTests {
         }
     }
 
+    @Test func viewportTracksScrollingAndZoomWithoutMovingCaretOrSaving() async throws {
+        let source = [ScreenplayElement(type: .action, text: String(repeating: "A long road stretches into the distance. ", count: 350))]
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let script = Screenplay(metadata: ScreenplayMetadata(title: "Viewport Test"), elements: source)
+        let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Viewport Test", author: ""), screenplayID: script.id), screenplay: script)
+        let file = directory.appendingPathComponent("script.json")
+        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: file)
+        let suite = "ViewportTests.\(UUID().uuidString)"
+        let preferences = try #require(UserDefaults(suiteName: suite))
+        defer { preferences.removePersistentDomain(forName: suite) }
+        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
+        model.loadOpenScreenplay(at: file)
+        do {
+            let original = model.document
+            let url = try #require(model.saveURL), bytes = try Data(contentsOf: url)
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 500), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            func find(_ view: NSView) -> WritingTextView? {
+                if let text = view as? WritingTextView { return text }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            for zoom in [1.0, 1.5, 0.75] {
+                model.pageZoom = zoom
+                host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(100))
+                let text = try #require(find(host)), scroll = try #require(text.enclosingScrollView)
+                #expect(scroll.hasVerticalScroller)
+                #expect(!scroll.autohidesScrollers)
+                #expect(scroll.scrollerStyle == .legacy)
+                let plan = try #require(text.pagePlan)
+                #expect(plan.labels.count > 2)
+                let caret = text.selectedRange()
+                for index in [1, 2, 0] {
+                    scroll.contentView.scroll(to: NSPoint(x: 0, y: CGFloat(index) * PrintedWritingLayout.stride + 20))
+                    scroll.reflectScrolledClipView(scroll.contentView)
+                    try await Task.sleep(for: .milliseconds(50))
+                    #expect(model.scriptViewport.pageLabel == plan.labels[index])
+                    #expect(text.selectedRange() == caret)
+                }
+                model.navigateToPrintedPage(2)
+                try await Task.sleep(for: .milliseconds(100))
+                #expect(model.scriptViewport.pageLabel == plan.labels[2])
+                #expect(model.requestedPrintedPageLabel == nil)
+                #expect(model.documentCaret == model.printedLayout.firstSourceCaret(onPage: 2))
+                #expect(model.document == original)
+                #expect(try Data(contentsOf: url) == bytes)
+            }
+        }
+    }
+
     @Test func pageNavigationUsesSplitFragmentBoundariesAndDoesNotSave() throws {
         let cue = ScreenplayElement(type: .character, text: "MARA")
         let speech = ScreenplayElement(type: .dialogue, text: "  " + String(repeating: "Café 👩🏽‍🚀 returns. ", count: 220) + "  ")

@@ -82,6 +82,8 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var focusMode = false
     @Published var darkPageMode = false
     @Published var titlePagePresented = false
+    let scriptViewport = ScriptViewportState()
+    var requestedPrintedPageLabel: String?
     @Published var writingPageLayoutAvailable = true
     @Published var pageZoom = 1.0
     @Published var navigationVisible = false
@@ -295,6 +297,7 @@ final class ScreenplayViewModel: ObservableObject {
 
     func navigateToPrintedPage(_ index: Int) {
         guard let caret = printedLayout.firstSourceCaret(onPage: index) else { return }
+        requestedPrintedPageLabel = printedLayout.pages[index].label
         rememberDocumentCaret(caret)
         documentCaretToken = UUID()
     }

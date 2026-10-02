@@ -1,10 +1,10 @@
 # ScreenplayOS team review
 
-Review baseline: application commit `95b7d5c` (2026-10-02). Documentation-only commits may follow this baseline.
+Review update: page navigation and repaired bundle signing (2026-10-02). The release tag identifies the exact source revision.
 
 ## Run the review app
 
-Download the zipped ScreenplayOS app from this private repository's Releases page when a release is available. Extract it and open ScreenplayOS.app. The supplied build is for Apple silicon Macs; it is a development build, not a signed/notarized public distribution. It has not been validated on every supported macOS version. If macOS blocks it, report the exact message; developers can build from source instead.
+Download the zipped ScreenplayOS app from this private repository's Releases page when a release is available. Extract it and open ScreenplayOS.app. The supplied build is for Apple silicon Macs; it is an ad-hoc signed development build, not a Developer ID-signed or notarized distribution. It has not been validated on every supported macOS version. If macOS blocks it, report the exact message; developers can build from source instead.
 
 Use a duplicate screenplay for review. Legacy imports and new drafts can automatically save into Downloads; editing a previously saved document updates that file. Keep your originals separate. Do not replace production work with this prototype.
 
@@ -26,9 +26,13 @@ For optimized test coverage:
 SCREENPLAYOS_BUILD_CONFIGURATION=release ./Scripts/test.sh
 ```
 
-The test script keeps compiler caches in `.build`, handles Command Line Tools Swift Testing search paths, and runs the Python inspector checks and Swift self-tests. Python 3 is required for those checks and app packaging. The baseline passed 198 Swift tests, 37 Python checks, and 14 self-tests in each of Debug and Release.
+The test script keeps compiler caches in `.build`, handles Command Line Tools Swift Testing search paths, and runs the Python inspector checks and Swift self-tests. Python 3 is required for those checks and app packaging. The navigation update adds viewport/zoom/page-jump coverage to the pagination suite. See page-navigation-review.md for the behavior and distribution limitations.
 
 The owner has approved including the Defenders of Cat Island pilot fixture in this private repository for team review. Its presence is not permission to redistribute the screenplay outside the team. No new open-source license is granted by this review setup.
+
+## Page navigation
+
+In Script mode, the Pages pane appears beside the script by default. Click a page, scroll the list, or use Go to page to enter its number and press Return. The script scrollbar stays visible; the highlighted page follows scrolling. Pages hides/shows the pane. Focus hides it for writing.
 
 ## Review priorities
 

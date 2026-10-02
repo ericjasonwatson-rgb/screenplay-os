@@ -2731,6 +2731,8 @@ private struct MetricRow: View {
 private struct ScreenplayPageView: View {
     @ObservedObject var model: ScreenplayViewModel
     @State private var preview: PrintPreviewSnapshot?
+    @State private var showsPages = true
+    @State private var showsPageBox = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -2747,8 +2749,29 @@ private struct ScreenplayPageView: View {
                 Text("Continuous view: this layout cannot yet show exact editable pages. Use Print Preview for page placement.")
                     .font(.caption).padding(.horizontal, 8)
             }
-            ScriptPageWell(width: 760 * model.pageZoom) {
-                ContinuousScreenplayEditor(model: model)
+            HStack(spacing: 8) {
+                Toggle(isOn: $showsPages) { Label("Pages", systemImage: "sidebar.left") }
+                    .toggleStyle(.button)
+                    .help("Show or hide the scrollable script page navigator")
+                Button("Go to page…") { showsPageBox.toggle() }
+                    .popover(isPresented: $showsPageBox) {
+                        ScriptPageNavigator(model: model) { showsPageBox = false }
+                            .frame(width: 220, height: 360)
+                    }
+                Spacer(minLength: 0)
+                Text("\(model.printedPages.count) pages").font(.caption).foregroundStyle(.secondary)
+            }
+            .buttonStyle(StudioButtonStyle())
+            .padding(.horizontal, 12).padding(.vertical, 5).studioStrip()
+            HStack(spacing: 0) {
+                if showsPages && !model.focusMode {
+                    ScriptPageNavigator(model: model)
+                        .frame(width: 160)
+                    Divider()
+                }
+                ScriptPageWell(width: 760 * model.pageZoom) {
+                    ContinuousScreenplayEditor(model: model)
+                }
             }
             if let element = model.selectedElement {
                 HStack {
