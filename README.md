@@ -2,6 +2,10 @@
 
 This repository is the first open-core starter for ScreenplayOS: an open native screenplay document model with Final Draft FDX treated as a compatibility adapter, not the internal standard.
 
+## Team review
+
+Start with [the team review guide](Docs/team-review.md) for build instructions, review priorities, known limitations, and how to report issues. This is a macOS development prototype. The native-format draft does not imply that the application is publicly licensed.
+
 ## UI and platform direction
 
 Follow [Platform Architecture](Docs/platform-architecture.md) and its [implementation contract](Docs/platform-implementation-contract.md), alongside the existing UI constitution and product architecture. These requirements govern future UI work: one project model, shared creative commands, native Mac interaction, adaptive iPad/phone surfaces, and local-first persistence. The current application remains a macOS prototype; other platforms and sync are future work.
