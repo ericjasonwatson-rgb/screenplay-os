@@ -66,7 +66,7 @@ struct LinearEditSpineView: View {
                 } else { model.selectEditorialBeat(beat) }
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(beat.title).font(.system(size: 12, weight: .semibold)).lineLimit(2)
+                    Text(beat.title.uppercased()).font(.system(size: 12, weight: .semibold)).lineLimit(2)
                     Spacer(minLength: 0)
                     Text(beat.editClips.isEmpty ? "No timed clips" : String(format: "%.1fs · %d clips", beat.editDurationSeconds, beat.editClips.count))
                         .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)

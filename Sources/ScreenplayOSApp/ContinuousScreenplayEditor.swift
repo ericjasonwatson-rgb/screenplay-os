@@ -45,6 +45,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         var restorationToken: UUID?
         var selectedID: UUID?
         var writingProjection = ScreenplayWritingProjection(elements: [])
+        let measurements = PrintedWritingLayout.MeasurementCache()
         var pageCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography, plan: PrintedWritingLayout?)?
         init(_ model: ScreenplayViewModel) { self.model = model }
 
@@ -94,7 +95,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             view.guideInk = StudioAppearance.ink(model.darkPageMode)
             if pageCache?.elements != model.elements || pageCache?.lock != model.document?.screenplay.pageLock || pageCache?.typography != model.writingTypography {
                 pageCache = (model.elements, model.document?.screenplay.pageLock, model.writingTypography,
-                    PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography))
+                    PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography, cache: measurements))
             }
             view.setPagePlan(pageCache?.plan)
             let available = view.pagePlan != nil
@@ -245,10 +246,6 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
         layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
         if let manager = layoutManager, let container = textContainer {
             manager.ensureLayout(for: container)
-            if string.isEmpty || string.hasSuffix("\n"), let line = plan?.lines[(string as NSString).length] {
-                let rect = NSRect(x: 0, y: line.y * displayScale, width: container.containerSize.width, height: line.height * displayScale)
-                manager.setExtraLineFragmentRect(rect, usedRect: rect, textContainer: container)
-            }
         }
         if let plan, let manager = layoutManager, let container = textContainer {
             var starts = Set<Int>()
@@ -266,6 +263,10 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
             pagePlan = plan
             manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
             manager.ensureLayout(for: container)
+            if string.isEmpty || string.hasSuffix("\n"), let line = plan.lines[(string as NSString).length] {
+                let rect = NSRect(x: 0, y: line.y * displayScale, width: container.containerSize.width, height: line.height * displayScale)
+                manager.setExtraLineFragmentRect(rect, usedRect: rect, textContainer: container)
+            }
             setFrameSize(NSSize(width: frame.width, height: (CGFloat(plan.labels.count) * PrintedWritingLayout.stride - 24) * displayScale))
         }
     }

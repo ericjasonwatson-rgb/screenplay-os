@@ -181,6 +181,8 @@ struct NativeEditorTests {
         try FileManager.default.copyItem(at: URL(fileURLWithPath: path), to: url)
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
         model.loadOpenScreenplay(at: url)
+        _ = try #require(model.document, "Benchmark fixture failed to load: \(model.errorMessage ?? "unknown error")")
+        #expect(!model.elements.isEmpty)
         let host = NSHostingView(rootView: ContentView(model: model))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -193,6 +195,7 @@ struct NativeEditorTests {
         window.orderFront(nil)
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         let text = try #require(find(host))
+        print("SCREENPLAYOS_BENCHMARK_PAGES=\(model.printedPages.count) ELEMENTS=\(model.elements.count)")
         var milliseconds: [Double] = []
         for _ in 0..<15 {
             text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
@@ -202,7 +205,7 @@ struct NativeEditorTests {
             RunLoop.current.run(until: Date().addingTimeInterval(0.001))
             host.displayIfNeeded()
             milliseconds.append(Date().timeIntervalSince(start) * 1000)
-            #expect(text.string == model.writingText)
+            #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
         }
         print("SCREENPLAYOS_TYPING_MS=\(milliseconds)")
         #expect(model.prepareToClose())

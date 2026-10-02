@@ -109,6 +109,49 @@ struct PaginationTests {
         }
     }
 
+    @Test func cachedPageMeasurementsFollowTypographyChanges() throws {
+        let source = [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"),
+            ScreenplayElement(type: .action, text: String(repeating: "A long changing line. ", count: 80))]
+        try withDocument(source) { model, _ in
+            let cache = PrintedWritingLayout.MeasurementCache()
+            for size in [12.0, 18.0, 12.0] {
+                model.changeWritingTypography(size: size)
+                let writing = ScreenplayWritingProjection(elements: model.elements)
+                let cached = try #require(PrintedWritingLayout(print: model.printedLayout, writing: writing, typography: model.writingTypography, cache: cache))
+                let fresh = try #require(PrintedWritingLayout(print: model.printedLayout, writing: writing, typography: model.writingTypography))
+                #expect(cached.labels == fresh.labels)
+                #expect(Set(cached.lines.keys) == Set(fresh.lines.keys))
+                for (start, expected) in fresh.lines {
+                    let actual = try #require(cached.lines[start])
+                    #expect(actual.y == expected.y)
+                    #expect(actual.height == expected.height)
+                    #expect(actual.baseline == expected.baseline)
+                }
+            }
+        }
+    }
+
+    @Test func trailingBlankCaretUsesPrintedPagePosition() throws {
+        let source = [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY")]
+            + (0..<65).map { _ in ScreenplayElement(type: .action, text: "") }
+        try withDocument(source) { model, _ in
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            host.layoutSubtreeIfNeeded()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+            func find(_ view: NSView) -> WritingTextView? {
+                if let value = view as? WritingTextView { return value }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            let editor = try #require(find(host)), plan = try #require(editor.pagePlan)
+            let line = try #require(plan.lines[(editor.string as NSString).length])
+            let layout = try #require(editor.layoutManager)
+            #expect(abs(layout.extraLineFragmentRect.minY - line.y) < 0.01)
+        }
+    }
+
     @Test func whitespaceAndBlankPagesSurviveNewLocksButOldLocksKeepTheirPolicy() throws {
         let source = [ScreenplayElement(type: .sceneHeading, text: "  int. café - day  ")]
             + (0..<55).map { _ in ScreenplayElement(type: .action, text: "") }
