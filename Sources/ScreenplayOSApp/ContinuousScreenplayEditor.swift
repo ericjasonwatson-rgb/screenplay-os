@@ -112,6 +112,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             view.layoutPage(in: (view.enclosingScrollView?.contentSize.width ?? 0) / CGFloat(model.pageZoom))
             view.backgroundColor = StudioAppearance.paper(model.darkPageMode)
             view.enclosingScrollView?.backgroundColor = StudioAppearance.paper(model.darkPageMode)
+            view.enclosingScrollView?.verticalScroller?.knobStyle = model.darkPageMode ? .light : .dark
+            view.enclosingScrollView?.horizontalScroller?.knobStyle = model.darkPageMode ? .light : .dark
             view.insertionPointColor = StudioAppearance.ink(model.darkPageMode)
             let changed = view.string != string
             if changed || view.textStorage?.isEqual(to: attributed) == false {
@@ -229,7 +231,8 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard !updating, let view = notification.object as? NSTextView,
+            guard !updating, restorationToken == model.documentCaretToken,
+                  let view = notification.object as? NSTextView,
                   view.string == writingProjection.text else { return }
             model.rememberDocumentCaret(writingProjection.sourceRange(view.selectedRange()))
             selectedID = model.selectedElementID

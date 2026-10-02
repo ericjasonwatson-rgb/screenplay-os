@@ -18,4 +18,6 @@ The owner has no Apple Developer Program membership yet. The review ZIP therefor
 
 The extracted original review ZIP reproduces the invalid-resource-signature failure. The replacement bundle passes strict signature validation. Automated native viewport tests exercise scrolling at 75%, 100%, and 150% zoom, selection preservation, mapped page jumps, and unchanged document/file bytes. The full updated suite contains 199 Swift tests, 37 Python checks, and 14 self-tests.
 
-Interactive visual review is pending because the Mac is locked. Keep the replacement GitHub release in draft until the live controls, focus after jumping, and laptop window layout have been inspected. A passing signature-integrity check must not be described as a notarized download.
+Interactive visual review completed after unlocking: page-list selection, typed sidebar navigation, popover Go, editor focus restoration, scrolling/highlight tracking, and scrollbar contrast were inspected in the running app. A focus-race guard ignores stale native selection notifications while a page jump is pending. The sidebar and popover include an explicit Go button. A passing signature-integrity check must not be described as a notarized download.
+
+The app in Documents can acquire Finder metadata again after verification. The review ZIP excludes extended metadata and is verified after extraction. The verified running review copy is installed in the local user Applications folder. macOS blocked replacement of a registered app bundle, so it is named ScreenplayOS Review.app.

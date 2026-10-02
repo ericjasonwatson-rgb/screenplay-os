@@ -28,20 +28,15 @@ struct ScriptPageNavigator: View {
             if let label = viewport.pageLabel {
                 Text("Viewing page \(label)").font(.caption).foregroundStyle(.secondary)
             }
-            TextField("Page number", text: $pageLabel)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityLabel("Go to script page number")
-                .onSubmit {
-                    let label = pageLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let index = projection.pages.firstIndex(where: { $0.label.caseInsensitiveCompare(label) == .orderedSame }),
-                       projection.firstSourceCaret(onPage: index) != nil {
-                        invalidPage = false
-                        model.navigateToPrintedPage(index)
-                        didNavigate()
-                    } else {
-                        invalidPage = true
-                    }
-                }
+            HStack(spacing: 4) {
+                TextField("Page number", text: $pageLabel)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Go to script page number")
+                    .onSubmit { goToPage() }
+                Button("Go") { goToPage() }
+                    .disabled(pageLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel("Go to entered page")
+            }
             if invalidPage {
                 Text("Enter an available page label from the list.").font(.caption).foregroundStyle(.secondary)
             }
@@ -75,4 +70,17 @@ struct ScriptPageNavigator: View {
         }
         .padding(10)
     }
+    private func goToPage() {
+        let projection = model.printedLayout
+        let label = pageLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let index = projection.pages.firstIndex(where: { $0.label.caseInsensitiveCompare(label) == .orderedSame }),
+              projection.firstSourceCaret(onPage: index) != nil else {
+            invalidPage = true
+            return
+        }
+        invalidPage = false
+        model.navigateToPrintedPage(index)
+        didNavigate()
+    }
+
 }

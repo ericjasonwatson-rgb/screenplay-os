@@ -438,6 +438,10 @@ struct PaginationTests {
                     #expect(text.selectedRange() == caret)
                 }
                 model.navigateToPrintedPage(2)
+                // A field/popover losing focus can report the old native selection
+                // before SwiftUI has applied the requested document caret.
+                text.delegate?.textViewDidChangeSelection?(Notification(name: NSTextView.didChangeSelectionNotification, object: text))
+                #expect(model.documentCaret == model.printedLayout.firstSourceCaret(onPage: 2))
                 try await Task.sleep(for: .milliseconds(100))
                 #expect(model.scriptViewport.pageLabel == plan.labels[2])
                 #expect(model.requestedPrintedPageLabel == nil)
