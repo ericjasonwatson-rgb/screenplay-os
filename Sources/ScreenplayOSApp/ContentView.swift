@@ -44,6 +44,9 @@ struct ContentView: View {
         }
         .background { StudioSurface() }
         .preferredColorScheme(.dark)
+        .tint(StudioAppearance.accent)
+        .font(.system(size: 12))
+        .controlSize(.small)
         .background(
             KeyCommandMonitor(
                 onDelete: {
@@ -135,7 +138,7 @@ struct ContentView: View {
                 )) {
                     Label("Revision", systemImage: "pencil.and.outline")
                 }
-                .toggleStyle(.button)
+                .toggleStyle(StudioToggleStyle())
 
                 Button {
                     model.focusMode.toggle()
@@ -147,7 +150,7 @@ struct ContentView: View {
                 Toggle(isOn: $model.contextAssistantVisible) {
                     Label("Context", systemImage: "sidebar.right")
                 }
-                .toggleStyle(.button)
+                .toggleStyle(StudioToggleStyle())
 
                 Button {
                     model.save()
@@ -262,7 +265,7 @@ private struct SidebarView: View {
 
     var body: some View {
         List {
-            Section("Document") {
+            DisclosureGroup("Document details") {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.documentDisplayName)
                         .font(.system(size: 13, weight: .semibold))
@@ -775,7 +778,7 @@ private struct NavigatorSections: View {
 
     var body: some View {
         if !model.recentDocuments.isEmpty {
-            Section("Recent") {
+            DisclosureGroup("Recent documents") {
                 ForEach(model.recentDocuments) { recent in
                     Button {
                         model.openDocument(at: recent.url)
@@ -794,18 +797,34 @@ private struct NavigatorSections: View {
                 Button {
                     model.navigateToScene(scene)
                 } label: {
+                    VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        StudioAppearance.sceneColor(scene.elementID.uuidString).frame(width: 3, height: 24)
                         Text("\(scene.number)")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 24, alignment: .trailing)
-                        Text(scene.title)
+                        Text(scene.title.uppercased())
                             .font(.system(size: 13, weight: .medium))
                             .lineLimit(2)
                     }
+                    if let sceneData = model.sceneBreakdowns.first(where: { $0.elementID == scene.elementID }) {
+                        HStack(spacing: 6) {
+                            GeometryReader { geometry in
+                                Rectangle().fill(StudioAppearance.recess)
+                                Rectangle().fill(StudioAppearance.sceneColor(scene.elementID.uuidString).opacity(0.65))
+                                    .frame(width: geometry.size.width * CGFloat(sceneData.elementCount) / CGFloat(max(1, model.sceneBreakdowns.map(\.elementCount).max() ?? 1)))
+                            }.frame(height: 3)
+                            Text("\(sceneData.elementCount)").font(.system(size: 10).monospacedDigit()).foregroundStyle(.secondary)
+                        }.padding(.leading, 35)
+                        .help("Scene length: \(sceneData.elementCount) screenplay elements; bars are relative to the longest scene.")
+                    }
+                    }
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(model.selectedElementID == scene.elementID ? Color.accentColor : Color.primary)
+                .padding(.vertical, 3)
+                .listRowBackground(model.selectedSceneBreakdown?.number == scene.number ? StudioAppearance.selection : Color.clear)
+                .foregroundStyle(Color.primary)
             }
         }
 
@@ -1719,7 +1738,8 @@ private struct OutlineSceneCard: View {
             }
         }
         .padding(10)
-        .background(model.selectedSceneBreakdown?.editSpineID == breakdown.editSpineID ? Color.accentColor.opacity(0.16) : ScreenplayOSTokens.Palette.panelBackground)
+        .background(model.selectedSceneBreakdown?.editSpineID == breakdown.editSpineID ? StudioAppearance.selection : ScreenplayOSTokens.Palette.panelBackground)
+        .overlay(alignment: .leading) { StudioAppearance.sceneColor(breakdown.elementID.uuidString).frame(width: 3).allowsHitTesting(false) }
         .overlay(
             Rectangle()
                 .stroke(ScreenplayOSTokens.Palette.separator, lineWidth: ScreenplayOSTokens.Spacing.hairline)
@@ -1765,7 +1785,7 @@ private struct OutlineStageRow: View {
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 10)
-            .background(model.selectedObject.kind == .outlineBeat && model.selectedObject.id == beat.id ? Color.accentColor.opacity(0.18) : Color.clear)
+            .background(model.selectedObject.kind == .outlineBeat && model.selectedObject.id == beat.id ? StudioAppearance.selection : Color.clear)
             .overlay(alignment: .bottom) {
                 Rectangle()
                     .fill(ScreenplayOSTokens.Palette.separator)
@@ -1923,7 +1943,7 @@ private struct ShotStageRow: View {
             }
             .padding(.vertical, 9)
             .padding(.horizontal, 10)
-            .background(model.selectedObject.kind == .shot && model.selectedObject.id == shot.id ? Color.accentColor.opacity(0.18) : Color.clear)
+            .background(model.selectedObject.kind == .shot && model.selectedObject.id == shot.id ? StudioAppearance.selection : Color.clear)
             .overlay(alignment: .bottom) {
                 Rectangle()
                     .fill(ScreenplayOSTokens.Palette.separator)
@@ -2167,7 +2187,7 @@ private struct BoardStageCard: View {
             }
             .frame(width: 280)
             .padding(10)
-            .background(model.activeBoardFrame?.id == frame.id ? Color.accentColor.opacity(0.18) : ScreenplayOSTokens.Palette.panelBackground)
+            .background(model.activeBoardFrame?.id == frame.id ? StudioAppearance.selection : ScreenplayOSTokens.Palette.panelBackground)
             .overlay(
                 Rectangle()
                     .stroke(model.activeBoardFrame?.id == frame.id ? Color.accentColor : ScreenplayOSTokens.Palette.separator, lineWidth: ScreenplayOSTokens.Spacing.hairline)
@@ -2307,7 +2327,7 @@ private struct WorkspaceHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(title)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                     if let focus {
                         Text(focus)
                             .font(.caption2.monospaced())
@@ -2572,30 +2592,17 @@ private struct ContextAssistantJobRow: View {
 
 private struct DocumentIdentityBar: View {
     @ObservedObject var model: ScreenplayViewModel
-
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: model.saveURL == nil ? "doc.badge.plus" : "doc.text")
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(model.documentDisplayName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(1)
-                    Text(model.workflowFocusLabel)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-                Text(model.documentLocation)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer()
+        HStack(spacing: 8) {
+            Image(systemName: "doc.text").foregroundStyle(StudioAppearance.accent)
+            Text(model.documentDisplayName).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                .help(model.documentLocation)
+            Spacer(minLength: 8)
+            Label(model.saveProblem != nil ? "Save failed" : (model.saveURL == nil ? "Not saved" : (model.hasUnsavedChanges ? "Unsaved changes" : "Saved locally")),
+                  systemImage: model.saveProblem != nil ? "exclamationmark.triangle" : (model.hasUnsavedChanges ? "circle.fill" : "checkmark"))
+                .font(.system(size: 11)).foregroundStyle(model.saveProblem != nil ? Color.orange : Color(white: 0.76))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
-        .background(StudioAppearance.panel)
+        .padding(.horizontal, 12).padding(.vertical, 6).studioStrip()
     }
 }
 
@@ -2616,7 +2623,9 @@ private struct BottomStatusBar: View {
                 }
                 .help("Go to the source text on a printed page. Page numbers exclude the title page.")
                 StatusCapsule(systemImage: "pencil.and.outline", text: model.revisionStatusText)
-                StatusCapsule(systemImage: "rectangle.stack", text: model.productionContextSummary)
+                if model.workflowMode != .writing {
+                    StatusCapsule(systemImage: "rectangle.stack", text: model.productionContextSummary)
+                }
                 StatusCapsule(systemImage: "doc.text.magnifyingglass", text: model.currentSceneTitle)
                     .frame(maxWidth: 280, alignment: .leading)
 
@@ -2625,21 +2634,21 @@ private struct BottomStatusBar: View {
                 Toggle(isOn: $model.focusMode) {
                     Label("Focus", systemImage: "scope")
                 }
-                .toggleStyle(.button)
+                .toggleStyle(StudioToggleStyle())
                 .controlSize(.small)
 
                 Toggle(isOn: $model.darkPageMode) {
                     Label("Dark Page", systemImage: model.darkPageMode ? "moon.fill" : "moon")
                 }
-                .toggleStyle(.button)
+                .toggleStyle(StudioToggleStyle())
                 .controlSize(.small)
 
 
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.vertical, 5)
         }
-        .background(StudioAppearance.panel)
+        .studioStrip()
     }
 }
 
@@ -2651,9 +2660,9 @@ private struct StatusCapsule: View {
         Label(text, systemImage: systemImage)
             .font(.caption)
             .lineLimit(1)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(ScreenplayOSTokens.Palette.panelBackground)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+
             .clipShape(RoundedRectangle(cornerRadius: ScreenplayOSTokens.Radius.control))
     }
 }
@@ -2727,31 +2736,12 @@ private struct ScreenplayPageView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                if model.pagesAreLocked {
-                    Label("Pages Locked", systemImage: "lock.fill").font(.caption)
-                    Button("Unlock Pages") { model.unlockProductionPages() }
-                        .help("Return to flowing page numbers. This can be undone.")
-                } else {
-                    Button("Lock Pages") { model.lockProductionPages() }
-                        .disabled(model.document == nil)
-                        .help("Preserve current page numbers; additions use lettered pages and deletions retain omitted pages.")
-                }
-                Spacer()
-                Button("Title Page") { model.titlePagePresented = true }
-                Button {
-                    do { preview = try PrintPreviewSnapshot(data: model.makePrintPDF(), pageLabels: model.printedPages.map(\.label)) }
-                    catch { model.errorMessage = error.localizedDescription }
-                } label: {
-                    Label("Print Preview", systemImage: "doc.text.magnifyingglass")
-                }
-                .disabled(model.document == nil)
-            }.padding(8)
-            WritingFormattingBar(settings: model.writingTypography,
-                changeFont: { model.changeWritingTypography(font: $0) }, changeSize: { model.changeWritingTypography(size: $0) },
-                active: model.writingEmphasisActive, toggle: model.toggleWritingEmphasis,
-                clear: { model.formatWritingSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) })
-                .padding(.horizontal, 8).disabled(model.document == nil)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { formattingControls.fixedSize(); Spacer(minLength: 0); documentControls.fixedSize() }
+                VStack(alignment: .leading, spacing: 6) { formattingControls; documentControls }
+            }
+            .buttonStyle(StudioButtonStyle())
+            .padding(.horizontal, 12).padding(.vertical, 6).studioStrip()
             if let notice = PackageTypography.substitution(model.writingTypography) {
                 Text(notice).font(.caption).padding(.horizontal, 8)
             }
@@ -2769,7 +2759,7 @@ private struct ScreenplayPageView: View {
                         Text(mark.label).foregroundStyle(mark.color.swiftUIColor)
                     }
                     Button("Notes (\(model.openNoteCount(for: element.id)))") { model.showNotesForElement(element.id) }
-                }.padding(8)
+                }.buttonStyle(StudioButtonStyle()).padding(.horizontal, 12).padding(.vertical, 5).studioStrip()
                 let suggestions = model.characterSuggestions(for: element)
                 if !suggestions.isEmpty {
                     CharacterSuggestionStrip(suggestions: suggestions, leading: 0) { model.applyCharacterSuggestion($0, to: element.id) }
@@ -2783,6 +2773,36 @@ private struct ScreenplayPageView: View {
             PrintPreviewSheet(snapshot: snapshot) { model.showExportPDFPanel(data: snapshot.data) }
         }
     }
+    private var formattingControls: some View {
+            WritingFormattingBar(settings: model.writingTypography,
+                changeFont: { model.changeWritingTypography(font: $0) }, changeSize: { model.changeWritingTypography(size: $0) },
+                active: model.writingEmphasisActive, toggle: model.toggleWritingEmphasis,
+                clear: { model.formatWritingSelection(.init(bold: false, italic: false, underline: false, strikethrough: false)) })
+                .disabled(model.document == nil)
+    }
+    private var documentControls: some View {
+            HStack(spacing: 6) {
+                if model.pagesAreLocked {
+                    Label("Pages Locked", systemImage: "lock.fill").font(.caption)
+                    Button("Unlock Pages") { model.unlockProductionPages() }
+                        .help("Return to flowing page numbers. This can be undone.")
+                } else {
+                    Button("Lock Pages") { model.lockProductionPages() }
+                        .disabled(model.document == nil)
+                        .help("Preserve current page numbers; additions use lettered pages and deletions retain omitted pages.")
+                }
+
+                Button("Title Page") { model.titlePagePresented = true }
+                Button {
+                    do { preview = try PrintPreviewSnapshot(data: model.makePrintPDF(), pageLabels: model.printedPages.map(\.label)) }
+                    catch { model.errorMessage = error.localizedDescription }
+                } label: {
+                    Label("Print Preview", systemImage: "doc.text.magnifyingglass")
+                }
+                .disabled(model.document == nil)
+            }
+    }
+
 }
 
 private struct ElementFormatStrip: View {

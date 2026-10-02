@@ -4,7 +4,7 @@ import SwiftUI
 struct WorkspaceNavigationBar: View {
     @ObservedObject var model: ScreenplayViewModel
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             DocumentPanelButton(isVisible: model.visibleWorkspaceRegions.contains(.navigation)) {
                 if model.focusMode {
                     model.focusMode = false
@@ -12,14 +12,21 @@ struct WorkspaceNavigationBar: View {
                 } else { model.navigationVisible.toggle() }
             }
 
-            Picker("Mode", selection: Binding(get: { model.workflowMode }, set: model.setWorkflowMode)) {
-                ForEach(WorkflowMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    Text("Mode").foregroundStyle(.secondary)
+                    Picker("Mode", selection: Binding(get: { model.workflowMode }, set: model.setWorkflowMode)) {
+                        ForEach(WorkflowMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
+                    }.labelsHidden().pickerStyle(.segmented).frame(width: 300)
+                }.fixedSize()
+                Picker("Mode", selection: Binding(get: { model.workflowMode }, set: model.setWorkflowMode)) {
+                    ForEach(WorkflowMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
+                }.frame(width: 156)
             }
-            .frame(width: 180)
             Picker("Workspace", selection: Binding(get: { model.sidebarMode }, set: { model.showSidebarMode($0); model.focusMode = false; model.navigationVisible = true })) {
                 ForEach(model.sidebarModesForCurrentWorkflow) { mode in Text(mode.rawValue).tag(mode) }
             }
-            .frame(width: 240)
+            .frame(width: 206)
             .help("Choose what appears in the document sidebar. Mode changes the main work surface.")
             Spacer(minLength: 0)
             PageZoomControl(percent: Binding(get: { Int((model.pageZoom * 100).rounded()) },
@@ -29,8 +36,8 @@ struct WorkspaceNavigationBar: View {
         .pickerStyle(.menu)
         .controlSize(.small)
         .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-        .background(StudioAppearance.raised)
+        .padding(.vertical, 6)
+        .studioStrip()
         .overlay(alignment: .bottom) { Divider() }
     }
 }
@@ -41,7 +48,7 @@ struct PackageNavigationBar: View {
     @Binding var zoomPercent: Int
     @Binding var navigationVisible: Bool
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             DocumentPanelButton(isVisible: navigationVisible) { navigationVisible.toggle() }
             HStack { Text("Mode").foregroundStyle(.secondary); Text("Script") }
             HStack { Text("Workspace").foregroundStyle(.secondary); Text("Editor") }
@@ -51,8 +58,8 @@ struct PackageNavigationBar: View {
         }
         .font(.callout)
         .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-        .background(StudioAppearance.raised)
+        .padding(.vertical, 6)
+        .studioStrip()
         .overlay(alignment: .bottom) { Divider() }
     }
 }
@@ -63,7 +70,7 @@ struct DocumentPanelButton: View {
     let toggle: () -> Void
     var body: some View {
         Button(action: toggle) { Image(systemName: "sidebar.left") }
-            .buttonStyle(.borderless)
+            .buttonStyle(StudioButtonStyle(selected: isVisible))
             .accessibilityLabel(isVisible ? "Hide Document Panel" : "Show Document Panel")
             .help("Show or hide document information and navigation")
     }
@@ -78,7 +85,7 @@ struct PageZoomControl: View {
             if offersFitWidth { Text("Fit Width").tag(0) }
             ForEach(percentages, id: \.self) { value in Text("\(value)%").tag(value) }
         }
-        .pickerStyle(.menu).frame(width: 155)
+        .pickerStyle(.menu).frame(width: 135)
         .accessibilityLabel("Page zoom")
         .help("Scale the writing view. Font sizes and printed pages stay unchanged.")
     }

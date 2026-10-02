@@ -12,27 +12,27 @@ struct WritingFormattingBar: View {
     let clear: () -> Void
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
+            HStack(spacing: 6) {
                 typographyControls
                 Divider().frame(height: 18)
                 emphasisControls
             }.fixedSize(horizontal: true, vertical: false)
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 10) { typographyControls }
-                HStack(spacing: 10) { emphasisControls }
+                HStack(spacing: 6) { typographyControls }
+                HStack(spacing: 6) { emphasisControls }
             }
         }.frame(maxWidth: .infinity, alignment: .leading).controlSize(.small)
     }
     @ViewBuilder private var typographyControls: some View {
         Picker("Font", selection: Binding(get: { settings.fontFamily }, set: changeFont)) {
             ForEach(Array(Set(NSFontManager.shared.availableFontFamilies + [settings.fontFamily])).sorted(), id: \.self) { Text($0).tag($0) }
-        }.frame(width: 195).accessibilityLabel("Document font")
+        }.frame(width: 170).accessibilityLabel("Document font")
             .help("Font family for the screenplay and printed script.")
         Picker("Size", selection: Binding(get: { settings.fontSize }, set: changeSize)) {
             ForEach(Array(Set([8.0, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72] + [settings.fontSize])).sorted(), id: \.self) {
                 Text(String(format: "%g pt", $0)).tag($0)
             }
-        }.frame(width: 100).accessibilityLabel("Document font size")
+        }.frame(width: 90).accessibilityLabel("Document font size")
             .help("Point size for screenplay text. Zoom changes only the view.")
     }
     @ViewBuilder private var emphasisControls: some View {
@@ -52,6 +52,6 @@ struct WritingFormattingBar: View {
     }
     private func emphasis(_ title: String, symbol: String, key: WritableKeyPath<StyledText.Style, Bool?>) -> some View {
         Toggle(isOn: binding(key)) { Image(systemName: symbol).frame(width: 18) }
-            .toggleStyle(.button).accessibilityLabel(title).help(title + " for selected text or subsequent typing")
+            .toggleStyle(StudioToggleStyle()).accessibilityLabel(title).help(title + " for selected text or subsequent typing")
     }
 }

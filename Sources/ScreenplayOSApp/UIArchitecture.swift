@@ -388,11 +388,11 @@ enum ScreenplayOSTokens {
     }
 
     enum Palette {
-        static let appBackground = Color(white: 0.25)
-        static let workspaceBackground = Color(white: 0.25)
-        static let panelBackground = Color(white: 0.32)
+        static let appBackground = StudioAppearance.panel
+        static let workspaceBackground = StudioAppearance.recess
+        static let panelBackground = StudioAppearance.raised
         static let separator = Color(white: 0.16)
         static let secondaryText = Color(nsColor: .secondaryLabelColor)
-        static let selected = Color.accentColor
+        static let selected = StudioAppearance.accent
     }
 }
