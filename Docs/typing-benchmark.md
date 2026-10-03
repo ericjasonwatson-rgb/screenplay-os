@@ -37,3 +37,9 @@ The scene navigator previously rescanned all preceding paragraphs to number each
 About 13% lower median in this workload. These are insertion/layout/display-request timings, not physical key-to-screen latency. The under-50-ms target is unmet. Beginning/middle positions and other documents are not established by this comparison. Full Release validation: 213 Swift tests, 37 Python checks, 14 importer self-tests passed. Evidence is in the workspace `work/typing-panels-2026-10-03/` logs and `timings.json`.
 
 This source change is newer than the delivered 0.1.3 build 4 ZIP. The existing ZIP does not include it.
+
+## October 3, 2026: rejected inspector refresh experiment
+
+Tested filtering Context Inspector controls independently of its live selection header. The corrected implementation passed all 265 checks, including a new observation test, but the isolated same-workload median was 88.0 ms with a 122.4 ms maximum, compared with 85.1–85.6 ms and 100.3–104.4 ms maxima for the retained navigator optimization. An earlier experimental version was slower still. The full-suite benchmark is not a performance comparison because other tests run concurrently.
+
+Removed the experiment and its experiment-specific test; retained application source is unchanged from `3cec0f6`, which passed 264 checks. Fewer refresh notifications did not translate into faster typing in this workload. Logs: workspace `work/typing-panels-2026-10-03/context-isolated.log` and `context-final.log`. Next profiling should focus inside synchronous native insertion/rendering rather than adding more observation filters without measured benefit.
