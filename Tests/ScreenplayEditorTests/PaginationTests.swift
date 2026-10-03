@@ -126,10 +126,21 @@ struct PaginationTests {
             host.layoutSubtreeIfNeeded()
             RunLoop.current.run(until: Date().addingTimeInterval(0.03))
             let editor = try #require(find(host))
-            for index in [15, 7, 1, 15] {
+            for index in [15, 7, 1, 15, -1, -2, -3, -1] {
                 let projection = ScreenplayWritingProjection(elements: model.elements)
-                editor.setSelectedRange(NSRange(location: NSMaxRange(projection.ranges[index]), length: 0))
-                editor.insertText(" More words 👩🏽‍🚀.", replacementRange: editor.selectedRange())
+                if index >= 0 {
+                    editor.setSelectedRange(NSRange(location: NSMaxRange(projection.ranges[index]), length: 0))
+                    editor.insertText(" More words 👩🏽‍🚀.", replacementRange: editor.selectedRange())
+                } else if index == -1 {
+                    model.undo()
+                } else if index == -2 {
+                    model.redo()
+                } else {
+                    let range = NSRange(location: projection.ranges[2].location,
+                        length: NSMaxRange(projection.ranges[8]) - projection.ranges[2].location)
+                    editor.setSelectedRange(range)
+                    editor.insertText("A shorter replacement.", replacementRange: range)
+                }
                 host.layoutSubtreeIfNeeded()
                 RunLoop.current.run(until: Date().addingTimeInterval(0.03))
                 let plan = try #require(editor.pagePlan)

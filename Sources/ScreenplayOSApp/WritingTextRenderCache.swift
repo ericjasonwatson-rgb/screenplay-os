@@ -38,9 +38,11 @@ final class WritingTextRenderCache {
     private var typography: DocumentTypography?
     private var dark: Bool?
     private(set) var lastReplacementRange: NSRange?
+    private(set) var lastUpdatedRange: NSRange?
 
     func update(_ storage: NSTextStorage, elements: [ScreenplayElement], projection: ScreenplayWritingProjection,
                 typography: DocumentTypography, dark: Bool, selectedID: UUID?, nativeEdit: NSRange?) -> [NSAttributedString.Key: Any] {
+        lastUpdatedRange = nil
         let canReuse = self.typography == typography && self.dark == dark
         if canReuse && nativeEdit == nil && self.elements == elements && storage.length == renderedLength {
             lastReplacementRange = nil
@@ -75,6 +77,7 @@ final class WritingTextRenderCache {
             if range.length > 0 || replacement.length > 0 {
                 storage.replaceCharacters(in: range, with: replacement)
                 lastReplacementRange = range
+                lastUpdatedRange = NSRange(location: start, length: replacement.length)
             }
         } else {
             // Unexpected native changes (including marked-text reconciliation) get a safe full render.
@@ -82,6 +85,7 @@ final class WritingTextRenderCache {
             for paragraph in next { replacement.append(paragraph.attributed) }
             lastReplacementRange = NSRange(location: 0, length: storage.length)
             storage.setAttributedString(replacement)
+            lastUpdatedRange = NSRange(location: 0, length: replacement.length)
         }
         paragraphs = next
         self.elements = elements

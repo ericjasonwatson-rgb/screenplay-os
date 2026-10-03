@@ -113,7 +113,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 pageCache = (model.elements, model.document?.screenplay.pageLock, model.writingTypography,
                     PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography, cache: measurements))
             }
-            view.setPagePlan(pageCache?.plan, invalidatedFrom: textRenderCache.lastReplacementRange?.location)
+            view.setPagePlan(pageCache?.plan, invalidatedFrom: textRenderCache.lastReplacementRange?.location, updatedRange: textRenderCache.lastUpdatedRange)
             if let plan = view.pagePlan {
                 pagePositions = plan.labels.enumerated().map { ($0.element, CGFloat($0.offset) * PrintedWritingLayout.stride * view.displayScale) }
             } else {
@@ -275,7 +275,12 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
 
     private(set) var pagePlan: PrintedWritingLayout?
     private var attemptedPlanID: UUID?
-    func setPagePlan(_ plan: PrintedWritingLayout?, invalidatedFrom: Int? = nil) {
+    private let wrappingValidator = NativeWrappingValidator()
+    func setPagePlan(_ plan: PrintedWritingLayout?, invalidatedFrom: Int? = nil, updatedRange: NSRange? = nil) {
+        if let id = plan?.id, attemptedPlanID == id, updatedRange == nil { return }
+        if let storage = textStorage, let container = textContainer, let manager = layoutManager {
+            wrappingValidator.update(from: storage, changedRange: updatedRange, container: container, manager: manager)
+        }
         if let id = plan?.id, attemptedPlanID == id { return }
         attemptedPlanID = plan?.id
         var start = 0
@@ -286,20 +291,11 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
         }
         start = min(max(0, start), (string as NSString).length)
         let invalidated = NSRange(location: start, length: (string as NSString).length - start)
-        // Validate natural wrapping before applying page coordinates. A mismatched
-        // line can otherwise make TextKit repeatedly backtrack during layout.
-        pagePlan = nil
+        // Keep natural wrapping in its own retained TextKit layout. The displayed
+        // editor only lays out paged coordinates, rather than laying out twice.
         layoutManager?.delegate = self
-        layoutManager?.invalidateLayout(forCharacterRange: invalidated, actualCharacterRange: nil)
-        if let manager = layoutManager, let container = textContainer {
-            manager.ensureLayout(for: container)
-        }
         if let plan, let manager = layoutManager, let container = textContainer {
-            var starts = Set<Int>()
-            manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { _, _, _, range, _ in
-                starts.insert(manager.characterIndexForGlyph(at: range.location))
-            }
-            if string.isEmpty || string.hasSuffix("\n") { starts.insert((string as NSString).length) }
+            let starts = wrappingValidator.lineStarts()
             guard Set(plan.lines.keys).isSubset(of: starts) else {
                 // Never draw a mixture of paged and continuous coordinates.
                 pagePlan = nil
@@ -316,6 +312,9 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
             }
             let size = NSSize(width: frame.width, height: (CGFloat(plan.labels.count) * PrintedWritingLayout.stride - 24) * displayScale)
             if frame.size != size { setFrameSize(size) }
+        } else {
+            pagePlan = nil
+            layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
         }
     }
     func layoutManager(_ manager: NSLayoutManager, shouldSetLineFragmentRect rect: UnsafeMutablePointer<NSRect>,

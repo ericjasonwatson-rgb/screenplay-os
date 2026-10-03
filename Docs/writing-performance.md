@@ -81,3 +81,25 @@ Final isolated Release measurements on the same 132-page / 2,004-element fixture
 Beginning-of-script median improved approximately 13%; middle approximately 5%. End performance is roughly unchanged/slightly slower in this single-run comparison; no end improvement is claimed. A preliminary full-suite run measured 199.6 ms at the beginning, illustrating run-to-run variation. These synchronous harness timings still fall short of the desired writing responsiveness. Native layout and the rest of the synchronous editing path remain work to do.
 
 Final Debug and Release each passed 203 Swift tests, 37 Python tests, and 14 self-tests (254 checks). All three final benchmarks passed. Evidence is retained under workspace `work/pagination-convergence-2026-10-02/`. No manual UI or notarization result is implied by these checks.
+
+
+## Retained native wrapping validation — 2026-10-02
+
+The legacy editor now retains an independent natural TextKit layout for wrapping validation. Changed rendered paragraph spans update that layout with current attributed text. The visible editor receives the validated page plan directly, eliminating its separate natural-coordinate layout pass. Natural TextKit can retain unaffected wrapping; the visible editor still validates all planned line starts and falls back to continuous layout when they disagree. No pagination validation is skipped.
+
+The changed-span contract uses the new rendered range and total-length delta, accounting for native text insertion before the coordinator runs. Invalid ranges or unspecified differing content trigger a full validation-text refresh. Container width, padding, font-leading and default hyphenation settings follow the native editor. One additional current-document text/glyph layout is retained; memory usage has not been independently profiled.
+
+Regression coverage compares incremental natural line starts with fresh independent TextKit layout through Unicode insertions, deletion, font changes, width changes, unspecified equal-length changes, trailing blanks and an empty document. Native page-coordinate checks now also exercise Undo/Redo and cross-paragraph replacement, comparing every planned native line with a fresh print plan. Existing page navigation, selection, typography, locks and save/recovery checks remain enabled. Authored content, file format and save behavior are unchanged.
+
+
+Final isolated Release timings, same 132-page / 2,004-element fixture and 15-edit harness:
+
+| Position | Previous median | Retained-validation median | Maximum |
+|---|---:|---:|---:|
+| Beginning | 208.9 ms | 180.4 ms | 210.7 ms |
+| Middle | 186.9 ms | 164.7 ms | 209.6 ms |
+| End | 157.7 ms | 155.4 ms | 210.8 ms |
+
+Beginning and middle medians improved approximately 14% and 12%; end performance is effectively unchanged. These are single-run synchronous input/layout/display-request measurements, not hardware latency guarantees. The remaining 180 ms early-edit cycle still needs improvement; this change does not establish the desired writing responsiveness.
+
+Final Debug and Release each passed 204 Swift tests, 37 Python checks and 14 self-tests (255 total). All three isolated benchmarks passed. Evidence is retained in workspace `work/native-wrapping-2026-10-02/`. No new manual visual review or notarization is claimed.
