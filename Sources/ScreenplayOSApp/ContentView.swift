@@ -790,6 +790,10 @@ private struct NavigatorSections: View {
     @ObservedObject var model: ScreenplayViewModel
 
     var body: some View {
+        let breakdowns = model.sceneBreakdowns
+        let counts = Dictionary(breakdowns.map { ($0.elementID, $0.elementCount) }, uniquingKeysWith: { first, _ in first })
+        let longestScene = max(1, breakdowns.map(\.elementCount).max() ?? 1)
+        let selectedSceneNumber = model.selectedSceneBreakdown?.number
         if !model.recentDocuments.isEmpty {
             DisclosureGroup("Recent documents") {
                 ForEach(model.recentDocuments) { recent in
@@ -821,22 +825,22 @@ private struct NavigatorSections: View {
                             .font(.system(size: 13, weight: .medium))
                             .lineLimit(2)
                     }
-                    if let sceneData = model.sceneBreakdowns.first(where: { $0.elementID == scene.elementID }) {
+                    if let elementCount = counts[scene.elementID] {
                         HStack(spacing: 6) {
                             GeometryReader { geometry in
                                 Rectangle().fill(StudioAppearance.recess)
                                 Rectangle().fill(StudioAppearance.sceneColor(scene.elementID.uuidString).opacity(0.65))
-                                    .frame(width: geometry.size.width * CGFloat(sceneData.elementCount) / CGFloat(max(1, model.sceneBreakdowns.map(\.elementCount).max() ?? 1)))
+                                    .frame(width: geometry.size.width * CGFloat(elementCount) / CGFloat(longestScene))
                             }.frame(height: 3)
-                            Text("\(sceneData.elementCount)").font(.system(size: 10).monospacedDigit()).foregroundStyle(.secondary)
+                            Text("\(elementCount)").font(.system(size: 10).monospacedDigit()).foregroundStyle(.secondary)
                         }.padding(.leading, 35)
-                        .help("Scene length: \(sceneData.elementCount) screenplay elements; bars are relative to the longest scene.")
+                        .help("Scene length: \(elementCount) screenplay elements; bars are relative to the longest scene.")
                     }
                     }
                 }
                 .buttonStyle(.plain)
                 .padding(.vertical, 3)
-                .listRowBackground(model.selectedSceneBreakdown?.number == scene.number ? StudioAppearance.selection : Color.clear)
+                .listRowBackground(selectedSceneNumber == scene.number ? StudioAppearance.selection : Color.clear)
                 .foregroundStyle(Color.primary)
             }
         }

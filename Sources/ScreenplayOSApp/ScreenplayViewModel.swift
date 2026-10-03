@@ -195,13 +195,14 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     var scenes: [SceneSummary] {
-        elements.enumerated().compactMap { index, element in
+        var number = 0
+        return elements.compactMap { element in
             guard element.type == .sceneHeading else {
                 return nil
             }
-
+            number += 1
             return SceneSummary(
-                number: sceneNumber(through: index),
+                number: number,
                 elementID: element.id,
                 title: element.text.isEmpty ? "Untitled Scene" : element.text
             )
