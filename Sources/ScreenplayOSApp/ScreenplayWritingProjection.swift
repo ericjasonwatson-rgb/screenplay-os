@@ -14,19 +14,23 @@ struct ScreenplayWritingProjection {
     private let sourceLength: Int
     private let displayLength: Int
 
-    init(elements: [ScreenplayElement]) {
+    init(elements: [ScreenplayElement], casing: [UUID: [NSRange]]? = nil) {
         var output = "", ranges: [NSRange] = [], segments: [Segment] = []
         var sourceOffset = 0, displayOffset = 0
-        let casing = ScreenplayCasing.ranges(in: elements)
+        let casing = casing ?? ScreenplayCasing.ranges(in: elements)
         casingRanges = casing
         for (index, element) in elements.enumerated() {
             let start = displayOffset
             // Ordinary paragraphs need one identity span, not a record per character.
             let caps = casing[element.id, default: []]
-            let pieces = caps.isEmpty ? [element.text] : element.text.map(String.init)
+            // ASCII capitalization never changes UTF-16 offsets, including partial
+            // character introductions. Unicode retains expansion-aware spans.
+            let ascii = !caps.isEmpty && element.text.utf8.allSatisfy { $0 < 128 }
+            let pieces = caps.isEmpty || ascii ? [element.text] : element.text.map(String.init)
             var localOffset = 0
             for raw in pieces where !raw.isEmpty {
-                let shown = caps.contains { NSLocationInRange(localOffset, $0) } ? raw.uppercased() : raw
+                let shown = ascii ? ScreenplayCasing.render(raw, ranges: caps)
+                    : (caps.contains { NSLocationInRange(localOffset, $0) } ? raw.uppercased() : raw)
                 localOffset += (raw as NSString).length
                 let sourceCount = (raw as NSString).length, displayCount = (shown as NSString).length
                 segments.append(Segment(source: NSRange(location: sourceOffset, length: sourceCount),

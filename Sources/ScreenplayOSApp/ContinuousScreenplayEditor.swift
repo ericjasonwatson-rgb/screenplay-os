@@ -73,6 +73,9 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         private var projectedElements: [ScreenplayElement]?
         let measurements = PrintedWritingLayout.MeasurementCache()
         let textRenderCache = WritingTextRenderCache()
+        // Opt-in timing only; never records screenplay content or identifiers.
+        private let traceTyping = ProcessInfo.processInfo.environment["SCREENPLAYOS_TRACE_TYPING"] == "1"
+        private var renderPhases: [Double] = []
         var nativeEditRange: NSRange?
         var pageCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography, plan: PrintedWritingLayout?)?
         init(_ model: ScreenplayViewModel) { self.model = model }
@@ -81,21 +84,32 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             guard !updating, !view.hasMarkedText() else { return }
             updating = true
             defer { updating = false }
+            var phaseStart = traceTyping ? ProcessInfo.processInfo.systemUptime : 0
+            var phases: [Double] = []
+            func checkpoint() {
+                guard traceTyping else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                phases.append((now - phaseStart) * 1000)
+                phaseStart = now
+            }
+            defer { if traceTyping { renderPhases = phases } }
             let scale: CGFloat = 1
             (view.enclosingScrollView as? WritingScrollView)?.pageZoom = CGFloat(model.pageZoom)
             let oldSelection = writingProjection.sourceRange(view.selectedRange())
             if projectedElements != model.elements {
-                writingProjection = ScreenplayWritingProjection(elements: model.elements)
+                writingProjection = ScreenplayWritingProjection(elements: model.elements, casing: model.screenplayCasing)
                 projectedElements = model.elements
             }
             let string = writingProjection.text
             let changed = view.string != string
+            checkpoint() // Writing projection and native string comparison.
             let activeAttributes: [NSAttributedString.Key: Any]
             if let storage = view.textStorage {
                 activeAttributes = textRenderCache.update(storage, elements: model.elements,
                     projection: writingProjection, typography: model.writingTypography,
                     dark: model.darkPageMode, selectedID: model.selectedElementID, nativeEdit: nativeEditRange)
             } else { activeAttributes = [:] }
+            checkpoint() // Attributed paragraph update.
             nativeEditRange = nil
             view.displayScale = scale
             view.layoutPage(in: (view.enclosingScrollView?.contentSize.width ?? 0) / CGFloat(model.pageZoom))
@@ -105,6 +119,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             view.enclosingScrollView?.horizontalScroller?.knobStyle = model.darkPageMode ? .light : .dark
             view.insertionPointColor = StudioAppearance.ink(model.darkPageMode)
             let projection = model.printedLayout
+            checkpoint() // Page geometry and print projection.
             view.pageGuides = projection.unmappedElementIDs.isEmpty ? projection.pages.indices.compactMap { index in
                 projection.firstSourceCaret(onPage: index).map { PrintedPageGuide(label: projection.pages[index].label, offset: writingProjection.displayRange($0).location) }
             } : []
@@ -113,6 +128,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 pageCache = (model.elements, model.document?.screenplay.pageLock, model.writingTypography,
                     PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography, cache: measurements))
             }
+            checkpoint() // Page guides and measured layout plan.
             view.setPagePlan(pageCache?.plan, invalidatedFrom: textRenderCache.lastReplacementRange?.location, updatedRange: textRenderCache.lastUpdatedRange)
             if let plan = view.pagePlan {
                 pagePositions = plan.labels.enumerated().map { ($0.element, CGFloat($0.offset) * PrintedWritingLayout.stride * view.displayScale) }
@@ -121,6 +137,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                     view.pageGuidePoint(guide).map { (guide.label, $0.y) }
                 }
             }
+            checkpoint() // Native page-plan installation and page positions.
             updateVisiblePage()
             let available = view.pagePlan != nil
             if model.writingPageLayoutAvailable != available {
@@ -170,6 +187,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                     }
                 }
             }
+            checkpoint() // Selection, scroll and display invalidation.
         }
 
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
@@ -181,6 +199,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard !updating, let view = notification.object as? WritingTextView, !view.hasMarkedText(),
                   let (range, replacement, selection) = pending else { return }
+            let startedAt = traceTyping ? ProcessInfo.processInfo.systemUptime : 0
             pending = nil
             // Marked-text input may generate several native edits before committing.
             // Reconcile the committed string if the last delegate edit alone cannot describe it.
@@ -201,20 +220,28 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 inserted = String(new[prefix..<(new.count - suffix)])
                 beforeSelection = model.documentCaret ?? editRange
             }
+            let reconciledAt = traceTyping ? ProcessInfo.processInfo.systemUptime : 0
             updating = true
             let caret = model.replaceWritingText(in: writingProjection.sourceRange(editRange), with: inserted,
                 groupable: inserted.count <= 1 && !inserted.contains("\n"), selection: writingProjection.sourceRange(beforeSelection))
+            let mutatedAt = traceTyping ? ProcessInfo.processInfo.systemUptime : 0
             updating = false
             // Normalize casing and structural edits immediately, before the next keystroke.
             selectedID = model.selectedElementID
             nativeEditRange = editRange
             render(view)
+            let renderedAt = traceTyping ? ProcessInfo.processInfo.systemUptime : 0
             updating = true
             let displayedCaret = writingProjection.displayRange(caret)
             view.setSelectedRange(displayedCaret)
             view.scrollRangeToVisible(displayedCaret)
             updating = false
             model.chromeState.refresh(from: model)
+            if traceTyping {
+                let endedAt = ProcessInfo.processInfo.systemUptime
+                print("SCREENPLAYOS_INPUT_PHASES_MS=\([reconciledAt - startedAt, mutatedAt - reconciledAt, renderedAt - mutatedAt, endedAt - renderedAt].map { $0 * 1000 })")
+                print("SCREENPLAYOS_RENDER_PHASES_MS=\(renderPhases)")
+            }
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {

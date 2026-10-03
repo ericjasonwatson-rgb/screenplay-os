@@ -23,6 +23,11 @@ struct TypingDerivedStateTests {
                 #expect(range == NSRange(location: offset, length: (element.text as NSString).length))
                 offset = NSMaxRange(range) + 1
             }
+            let display = ScreenplayWritingProjection(elements: model.elements, casing: model.screenplayCasing)
+            let freshDisplay = ScreenplayWritingProjection(elements: model.elements)
+            #expect(display.text == freshDisplay.text)
+            #expect(display.ranges == freshDisplay.ranges)
+            #expect(display.casingRanges == freshDisplay.casingRanges)
             let cached = model.printedLayout
             let fresh = ScriptPrintProjection(pages: cached.pages, source: model.elements,
                 preservesWhitespace: model.printPreservesWhitespace, casing: model.screenplayCasing)
@@ -51,6 +56,27 @@ struct TypingDerivedStateTests {
         coordinator.choose(button)
         #expect(chosen == "Courier")
     }
+    @Test func asciiCasingPreservesEverySelectionBoundary() {
+        let elements = [ScreenplayElement(type: .sceneHeading, text: "int. room - day"),
+            ScreenplayElement(type: .action, text: "Mara enters. She sits."),
+            ScreenplayElement(type: .character, text: "Mara (v.o.)"),
+            ScreenplayElement(type: .dialogue, text: "Hello."),
+            ScreenplayElement(type: .transition, text: "cut to:")]
+        let projection = ScreenplayWritingProjection(elements: elements)
+        #expect(projection.text.contains("INT. ROOM - DAY"))
+        #expect(projection.text.contains("MARA enters. She sits."))
+        #expect(projection.text.contains("MARA (V.O.)"))
+        #expect(projection.text.contains("CUT TO:"))
+        let length = (projection.text as NSString).length
+        for start in 0...length {
+            for end in start...length {
+                let range = NSRange(location: start, length: end - start)
+                #expect(projection.displayRange(range) == range)
+                #expect(projection.sourceRange(range) == range)
+            }
+        }
+    }
+
     @Test func casingFastPathsPreserveUnicode() {
         let text = "Straße 👩🏽‍💻 e\u{301}"
         #expect(ScreenplayCasing.render(text, ranges: []) == text)
