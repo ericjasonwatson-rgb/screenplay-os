@@ -3721,7 +3721,7 @@ final class ScreenplayViewModel: ObservableObject {
               let context = CGContext(consumer: consumer, mediaBox: &pageRect, nil) else {
             throw PrintPDFError.renderFailed
         }
-        drawTitlePage(document.titlePage, in: context, pageRect: pageRect)
+        try drawTitlePage(document.titlePage, in: context, pageRect: pageRect)
         drawScriptPages(document.screenplay.elements, in: context, pageRect: pageRect)
         context.closePDF()
         return data as Data
@@ -4263,30 +4263,37 @@ final class ScreenplayViewModel: ObservableObject {
         Set(elementIDs.compactMap { sceneNumber(containing: $0) }).sorted()
     }
 
-    private func drawTitlePage(_ titlePage: TitlePage, in context: CGContext, pageRect: CGRect) {
+    private func drawTitlePage(_ titlePage: TitlePage, in context: CGContext, pageRect: CGRect) throws {
+        let titleText = [titlePage.title.isEmpty ? title : titlePage.title,
+                         titlePage.subtitle,
+                         titlePage.author.isEmpty ? "" : "Written by\n\n\(titlePage.author)"]
+            .filter { !$0.isEmpty }.joined(separator: "\n\n")
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: StudioAppearance.courier(size: 12),
+            .paragraphStyle: ScreenplayBodyLayout.textStyle(alignment: .center)]
+        let footerAttributes: [NSAttributedString.Key: Any] = [
+            .font: StudioAppearance.courier(size: 12),
+            .paragraphStyle: ScreenplayBodyLayout.textStyle(alignment: .left)]
+        let footerText = [titlePage.contact, titlePage.draftDate]
+            .filter { !$0.isEmpty }.joined(separator: "\n")
+        func height(_ text: String, attributes: [NSAttributedString.Key: Any]) -> CGFloat {
+            guard !text.isEmpty else { return 0 }
+            return ceil((text as NSString).boundingRect(
+                with: NSSize(width: 396, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attributes).height) + 4
+        }
+        let titleHeight = height(titleText, attributes: titleAttributes)
+        let footerHeight = max(90, height(footerText, attributes: footerAttributes))
+        let titleRect = CGRect(x: 108, y: 554 - titleHeight, width: 396, height: titleHeight)
+        let footerRect = CGRect(x: 108, y: 96, width: 396, height: footerHeight)
+        guard titleRect.minY >= 72, footerRect.maxY <= pageRect.height - 72,
+              footerText.isEmpty || titleRect.minY >= footerRect.maxY + 36 else {
+            throw PrintPDFError.titlePageOverflow
+        }
         context.beginPDFPage(nil)
         withPDFGraphicsContext(context) {
-            let titleText = [
-                titlePage.title.isEmpty ? title : titlePage.title,
-                titlePage.subtitle,
-                titlePage.author.isEmpty ? "" : "Written by\n\n\(titlePage.author)"
-            ]
-                .filter { !$0.isEmpty }
-                .joined(separator: "\n\n")
-
-            let attributes: [NSAttributedString.Key: Any] = [.font: StudioAppearance.courier(size: 12),
-                .paragraphStyle: ScreenplayBodyLayout.textStyle(alignment: .center)]
-            let height = ceil((titleText as NSString).boundingRect(with: NSSize(width: 396, height: 600),
-                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attributes).height)
-            titleText.draw(in: CGRect(x: 108, y: max(150, 550 - height), width: 396, height: height + 4), withAttributes: attributes)
-
-            let footerText = [titlePage.draftDate, titlePage.contact]
-                .filter { !$0.isEmpty }
-                .joined(separator: "\n")
-            footerText.draw(
-                in: CGRect(x: 108, y: 96, width: 396, height: 90),
-                withAttributes: pdfAttributes(alignment: .center, weight: .regular, size: 10)
-            )
+            titleText.draw(in: titleRect, withAttributes: titleAttributes)
+            footerText.draw(in: footerRect, withAttributes: footerAttributes)
         }
         context.endPDFPage()
     }

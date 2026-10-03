@@ -707,6 +707,49 @@ struct PaginationTests {
         }
     }
 
+    @Test func titlePageRetainsLongContactAndRejectsOverflowWithoutReplacingExport() throws {
+        let dialogue = (1...280).map { "word\($0)" }.joined(separator: " ")
+        let source = [ScreenplayElement(type: .sceneHeading, text: "INT. STUDIO - DAY"),
+                      ScreenplayElement(type: .character, text: "MARA"),
+                      ScreenplayElement(type: .dialogue, text: dialogue),
+                      ScreenplayElement(type: .pageBreak, text: ""),
+                      ScreenplayElement(type: .action, text: "The room falls quiet.")]
+        try withDocument(source) { model, folder in
+            model.titlePageBinding(.title).wrappedValue = "The Last Light"
+            model.titlePageBinding(.subtitle).wrappedValue = "A screenplay for export review"
+            model.titlePageBinding(.author).wrappedValue = "Sample Writer"
+            let contact = (1...12).map { "Contact line \($0)" }.joined(separator: "\n")
+            model.titlePageBinding(.contact).wrappedValue = contact
+            model.titlePageBinding(.draftDate).wrappedValue = "October 3, 2026"
+            let before = model.document
+            let data = try model.makePrintPDF()
+            let pdf = try #require(PDFDocument(data: data))
+            let title = try #require(pdf.page(at: 0))
+            #expect(title.string?.contains("Contact line 12") == true)
+            #expect(title.string?.contains("October 3, 2026") == true)
+            let contactBounds = try #require(title.selection(for: (title.string! as NSString).range(of: "Contact line 1")))
+                .bounds(for: title)
+            #expect(abs(contactBounds.minX - 108) < 2)
+            #expect(pdf.page(at: 1)?.string?.contains("INT. STUDIO - DAY") == true)
+            #expect(model.document == before)
+            if let directory = ProcessInfo.processInfo.environment["SCREENPLAYOS_EXPORT_AUDIT_DIRECTORY"] {
+                try data.write(to: URL(fileURLWithPath: directory).appendingPathComponent("title-and-dialogue.pdf"))
+            }
+            let destination = folder.appendingPathComponent("existing.pdf")
+            try data.write(to: destination)
+            model.titlePageBinding(.contact).wrappedValue = String(repeating: "A contact line\n", count: 100)
+            let overflowDocument = model.document
+            #expect(throws: PrintPDFError.self) { try model.makePrintPDF() }
+            model.exportPDF(to: destination)
+            #expect(model.errorMessage?.contains("does not fit") == true)
+            #expect(try Data(contentsOf: destination) == data)
+            #expect(model.document == overflowDocument)
+            model.titlePageBinding(.contact).wrappedValue = ""
+            model.titlePageBinding(.subtitle).wrappedValue = String(repeating: "An additional credit\n", count: 100)
+            #expect(throws: PrintPDFError.self) { try model.makePrintPDF() }
+        }
+    }
+
     @Test func previewMatchesExportAndDoesNotChangeTheScreenplay() throws {
         let dialogue = (1...800).map { "line\($0)" }.joined(separator: " ")
         let elements = [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY"),

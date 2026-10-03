@@ -3,11 +3,12 @@ import PDFKit
 import SwiftUI
 
 enum PrintPDFError: LocalizedError {
-    case noDocument, renderFailed
+    case noDocument, renderFailed, titlePageOverflow
     var errorDescription: String? {
         switch self {
         case .noDocument: return "Open a screenplay to preview its printed pages."
         case .renderFailed: return "Could not create the print preview."
+        case .titlePageOverflow: return "The title-page text does not fit on one page. Shorten the title, credits, or contact details in Title Page, then preview again. Your screenplay has not been changed."
         }
     }
 }
