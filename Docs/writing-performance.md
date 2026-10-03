@@ -205,3 +205,22 @@ The writing projection now exposes its already-computed capitalization ranges. P
 Three isolated Release end-of-script runs on the existing 132-page / 2,004-element fixture, settled navigation and closed document/context panels, measured median input/layout/display-request cycles of 62.2, 61.0 and 61.1 ms, compared with the preceding retained-selection baseline medians of 66.5–66.8 ms. This is approximately 7–9% improvement. First inputs after navigation measured 71.6–75.5 ms. The under-50-ms goal remains unmet; beginning/middle/open-panel gains have not been established by this pass, and this is not physical key-to-screen latency.
 
 The full Release suite passed 211 Swift tests, 37 Python checks and 14 self-tests (262 checks). The fresh-render comparison now also checks an unchanged later action gaining first-introduction capitalization and an unchanged final paragraph gaining/losing a joining newline. Existing native formatting/paste/undo, page-coordinate, typography, import/export and persistence coverage passed. No new manual UI review, app package or installed-app replacement was performed. Logs: workspace `work/typing-detail-2026-10-03/`.
+
+## Six-scenario beta matrix — 2026-10-03
+
+Compared `2af69dc` with the `125bb0e` paragraph-rendering implementation using the same current harness, Release configuration, 132-page / 2,004-element fixture, 1440 × 900 window, settled navigation, Focus off and visible script-page navigator. Each scenario contains 15 edits; the document Navigator and Context panels are either both closed or both open. Baseline source substitution was limited to the two changed rendering files and restored before final tests and packaging. All twelve benchmark runs passed content-consistency checks.
+
+| Panels / position | Baseline median | Updated median | Baseline maximum | Updated maximum |
+| --- | ---: | ---: | ---: | ---: |
+| Closed / beginning | 86.7 ms | 84.5 ms | 111.6 ms | 107.3 ms |
+| Closed / middle | 77.3 ms | 75.5 ms | 122.9 ms | 133.8 ms |
+| Closed / end | 67.0 ms | 61.3 ms | 77.3 ms | 72.5 ms |
+| Both open / beginning | 121.1 ms | 116.1 ms | 146.3 ms | 152.1 ms |
+| Both open / middle | 111.5 ms | 107.3 ms | 160.4 ms | 175.0 ms |
+| Both open / end | 102.2 ms | 97.7 ms | 115.3 ms | 113.7 ms |
+
+All six medians improved approximately 2–9%. Maxima increased in three scenarios; this is not a no-regression guarantee for worst-case latency. These are single runs per configuration, and no statistical tail-latency claim is made. Settled navigation is excluded from these input-cycle timings. The under-50-ms target remains unmet, especially with content panels visible. The beta is a review checkpoint, not a performance-complete release.
+
+Evidence: workspace `work/beta-matrix-2026-10-03/`. Local review packaging uses version 0.1.2, build 3. No live manual review or notarization is implied by automated native checks.
+
+Final restored-code Release validation passed 211 Swift tests, 37 Python checks and 14 self-tests (262 checks), including the native caret/formatting/undo workflow, pane changes, import/save/reopen, and print/export regressions. See `release-tests.log` in the evidence directory. No application runtime changes were added during this matrix pass.
