@@ -53,3 +53,7 @@ Same 132-page, 2,004-element, both-panels-open, settled end-insertion Release wo
 ASCII capitalization preserves UTF-16 offsets, so one paragraph span suffices even with partial capitalization. Unicode retains expansion-aware spans. The shared casing cache compares current elements, including after edits and Undo/Redo. Tests cover every selection boundary of an ASCII fixture, partial name capitalization, Unicode, cached-versus-fresh projection after edits/Undo/Redo/typography, and the existing native editor and PDF suite. Full Release validation: 214 Swift + 37 Python + 14 self-tests = 265 passing checks.
 
 The timing benefit is limited evidence for this workload, not a hardware latency claim or proof that the under-50-ms target is met. No updated app ZIP was built for this source change. The next measured targets are page-plan construction and remaining SwiftUI layout.
+
+## October 3, 2026: page-plan attribute experiment
+
+Tried reusing font/alignment attributes and the bridged writing string within page-plan construction. All 265 checks passed, but the traced median was 88.5 ms (maximum 109.3 ms), and the untraced repeat was 78.2 ms (maximum 105.0 ms). Against the retained implementation's approximately 79 ms result this does not establish a useful consistent gain. Removed the experiment. Evidence: workspace `work/page-plan-2026-10-03/`. Build 5 packages the retained source at `5ca9473`; it adds the verified navigator and casing improvements to build 4 without this experiment.
