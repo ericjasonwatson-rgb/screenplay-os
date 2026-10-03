@@ -3713,7 +3713,12 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     /// Preview and export share this renderer, including the title page and continuation cues.
-    func makePrintPDF() throws -> Data {
+    func makePrintPDF() throws -> Data { try makePDF(includeScript: true) }
+
+    /// The title editor uses the export renderer without paginating the screenplay.
+    func makeTitlePagePDF() throws -> Data { try makePDF(includeScript: false) }
+
+    private func makePDF(includeScript: Bool) throws -> Data {
         guard let document else { throw PrintPDFError.noDocument }
         let data = NSMutableData()
         var pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
@@ -3722,7 +3727,7 @@ final class ScreenplayViewModel: ObservableObject {
             throw PrintPDFError.renderFailed
         }
         try drawTitlePage(document.titlePage, in: context, pageRect: pageRect)
-        drawScriptPages(document.screenplay.elements, in: context, pageRect: pageRect)
+        if includeScript { drawScriptPages(document.screenplay.elements, in: context, pageRect: pageRect) }
         context.closePDF()
         return data as Data
     }

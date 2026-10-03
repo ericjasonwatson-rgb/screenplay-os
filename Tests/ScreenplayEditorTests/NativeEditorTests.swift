@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import PDFKit
 import Testing
 @testable import ScreenplayOSApp
 
@@ -168,6 +169,55 @@ struct NativeEditorTests {
         #expect(reopened.writingText == saved)
         #expect(reopened.printedPages.map(\.label) == model.printedPages.map(\.label))
         #expect(try Data(contentsOf: copy) == Data(contentsOf: fixture))
+    }
+
+    @Test func titleEditorPreviewUpdatesAndRecoversFromOverflow() async throws {
+        _ = NSApplication.shared
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let suite = "TitleEditorPreview.\(UUID())"
+        let prefs = try #require(UserDefaults(suiteName: suite))
+        defer {
+            try? FileManager.default.removeItem(at: folder)
+            prefs.removePersistentDomain(forName: suite)
+        }
+        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+        model.newDocument()
+        let host = NSHostingView(rootView: ScreenplayTitlePageEditor(model: model).environment(\.colorScheme, .dark))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 810, height: 740),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.appearance = NSAppearance(named: .darkAqua)
+        defer { window.close() }
+        window.orderFront(nil)
+        @MainActor func findPDF(_ view: NSView) -> TitlePagePDFCanvas? {
+            if let pdf = view as? TitlePagePDFCanvas { return pdf }
+            return view.subviews.lazy.compactMap { findPDF($0) }.first
+        }
+        @MainActor func settle() async throws {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(nanoseconds: 350_000_000)
+            host.layoutSubtreeIfNeeded()
+        }
+        try await settle()
+        #expect(findPDF(host)?.document?.pageCount == 1)
+        model.titlePageBinding(.title).wrappedValue = "An obsolete title"
+        model.titlePageBinding(.title).wrappedValue = "The Revised Title"
+        try await settle()
+        #expect(findPDF(host)?.document?.string?.contains("The Revised Title") == true)
+        #expect(findPDF(host)?.document?.string?.contains("obsolete") == false)
+        model.titlePageBinding(.contact).wrappedValue = String(repeating: "Too much contact information\n", count: 100)
+        try await settle()
+        #expect(findPDF(host) == nil)
+        model.titlePageBinding(.contact).wrappedValue = "writer@example.com"
+        try await settle()
+        #expect(findPDF(host)?.document?.string?.contains("writer@example.com") == true)
+        if let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_TITLE_PREVIEW_CAPTURE"],
+           let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        }
     }
 
     /// Opt-in profiling through the same test target in Debug and Release.

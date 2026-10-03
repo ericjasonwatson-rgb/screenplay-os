@@ -725,6 +725,12 @@ struct PaginationTests {
             let data = try model.makePrintPDF()
             let pdf = try #require(PDFDocument(data: data))
             let title = try #require(pdf.page(at: 0))
+            let titleOnly = try #require(PDFDocument(data: model.makeTitlePagePDF()))
+            #expect(titleOnly.pageCount == 1)
+            let previewTitle = try #require(titleOnly.page(at: 0))
+            #expect(previewTitle.string == title.string)
+            let size = NSSize(width: 612, height: 792)
+            #expect(previewTitle.thumbnail(of: size, for: .mediaBox).tiffRepresentation == title.thumbnail(of: size, for: .mediaBox).tiffRepresentation)
             #expect(title.string?.contains("Contact line 12") == true)
             #expect(title.string?.contains("October 3, 2026") == true)
             let contactBounds = try #require(title.selection(for: (title.string! as NSString).range(of: "Contact line 1")))
@@ -739,6 +745,7 @@ struct PaginationTests {
             try data.write(to: destination)
             model.titlePageBinding(.contact).wrappedValue = String(repeating: "A contact line\n", count: 100)
             let overflowDocument = model.document
+            #expect(throws: PrintPDFError.self) { try model.makeTitlePagePDF() }
             #expect(throws: PrintPDFError.self) { try model.makePrintPDF() }
             model.exportPDF(to: destination)
             #expect(model.errorMessage?.contains("does not fit") == true)
