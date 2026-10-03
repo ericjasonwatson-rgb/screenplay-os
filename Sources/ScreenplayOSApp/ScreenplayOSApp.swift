@@ -33,12 +33,17 @@ struct ScreenplayOSApp: App {
             }
             CommandGroup(replacing: .newItem) {
                 Group {
-                    Button("New Package", action: model.newPackage)
-                        .keyboardShortcut("n", modifiers: [.command, .shift])
                     Button("New Screenplay") {
                         model.newDocument()
                     }
                     .keyboardShortcut("n", modifiers: [.command])
+                    .help("Start a screenplay with Outline, Script, Shot, Boards, and Edit.")
+
+                    Menu("Experimental Features") {
+                        Button("New Writing-Only Screenplay", action: model.newPackage)
+                            .keyboardShortcut("n", modifiers: [.command, .shift])
+                            .help("Creates a separate writing-only document. Outline, Shot, Boards, Edit, and title-page editing are not available in this editor.")
+                    }
 
                     Button("Open...") {
                         model.showOpenPanel()

@@ -22,7 +22,7 @@ Evidence is in workspace `work/writing-audit-2026-10-03/`: release test log, syn
 
 ## Remaining issues and next boundaries
 
-1. First-time creation exposes both New Screenplay and New Package, although their capabilities differ. A clearer product choice needs a separate bounded UX decision; this audit does not change formats or silently move users between them.
+1. Creation-menu follow-up: New Screenplay is now the first creation command. The limited editor is under Experimental Features as New Writing-Only Screenplay, with help explaining unavailable modes and title-page editing. Command-N and Shift-Command-N keep their existing actions. No format migration or document behavior changed. Release compilation verifies the menu change; a live menu/accessibility review remains outstanding.
 2. The title-page editing panel is an approximate visual layout, not the exact PDF. Print Preview remains the authority for export inspection. Sharing a renderer would prevent further drift, but is not required to fix the clipping defect.
 3. Automated workflow success does not establish discoverability. A real first-time writing session remains useful before distribution.
 4. Typing still exceeds the under-50-ms target, particularly with both content panels open. This export change makes no responsiveness claim.
