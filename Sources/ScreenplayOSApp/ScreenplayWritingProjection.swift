@@ -9,6 +9,7 @@ struct ScreenplayWritingProjection {
     }
     let text: String
     let ranges: [NSRange]
+    let casingRanges: [UUID: [NSRange]]
     private let segments: [Segment]
     private let sourceLength: Int
     private let displayLength: Int
@@ -17,6 +18,7 @@ struct ScreenplayWritingProjection {
         var output = "", ranges: [NSRange] = [], segments: [Segment] = []
         var sourceOffset = 0, displayOffset = 0
         let casing = ScreenplayCasing.ranges(in: elements)
+        casingRanges = casing
         for (index, element) in elements.enumerated() {
             let start = displayOffset
             // Ordinary paragraphs need one identity span, not a record per character.

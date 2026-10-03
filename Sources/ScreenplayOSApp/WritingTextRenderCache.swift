@@ -8,12 +8,16 @@ final class WritingTextRenderCache {
     @MainActor private final class Paragraph {
         let element: ScreenplayElement
         let displayed: String
+        let casing: [NSRange]
+        let hasSeparator: Bool
         let attributed: NSAttributedString
         let typing: [NSAttributedString.Key: Any]
 
-        init(element: ScreenplayElement, displayed: String, body: String, typography: DocumentTypography, dark: Bool) {
+        init(element: ScreenplayElement, displayed: String, body: String, casing: [NSRange], hasSeparator: Bool, typography: DocumentTypography, dark: Bool) {
             self.element = element
             self.displayed = displayed
+            self.casing = casing
+            self.hasSeparator = hasSeparator
             var attributes: [NSAttributedString.Key: Any] = [
                 .font: PackageTypography.font(typography),
                 .foregroundColor: StudioAppearance.ink(dark),
@@ -51,13 +55,16 @@ final class WritingTextRenderCache {
         let byID = canReuse ? Dictionary(uniqueKeysWithValues: paragraphs.map { ($0.element.id, $0) }) : [:]
         let string = projection.text as NSString
         let next: [Paragraph] = elements.enumerated().map { index, element in
-            var range = projection.ranges[index]
-            if index + 1 < elements.count { range.length += 1 }
-            let displayed = string.substring(with: range)
-            if let previous = byID[element.id], previous.element == element, previous.displayed == displayed {
+            let casing = projection.casingRanges[element.id, default: []]
+            let hasSeparator = index + 1 < elements.count
+            if let previous = byID[element.id], previous.element == element,
+               previous.casing == casing, previous.hasSeparator == hasSeparator {
                 return previous
             }
-            return Paragraph(element: element, displayed: displayed, body: string.substring(with: projection.ranges[index]), typography: typography, dark: dark)
+            var range = projection.ranges[index]
+            if hasSeparator { range.length += 1 }
+            let displayed = string.substring(with: range)
+            return Paragraph(element: element, displayed: displayed, body: string.substring(with: projection.ranges[index]), casing: casing, hasSeparator: hasSeparator, typography: typography, dark: dark)
         }
 
         var prefix = 0, suffix = 0

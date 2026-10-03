@@ -40,6 +40,19 @@ struct WritingTextRenderCacheTests {
         elements.insert(ScreenplayElement(type: .character, text: "Alice (v.o.)"), at: 1)
         render()
         render(dark: true)
+        // Changing an earlier introduction must invalidate an unchanged later action.
+        elements = [ScreenplayElement(type: .character, text: "Alice"),
+                    ScreenplayElement(type: .action, text: "Alice arrives."),
+                    ScreenplayElement(type: .action, text: "Alice leaves.")]
+        render()
+        elements[1].text = "Someone arrives."
+        render()
+        #expect(storage.string.contains("ALICE leaves."))
+        // An unchanged final paragraph gains/loses its newline when structure changes.
+        elements.append(ScreenplayElement(type: .action, text: "The end."))
+        render()
+        elements.removeLast()
+        render()
         elements = []
         render()
     }
