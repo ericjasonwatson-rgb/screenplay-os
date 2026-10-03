@@ -4341,13 +4341,14 @@ final class ScreenplayViewModel: ObservableObject {
     private struct PaginationCache {
         let elements: [ScreenplayElement]
         let displayed: [String]
-        let typography: DocumentTypography
+        let typography: DocumentTypography?
         let preservesWhitespace: Bool
         let pages: [ScreenplayPage]
         let checkpoints: [PaginationCheckpoint]
     }
     private var paginationCache: PaginationCache?
     private(set) var lastPaginationReusedElementCount = 0
+    private(set) var lastPaginationReusedSuffixElementCount = 0
 
     private func paginate(_ sourceElements: [ScreenplayElement], includeEmptyElements: Bool = false, splitLongElements: Bool = true,
                           reuseScenePrefix: Bool = false) -> [ScreenplayPage] {
@@ -4368,12 +4369,26 @@ final class ScreenplayViewModel: ObservableObject {
             ScreenplayCasing.render($0.text, ranges: casing[$0.id, default: []])
         } : []
         lastPaginationReusedElementCount = 0
+        lastPaginationReusedSuffixElementCount = 0
+        var suffixStart = visibleElements.count
+        var suffixCheckpoints: [Int: PaginationCheckpoint] = [:]
         if reuseScenePrefix, let cache = paginationCache,
-           cache.typography == writingTypography, cache.preservesWhitespace == printPreservesWhitespace {
+           cache.typography == document?.typography, cache.preservesWhitespace == printPreservesWhitespace {
             var dirty = 0
             while dirty < min(cache.elements.count, visibleElements.count),
                   cache.elements[dirty] == visibleElements[dirty], cache.displayed[dirty] == displayed[dirty] {
                 dirty += 1
+            }
+            // Only reuse a suffix when source identity/order and displayed content
+            // match. Structural changes take the existing forward-reflow path.
+            if cache.elements.count == visibleElements.count {
+                while suffixStart > dirty,
+                      cache.elements[suffixStart - 1] == visibleElements[suffixStart - 1],
+                      cache.displayed[suffixStart - 1] == displayed[suffixStart - 1] {
+                    suffixStart -= 1
+                }
+                suffixCheckpoints = Dictionary(uniqueKeysWithValues: cache.checkpoints
+                    .filter { $0.index >= suffixStart }.map { ($0.index, $0) })
             }
             // Keep-together and dialogue lookahead stop at scene headings. Restart at
             // a preceding heading, never at the edited heading itself.
@@ -4426,6 +4441,20 @@ final class ScreenplayViewModel: ObservableObject {
         while index < visibleElements.count {
             let element = visibleElements[index]
             if reuseScenePrefix && element.type == .sceneHeading {
+                // Once the complete incoming page state converges, every remaining
+                // input and lookahead is identical. Keep existing page numbers; a
+                // changed page count deliberately prevents this shortcut.
+                if let previous = suffixCheckpoints[index], let cache = paginationCache,
+                   previous.pageNumber == pageNumber, previous.height == usedHeight,
+                   Self.samePaginationItems(previous.items, currentItems) {
+                    pages.append(contentsOf: cache.pages.dropFirst(previous.pageCount))
+                    checkpoints.append(contentsOf: cache.checkpoints.filter { $0.index >= index })
+                    lastPaginationReusedSuffixElementCount = visibleElements.count - index
+                    paginationCache = PaginationCache(elements: visibleElements, displayed: displayed,
+                        typography: document?.typography, preservesWhitespace: printPreservesWhitespace,
+                        pages: pages, checkpoints: checkpoints)
+                    return pages
+                }
                 checkpoints.append(PaginationCheckpoint(index: index, pageCount: pages.count,
                     items: currentItems, height: usedHeight, pageNumber: pageNumber))
             }
@@ -4523,12 +4552,21 @@ final class ScreenplayViewModel: ObservableObject {
 
         if reuseScenePrefix {
             paginationCache = PaginationCache(elements: visibleElements, displayed: displayed,
-                typography: writingTypography, preservesWhitespace: printPreservesWhitespace,
+                typography: document?.typography, preservesWhitespace: printPreservesWhitespace,
                 pages: pages, checkpoints: checkpoints)
         } else {
             paginationCache = nil
         }
         return pages
+    }
+
+    private static func samePaginationItems(_ lhs: [PaginatedElement], _ rhs: [PaginatedElement]) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        return zip(lhs, rhs).allSatisfy { a, b in
+            a.element == b.element && a.text == b.text && a.layout == b.layout &&
+            a.textHeight == b.textHeight && a.blockHeight == b.blockHeight &&
+            a.isContinuation == b.isContinuation && a.attributed == b.attributed
+        }
     }
 
     private func dialogueSpeaker(in elements: [ScreenplayElement], before index: Int) -> String? {
@@ -5774,7 +5812,7 @@ struct PaginatedElement: Identifiable {
     }
 }
 
-struct PDFLayoutSpec {
+struct PDFLayoutSpec: Equatable {
     let x: CGFloat
     let width: CGFloat
     let before: CGFloat

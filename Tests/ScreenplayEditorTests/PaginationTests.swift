@@ -570,6 +570,66 @@ struct PaginationTests {
         }
     }
 
+    @Test func convergedPaginationSuffixMatchesFreshPagesAndFallsBackForPageCountChanges() throws {
+        let source = (0..<8).flatMap { index in
+            [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM \(index) - DAY"),
+             ScreenplayElement(type: .action, text: "Alice enters a café 👩🏽‍🚀."),
+             ScreenplayElement(type: .character, text: "MARA"),
+             ScreenplayElement(type: .dialogue, text: String(repeating: "A long conversation. ", count: 120)),
+             ScreenplayElement(type: .pageBreak, text: "")]
+        }
+        try withDocument(source) { model, directory in
+            _ = model.printedPages
+            @MainActor func compareFresh() throws {
+                let warm = model.printedPages
+                let file = directory.appendingPathComponent("fresh-suffix.json")
+                try JSONEncoder.openScreenplayEncoder().encode(try #require(model.document)).write(to: file)
+                let suite = "SuffixFresh.\(UUID())"
+                let prefs = try #require(UserDefaults(suiteName: suite))
+                defer { prefs.removePersistentDomain(forName: suite) }
+                let fresh = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
+                fresh.loadOpenScreenplay(at: file)
+                let expected = fresh.printedPages
+                #expect(warm.map(\.label) == expected.map(\.label))
+                #expect(warm.map { $0.elements.map(\.text) } == expected.map { $0.elements.map(\.text) })
+                #expect(warm.map { $0.elements.map(\.layout) } == expected.map { $0.elements.map(\.layout) })
+                #expect(warm.map { $0.elements.map(\.blockHeight) } == expected.map { $0.elements.map(\.blockHeight) })
+                #expect(warm.map { $0.elements.map(\.sourceSpan) } == expected.map { $0.elements.map(\.sourceSpan) })
+                let warmPDF = try #require(PDFDocument(data: model.makePrintPDF()))
+                let freshPDF = try #require(PDFDocument(data: fresh.makePrintPDF()))
+                #expect(warmPDF.pageCount == freshPDF.pageCount)
+                #expect(warmPDF.string == freshPDF.string)
+            }
+            let action = model.elements[1]
+            model.binding(for: action).wrappedValue += " She waits."
+            try compareFresh()
+            #expect(model.lastPaginationReusedSuffixElementCount > 0)
+            model.undo()
+            try compareFresh()
+            model.redo()
+            try compareFresh()
+            // Growing the first scene by pages must not reuse old page numbers.
+            model.binding(for: action).wrappedValue = String(repeating: "A much longer road. ", count: 600)
+            try compareFresh()
+            #expect(model.lastPaginationReusedSuffixElementCount == 0)
+            model.binding(for: action).wrappedValue = "Alice waits."
+            try compareFresh()
+            #expect(model.lastPaginationReusedSuffixElementCount == 0)
+            // Later cue changes can alter earlier display-only introduction casing.
+            let cue = model.elements[32]
+            model.binding(for: cue).wrappedValue = "ALICE"
+            try compareFresh()
+            // Explicit default typography also changes the attributed print path.
+            model.changeWritingTypography(size: 12)
+            try compareFresh()
+            #expect(model.lastPaginationReusedSuffixElementCount == 0)
+            #expect(model.lastPaginationReusedElementCount == 0)
+            model.changeWritingTypography(size: 14)
+            try compareFresh()
+            #expect(model.lastPaginationReusedSuffixElementCount == 0)
+        }
+    }
+
     @Test func reusedScenePrefixMatchesFreshPaginationAcrossEdits() throws {
         let source = (0..<12).flatMap { index in
             [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM \(index) - DAY"),

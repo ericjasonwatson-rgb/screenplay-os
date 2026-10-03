@@ -57,3 +57,27 @@ Regression coverage compares cached pagination with a fresh model after edits, U
 The benchmark now selects WritingTextView explicitly: the first generic NSTextView can be the Pages field editor. Failed measurements that targeted that field are discarded. The viewport regression now awaits the observable navigation result, bounded to two seconds, instead of assuming a fixed 100 ms scheduling budget while native-window tests share the main actor.
 
 Validation: Debug and Release each passed 202 Swift tests, 37 Python tests and 14 self-tests (253 checks). All three final benchmark runs passed. Evidence is retained in workspace `work/incremental-writing-2026-10-02/`. No new manual UI or notarization claim is made.
+
+
+## Early-edit pagination convergence — 2026-10-02
+
+Follow-up to the legacy JSON editor measurements above. Temporary instrumentation measured roughly 51 ms in pagination and 53 ms in native layout per beginning-of-script edit. Instrumentation was removed before final timings.
+
+Pagination can now stop at an unchanged scene boundary when the remaining source/display text, page number, used height, and complete partial-page content/geometry/attributes match the prior calculation. Remaining pages and scene checkpoints are reused. This shortcut requires unchanged element count; insertions/deletions, nonconverging page-count changes, typography changes and production locks retain conservative forward/full calculation. Current-source maps are still rebuilt, so changed character offsets cannot be inherited from cached pages.
+
+Unchanged editor refreshes also skip rebuilding the paragraph cache lookup. Native edit notifications still take the reconciliation path, including same-text cross-paragraph pastes. Pagination cache keys now distinguish absent typography from explicitly selected default typography because those take different attributed print paths.
+
+A new regression compares reused pages, source spans, geometry, and PDF text/page count with a fresh model after early edits, Undo/Redo, page growth/shrinkage, global character introduction changes and default/changed typography. It asserts suffix reuse actually occurs for a converged edit and is bypassed when page numbering or typography changes. Saving and document format are unchanged. Native line-layout validation remains a separate cost and has not been relaxed.
+
+
+Final isolated Release measurements on the same 132-page / 2,004-element fixture:
+
+| Position | Previous median | Updated median | Updated maximum |
+|---|---:|---:|---:|
+| Beginning | 240.1 ms | 208.9 ms | 253.9 ms |
+| Middle | 197.0 ms | 186.9 ms | 232.6 ms |
+| End | 153.5 ms | 157.7 ms | 206.9 ms |
+
+Beginning-of-script median improved approximately 13%; middle approximately 5%. End performance is roughly unchanged/slightly slower in this single-run comparison; no end improvement is claimed. A preliminary full-suite run measured 199.6 ms at the beginning, illustrating run-to-run variation. These synchronous harness timings still fall short of the desired writing responsiveness. Native layout and the rest of the synchronous editing path remain work to do.
+
+Final Debug and Release each passed 203 Swift tests, 37 Python tests, and 14 self-tests (254 checks). All three final benchmarks passed. Evidence is retained under workspace `work/pagination-convergence-2026-10-02/`. No manual UI or notarization result is implied by these checks.

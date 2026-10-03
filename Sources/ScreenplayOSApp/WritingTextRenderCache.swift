@@ -33,6 +33,8 @@ final class WritingTextRenderCache {
     }
 
     private var paragraphs: [Paragraph] = []
+    private var elements: [ScreenplayElement] = []
+    private var renderedLength = 0
     private var typography: DocumentTypography?
     private var dark: Bool?
     private(set) var lastReplacementRange: NSRange?
@@ -40,6 +42,10 @@ final class WritingTextRenderCache {
     func update(_ storage: NSTextStorage, elements: [ScreenplayElement], projection: ScreenplayWritingProjection,
                 typography: DocumentTypography, dark: Bool, selectedID: UUID?, nativeEdit: NSRange?) -> [NSAttributedString.Key: Any] {
         let canReuse = self.typography == typography && self.dark == dark
+        if canReuse && nativeEdit == nil && self.elements == elements && storage.length == renderedLength {
+            lastReplacementRange = nil
+            return paragraphs.first(where: { $0.element.id == selectedID })?.typing ?? [:]
+        }
         let byID = canReuse ? Dictionary(uniqueKeysWithValues: paragraphs.map { ($0.element.id, $0) }) : [:]
         let string = projection.text as NSString
         let next: [Paragraph] = elements.enumerated().map { index, element in
@@ -78,6 +84,8 @@ final class WritingTextRenderCache {
             storage.setAttributedString(replacement)
         }
         paragraphs = next
+        self.elements = elements
+        renderedLength = string.length
         self.typography = typography
         self.dark = dark
         return next.first(where: { $0.element.id == selectedID })?.typing ?? [:]
