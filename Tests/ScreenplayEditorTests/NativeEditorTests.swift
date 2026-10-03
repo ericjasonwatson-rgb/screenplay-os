@@ -37,6 +37,12 @@ struct NativeEditorTests {
         refresh()
         let view = try #require(find(host))
         let original = model.writingText
+        let selectionSignal = model.chromeState.signal(for: .elementType, model: model)
+        let documentBeforeSelection = model.document
+        view.setSelectedRange(NSRange(location: 0, length: 0))
+        let firstElement = try #require(model.elements.first)
+        #expect(selectionSignal.value == .fields([firstElement.id.uuidString, firstElement.type.rawValue]))
+        #expect(model.document == documentBeforeSelection)
         view.setSelectedRange(NSRange(location: (view.string as NSString).length, length: 0))
         view.insertText(" 👩🏽‍🚀", replacementRange: view.selectedRange())
         refresh()
@@ -203,6 +209,11 @@ struct NativeEditorTests {
         print("SCREENPLAYOS_BENCHMARK_PAGES=\(model.printedPages.count) ELEMENTS=\(model.elements.count)")
         let position = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_POSITION"] ?? "end"
         print("SCREENPLAYOS_BENCHMARK_POSITION=\(position) NAVIGATOR=\(model.navigationVisible) CONTEXT=\(model.contextAssistantVisible) FOCUS=\(model.focusMode)")
+        // Preserve the original workload by default; opt in to isolate typing after navigation.
+        let settleNavigation = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_SETTLE_NAVIGATION"] == "1"
+        print("SCREENPLAYOS_BENCHMARK_SETTLE_NAVIGATION=\(settleNavigation)")
+        var navigationMilliseconds: [Double] = []
+        var navigationPhases: [[Double]] = []
         var milliseconds: [Double] = []
         var phases: [[Double]] = []
         for _ in 0..<15 {
@@ -210,21 +221,39 @@ struct NativeEditorTests {
             let searchStart = position == "middle" ? source.length / 2 : 0
             let newline = source.range(of: "\n", range: NSRange(location: searchStart, length: source.length - searchStart))
             let offset = position == "end" || newline.location == NSNotFound ? source.length : NSMaxRange(newline)
+            let navigationStart = ProcessInfo.processInfo.systemUptime
             text.setSelectedRange(NSRange(location: offset, length: 0))
-            let start = Date()
+            let selectedAt = ProcessInfo.processInfo.systemUptime
+            if settleNavigation {
+                text.scrollRangeToVisible(text.selectedRange())
+                let scrolledAt = ProcessInfo.processInfo.systemUptime
+                host.layoutSubtreeIfNeeded()
+                let layoutAt = ProcessInfo.processInfo.systemUptime
+                // Give selection/page observers a separate turn before timing input.
+                try await Task.sleep(nanoseconds: 1_000_000)
+                host.layoutSubtreeIfNeeded()
+                let deferredAt = ProcessInfo.processInfo.systemUptime
+                host.displayIfNeeded()
+                let displayedAt = ProcessInfo.processInfo.systemUptime
+                navigationPhases.append([selectedAt - navigationStart, scrolledAt - selectedAt, layoutAt - scrolledAt, deferredAt - layoutAt, displayedAt - deferredAt].map { $0 * 1000 })
+            }
+            navigationMilliseconds.append((ProcessInfo.processInfo.systemUptime - navigationStart) * 1000)
+            let start = ProcessInfo.processInfo.systemUptime
             text.insertText("x", replacementRange: text.selectedRange())
-            let insertedAt = Date()
+            let insertedAt = ProcessInfo.processInfo.systemUptime
             host.layoutSubtreeIfNeeded()
-            let laidOutAt = Date()
+            let laidOutAt = ProcessInfo.processInfo.systemUptime
             // Allow main-queue observation to settle, then include any resulting layout.
             try await Task.sleep(nanoseconds: 1_000_000)
             host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
-            let finishedAt = Date()
-            milliseconds.append(finishedAt.timeIntervalSince(start) * 1000)
-            phases.append([insertedAt.timeIntervalSince(start) * 1000, laidOutAt.timeIntervalSince(insertedAt) * 1000, finishedAt.timeIntervalSince(laidOutAt) * 1000])
+            let finishedAt = ProcessInfo.processInfo.systemUptime
+            milliseconds.append((finishedAt - start) * 1000)
+            phases.append([(insertedAt - start) * 1000, (laidOutAt - insertedAt) * 1000, (finishedAt - laidOutAt) * 1000])
             #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
         }
+        print("SCREENPLAYOS_NAVIGATION_PHASES_MS=\(navigationPhases)")
+        print("SCREENPLAYOS_NAVIGATION_MS=\(navigationMilliseconds)")
         print("SCREENPLAYOS_TYPING_MS=\(milliseconds)")
         print("SCREENPLAYOS_TYPING_PHASES_MS=\(phases)")
         if let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_SCREENSHOT"],

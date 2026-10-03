@@ -152,3 +152,38 @@ The first edit is also the maximum in each of these eight runs. First-edit cycle
 Debug and Release each passed 211 Swift tests, 37 Python checks, and 14 self-tests (262 checks). Added coverage verifies first-edit Undo availability without invalidating the shell, scoped controls with both panels open, save-conflict and recovery indicators, and native editing/Undo while both panels remain visible. Evidence is retained in workspace `work/first-edit-2026-10-02/`.
 
 Captured editor/context layouts were inspected. Hosting-view image capture leaves the document sidebar blank in both the prior commit and the updated build; it cannot certify live sidebar rendering or native toolbar appearance. The comparison capture and its log are retained. No full live-app visual review or notarization is claimed.
+
+## Separate navigation and typing measurements — 2026-10-03
+
+The opt-in native benchmark now supports `SCREENPLAYOS_BENCHMARK_SETTLE_NAVIGATION=1`. It explicitly scrolls to the selected caret, performs host layout, yields to queued observation, and requests display before timing insertion. Navigation/setup time is reported separately. The default remains the previous combined workload for comparability. Intervals now use monotonic system uptime rather than wall-clock dates. No production editor code changed.
+
+Three isolated Release runs per workload used the same 132-page / 2,004-element fixture, end position, 1440 × 900 window, document/context panels closed, Focus off, and page navigator visible:
+
+| Workload | First input cycle across runs | Per-run median input cycle | First navigation/setup |
+| --- | --- | --- | --- |
+| Previous combined workload | 265.5–288.6 ms | 66.1–66.4 ms | Selection only; scrolling remains inside input cycle |
+| Navigation given its own layout/observer turn | 76.1–80.4 ms | 66.1–66.6 ms | 275.1–280.0 ms |
+
+This is not a product speedup. Moving navigation work before input changes the workload and does not reduce total navigation-plus-input time. It shows that the first-input spike is strongly sensitive to preceding selection/scroll/layout work; steady end-of-script typing remains approximately 66 ms and exceeds the under-50-ms target. A single queue turn is not a guarantee that every possible asynchronous activity has finished, and these measurements still do not measure physical screen presentation.
+
+Next investigation: profile the navigation/selection host-layout path separately from native insertion, preserving page tracking and caret visibility. Do not hide the cost by prewarming during measured typing or remove required scrolling without native interaction coverage.
+
+All six benchmark runs passed their native content-consistency checks; each invocation also passed 37 Python checks and 14 importer self-tests. The full Swift suite was not rerun for this benchmark-only change. Logs are retained under workspace `work/navigation-timing-2026-10-03/`. The StoryKit proposal remains separate and pending review.
+
+## Publish native selection state before layout — 2026-10-03
+
+A detailed navigation trace separated selection, native scroll, immediate host layout, queued work/final layout, and display request. One baseline measured approximately 4.3, 0.2, 53.4, 234.6, and 0.02 ms respectively. The deferred interval includes the deliberate queue yield; it does not attribute all time to one callback. Native scrolling itself was not the dominant measured cost. Eager page-list rows produced no useful improvement (282.5 ms navigation) and were reverted.
+
+The native selection delegate now refreshes completed chrome state immediately after updating the canonical caret and selected element, matching the existing native typing path. This cancels the pending redundant chrome refresh and lets control changes participate in the immediate layout. It does not change scrolling, document content, persistence, or the native editor's canonical observation.
+
+Three isolated Release runs with the same settled-navigation end-of-script workload measured first navigation/setup at 207.7, 212.2 and 212.8 ms, versus the preceding baseline range of 275.1–280.0 ms: approximately 23–26% lower. First input afterward measured 77.2–81.7 ms and median input 66.5–66.8 ms, effectively unchanged. Navigation is still visibly costly; no under-50-ms result or physical display-latency claim is made. Benefits at other navigation positions and open-panel combinations have not been benchmarked in this pass.
+
+The native selection test now checks that the element-type presentation signal matches the new selection immediately, before a queue turn, and that the document is unchanged. The full Release suite passed 211 Swift tests, 37 Python checks and 14 self-tests (262 checks). Existing native scrolling/zoom/caret, typing, undo, layout and save/recovery coverage remained enabled. Debug and manual live-app inspection were not repeated. Evidence: `work/navigation-timing-2026-10-03/selection-refresh*.log`, `navigation-phases.log`, and `release-tests.log` in the workspace. No app installation or distribution was performed.
+
+## Local review checkpoint — 2026-10-03
+
+An experiment skipped replacing a native paragraph when its attributed contents already matched the canonical render. The settled end-of-script benchmark remained approximately 67 ms per typical edit, with no established benefit; the experiment was reverted. Log: workspace `work/native-redundant-edit-2026-10-03/end.log`.
+
+The retained selection-refresh change passed a fresh full Release run: 211 Swift tests, 37 Python checks, 14 self-tests. This includes the native FDX import/edit/undo/save/reopen journey and existing formatting, export/print, conflicts and recovery tests. No new manual review or typing speedup is claimed. The under-50-ms typing goal remains open.
+
+Packaging accepts optional `SCREENPLAYOS_APP_VERSION` and `SCREENPLAYOS_BUILD_NUMBER` numeric values, retaining previous defaults when omitted. Local review checkpoint: version 0.1.1, build 2. This is an ad-hoc signed development build, not a notarized distribution release. The StoryKit proposal remains pending review and outside this checkpoint.

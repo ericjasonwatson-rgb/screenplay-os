@@ -20,8 +20,12 @@ build_stage="$(mktemp -d)"
 trap 'rm -rf "$build_stage"' EXIT
 staged_app="$build_stage/ScreenplayOS.app"
 python3 - "$binary_dir/ScreenplayOS" "$staged_app" "$configuration" <<'PY'
-import pathlib, plistlib, shutil, subprocess, sys
+import os, pathlib, plistlib, re, shutil, subprocess, sys
 source, app = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+version = os.environ.get('SCREENPLAYOS_APP_VERSION', '0.1')
+build = os.environ.get('SCREENPLAYOS_BUILD_NUMBER', '1')
+if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){0,2}', version) or not re.fullmatch(r'[0-9]+(?:\.[0-9]+){0,2}', build):
+    raise SystemExit('App version and build number must contain one to three numeric components.')
 (app / 'Contents/MacOS').mkdir(parents=True, exist_ok=True)
 # Replace the executable inode so packaging never writes into a running binary.
 temporary = app / 'Contents/MacOS/ScreenplayOS.new'
@@ -40,8 +44,8 @@ revision = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text
     'CFBundleName': 'ScreenplayOS',
     'CFBundleIconFile': 'ScreenplayOS.icns',
     'CFBundlePackageType': 'APPL',
-    'CFBundleShortVersionString': '0.1',
-    'CFBundleVersion': '1',
+    'CFBundleShortVersionString': version,
+    'CFBundleVersion': build,
     'LSMinimumSystemVersion': '13.0',
     'NSHighResolutionCapable': True,
     'ScreenplayOSRevision': revision,

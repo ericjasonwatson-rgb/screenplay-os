@@ -223,6 +223,9 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                   view.string == writingProjection.text else { return }
             model.rememberDocumentCaret(writingProjection.sourceRange(view.selectedRange()))
             selectedID = model.selectedElementID
+            // Publish completed selection state before the host layout, as for typing.
+            // Otherwise queued chrome changes can trigger another full layout pass.
+            model.chromeState.refresh(from: model)
         }
     }
 }
