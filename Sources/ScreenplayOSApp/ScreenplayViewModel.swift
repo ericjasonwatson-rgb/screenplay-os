@@ -8,6 +8,7 @@ import ScreenplayFDX
 
 @MainActor
 final class ScreenplayViewModel: ObservableObject {
+    lazy var chromeState = ScreenplayChromeState(model: self)
     @Published private(set) var document: OpenScreenplayDocument? {
         didSet {
             // Includes nested edits, production-context changes, Undo/Redo and Open.

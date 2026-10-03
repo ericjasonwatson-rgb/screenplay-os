@@ -166,7 +166,7 @@ struct NativeEditorTests {
 
     /// Opt-in profiling through the same test target in Debug and Release.
     /// Timing is recorded, never used as a flaky pass/fail threshold.
-    @Test func longScriptTypingBenchmarkWhenRequested() throws {
+    @Test func longScriptTypingBenchmarkWhenRequested() async throws {
         guard let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_FIXTURE"] else { return }
         _ = NSApplication.shared
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -194,7 +194,7 @@ struct NativeEditorTests {
             return view.subviews.lazy.compactMap { find($0) }.first
         }
         window.orderFront(nil)
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        try await Task.sleep(nanoseconds: 100_000_000)
         let text = try #require(find(host))
         #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
         window.makeFirstResponder(text)
@@ -211,7 +211,9 @@ struct NativeEditorTests {
             let start = Date()
             text.insertText("x", replacementRange: text.selectedRange())
             host.layoutSubtreeIfNeeded()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.001))
+            // Allow main-queue observation to settle, then include any resulting layout.
+            try await Task.sleep(nanoseconds: 1_000_000)
+            host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
             milliseconds.append(Date().timeIntervalSince(start) * 1000)
             #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)

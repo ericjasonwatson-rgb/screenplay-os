@@ -16,7 +16,7 @@ private enum WorkspacePaneLayout {
 }
 
 struct ContentView: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -246,7 +246,7 @@ private struct CommandPaletteView: View {
 }
 
 private struct ElementTypePicker: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
 
     var body: some View {
         if let selectedElement = model.selectedElement {
@@ -1537,7 +1537,7 @@ private struct TitlePageSection: View {
 }
 
 private struct EditorWorkspaceView: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
 
     var body: some View {
         HSplitView {
@@ -2595,7 +2595,7 @@ private struct ContextAssistantJobRow: View {
 }
 
 private struct DocumentIdentityBar: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "doc.text").foregroundStyle(StudioAppearance.accent)
@@ -2611,7 +2611,7 @@ private struct DocumentIdentityBar: View {
 }
 
 private struct BottomStatusBar: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -2729,7 +2729,7 @@ private struct MetricRow: View {
 }
 
 private struct ScreenplayPageView: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
     @State private var preview: PrintPreviewSnapshot?
     @State private var showsPages = true
     @State private var showsPageBox = false

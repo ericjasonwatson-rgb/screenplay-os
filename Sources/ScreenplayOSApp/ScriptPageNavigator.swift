@@ -8,12 +8,12 @@ final class ScriptViewportState: ObservableObject {
 }
 
 struct ScriptPageNavigator: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
     var didNavigate: () -> Void = {}
     @ObservedObject private var viewport: ScriptViewportState
 
     init(model: ScreenplayViewModel, didNavigate: @escaping () -> Void = {}) {
-        self.model = model
+        self._model = ChromeObserved(wrappedValue: model)
         self.viewport = model.scriptViewport
         self.didNavigate = didNavigate
     }

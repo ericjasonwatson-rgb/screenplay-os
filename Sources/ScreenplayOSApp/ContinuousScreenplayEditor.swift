@@ -214,6 +214,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             view.setSelectedRange(displayedCaret)
             view.scrollRangeToVisible(displayedCaret)
             updating = false
+            model.chromeState.refresh(from: model)
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {

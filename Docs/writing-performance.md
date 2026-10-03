@@ -103,3 +103,27 @@ Final isolated Release timings, same 132-page / 2,004-element fixture and 15-edi
 Beginning and middle medians improved approximately 14% and 12%; end performance is effectively unchanged. These are single-run synchronous input/layout/display-request measurements, not hardware latency guarantees. The remaining 180 ms early-edit cycle still needs improvement; this change does not establish the desired writing responsiveness.
 
 Final Debug and Release each passed 204 Swift tests, 37 Python checks and 14 self-tests (255 total). All three isolated benchmarks passed. Evidence is retained in workspace `work/native-wrapping-2026-10-02/`. No new manual visual review or notarization is claimed.
+
+## Selective writing interface observation — 2026-10-02
+
+Profiling the legacy JSON editor separated approximately 10–11 ms of document mutation and safe synchronous persistence from roughly 64 ms of synchronous editor rendering. The complete writing window incurred another substantial layout cost after the edit. Tests of narrower native invalidation and viewport sizing did not establish a useful improvement and were reverted.
+
+The writing shell now observes an explicit presentation snapshot instead of every canonical model publication. Unchanged controls skip updates during ordinary text edits. The native editor continues observing the canonical model directly. The snapshot includes document identity/location, optional errors, save/recovery status, undo/redo availability, typography and emphasis, selection/type/revision/note indicators, current scene/page, page labels/navigation availability, zoom and theme. Actions and bindings always read and modify the current model; the snapshot is not a second authored document. Visible-page tracking keeps its independent observer.
+
+Filtering applies only to Script mode with the document/context panels and modal workflows closed. Opening those panels, changing modes, or presenting title-page, command, or package workflows restores full observation. Notifications coalesce on the main queue after synchronous mutation/save completes. Native edits publish their completed presentation state before the next interface layout and cancel the redundant queued notification. This avoids a second deferred refresh after the immediate native render. Adding a displayed writing control requires adding its dependencies to the snapshot. Save behavior, history, source mapping, and document formats are unchanged.
+
+New tests verify suppressed updates during ordinary typing alongside actual saved-file readback and Undo; refreshed formatting, errors, element types and structure; external-save conflict/recovery status; full observation outside the narrow writing case; and a native window that edits, switches modes, and returns to the same text.
+
+The opt-in benchmark now yields to the main queue and performs layout again before requesting display. The previous nested run loop did not reliably drain deferred main-queue notifications. Preliminary numbers from the old harness are superseded. Comparisons below use the same corrected harness on the prior commit (`d423fa6`) and this implementation, in isolated runs. These are synchronous edit/layout/display-request cycles, not measured screen presentation latency.
+
+Final isolated Release measurements, same 132-page / 2,004-element fixture and 15 edits per position:
+
+| Position | Prior median | Updated median | Prior maximum | Updated maximum |
+|---|---:|---:|---:|---:|
+| Beginning | 178.4 ms | 87.4 ms | 236.0 ms | 268.7 ms |
+| Middle | 169.5 ms | 75.3 ms | 323.2 ms | 344.6 ms |
+| End | 158.8 ms | 64.7 ms | 305.5 ms | 332.3 ms |
+
+Median cycles decreased approximately 51%, 56%, and 59% at the beginning, middle, and end. First-edit maxima remain worse than the baseline in these runs (approximately 21–33 ms higher), despite reducing the larger spike in the initial asynchronous-only implementation. Steady typing is substantially faster; startup/first-edit latency is not resolved. The under-50-ms target is not met. Open document/context panels retain the full update path and are not covered by this speedup claim.
+
+Final Debug and Release each passed 209 Swift tests, 37 Python checks, and 14 self-tests (260 total). The six isolated before/after benchmarks passed. Evidence is retained in workspace `work/chrome-observation-2026-10-02/`. No manual visual review, measured display latency, remote publication, or notarization is claimed.

@@ -1,0 +1,95 @@
+import Combine
+import SwiftUI
+import ScreenplayDomain
+
+/// Only suppress refreshes in the simple writing surface. Other modes, panels and
+/// sheets retain full observation. The native editor always observes the canonical model.
+@MainActor
+final class ScreenplayChromeState: ObservableObject {
+    struct Writing: Equatable {
+        let documentID: UUID?
+        let typography: DocumentTypography
+        let labels: [String]
+        let enabledPages: [Bool]
+        let values: [String?]
+        let emphasis: [Bool]
+    }
+    enum Snapshot: Equatable { case full(UUID), writing(Writing) }
+    @Published private(set) var snapshot: Snapshot
+    private var subscription: AnyCancellable?
+    private var pending = false
+
+    init(model: ScreenplayViewModel) {
+        snapshot = Self.capture(model)
+        subscription = model.objectWillChange.sink { [weak self, weak model] in
+            guard let self, !self.pending else { return }
+            self.pending = true
+            // Published sends before mutation. Coalesce a synchronous edit/save and
+            // read its final state, rather than capturing stale or half-updated values.
+            DispatchQueue.main.async { [weak self, weak model] in
+                guard let self, let model, self.pending else { return }
+                self.pending = false
+                self.refresh(from: model)
+            }
+        }
+    }
+
+    /// Native edits can publish their completed state before SwiftUI's layout pass.
+    /// The queued fallback still covers all non-editor commands and changes.
+    func refresh(from model: ScreenplayViewModel) {
+        // A completed native edit supersedes its queued notification. Later model
+        // changes can schedule another refresh without duplicating this one.
+        pending = false
+        let next = Self.capture(model)
+        if snapshot != next { snapshot = next }
+    }
+
+    private static func capture(_ model: ScreenplayViewModel) -> Snapshot {
+        guard model.workflowMode == .writing, !model.navigationVisible, !model.contextAssistantVisible,
+              !model.titlePagePresented, !model.commandPaletteVisible, !model.packageSheetOpen else {
+            return .full(UUID())
+        }
+        let selected = model.selectedElement
+        let projection = model.printedLayout
+        // Each entry corresponds to displayed writing chrome or a bound control.
+        // Keep text/selection offsets out: commands read the live model when invoked.
+        let values: [String?] = [model.documentDisplayName, model.documentLocation,
+            model.saveProblem, String(model.hasUnsavedChanges), String(model.saveURL != nil),
+            String(!model.recoveryCopies.isEmpty), model.sourceNavigationProblem,
+            String(model.canUndo), String(model.canRedo), model.sidebarMode.rawValue,
+            String(model.focusMode), String(model.darkPageMode), String(model.pageZoom),
+            String(model.pagesAreLocked), String(model.writingPageLayoutAvailable),
+            model.errorMessage, model.selectedElementPosition, model.currentPrintedPageStatus,
+            model.revisionStatusText, model.currentSceneTitle, selected?.id.uuidString ?? "",
+            selected?.type.rawValue ?? "", selected?.revisionMark?.label ?? "",
+            String(describing: selected?.revisionMark?.color),
+            String(selected.map { model.openNoteCount(for: $0.id) } ?? 0)]
+            + (selected.map { model.characterSuggestions(for: $0) } ?? [])
+        return .writing(Writing(documentID: model.document?.screenplay.id, typography: model.writingTypography,
+            labels: projection.pages.map(\.label),
+            enabledPages: projection.pages.indices.map { projection.firstSourceCaret(onPage: $0) != nil },
+            values: values, emphasis: [model.writingEmphasisActive(\.bold), model.writingEmphasisActive(\.italic),
+                model.writingEmphasisActive(\.underline), model.writingEmphasisActive(\.strikethrough)]))
+    }
+}
+
+/// Bindings still invoke the canonical model; only redraw notifications are filtered.
+@MainActor
+@propertyWrapper
+struct ChromeObserved: DynamicProperty {
+    let wrappedValue: ScreenplayViewModel
+    @ObservedObject private var changes: ScreenplayChromeState
+    init(wrappedValue model: ScreenplayViewModel) {
+        wrappedValue = model
+        _changes = ObservedObject(wrappedValue: model.chromeState)
+    }
+    @dynamicMemberLookup
+    @MainActor
+    struct Bindings {
+        let model: ScreenplayViewModel
+        subscript<Value>(dynamicMember keyPath: ReferenceWritableKeyPath<ScreenplayViewModel, Value>) -> Binding<Value> {
+            Binding(get: { model[keyPath: keyPath] }, set: { model[keyPath: keyPath] = $0 })
+        }
+    }
+    var projectedValue: Bindings { Bindings(model: wrappedValue) }
+}

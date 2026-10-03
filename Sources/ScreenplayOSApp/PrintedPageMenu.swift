@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Populate page navigation only when opened, not once per page per keystroke.
 struct PrintedPageMenu: NSViewRepresentable {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSPopUpButton {
         let button = NSPopUpButton(frame: .zero, pullsDown: true)

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// These controls belong to the application shell, outside collapsible document panels.
 struct WorkspaceNavigationBar: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
     var body: some View {
         HStack(spacing: 10) {
             DocumentPanelButton(isVisible: model.visibleWorkspaceRegions.contains(.navigation)) {
