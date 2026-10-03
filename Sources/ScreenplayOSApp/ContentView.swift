@@ -17,6 +17,7 @@ private enum WorkspacePaneLayout {
 
 struct ContentView: View {
     @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .shell) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -106,71 +107,78 @@ struct ContentView: View {
             guard !model.packageSheetOpen else { return }
             model.deleteSelectedElement()
         }
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button(action: AppBranding.showAbout) {
-                    Image(nsImage: AppBranding.logo)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 28, height: 28)
-                }
-                .accessibilityLabel("About ScreenplayOS")
-                .help("About ScreenplayOS")
+        .toolbar { WorkspaceToolbar(model: model) }
+    }
+}
+
+private struct WorkspaceToolbar: ToolbarContent {
+    @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .commands) }
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button(action: AppBranding.showAbout) {
+                Image(nsImage: AppBranding.logo)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
             }
-            ToolbarItemGroup(placement: .principal) {
-                ElementTypePicker(model: model)
+            .accessibilityLabel("About ScreenplayOS")
+            .help("About ScreenplayOS")
+        }
+        ToolbarItemGroup(placement: .principal) {
+            ElementTypePicker(model: model)
+        }
+
+        ToolbarItemGroup {
+            Button {
+                model.showCommandPalette()
+            } label: {
+                Label("Command", systemImage: "command")
             }
 
-            ToolbarItemGroup {
-                Button {
-                    model.showCommandPalette()
-                } label: {
-                    Label("Command", systemImage: "command")
-                }
+            Button {
+                model.undo()
+            } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(!model.canUndo)
 
-                Button {
-                    model.undo()
-                } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
-                }
-                .disabled(!model.canUndo)
+            Toggle(isOn: Binding(
+                get: { model.revisionModeEnabled },
+                set: { model.setRevisionMode($0) }
+            )) {
+                Label("Revision", systemImage: "pencil.and.outline")
+            }
+            .toggleStyle(StudioToggleStyle())
 
-                Toggle(isOn: Binding(
-                    get: { model.revisionModeEnabled },
-                    set: { model.setRevisionMode($0) }
-                )) {
-                    Label("Revision", systemImage: "pencil.and.outline")
-                }
-                .toggleStyle(StudioToggleStyle())
+            Button {
+                model.focusMode.toggle()
+            } label: {
+                Label("Focus", systemImage: "scope")
+            }
+            .buttonStyle(.borderless)
 
-                Button {
-                    model.focusMode.toggle()
-                } label: {
-                    Label("Focus", systemImage: "scope")
-                }
-                .buttonStyle(.borderless)
+            Toggle(isOn: $model.contextAssistantVisible) {
+                Label("Context", systemImage: "sidebar.right")
+            }
+            .toggleStyle(StudioToggleStyle())
 
-                Toggle(isOn: $model.contextAssistantVisible) {
-                    Label("Context", systemImage: "sidebar.right")
-                }
-                .toggleStyle(StudioToggleStyle())
+            Button {
+                model.save()
+            } label: {
+                Label(model.saveURL == nil ? "Save to Downloads" : "Save", systemImage: "square.and.arrow.down")
+            }
 
-                Button {
-                    model.save()
-                } label: {
-                    Label(model.saveURL == nil ? "Save to Downloads" : "Save", systemImage: "square.and.arrow.down")
-                }
-
-                Button {
-                    model.showOpenPanel()
-                } label: {
-                    Label("Open", systemImage: "folder")
-                }
+            Button {
+                model.showOpenPanel()
+            } label: {
+                Label("Open", systemImage: "folder")
             }
         }
     }
 }
+
 
 private struct CommandPaletteView: View {
     @ObservedObject var model: ScreenplayViewModel
@@ -247,6 +255,7 @@ private struct CommandPaletteView: View {
 
 private struct ElementTypePicker: View {
     @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .elementType) }
 
     var body: some View {
         if let selectedElement = model.selectedElement {
@@ -1538,6 +1547,7 @@ private struct TitlePageSection: View {
 
 private struct EditorWorkspaceView: View {
     @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .workspace) }
 
     var body: some View {
         HSplitView {
@@ -2596,6 +2606,7 @@ private struct ContextAssistantJobRow: View {
 
 private struct DocumentIdentityBar: View {
     @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .identity) }
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "doc.text").foregroundStyle(StudioAppearance.accent)
@@ -2612,6 +2623,7 @@ private struct DocumentIdentityBar: View {
 
 private struct BottomStatusBar: View {
     @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .status) }
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -2730,6 +2742,7 @@ private struct MetricRow: View {
 
 private struct ScreenplayPageView: View {
     @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .page) }
     @State private var preview: PrintPreviewSnapshot?
     @State private var showsPages = true
     @State private var showsPageBox = false

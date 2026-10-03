@@ -2,8 +2,8 @@ import Combine
 import SwiftUI
 import ScreenplayDomain
 
-/// Only suppress refreshes in the simple writing surface. Other modes, panels and
-/// sheets retain full observation. The native editor always observes the canonical model.
+/// Region-specific writing presentation signals. Content panels and the native
+/// editor observe the canonical model; other modes and sheets keep full observation.
 @MainActor
 final class ScreenplayChromeState: ObservableObject {
     struct Writing: Equatable {
@@ -14,7 +14,22 @@ final class ScreenplayChromeState: ObservableObject {
         let values: [String?]
         let emphasis: [Bool]
     }
-    enum Snapshot: Equatable { case full(UUID), writing(Writing) }
+    enum Snapshot: Equatable {
+        case full(UUID), writing(Writing), fields([String?]), pages([String], [Bool])
+    }
+    enum Region: Hashable { case all, shell, workspace, commands, navigation, identity, status, page, pages, pageMenu, elementType }
+    @MainActor final class Signal: ObservableObject {
+        @Published private(set) var value: Snapshot
+        init(_ value: Snapshot) { self.value = value }
+        func update(_ next: Snapshot) { if value != next { value = next } }
+    }
+    private var signals: [Region: Signal] = [:]
+    func signal(for region: Region, model: ScreenplayViewModel) -> Signal {
+        if let signal = signals[region] { return signal }
+        let signal = Signal(Self.capture(model, region: region))
+        signals[region] = signal
+        return signal
+    }
     @Published private(set) var snapshot: Snapshot
     private var subscription: AnyCancellable?
     private var pending = false
@@ -42,6 +57,56 @@ final class ScreenplayChromeState: ObservableObject {
         pending = false
         let next = Self.capture(model)
         if snapshot != next { snapshot = next }
+        for (region, signal) in signals { signal.update(Self.capture(model, region: region)) }
+    }
+
+    /// Each region observes only what it displays. The document and context panels
+    /// still observe the canonical model themselves; opening them need not refresh
+    /// unrelated writing controls. Other modes and modal workflows stay conservative.
+    private static func capture(_ model: ScreenplayViewModel, region: Region) -> Snapshot {
+        if region == .all { return capture(model) }
+        guard model.workflowMode == .writing, !model.titlePagePresented,
+              !model.commandPaletteVisible, !model.packageSheetOpen else { return .full(UUID()) }
+        let selected = model.selectedElement
+        switch region {
+        case .all: return capture(model)
+        case .shell:
+            return .fields([String(model.navigationVisible), String(model.focusMode), model.saveProblem,
+                String(!model.recoveryCopies.isEmpty), model.sourceNavigationProblem])
+        case .workspace:
+            return .fields([String(model.contextAssistantVisible), String(model.focusMode)])
+        case .commands:
+            return .fields([String(model.canUndo), String(model.revisionModeEnabled),
+                String(model.contextAssistantVisible), String(model.saveURL != nil)])
+        case .navigation:
+            return .fields([model.sidebarMode.rawValue, String(model.navigationVisible),
+                String(model.focusMode), String(model.pageZoom)])
+        case .identity:
+            return .fields([model.documentDisplayName, model.documentLocation, model.saveProblem,
+                String(model.saveURL != nil), String(model.hasUnsavedChanges)])
+        case .status:
+            return .fields([model.selectedElementPosition, model.revisionStatusText, model.currentSceneTitle,
+                String(model.focusMode), String(model.darkPageMode)])
+        case .pageMenu:
+            return .fields([model.currentPrintedPageStatus])
+        case .elementType:
+            return .fields([selected?.id.uuidString, selected?.type.rawValue])
+        case .pages:
+            let projection = model.printedLayout
+            return .pages(projection.pages.map(\.label),
+                projection.pages.indices.map { projection.firstSourceCaret(onPage: $0) != nil })
+        case .page:
+            let values: [String?] = [String(model.printedPages.count), String(model.focusMode),
+                String(model.pageZoom), String(model.pagesAreLocked), String(model.writingPageLayoutAvailable),
+                model.errorMessage, selected?.id.uuidString, selected?.type.rawValue,
+                selected?.revisionMark?.label, String(describing: selected?.revisionMark?.color),
+                String(selected.map { model.openNoteCount(for: $0.id) } ?? 0)]
+                + (selected.map { model.characterSuggestions(for: $0) } ?? [])
+            return .writing(Writing(documentID: model.document?.screenplay.id, typography: model.writingTypography,
+                labels: [], enabledPages: [], values: values,
+                emphasis: [model.writingEmphasisActive(\.bold), model.writingEmphasisActive(\.italic),
+                    model.writingEmphasisActive(\.underline), model.writingEmphasisActive(\.strikethrough)]))
+        }
     }
 
     private static func capture(_ model: ScreenplayViewModel) -> Snapshot {
@@ -78,10 +143,10 @@ final class ScreenplayChromeState: ObservableObject {
 @propertyWrapper
 struct ChromeObserved: DynamicProperty {
     let wrappedValue: ScreenplayViewModel
-    @ObservedObject private var changes: ScreenplayChromeState
-    init(wrappedValue model: ScreenplayViewModel) {
+    @ObservedObject private var changes: ScreenplayChromeState.Signal
+    init(wrappedValue model: ScreenplayViewModel, _ region: ScreenplayChromeState.Region = .all) {
         wrappedValue = model
-        _changes = ObservedObject(wrappedValue: model.chromeState)
+        _changes = ObservedObject(wrappedValue: model.chromeState.signal(for: region, model: model))
     }
     @dynamicMemberLookup
     @MainActor

@@ -13,7 +13,7 @@ struct ScriptPageNavigator: View {
     @ObservedObject private var viewport: ScriptViewportState
 
     init(model: ScreenplayViewModel, didNavigate: @escaping () -> Void = {}) {
-        self._model = ChromeObserved(wrappedValue: model)
+        self._model = ChromeObserved(wrappedValue: model, .pages)
         self.viewport = model.scriptViewport
         self.didNavigate = didNavigate
     }

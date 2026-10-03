@@ -184,6 +184,8 @@ struct NativeEditorTests {
         _ = try #require(model.document, "Benchmark fixture failed to load: \(model.errorMessage ?? "unknown error")")
         #expect(!model.elements.isEmpty)
         model.navigationVisible = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_NAVIGATOR"] == "1"
+        model.contextAssistantVisible = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_CONTEXT"] == "1"
+        model.focusMode = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_FOCUS"] == "1"
         let host = NSHostingView(rootView: ContentView(model: model))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -200,8 +202,9 @@ struct NativeEditorTests {
         window.makeFirstResponder(text)
         print("SCREENPLAYOS_BENCHMARK_PAGES=\(model.printedPages.count) ELEMENTS=\(model.elements.count)")
         let position = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_POSITION"] ?? "end"
-        print("SCREENPLAYOS_BENCHMARK_POSITION=\(position) NAVIGATOR=\(model.navigationVisible)")
+        print("SCREENPLAYOS_BENCHMARK_POSITION=\(position) NAVIGATOR=\(model.navigationVisible) CONTEXT=\(model.contextAssistantVisible) FOCUS=\(model.focusMode)")
         var milliseconds: [Double] = []
+        var phases: [[Double]] = []
         for _ in 0..<15 {
             let source = text.string as NSString
             let searchStart = position == "middle" ? source.length / 2 : 0
@@ -210,15 +213,25 @@ struct NativeEditorTests {
             text.setSelectedRange(NSRange(location: offset, length: 0))
             let start = Date()
             text.insertText("x", replacementRange: text.selectedRange())
+            let insertedAt = Date()
             host.layoutSubtreeIfNeeded()
+            let laidOutAt = Date()
             // Allow main-queue observation to settle, then include any resulting layout.
             try await Task.sleep(nanoseconds: 1_000_000)
             host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
-            milliseconds.append(Date().timeIntervalSince(start) * 1000)
+            let finishedAt = Date()
+            milliseconds.append(finishedAt.timeIntervalSince(start) * 1000)
+            phases.append([insertedAt.timeIntervalSince(start) * 1000, laidOutAt.timeIntervalSince(insertedAt) * 1000, finishedAt.timeIntervalSince(laidOutAt) * 1000])
             #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
         }
         print("SCREENPLAYOS_TYPING_MS=\(milliseconds)")
+        print("SCREENPLAYOS_TYPING_PHASES_MS=\(phases)")
+        if let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_SCREENSHOT"],
+           let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        }
         #expect(model.prepareToClose())
     }
 

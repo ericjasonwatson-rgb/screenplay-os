@@ -80,6 +80,9 @@ struct ChromeObservationTests {
         try await withModel { model in
             let chrome = model.chromeState
             let before = chrome.snapshot
+            let shell = chrome.signal(for: .shell, model: model)
+            let identity = chrome.signal(for: .identity, model: model)
+            let originalShell = shell.value, originalIdentity = identity.value
             let url = try #require(model.saveURL)
             var outside = try #require(model.document)
             outside.screenplay.elements[1].text = "External change."
@@ -90,11 +93,14 @@ struct ChromeObservationTests {
             #expect(model.saveProblem != nil && model.hasUnsavedChanges)
             #expect(chrome.snapshot != before)
             #expect(try Data(contentsOf: url) == data)
+            #expect(shell.value != originalShell && identity.value != originalIdentity)
+            let failedShell = shell.value, failedIdentity = identity.value
             let failure = chrome.snapshot
             #expect(model.saveSeparateCopy(to: url.deletingLastPathComponent().appendingPathComponent("copy.json")))
             await settle()
             #expect(model.saveProblem == nil && !model.hasUnsavedChanges)
             #expect(chrome.snapshot != failure)
+            #expect(shell.value != failedShell && identity.value != failedIdentity)
         }
     }
 
@@ -135,6 +141,64 @@ struct ChromeObservationTests {
         }
     }
 
+    @Test func firstUndoAvailabilityDoesNotInvalidateTheWritingShell() async throws {
+        try await withModel { model in
+            model.newDocument()
+            model.rememberDocumentCaret(NSRange(location: (model.writingText as NSString).length, length: 0))
+            await settle()
+            #expect(!model.canUndo)
+            let chrome = model.chromeState
+            let shell = chrome.signal(for: .shell, model: model)
+            let workspace = chrome.signal(for: .workspace, model: model)
+            let commands = chrome.signal(for: .commands, model: model)
+            let beforeShell = shell.value, beforeWorkspace = workspace.value, beforeCommands = commands.value
+            model.replaceWritingText(in: NSRange(location: (model.writingText as NSString).length, length: 0), with: "First edit.")
+            await settle()
+            #expect(model.canUndo)
+            #expect(commands.value != beforeCommands)
+            #expect(shell.value == beforeShell && workspace.value == beforeWorkspace)
+            let afterTyping = commands.value
+            model.undo()
+            await settle()
+            #expect(!model.canUndo)
+            #expect(commands.value != afterTyping)
+        }
+    }
+
+    @Test func scopedControlsStayCurrentWithBothPanelsOpen() async throws {
+        try await withModel { model in
+            model.navigationVisible = true
+            model.contextAssistantVisible = true
+            await settle()
+            let chrome = model.chromeState
+            @MainActor func expectRefresh(_ region: ScreenplayChromeState.Region, _ change: @MainActor () -> Void) async {
+                let signal = chrome.signal(for: region, model: model)
+                let before = signal.value
+                change()
+                await settle()
+                #expect(signal.value != before)
+            }
+            await expectRefresh(.navigation) { model.pageZoom = 1.2 }
+            await expectRefresh(.status) { model.darkPageMode.toggle() }
+            await expectRefresh(.page) { model.toggleWritingEmphasis(\.bold) }
+            await expectRefresh(.page) { model.changeWritingTypography(size: 14) }
+            await expectRefresh(.commands) { model.setRevisionMode(true) }
+            await expectRefresh(.elementType) { model.setSelectedElementType(.dialogue) }
+            await expectRefresh(.shell) { model.sourceNavigationProblem = "Source missing" }
+            await expectRefresh(.shell) { model.sourceNavigationProblem = nil }
+            await expectRefresh(.page) { model.errorMessage = "Format notice" }
+            await expectRefresh(.workspace) { model.contextAssistantVisible = false }
+            await expectRefresh(.shell) { model.navigationVisible = false }
+            await expectRefresh(.pages) {
+                model.replaceWritingText(in: NSRange(location: (model.writingText as NSString).length, length: 0),
+                    with: String(repeating: "\nAn additional action paragraph.", count: 100))
+            }
+            let pages = model.printedLayout
+            #expect(chrome.signal(for: .pages, model: model).value == .pages(pages.pages.map(\.label),
+                pages.pages.indices.map { pages.firstSourceCaret(onPage: $0) != nil }))
+        }
+    }
+
     @Test func windowChangesModesAndReturnsToCurrentText() async throws {
         try await withModel { model in
             let host = NSHostingView(rootView: ContentView(model: model))
@@ -155,6 +219,16 @@ struct ChromeObservationTests {
             let text = try #require(editor(in: host))
             text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
             text.insertText(" A native edit.", replacementRange: text.selectedRange())
+            await refresh()
+            #expect(text.string == model.writingText)
+            model.navigationVisible = true
+            model.contextAssistantVisible = true
+            await refresh()
+            #expect(try #require(editor(in: host)) === text)
+            text.insertText(" With panels open.", replacementRange: text.selectedRange())
+            await refresh()
+            #expect(text.string == model.writingText)
+            model.undo()
             await refresh()
             #expect(text.string == model.writingText)
             let expected = model.writingText

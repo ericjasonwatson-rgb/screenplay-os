@@ -127,3 +127,28 @@ Final isolated Release measurements, same 132-page / 2,004-element fixture and 1
 Median cycles decreased approximately 51%, 56%, and 59% at the beginning, middle, and end. First-edit maxima remain worse than the baseline in these runs (approximately 21–33 ms higher), despite reducing the larger spike in the initial asynchronous-only implementation. Steady typing is substantially faster; startup/first-edit latency is not resolved. The under-50-ms target is not met. Open document/context panels retain the full update path and are not covered by this speedup claim.
 
 Final Debug and Release each passed 209 Swift tests, 37 Python checks, and 14 self-tests (260 total). The six isolated before/after benchmarks passed. Evidence is retained in workspace `work/chrome-observation-2026-10-02/`. No manual visual review, measured display latency, remote publication, or notarization is claimed.
+
+## First-edit and open-panel refresh scope — 2026-10-02
+
+The first-edit trace on the 132-page fixture separated approximately 73 ms of native insertion from 190 ms of immediate host layout and 112 ms of deferred/final layout. The earlier presentation snapshot was too broad: a selection or Undo-availability change notified the complete writing shell and unrelated controls. With both the Navigator document panel and Context panel open, that snapshot also reverted all writing controls to full observation.
+
+Writing presentation now has separate signals for the shell, workspace arrangement, toolbar commands, navigation controls, document identity, bottom status, writing page, page list, printed-page menu, and element-type picker. The toolbar is a separate `ToolbarContent` component. Each signal compares only the state that region displays. The document and context panels themselves continue observing the canonical model, so their contents remain live. Other modes and modal workflows retain conservative full refreshes. The default aggregate observer remains available for components without a narrower dependency contract.
+
+No document, saving, history, pagination, or native text-layout code changed. Native edit completion still synchronizes the presentation state immediately. Region dependencies must be extended whenever a component begins displaying new model state; they are explicit selectors, not automatic property-read tracking.
+
+Experiments with a native page list and further splitting the writing controls/page highlight did not improve the remaining delay and were reverted. Focus-mode measurements isolated a substantial deferred cost associated with the visible navigator, but did not prove its rows were the cause. Native tracing found inexpensive unchanged editor renders; it did not attribute the entire remaining host-layout cost. No unsupported claim of eliminating that cost is made.
+
+The benchmark now reports three phases (native insertion, immediate host layout, deferred/final layout), supports independently opening the document and context panels, and can capture a fixture-only window image after timing. Each run still includes the first edit, followed by 14 more edits. Positioning the caret before timing does not settle a separate page-navigation gesture: the first edit can include scrolling to a distant caret. These are input/layout/display-request cycles, not physical key-to-screen measurements. Final comparisons use the same harness, fixture, 1440 × 900 window, and Release configuration; Focus mode is off and the page navigator remains visible.
+
+| Document/context panels · edit position | Prior first edit | Updated first edit | Prior median | Updated median |
+|---|---:|---:|---:|---:|
+| closed-beginning | 289.7 ms | 211.5 ms | 87.6 ms | 86.4 ms |
+| closed-end | 375.5 ms | 280.1 ms | 66.0 ms | 66.7 ms |
+| panels-beginning | 302.7 ms | 247.3 ms | 217.5 ms | 120.9 ms |
+| panels-end | 383.4 ms | 313.8 ms | 204.0 ms | 102.5 ms |
+
+The first edit is also the maximum in each of these eight runs. First-edit cycles decreased approximately 18–27%. With both panels open, median cycles decreased approximately 44–50%; closed-panel steady typing is essentially unchanged. The remaining first-edit range is approximately 211–314 ms, and all medians remain above the under-50-ms target. These are isolated single-run comparisons; they do not establish tail-latency guarantees.
+
+Debug and Release each passed 211 Swift tests, 37 Python checks, and 14 self-tests (262 checks). Added coverage verifies first-edit Undo availability without invalidating the shell, scoped controls with both panels open, save-conflict and recovery indicators, and native editing/Undo while both panels remain visible. Evidence is retained in workspace `work/first-edit-2026-10-02/`.
+
+Captured editor/context layouts were inspected. Hosting-view image capture leaves the document sidebar blank in both the prior commit and the updated build; it cannot certify live sidebar rendering or native toolbar appearance. The comparison capture and its log are retained. No full live-app visual review or notarization is claimed.
