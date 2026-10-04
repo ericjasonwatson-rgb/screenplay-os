@@ -2283,19 +2283,29 @@ private struct BoardDetailsPane: View {
 
 private struct EditWorkspaceView: View {
     @ObservedObject var model: ScreenplayViewModel
+    @State private var showScript = false
 
     var body: some View {
         VSplitView {
             HSplitView {
-                ScriptPreviewPane(model: model, title: "Scene Script")
-                    .frame(minWidth: 260, idealWidth: 320, maxWidth: 440)
+                if showScript {
+                    ScriptPreviewPane(model: model, title: "Scene Script")
+                        .frame(minWidth: 260, idealWidth: 320, maxWidth: 440)
+                }
                 EditWorkbenchPane(model: model)
                     .frame(minWidth: WorkspacePaneLayout.editWorkbenchMinWidth)
             }
-            .frame(minHeight: 240)
+            .frame(minHeight: 180)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                HStack {
+                    Text("EDIT VIEWER").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Toggle("Scene Script", isOn: $showScript).toggleStyle(.button)
+                }.padding(.horizontal, 12).padding(.vertical, 6)
+            }
 
             LinearEditSpineView(model: model)
-                .frame(minHeight: 260, idealHeight: 300, maxHeight: 420)
+                .frame(minHeight: 300, idealHeight: 340, maxHeight: 500)
         }
         .background(ScreenplayOSTokens.Palette.appBackground)
     }
