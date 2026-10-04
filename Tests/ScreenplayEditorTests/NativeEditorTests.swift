@@ -353,11 +353,14 @@ struct NativeEditorTests {
             if let text = view as? WritingTextView { return text }
             return view.subviews.lazy.compactMap { find($0) }.first
         }
+        let automaticLayout = ProcessInfo.processInfo.environment["SCREENPLAYOS_STRESS_AUTOMATIC_LAYOUT"] == "1"
         func settle() async throws {
-            host.layoutSubtreeIfNeeded()
+            if !automaticLayout { host.layoutSubtreeIfNeeded() }
             try await Task.sleep(nanoseconds: 50_000_000)
-            host.layoutSubtreeIfNeeded()
-            host.displayIfNeeded()
+            if !automaticLayout {
+                host.layoutSubtreeIfNeeded()
+                host.displayIfNeeded()
+            }
         }
         try await settle()
         for cycle in 0..<30 {

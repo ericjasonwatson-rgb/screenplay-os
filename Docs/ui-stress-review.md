@@ -31,3 +31,17 @@ A controlled replacement of navigator row GeometryReader bars with ProgressView 
 The subsequent Edit change adds a derived, time-proportional scene planning lane, total range/subtotal, explicit untimed gaps, and scene-specific media-duration precedence. It leaves persisted clip timing and playback unchanged. Unit coverage exercises edit order, cumulative positions, unknown scenes, rejected planned/omitted/invalid media timing, and model-preserving native lane rendering. The full media import/conform and manual measured-scene override workflow remains deferred.
 
 Validation: 220 Swift tests, 37 Python tests and 14 self-tests passed (271 total). Native lane rendering preserved document content and playback duration while scene selection followed S002. Harness capture shows the intended 1:2 timed-width ratio and an explicit untimed block; packaged-app visual review is still required.
+
+## Follow-up: stable navigator lifetime
+
+The warning also reproduced 15 times in a 30-cycle run with `SCREENPLAYOS_STRESS_AUTOMATIC_LAYOUT=1`, which lets AppKit schedule layout instead of forcing it in the stress helper (`automatic-layout-stress.log`). Forced harness layout is not a sufficient explanation.
+
+ContentView previously removed the sidebar contents while also asking NavigationSplitView to hide its column. Keeping SidebarView mounted and leaving visibility to NavigationSplitView reduced the warning to one during initial setup, before the first cycle. Both automatic and original forced-layout runs passed all 30 cycles, with no repeated table warnings during later cycles (`stable-sidebar-stress.log`, `stable-sidebar-forced-stress.log`). This is a reduction in repeated warnings, not a complete resolution of the initial warning.
+
+The on-screen connection to build 8 timed out twice; the app inventory showed multiple ScreenplayOS instances. That does not prove an app hang. No instances were force-quit and no user documents were edited. Packaged-app visual review remains pending.
+
+The final implementation also freezes sidebar/navigator display signals while the column is hidden, then captures current data when reopened. A regression test verifies that hidden scene-name/structure edits refresh on reopening. The full Release suite passed 221 Swift, 37 Python and 14 self-tests (272 total).
+
+Separate 100-edit beginning-of-script samples: keeping the sidebar mounted without the hidden-update guard measured median 52.9 ms hidden / 58.2 ms both panels open. With the guard, the hidden-panel sample measured median 47.3 ms, p95 48.4 ms and max 72.6 ms, versus the earlier hidden-panel reference median 48.6 ms. These samples provide no evidence of a hidden-panel slowdown after the guard; they do not prove hardware input latency or eliminate occasional stalls. The benchmark invoked during the full suite is not used for performance comparison because other tests shared that run.
+
+Final guarded implementation: original forced-layout stress passed another 30 cycles with one initial table warning and no recurring warnings during later cycles (`stable-sidebar-gated-stress.log`).

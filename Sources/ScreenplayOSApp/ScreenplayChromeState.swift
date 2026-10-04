@@ -66,6 +66,10 @@ final class ScreenplayChromeState: ObservableObject {
     /// canonical observation. Other modes and modal workflows stay conservative.
     private static func capture(_ model: ScreenplayViewModel, region: Region) -> Snapshot {
         if region == .all { return capture(model) }
+        // Retain the collapsed sidebar's view identity without refreshing invisible
+        // rows. Reopening captures the current canonical state in the same update.
+        if (region == .sidebar || region == .navigator),
+           !model.visibleWorkspaceRegions.contains(.navigation) { return .fields([]) }
         guard model.workflowMode == .writing, !model.titlePagePresented,
               !model.commandPaletteVisible, !model.packageSheetOpen else { return .full(UUID()) }
         let selected = model.selectedElement

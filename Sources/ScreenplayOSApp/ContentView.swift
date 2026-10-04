@@ -29,11 +29,9 @@ struct ContentView: View {
                         if !model.focusMode { model.navigationVisible = visibility != .detailOnly }
                     }
                 )) {
-                    Group {
-                        if model.visibleWorkspaceRegions.contains(.navigation) {
-                            SidebarView(model: model)
-                        }
-                    }
+                    // The split view owns visibility. Keep sidebar identity stable while
+                    // collapsing it rather than rebuilding its table during column layout.
+                    SidebarView(model: model)
                         .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
                 } detail: {
                     EditorWorkspaceView(model: model)

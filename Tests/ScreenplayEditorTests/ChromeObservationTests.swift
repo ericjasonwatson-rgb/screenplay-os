@@ -69,6 +69,33 @@ struct ChromeObservationTests {
         }
     }
 
+    @Test func hiddenNavigatorDefersDisplayUpdatesAndCatchesUpWhenReopened() async throws {
+        try await withModel { model in
+            model.navigationVisible = true
+            let signal = model.chromeState.signal(for: .navigator, model: model)
+            let sidebar = model.chromeState.signal(for: .sidebar, model: model)
+            await settle()
+            let original = signal.value
+            model.navigationVisible = false
+            await settle()
+            let hidden = signal.value
+            let hiddenDetails = sidebar.value
+            let heading = try #require(model.elements.first)
+            model.binding(for: heading).wrappedValue = "INT. CHANGED WHILE HIDDEN - NIGHT"
+            model.insertElement(after: heading.id)
+            await settle()
+            #expect(signal.value == hidden)
+            #expect(sidebar.value == hiddenDetails)
+            model.navigationVisible = true
+            await settle()
+            #expect(signal.value != hidden && signal.value != original)
+            #expect(sidebar.value != hiddenDetails)
+            if case .navigator(let scenes, _, _, _, _) = signal.value {
+                #expect(scenes.first?.title == "INT. CHANGED WHILE HIDDEN - NIGHT")
+            } else { Issue.record("Reopened navigator did not capture the current scene list") }
+        }
+    }
+
     @Test func ordinaryTypingSkipsChromeRefreshButStillSavesAndUndoes() async throws {
         try await withModel { model in
             let chrome = model.chromeState
