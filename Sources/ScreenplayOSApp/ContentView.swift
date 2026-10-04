@@ -2834,6 +2834,14 @@ private struct ScreenplayPageView: View {
                         .help("Preserve current page numbers; additions use lettered pages and deletions retain omitted pages.")
                 }
 
+                Button {
+                    model.dialogueAssistantPresented = true
+                } label: {
+                    Label("Suggest line", systemImage: "sparkles")
+                }
+                .disabled(model.selectedElement?.type != .dialogue)
+                .help("Select a dialogue paragraph to suggest alternatives. Nothing is sent until you approve the context.")
+
                 Button("Title Page") { model.titlePagePresented = true }
                 Button {
                     do { preview = try PrintPreviewSnapshot(data: model.makePrintPDF(), pageLabels: model.printedPages.map(\.label)) }
