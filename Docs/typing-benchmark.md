@@ -57,3 +57,17 @@ The timing benefit is limited evidence for this workload, not a hardware latency
 ## October 3, 2026: page-plan attribute experiment
 
 Tried reusing font/alignment attributes and the bridged writing string within page-plan construction. All 265 checks passed, but the traced median was 88.5 ms (maximum 109.3 ms), and the untraced repeat was 78.2 ms (maximum 105.0 ms). Against the retained implementation's approximately 79 ms result this does not establish a useful consistent gain. Removed the experiment. Evidence: workspace `work/page-plan-2026-10-03/`. Build 5 packages the retained source at `5ca9473`; it adds the verified navigator and casing improvements to build 4 without this experiment.
+
+## October 4, 2026: beginning/middle/end validation
+
+Build 5's retained source, Release, the same 132-page/2,004-element fixture, both panels open, 15 edits per position, navigation settled first. Tests edit temporary copies and check native/model text agreement after every edit. All five targeted runs passed, along with each runner's Python and importer checks. No application code changed.
+
+| Position | Untraced median | Untraced maximum | Traced repeat median | Traced repeat maximum |
+| --- | ---: | ---: | ---: | ---: |
+| Beginning | 101.7 ms | 496.4 ms | 103.0 ms | 124.5 ms |
+| Middle | 101.4 ms | 180.5 ms | 89.2 ms | 148.7 ms |
+| End | 78.3 ms | 98.3 ms | — | — |
+
+The 496.4-ms outlier occurred on edit 8 during synchronous insertion (415.3 ms), but did not recur in the instrumented repeat. Its root cause is unconfirmed. Do not discard it as noise or claim it fixed. In the beginning repeat's slowest cycle, native page-plan installation took 33.3 ms; the equivalent phase at the end previously took about 1 ms. This supports investigating layout of subsequent pages when earlier text changes, while preserving cursor positions, page breaks, and export consistency. A single outlier's phase does not establish the cause of all latency.
+
+The beginning/middle results confirm that the end-only 79-ms measurement does not describe the whole script. No under-50-ms or sustained real-use claim is warranted. Logs and all samples: workspace `work/typing-positions-2026-10-04/`. The user still needs to exercise build 5 on a copy of a real screenplay; the reported manual writing workflow pass was build 4.
