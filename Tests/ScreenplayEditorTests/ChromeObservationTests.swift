@@ -32,6 +32,43 @@ struct ChromeObservationTests {
         try? await Task.sleep(nanoseconds: 10_000_000)
     }
 
+    @Test func navigatorSkipsUnchangedRowsButTracksRenamesStructureAndSelection() async throws {
+        try await withModel { model in
+            model.navigationVisible = true
+            let signal = model.chromeState.signal(for: .navigator, model: model)
+            let sidebar = model.chromeState.signal(for: .sidebar, model: model)
+            await settle()
+            let before = signal.value
+            model.replaceWritingText(in: NSRange(location: (model.writingText as NSString).length, length: 0), with: " More.")
+            await settle()
+            #expect(signal.value == before)
+            let heading = try #require(model.elements.first)
+            model.binding(for: heading).wrappedValue = "INT. RENAMED ROOM - NIGHT"
+            await settle()
+            #expect(signal.value != before)
+            let renamed = signal.value
+            let details = sidebar.value
+            model.insertElement(after: heading.id)
+            await settle()
+            #expect(signal.value != renamed)
+            #expect(sidebar.value != details)
+            model.undo()
+            await settle()
+            #expect(signal.value == renamed)
+            let second = try #require(model.elements.last)
+            model.setType(.sceneHeading, for: second.id)
+            await settle()
+            let twoScenes = signal.value
+            model.selectElement(id: heading.id)
+            await settle()
+            let firstScene = signal.value
+            model.selectElement(id: second.id)
+            await settle()
+            #expect(signal.value != firstScene)
+            #expect(twoScenes != renamed)
+        }
+    }
+
     @Test func ordinaryTypingSkipsChromeRefreshButStillSavesAndUndoes() async throws {
         try await withModel { model in
             let chrome = model.chromeState

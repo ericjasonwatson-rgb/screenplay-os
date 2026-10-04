@@ -2,8 +2,8 @@ import Combine
 import SwiftUI
 import ScreenplayDomain
 
-/// Region-specific writing presentation signals. Content panels and the native
-/// editor observe the canonical model; other modes and sheets keep full observation.
+/// Region-specific writing presentation signals. The native editor and live content
+/// panels observe the canonical model; stable navigator rows use display snapshots.
 @MainActor
 final class ScreenplayChromeState: ObservableObject {
     struct Writing: Equatable {
@@ -15,9 +15,10 @@ final class ScreenplayChromeState: ObservableObject {
         let emphasis: [Bool]
     }
     enum Snapshot: Equatable {
+        case navigator([SceneSummary], [Int], [String], [RecentDocument], Int?)
         case full(UUID), writing(Writing), fields([String?]), pages([String], [Bool])
     }
-    enum Region: Hashable { case all, shell, workspace, commands, navigation, identity, status, page, pages, pageMenu, elementType }
+    enum Region: Hashable { case all, shell, workspace, commands, navigation, identity, status, page, pages, pageMenu, elementType, sidebar, navigator }
     @MainActor final class Signal: ObservableObject {
         @Published private(set) var value: Snapshot
         init(_ value: Snapshot) { self.value = value }
@@ -60,15 +61,24 @@ final class ScreenplayChromeState: ObservableObject {
         for (region, signal) in signals { signal.update(Self.capture(model, region: region)) }
     }
 
-    /// Each region observes only what it displays. The document and context panels
-    /// still observe the canonical model themselves; opening them need not refresh
-    /// unrelated writing controls. Other modes and modal workflows stay conservative.
+    /// Each region observes only what it displays. Navigator rows and sidebar
+    /// metrics refresh when their displayed values change; live content panels keep
+    /// canonical observation. Other modes and modal workflows stay conservative.
     private static func capture(_ model: ScreenplayViewModel, region: Region) -> Snapshot {
         if region == .all { return capture(model) }
         guard model.workflowMode == .writing, !model.titlePagePresented,
               !model.commandPaletteVisible, !model.packageSheetOpen else { return .full(UUID()) }
         let selected = model.selectedElement
         switch region {
+        case .sidebar:
+            return .fields([model.title, model.sidebarMode.rawValue, model.documentDisplayName,
+                model.documentLocation, String(model.elements.count), String(model.printedPages.count),
+                String(model.sceneCount), String(model.characterNames.count), String(model.revisionMarkCount),
+                String(model.formatIssues.count), String(model.openScriptNotes.count),
+                String(model.proposalsForCurrentWorkflow.count), model.lastSnapshotSummary, model.subtitle])
+        case .navigator:
+            return .navigator(model.scenes, model.sceneBreakdowns.map(\.elementCount),
+                model.characterNames, model.recentDocuments, model.selectedSceneBreakdown?.number)
         case .all: return capture(model)
         case .shell:
             return .fields([String(model.navigationVisible), String(model.focusMode), model.saveProblem,

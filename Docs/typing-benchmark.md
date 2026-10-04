@@ -104,3 +104,13 @@ Build 6 application source, same 132-page fixture, both panels open, settled nav
 All four runs passed per-edit native/model agreement and the save/reopen comparisons, plus the runner's Python and importer checks. At the untraced beginning maximum, insertion was 55.0 ms, immediate host layout 266.4 ms, and deferred layout/display 132.5 ms. The middle maximum spent 321.8 ms in immediate host layout. The large stall did not recur in the traced repeat; attribution within interface layout remains unconfirmed. Next isolate navigator versus inspector layout. This is not evidence that occasional stalls are fixed or a sustained human writing session passed.
 
 Evidence: workspace `work/typing-long-run-2026-10-04/` logs and `results.json`. The application source is unchanged from build 6; only the benchmark and documentation changed.
+
+## October 4, 2026: navigator observation isolation
+
+Same source/workload as build 6, 100 edits near the beginning, 132 pages, Release, navigation settled. Baseline panel-isolation medians: neither panel 48.6 ms; navigator only 66.4 ms; inspector only 58.2 ms; both 73.1 ms. The navigator-only run included a 452.8-ms outlier. These separate runs are not additive cost accounting or proof of a stall's cause.
+
+Filtered the sidebar container and navigator notifications by their displayed data: document metrics and identity, sidebar mode, scene identities/titles/order/counts, selected scene, characters and recent documents. Live detail panels retain full model observation; non-writing modes and sheets retain conservative full refresh. Canonical edits, persistence and layout are unchanged.
+
+With both panels open, first post-change median was 61.4 ms (95th percentile 84.2 ms; maximum 119.1 ms). Repeat median was 60.6 ms (95th percentile 67.6 ms; maximum 87.1 ms). Baseline both-panel values were 73.1 / 83.2 / 150.9 ms. Typical typing improved about 16–17% in this scenario; tail measurements varied, so occasional stalls are not claimed fixed and the under-50-ms goal is unmet.
+
+Full Release validation: 215 Swift + 37 Python + 14 importer checks = 266 passed. Added regression coverage for unchanged rows during typing, heading rename, paragraph counts, Undo and scene selection. Both 100-edit post-change runs passed per-edit native/model checks and save/reopen comparison. Evidence: workspace `work/panel-isolation-2026-10-04/`. This source change is newer than build 6 and has not been packaged or manually reviewed.

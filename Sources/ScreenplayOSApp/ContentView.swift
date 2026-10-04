@@ -274,7 +274,8 @@ private struct ElementTypePicker: View {
 }
 
 private struct SidebarView: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .sidebar) }
 
     var body: some View {
         List {
@@ -787,7 +788,8 @@ private struct ProposalCard: View {
 }
 
 private struct NavigatorSections: View {
-    @ObservedObject var model: ScreenplayViewModel
+    @ChromeObserved var model: ScreenplayViewModel
+    init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .navigator) }
 
     var body: some View {
         let breakdowns = model.sceneBreakdowns
