@@ -663,8 +663,9 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     var editTimelineDurationText: String {
-        let duration = editorialBeats.flatMap(\.editClips).reduce(0.0) { $0 + $1.timelineDurationSeconds }
-        return String(format: "%.1fs edit spine", duration)
+        let prefix = editTimelineHasEstimates ? "Est. " : ""
+        let suffix = untimedEditSceneCount > 0 ? " · \(untimedEditSceneCount) untimed" : ""
+        return prefix + String(format: "%.1fs edit spine", editDuration) + suffix
     }
 
     var commandPaletteCommands: [CommandPaletteCommand] {

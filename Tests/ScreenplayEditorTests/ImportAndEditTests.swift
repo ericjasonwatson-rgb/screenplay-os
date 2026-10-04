@@ -93,6 +93,7 @@ import ScreenplayDomain
             #expect(model.editTimeline.map(\.duration) == [75, 4, 150])
             #expect(model.editTimeline.map(\.start) == [0, 75, 79])
             #expect(model.editDuration == 229)
+            #expect(model.editTimelineDurationText == "Est. 229.0s edit spine · 1 untimed")
             #expect(model.untimedEditSceneCount == 1)
             #expect(model.timedEditClips.first?.start == 75)
             model.seekEdit(to: 76)
