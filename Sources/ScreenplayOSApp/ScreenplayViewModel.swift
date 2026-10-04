@@ -8,6 +8,7 @@ import ScreenplayFDX
 
 @MainActor
 final class ScreenplayViewModel: ObservableObject {
+    @Published var dialogueAssistantPresented = false
     lazy var chromeState = ScreenplayChromeState(model: self)
     @Published private(set) var document: OpenScreenplayDocument? {
         didSet {
@@ -6501,5 +6502,22 @@ extension ScreenplayViewModel {
         candidate.typography = settings
         candidate.screenplay.revision += 1; candidate.project.metadata.modifiedAt = Date()
         document = candidate; documentCaretToken = UUID(); autosave()
+    }
+}
+
+
+extension ScreenplayViewModel {
+    func insertSuggestedDialogue(_ text: String, after id: UUID) {
+        guard let index = elementIndex(for: id), elements[index].type == .dialogue else { return }
+        rememberUndoState()
+        var item = ScreenplayElement(type: .dialogue, text: text)
+        item.revisionMark = currentRevisionMark()
+        document?.screenplay.elements.insert(item, at: index + 1)
+        assignSceneSpineIDIfNeeded(at: index + 1)
+        document?.screenplay.revision += 1
+        document?.project.metadata.modifiedAt = Date()
+        selectElement(id: item.id)
+        scrollTargetElementID = item.id
+        autosave()
     }
 }

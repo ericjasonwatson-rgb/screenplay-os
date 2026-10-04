@@ -203,6 +203,12 @@ struct ScreenplayOSApp: App {
                     .keyboardShortcut("0", modifiers: [.command, .shift])
                 }.disabled(model.packageSheetOpen)
             }
+            CommandMenu("AI") {
+                Button("Connect AI provider…") { model.dialogueAssistantPresented = true }
+                    .disabled(model.packageSheetOpen)
+                Button("Suggest dialogue line…") { model.dialogueAssistantPresented = true }
+                    .disabled(model.packageSheetOpen || model.selectedElement?.type != .dialogue)
+            }
             CommandMenu("Screenplay") {
                 Group {
                     Button("Command Palette") {

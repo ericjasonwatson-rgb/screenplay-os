@@ -73,6 +73,7 @@ struct ContentView: View {
                 }
             )
         )
+        .sheet(isPresented: $model.dialogueAssistantPresented) { DialogueAssistantView(model: model) }
         .sheet(isPresented: $model.titlePagePresented) { ScreenplayTitlePageEditor(model: model) }
         .sheet(item: $model.packagePreview) { preview in
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
