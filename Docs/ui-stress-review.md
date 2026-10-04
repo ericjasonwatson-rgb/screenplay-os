@@ -23,3 +23,11 @@ Evidence stays locally in `work/ui-stress-2026-10-04/` at the workspace root: `s
 ## Next review
 
 Investigate the table reentrancy warning. Manual review can proceed on copies using build 7: sustained typing with both panels open, scene rename/add/delete and selection updates, zoom/page navigation, formatting and Undo/Redo, then save/close/reopen and export. Build 7 has had a direct panel-render check, not a complete manual workflow sign-off.
+
+## Follow-up: initial scene planning lane
+
+A controlled replacement of navigator row GeometryReader bars with ProgressView did not remove the warning: all 30 stress cycles passed, with the same 15 table-reentrancy warnings. The experiment was reverted. Root cause remains unconfirmed; do not describe the warning as fixed. Evidence: `no-geometry-stress.log`.
+
+The subsequent Edit change adds a derived, time-proportional scene planning lane, total range/subtotal, explicit untimed gaps, and scene-specific media-duration precedence. It leaves persisted clip timing and playback unchanged. Unit coverage exercises edit order, cumulative positions, unknown scenes, rejected planned/omitted/invalid media timing, and model-preserving native lane rendering. The full media import/conform and manual measured-scene override workflow remains deferred.
+
+Validation: 220 Swift tests, 37 Python tests and 14 self-tests passed (271 total). Native lane rendering preserved document content and playback duration while scene selection followed S002. Harness capture shows the intended 1:2 timed-width ratio and an explicit untimed block; packaged-app visual review is still required.

@@ -1,6 +1,10 @@
 # Scene duration in the Edit spine
 
-Use **Edit → Estimates** in the spine header to show or hide script-derived timing ranges. This is a persistent application display preference, initially off. It does not change clip durations, playback, screenplay text, or the document format.
+Use **Edit → Estimates** in the spine header to show or hide script-derived timing ranges. This is a persistent application display preference, initially on for new preferences; existing on/off choices are retained. It does not change clip durations, playback, screenplay text, or the document format.
+
+With Estimates enabled, a new scene-planning lane places scenes left to right in editorial order. Timed widths use the midpoint of each script range at a common scale; confirmed current-media-cut durations take precedence scene by scene. Approximate cumulative midpoint start times and an estimated total range are displayed. Scene selection follows across the lane, readable detail cards and script context. The ordinary clip playback lane remains separate.
+
+Heading-only scenes have an explicitly untimed block of fixed visual width, not an invented duration. Subsequent start times are unknown. When any scene is untimed, the aggregate is labelled a timed subtotal rather than a complete-film runtime. Range totals are planning sums, not statistical confidence intervals.
 
 The range is recalculated from each scene's current action and dialogue, keyed by the scene's stable spine ID. Editorial rearrangement does not change which script scene supplies the estimate. Heading-only or empty scenes show “Est. unavailable.” Character cues, headings, transitions, and parentheticals do not add spoken words.
 

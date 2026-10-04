@@ -5,7 +5,7 @@ import ScreenplayDomain
 struct LinearEditSpineView: View {
     @ObservedObject var model: ScreenplayViewModel
     @State private var zoom = 1.0
-    @AppStorage("editSpine.showDurationEstimates") private var showEstimates = false
+    @AppStorage("editSpine.showDurationEstimates") private var showEstimates = true
 
     private var selectedScene: String? { model.selectedSceneBreakdown?.editSpineID }
 
@@ -31,7 +31,14 @@ struct LinearEditSpineView: View {
             }
             .padding(12)
             Divider()
-            EditTimeLane(model: model, zoom: zoom)
+            if showEstimates && !model.editorialBeats.isEmpty {
+                ScenePlanningLane(model: model,
+                                  plan: ScenePlanningTimeline(beats: model.editorialBeats, estimates: estimates),
+                                  zoom: zoom)
+            }
+            if !showEstimates || model.editDuration > 0 {
+                EditTimeLane(model: model, zoom: zoom)
+            }
             if model.editorialBeats.isEmpty {
                 Text("Your screenplay scenes will appear here from left to right.")
                     .foregroundStyle(.secondary).padding(20)

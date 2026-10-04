@@ -10,10 +10,7 @@ struct SceneTimingDisplay {
     init(beat: EditorialBeat, scriptEstimate: SceneDurationEstimate?, showEstimate: Bool) {
         let clips = beat.editClips
         let valid = !clips.isEmpty && clips.allSatisfy { $0.timelineDurationSeconds.isFinite && $0.timelineDurationSeconds > 0 }
-        let media = valid && clips.allSatisfy {
-            ($0.sourceKind == .productionMedia || $0.sourceKind == .generatedVideo) &&
-            ($0.status == .assembled || $0.status == .locked || $0.status == .replaced)
-        }
+        let media = ScenePlanningTimeline.mediaDuration(for: beat) != nil
         if valid {
             let kind = media ? "Media edit" : clips.allSatisfy { $0.sourceKind == .boardFrame } ? "Boards" : "Planned edit"
             timing = String(format: "%@: %.1fs · %d %@", kind, clips.reduce(0) { $0 + $1.timelineDurationSeconds }, clips.count, clips.count == 1 ? "clip" : "clips")
