@@ -1,16 +1,16 @@
 # ScreenplayOS local review build 0.1.3
 
-Build 6, October 4, 2026. macOS 13 or later, Apple Silicon. This local review build includes the native selection/navigation improvement and unchanged-paragraph render reuse. It also includes the clearer New menu, corrected title-page PDF layout, and an exact title-page export preview. The architecture proposal is not implemented.
+Build 7, October 4, 2026. macOS 13 or later, Apple Silicon. This local review build includes the native selection/navigation improvement and unchanged-paragraph render reuse. It also includes the clearer New menu, corrected title-page PDF layout, and an exact title-page export preview. The architecture proposal is not implemented.
 
 ## Status
 
 Ad-hoc signed; not Developer ID signed or notarized. It is a local development review build, not the downloadable team release. Apple enrollment is still pending according to the user. No bypass of macOS security settings is part of this checklist.
 
-265 automated Release checks passed for source revision `2e640dc`. Build 6 includes the navigator and shared-casing optimizations plus deferred offscreen native layout. The extracted ZIP's ad-hoc signature verified. No fresh manual launch or end-to-end workflow review has been completed for build 6. The user's successful manual import/edit/format/Undo/Redo/save/reopen/title-page/PDF-export report applies to build 4.
+266 automated Release checks passed for source revision `87afa6c`. Build 7 includes the navigator and shared-casing optimizations plus deferred offscreen native layout. The extracted ZIP's ad-hoc signature verified. No fresh manual launch or end-to-end workflow review has been completed for build 7. The user's successful manual import/edit/format/Undo/Redo/save/reopen/title-page/PDF-export report applies to build 4.
 
-In the 132-page, both-panels-open benchmark, final medians were 75.7 ms at the beginning, 76.2 ms in the middle, and 78.7 ms at the end. These are 15-edit insertion/layout/display-request measurements, not physical key-to-screen latency. The under-50-ms goal is unmet. Isolated stalls seen in earlier runs have not been explained or claimed fixed. See `typing-benchmark.md` for evidence and limitations.
+The latest 132-page benchmark uses 100 edits near the beginning with both panels open. Filtering unchanged navigator redraws reduced the median from 73.1 ms to 61.4 ms, with a repeat at 60.6 ms. Both runs passed save/reopen comparisons. These are harness measurements, not physical key-to-screen latency. The under-50-ms goal and occasional stalls remain unresolved. See `typing-benchmark.md` for the complete measurement history.
 
-Build 6's priority manual check: edit near the beginning, jump to later pages and back, then confirm caret placement and page breaks. Test a final blank line, Undo/Redo, zoom changes, save/reopen, and PDF export on a separate copy.
+Build 7's priority manual check: keep the navigator open while typing, then rename a scene, add/remove a paragraph, switch scenes, and Undo/Redo. Confirm scene labels, counts, and selection update. Also edit near the beginning, jump to later pages, check the final blank-line caret, and save/reopen a separate copy. No installed application was replaced by this packaging step.
 
 ## Review on copies of work
 
@@ -25,4 +25,4 @@ Report the app version/build, macOS version, approximate script length, exact st
 
 ## Packaging
 
-Use `SCREENPLAYOS_APP_VERSION=0.1.3 SCREENPLAYOS_BUILD_NUMBER=6` with `Scripts/package-app.sh` to reproduce this version label. The bundle also records its Git revision. No cloud services, accounts or automatic updates are introduced in this build.
+Use `SCREENPLAYOS_APP_VERSION=0.1.3 SCREENPLAYOS_BUILD_NUMBER=7` with `Scripts/package-app.sh` to reproduce this version label. The bundle also records its Git revision. No cloud services, accounts or automatic updates are introduced in this build.
