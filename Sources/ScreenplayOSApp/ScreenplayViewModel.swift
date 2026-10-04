@@ -8,6 +8,7 @@ import ScreenplayFDX
 
 @MainActor
 final class ScreenplayViewModel: ObservableObject {
+    @Published var showEditScript = false
     @Published var dialogueAssistantPresented = false
     lazy var chromeState = ScreenplayChromeState(model: self)
     @Published private(set) var document: OpenScreenplayDocument? {
