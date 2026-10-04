@@ -73,6 +73,74 @@ import ScreenplayDomain
         }
     }
 
+    @Test func estimatesDriveTheExistingTimelineAndPlaybackWithoutPersistingClips() throws {
+        try fixture { model, directory in
+            let script = Screenplay(metadata: ScreenplayMetadata(title: "Mixed timing"), elements: [
+                .init(type: .sceneHeading, text: "INT. FIRST - DAY", spineID: "S001"),
+                .init(type: .dialogue, text: Array(repeating: "word", count: 180).joined(separator: " ")),
+                .init(type: .sceneHeading, text: "EXT. SECOND - DAY", spineID: "S002"),
+                .init(type: .sceneHeading, text: "INT. THIRD - DAY", spineID: "S003"),
+                .init(type: .dialogue, text: Array(repeating: "word", count: 360).joined(separator: " ")),
+                .init(type: .sceneHeading, text: "EXT. EMPTY - DAY", spineID: "S004")])
+            let shot = Shot(sceneSpineID: "S002", shotNumber: 1, label: "Board shot")
+            let board = BoardFrame(shotID: shot.id, sceneSpineID: "S002", frameNumber: 1, label: "Board")
+            let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Mixed timing", author: ""), screenplayID: script.id), screenplay: script, shots: [shot], boardFrames: [board])
+            let url = directory.appendingPathComponent("mixed.json")
+            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
+            model.loadOpenScreenplay(at: url)
+            model.showEditEstimates = true
+            let before = model.document
+            #expect(model.editTimeline.map(\.duration) == [75, 4, 150])
+            #expect(model.editTimeline.map(\.start) == [0, 75, 79])
+            #expect(model.editDuration == 229)
+            #expect(model.untimedEditSceneCount == 1)
+            #expect(model.timedEditClips.first?.start == 75)
+            model.seekEdit(to: 76)
+            #expect(model.activeBoardFrame?.id == board.id)
+            model.seekEdit(to: 80)
+            #expect(model.selectedSceneBreakdown?.editSpineID == "S003")
+            #expect(model.activeBoardFrame == nil)
+            model.toggleEditPlayback()
+            model.advanceEditPlayback(by: 300)
+            #expect(model.editPlayheadSeconds == 229 && !model.editIsPlaying)
+            model.showEditEstimates = false
+            #expect(model.editDuration == 4)
+            #expect(model.timedEditClips.first?.start == 0)
+            #expect(model.editPlayheadSeconds == 0)
+            model.showEditEstimates = true
+            #expect(model.editDuration == 229)
+            #expect(model.document == before)
+            model.save()
+            model.loadOpenScreenplay(at: try #require(model.saveURL))
+            #expect(model.document?.editorialSpine == before?.editorialSpine)
+            #expect(model.editDuration == 229)
+        }
+    }
+
+    @Test func timelineRecalculatesAfterWritingUndoAndEditorialReorder() throws {
+        try fixture { model, directory in
+            let script = Screenplay(metadata: ScreenplayMetadata(title: "Timing edits"), elements: [
+                .init(type: .sceneHeading, text: "INT. FIRST - DAY", spineID: "S001"),
+                .init(type: .dialogue, text: Array(repeating: "word", count: 180).joined(separator: " ")),
+                .init(type: .sceneHeading, text: "INT. SECOND - DAY", spineID: "S002"),
+                .init(type: .dialogue, text: Array(repeating: "word", count: 360).joined(separator: " "))])
+            let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Timing edits", author: ""), screenplayID: script.id), screenplay: script)
+            let url = directory.appendingPathComponent("timing.json")
+            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
+            model.loadOpenScreenplay(at: url)
+            model.showEditEstimates = true
+            #expect(model.editDuration == 225)
+            let dialogue = model.elements[1]
+            model.binding(for: dialogue).wrappedValue = dialogue.text + " " + dialogue.text
+            #expect(model.editDuration == 300)
+            model.undo()
+            #expect(model.editDuration == 225)
+            model.moveEditorialBeat(model.editorialBeats[1].id, direction: -1)
+            #expect(model.editTimeline.map(\.sceneSpineID) == ["S002", "S001"])
+            #expect(model.editTimeline.map(\.start) == [0, 150])
+        }
+    }
+
     @Test func playbackCrossesSceneBoundaryAndStopsAtEnd() throws {
         try fixture { model, directory in
             let script = Screenplay(metadata: ScreenplayMetadata(title: "Playback"), elements: [

@@ -1,21 +1,13 @@
-# Scene duration in the Edit spine
+# Scene duration in the Edit timeline
 
-Use **Edit → Estimates** in the spine header to show or hide script-derived timing ranges. This is a persistent application display preference, initially on for new preferences; existing on/off choices are retained. It does not change clip durations, playback, screenplay text, or the document format.
+Use **Edit → Estimates** in the existing spine header. There is one timing lane; the separate scene-planning box has been removed.
 
-With Estimates enabled, a new scene-planning lane places scenes left to right in editorial order. Timed widths use the midpoint of each script range at a common scale; confirmed current-media-cut durations take precedence scene by scene. Approximate cumulative midpoint start times and an estimated total range are displayed. Scene selection follows across the lane, readable detail cards and script context. The ordinary clip playback lane remains separate.
+With Estimates on, a scene without timed boards/media occupies its script estimate's midpoint duration directly in the existing timeline. Widths, cumulative start positions, the playback slider, scene selection and total duration use the same derived timing. Estimated blocks and the playback total are labelled “Est.” The midpoint is a planning choice, not measured runtime.
 
-Heading-only scenes have an explicitly untimed block of fixed visual width, not an invented duration. Subsequent start times are unknown. When any scene is untimed, the aggregate is labelled a timed subtotal rather than a complete-film runtime. Range totals are planning sums, not statistical confidence intervals.
+Existing board/media clips retain their timing. A scene containing only shot placeholders uses its whole-scene estimate when one is available. Turning Estimates off returns to clip-only timing and resets/pauses the playhead. The preference is initially on for new preferences and preserves prior user choices. It lives outside the document.
 
-The range is recalculated from each scene's current action and dialogue, keyed by the scene's stable spine ID. Editorial rearrangement does not change which script scene supplies the estimate. Heading-only or empty scenes show “Est. unavailable.” Character cues, headings, transitions, and parentheticals do not add spoken words.
+Script edits, Undo/Redo, reopening and editorial reordering invalidate the derived timeline. Untimed scenes remain in the scene strip, are counted beside the playback total, and contribute no invented duration; time coordinates then describe only timed content. Estimates never become persisted clips or appear as authored clip timing in exports. Screenplay text, existing clip durations and stored editorial order are not changed merely by displaying or playing estimates.
 
-These are deliberately rough planning assumptions, not measured timing or statistical confidence intervals:
+The script range uses dialogue at 120–180 words/minute and action prose at 60–120 words/minute, rounded outward to five seconds, with a minimum 5–10-second range. Headings, character cues, transitions and parentheticals add no spoken words. Empty/heading-only scenes have no estimate. Action prose is a weak timing predictor: staging, pauses, montage and performance can fall outside the range.
 
-- Dialogue: 120–180 words per minute.
-- Action prose: 60–120 words per minute.
-- Display bounds round outward to five seconds, with a minimum displayed range of 5–10 seconds.
-
-Action description is a particularly weak predictor: “They fight” could cover seconds or minutes. Pauses, performance, montage and staging can fall outside the range. The assumptions are available from the toggle and estimate help text.
-
-Board and placeholder timings remain separately labelled. Changing a board's duration updates its existing edit timing; it does not calibrate the prose heuristic. The display resolver gives assembled/locked/replaced media clips precedence over the estimate and describes their current cut, not scene completeness. Mixed or planned clips do not masquerade as measured scene runtime. Omitted clips remain included in the existing timeline's duration and are explicitly flagged in the card label.
-
-Current limitation: the editor still derives its persisted edit guide from shots and boards. A complete production-media ingest/conform workflow and manual measured-scene overrides are not implemented here. The resolver's media precedence is tested preparation for that workflow, not a claim that real-media conform already works. Estimate settings/ranges are never saved into the screenplay as actual timing.
+The full production-media import/conform workflow and manual measured-scene overrides remain unimplemented. Boardomatic and current clip playback continue to work independently of whether estimated scenes are present. Current persisted/exported edit guides remain clip-based.

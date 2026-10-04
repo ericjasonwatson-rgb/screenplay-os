@@ -16,7 +16,8 @@ struct EditPlaybackBar: View {
                    in: 0...max(0.01, model.editDuration))
                 .disabled(model.editDuration == 0)
                 .accessibilityLabel("Whole edit playhead")
-            Text(String(format: "%.1f / %.1fs", model.editPlayheadSeconds, model.editDuration))
+            Text((model.editTimelineHasEstimates ? "Est. " : "") + String(format: "%.1f / %.1fs", model.editPlayheadSeconds, model.editDuration)
+                + (model.untimedEditSceneCount > 0 ? " · \(model.untimedEditSceneCount) untimed" : ""))
                 .font(.caption.monospacedDigit())
         }
         .padding(12)
@@ -49,16 +50,16 @@ struct EditTimeLane: View {
                     }
                     .frame(height: 24)
                     HStack(spacing: 0) {
-                        ForEach(model.timedEditClips) { entry in
+                        ForEach(model.editTimeline) { entry in
                             Button { model.seekEdit(to: entry.start) } label: {
-                                Text(entry.clip.label).font(.caption2).lineLimit(1)
+                                Text((entry.estimate != nil ? "Est. · " : "") + entry.label).font(.caption2).lineLimit(1)
                                     .frame(width: entry.duration * scale, height: 30)
                                     .clipped()
                                     .background(Color.accentColor.opacity(0.2))
                                     .overlay(Rectangle().stroke(Color.secondary.opacity(0.5), lineWidth: 1))
                             }
                             .buttonStyle(.plain)
-                            .help(String(format: "%@ · %.1fs", entry.clip.label, entry.duration))
+                            .help(String(format: "%@ · %@%.1fs", entry.label, entry.estimate == nil ? "" : "Estimated ", entry.duration))
                         }
                     }
                 }
@@ -71,7 +72,7 @@ struct EditTimeLane: View {
             }
             .frame(height: 76)
         } else {
-            Text("Add shots or boards to establish timing. Untimed scenes remain in the strip below.")
+            Text("Enable Estimates or add timed boards to populate the timeline. Untimed scenes remain below.")
                 .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 12)
         }
     }

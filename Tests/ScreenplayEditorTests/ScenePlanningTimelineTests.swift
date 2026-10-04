@@ -74,9 +74,9 @@ struct ScenePlanningTimelineTests {
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
         model.loadOpenScreenplay(at: url)
         let before = model.document
-        let plan = ScenePlanningTimeline(beats: model.editorialBeats, estimates: SceneDurationEstimate.byScene(in: model.elements))
+        model.showEditEstimates = true
         _ = NSApplication.shared
-        let host = NSHostingView(rootView: ScenePlanningLane(model: model, plan: plan, zoom: 1).environment(\.colorScheme, .dark))
+        let host = NSHostingView(rootView: EditTimeLane(model: model, zoom: 1).environment(\.colorScheme, .dark))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 220), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
@@ -91,7 +91,7 @@ struct ScenePlanningTimelineTests {
         host.layoutSubtreeIfNeeded()
         #expect(model.selectedSceneBreakdown?.editSpineID == "S002")
         #expect(model.document == before)
-        #expect(model.editDuration == 0)
+        #expect(model.editDuration == 225)
         if let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_PLANNING_CAPTURE"],
            let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
             host.cacheDisplay(in: host.bounds, to: bitmap)

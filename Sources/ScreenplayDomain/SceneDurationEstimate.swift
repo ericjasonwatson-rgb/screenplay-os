@@ -1,6 +1,6 @@
 import Foundation
 
-/// A planning heuristic, not measured performance. Never changes authored data or edit timing.
+/// A planning heuristic, not measured performance. Never changes authored data or persisted clip timing.
 public struct SceneDurationEstimate: Equatable {
     public let minimumSeconds: Double
     public let maximumSeconds: Double

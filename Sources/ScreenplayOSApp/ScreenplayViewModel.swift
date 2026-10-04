@@ -14,6 +14,7 @@ final class ScreenplayViewModel: ObservableObject {
             // Includes nested edits, production-context changes, Undo/Redo and Open.
             // Selection and workspace changes can reuse the same derived summaries.
             sceneBreakdownCache = nil
+            editTimelineCache = nil
             if oldValue?.screenplay.elements != document?.screenplay.elements { writingSourceCache = nil }
             if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.outline.first?.template != document?.outline.first?.template,
                let name = document?.outline.first?.template,
@@ -98,6 +99,15 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var snapshotName = ""
     @Published var draftScriptNote = ""
     @Published var editIsPlaying = false
+    var editTimelineCache: [TimedEditSegment]?
+    @Published var showEditEstimates = true {
+        didSet {
+            preferences.set(showEditEstimates, forKey: "editSpine.showDurationEstimates")
+            editTimelineCache = nil
+            editIsPlaying = false
+            editPlayheadSeconds = 0
+        }
+    }
     @Published var editPlayheadSeconds = 0.0
     @Published private(set) var boardomaticIsPlaying = false
     @Published private(set) var boardomaticPlayheadSeconds = 0.0
@@ -148,6 +158,7 @@ final class ScreenplayViewModel: ObservableObject {
     init(loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil) {
         self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
         self.preferences = preferences
+        self.showEditEstimates = preferences.object(forKey: "editSpine.showDurationEstimates") as? Bool ?? true
         self.recoveryDirectory = recoveryDirectory ?? autosaveDirectory?.appendingPathComponent("Recovery", isDirectory: true)
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("ScreenplayOS/Recovery", isDirectory: true)

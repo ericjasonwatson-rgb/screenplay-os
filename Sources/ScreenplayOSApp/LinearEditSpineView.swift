@@ -5,7 +5,7 @@ import ScreenplayDomain
 struct LinearEditSpineView: View {
     @ObservedObject var model: ScreenplayViewModel
     @State private var zoom = 1.0
-    @AppStorage("editSpine.showDurationEstimates") private var showEstimates = true
+    private var showEstimates: Bool { model.showEditEstimates }
 
     private var selectedScene: String? { model.selectedSceneBreakdown?.editSpineID }
 
@@ -18,7 +18,7 @@ struct LinearEditSpineView: View {
                 Text("Edit order · \(model.editorialBeats.count) scenes")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Toggle("Estimates", isOn: $showEstimates)
+                Toggle("Estimates", isOn: $model.showEditEstimates)
                     .toggleStyle(StudioToggleStyle())
                     .accessibilityLabel("Show scene duration estimates")
                     .help(SceneTimingDisplay.assumptions)
@@ -31,14 +31,7 @@ struct LinearEditSpineView: View {
             }
             .padding(12)
             Divider()
-            if showEstimates && !model.editorialBeats.isEmpty {
-                ScenePlanningLane(model: model,
-                                  plan: ScenePlanningTimeline(beats: model.editorialBeats, estimates: estimates),
-                                  zoom: zoom)
-            }
-            if !showEstimates || model.editDuration > 0 {
-                EditTimeLane(model: model, zoom: zoom)
-            }
+            EditTimeLane(model: model, zoom: zoom)
             if model.editorialBeats.isEmpty {
                 Text("Your screenplay scenes will appear here from left to right.")
                     .foregroundStyle(.secondary).padding(20)
@@ -75,7 +68,7 @@ struct LinearEditSpineView: View {
                 .foregroundStyle(selected ? Color.accentColor : .secondary)
             Button {
                 model.pauseEditPlayback()
-                if let first = model.timedEditClips.first(where: { $0.clip.sceneSpineID == beat.sceneSpineID }) {
+                if let first = model.editTimeline.first(where: { $0.sceneSpineID == beat.sceneSpineID }) {
                     model.seekEdit(to: first.start)
                 } else { model.selectEditorialBeat(beat) }
             } label: {
