@@ -1,12 +1,16 @@
 # ScreenplayOS local review build 0.1.3
 
-Build 5, October 3, 2026. macOS 13 or later, Apple Silicon. This local review build includes the native selection/navigation improvement and unchanged-paragraph render reuse. It also includes the clearer New menu, corrected title-page PDF layout, and an exact title-page export preview. The architecture proposal is not implemented.
+Build 6, October 4, 2026. macOS 13 or later, Apple Silicon. This local review build includes the native selection/navigation improvement and unchanged-paragraph render reuse. It also includes the clearer New menu, corrected title-page PDF layout, and an exact title-page export preview. The architecture proposal is not implemented.
 
 ## Status
 
 Ad-hoc signed; not Developer ID signed or notarized. It is a local development review build, not the downloadable team release. Apple enrollment is still pending according to the user. No bypass of macOS security settings is part of this checklist.
 
-265 automated Release checks passed for the retained source. Build 4 launched and its updated File menu was verified. Build 5 has not had a fresh manual launch/workflow check. On build 4, the user completed the manual FDX import, text/format editing, Undo/Redo, save/reopen, title-page and PDF-export checklist and reported that all worked. Automated control of the native file dialog remained unreliable; this manual result is user-reported, not an agent-observed end-to-end run. The ZIP was extracted and its ad-hoc signature verified. Build 5 source revision: `5ca9473`. This adds the verified scene navigator and shared-casing typing improvements. The most recent end-of-script test with both panels open measured about 79 ms median; the under-50-ms goal remains unmet. Six position/panel benchmark comparisons passed text-consistency checks. Median typing cycles range from 61–85 ms with panels closed and 98–116 ms with both panels open. All six medians improved versus the prior code, but maximum edit times were higher in three single-run comparisons. The under-50-ms goal is unmet. These are test-harness cycles, not physical display latency.
+265 automated Release checks passed for source revision `2e640dc`. Build 6 includes the navigator and shared-casing optimizations plus deferred offscreen native layout. The extracted ZIP's ad-hoc signature verified. No fresh manual launch or end-to-end workflow review has been completed for build 6. The user's successful manual import/edit/format/Undo/Redo/save/reopen/title-page/PDF-export report applies to build 4.
+
+In the 132-page, both-panels-open benchmark, final medians were 75.7 ms at the beginning, 76.2 ms in the middle, and 78.7 ms at the end. These are 15-edit insertion/layout/display-request measurements, not physical key-to-screen latency. The under-50-ms goal is unmet. Isolated stalls seen in earlier runs have not been explained or claimed fixed. See `typing-benchmark.md` for evidence and limitations.
+
+Build 6's priority manual check: edit near the beginning, jump to later pages and back, then confirm caret placement and page breaks. Test a final blank line, Undo/Redo, zoom changes, save/reopen, and PDF export on a separate copy.
 
 ## Review on copies of work
 
@@ -21,4 +25,4 @@ Report the app version/build, macOS version, approximate script length, exact st
 
 ## Packaging
 
-Use `SCREENPLAYOS_APP_VERSION=0.1.3 SCREENPLAYOS_BUILD_NUMBER=5` with `Scripts/package-app.sh` to reproduce this version label. The bundle also records its Git revision. No cloud services, accounts or automatic updates are introduced in this build.
+Use `SCREENPLAYOS_APP_VERSION=0.1.3 SCREENPLAYOS_BUILD_NUMBER=6` with `Scripts/package-app.sh` to reproduce this version label. The bundle also records its Git revision. No cloud services, accounts or automatic updates are introduced in this build.
