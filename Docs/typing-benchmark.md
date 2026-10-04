@@ -71,3 +71,19 @@ Build 5's retained source, Release, the same 132-page/2,004-element fixture, bot
 The 496.4-ms outlier occurred on edit 8 during synchronous insertion (415.3 ms), but did not recur in the instrumented repeat. Its root cause is unconfirmed. Do not discard it as noise or claim it fixed. In the beginning repeat's slowest cycle, native page-plan installation took 33.3 ms; the equivalent phase at the end previously took about 1 ms. This supports investigating layout of subsequent pages when earlier text changes, while preserving cursor positions, page breaks, and export consistency. A single outlier's phase does not establish the cause of all latency.
 
 The beginning/middle results confirm that the end-only 79-ms measurement does not describe the whole script. No under-50-ms or sustained real-use claim is warranted. Logs and all samples: workspace `work/typing-positions-2026-10-04/`. The user still needs to exercise build 5 on a copy of a real screenplay; the reported manual writing workflow pass was build 4.
+
+## October 4, 2026: demand-driven native layout
+
+The native editor now explicitly resolves the visible viewport after installing its complete page plan, rather than forcing the entire text container to lay out on every edit. Full wrap validation and page-plan construction remain unchanged; TextKit resolves offscreen text when needed. Empty documents and trailing blank lines retain full immediate layout before placing the extra-line caret.
+
+The first experiment failed `trailingBlankCaretUsesPrintedPagePosition` by 12 points. The explicit empty/trailing-newline fallback corrected it. Final full Release suite: 214 Swift + 37 Python + 14 importer checks = 265 passed. Existing native tests compare all line positions with a fresh plan after edits/Undo/Redo and cover page navigation, zoom, Unicode, print output and trailing blank caret placement.
+
+Final isolated 132-page, both-panels-open, settled-navigation runs:
+
+| Position | Prior median | Final median | Final maximum |
+| --- | ---: | ---: | ---: |
+| Beginning | 101.7 ms | 75.7 ms | 104.5 ms |
+| Middle | 101.4 ms | 76.2 ms | 136.3 ms |
+| End | 78.3 ms | 78.7 ms | 94.7 ms |
+
+Earlier experimental runs also measured beginning/middle medians around 74–78 ms; one end run had a 326-ms outlier. The final repeat did not reproduce that pause. Neither that pause nor the previous 496-ms outlier is explained or claimed fixed. The under-50-ms goal remains unmet. These are 15-edit harness runs, not hardware latency or sustained real-user testing. Source changes have not been packaged into a new ZIP or manually reviewed. Evidence: workspace `work/viewport-layout-2026-10-04/`, including failed initial checks and successful `final-tests.log` and `*-final.log` runs.

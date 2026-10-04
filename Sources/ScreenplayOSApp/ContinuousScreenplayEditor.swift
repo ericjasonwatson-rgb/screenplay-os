@@ -336,7 +336,16 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
             }
             pagePlan = plan
             manager.invalidateLayout(forCharacterRange: invalidated, actualCharacterRange: nil)
-            manager.ensureLayout(for: container)
+            // The complete page plan already determines document height. Lay out
+            // the viewport now; TextKit can resolve offscreen glyphs on demand.
+            let viewport = visibleRect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y)
+            if string.isEmpty || string.hasSuffix("\n") {
+                // TextKit must finish its natural trailing fragment before we put
+                // the blank-line caret at the printed page position below.
+                manager.ensureLayout(for: container)
+            } else {
+                manager.ensureLayout(forBoundingRect: viewport, in: container)
+            }
             if string.isEmpty || string.hasSuffix("\n"), let line = plan.lines[(string as NSString).length] {
                 let rect = NSRect(x: 0, y: line.y * displayScale, width: container.containerSize.width, height: line.height * displayScale)
                 manager.setExtraLineFragmentRect(rect, usedRect: rect, textContainer: container)
