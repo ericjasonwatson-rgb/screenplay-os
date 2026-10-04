@@ -66,7 +66,7 @@ enum EditInterchange {
         return """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE fcpxml>
-        <fcpxml version="1.8">
+        <fcpxml version="1.10">
         <resources><format id="r1" frameDuration="1/24s" width="1920" height="1080" colorSpace="1-1-1 (Rec. 709)"/></resources>
         <library><event name="ScreenplayOS"><project name="\(xml(title))">
         <sequence format="r1" duration="\(entries.last!.end)/24s" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k">
