@@ -266,7 +266,10 @@ struct NativeEditorTests {
         var navigationPhases: [[Double]] = []
         var milliseconds: [Double] = []
         var phases: [[Double]] = []
-        for _ in 0..<15 {
+        let iterations = Int(ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_ITERATIONS"] ?? "15") ?? 15
+        try #require((1...1000).contains(iterations))
+        print("SCREENPLAYOS_BENCHMARK_ITERATIONS=\(iterations)")
+        for _ in 0..<iterations {
             let source = text.string as NSString
             let searchStart = position == "middle" ? source.length / 2 : 0
             let newline = source.range(of: "\n", range: NSRange(location: searchStart, length: source.length - searchStart))
@@ -312,6 +315,14 @@ struct NativeEditorTests {
             try bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
         }
         #expect(model.prepareToClose())
+        let savedURL = try #require(model.saveURL)
+        let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+        reopened.loadOpenScreenplay(at: savedURL)
+        _ = try #require(reopened.document)
+        #expect(reopened.elements == model.elements)
+        #expect(reopened.writingTypography == model.writingTypography)
+        #expect(reopened.printedPages.map(\.label) == model.printedPages.map(\.label))
+        #expect(ScreenplayWritingProjection(elements: reopened.elements).text == text.string)
     }
 
 }

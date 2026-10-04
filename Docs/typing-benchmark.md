@@ -87,3 +87,20 @@ Final isolated 132-page, both-panels-open, settled-navigation runs:
 | End | 78.3 ms | 78.7 ms | 94.7 ms |
 
 Earlier experimental runs also measured beginning/middle medians around 74–78 ms; one end run had a 326-ms outlier. The final repeat did not reproduce that pause. Neither that pause nor the previous 496-ms outlier is explained or claimed fixed. The under-50-ms goal remains unmet. These are 15-edit harness runs, not hardware latency or sustained real-user testing. Source changes have not been packaged into a new ZIP or manually reviewed. Evidence: workspace `work/viewport-layout-2026-10-04/`, including failed initial checks and successful `final-tests.log` and `*-final.log` runs.
+
+## October 4, 2026: 100-edit runs and save/reopen verification
+
+The opt-in native benchmark now accepts `SCREENPLAYOS_BENCHMARK_ITERATIONS` (default 15, supported 1–1000). After timing, it closes the model safely and opens the saved copy in a new model, comparing elements, typography, page labels and displayed text. This is an automated model reopen, not a manual quit/relaunch of the packaged app. No application behavior changed.
+
+Build 6 application source, same 132-page fixture, both panels open, settled navigation, 100 edits per position:
+
+| Position | Median | 95th percentile (nearest rank) | Maximum |
+| --- | ---: | ---: | ---: |
+| Beginning | 73.8 ms | 87.3 ms | 453.9 ms |
+| Middle | 80.0 ms | 94.4 ms | 419.1 ms |
+| End | 79.6 ms | 127.0 ms | 237.1 ms |
+| Beginning, traced repeat | 73.3 ms | 96.4 ms | 122.2 ms |
+
+All four runs passed per-edit native/model agreement and the save/reopen comparisons, plus the runner's Python and importer checks. At the untraced beginning maximum, insertion was 55.0 ms, immediate host layout 266.4 ms, and deferred layout/display 132.5 ms. The middle maximum spent 321.8 ms in immediate host layout. The large stall did not recur in the traced repeat; attribution within interface layout remains unconfirmed. Next isolate navigator versus inspector layout. This is not evidence that occasional stalls are fixed or a sustained human writing session passed.
+
+Evidence: workspace `work/typing-long-run-2026-10-04/` logs and `results.json`. The application source is unchanged from build 6; only the benchmark and documentation changed.
