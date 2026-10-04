@@ -325,4 +325,97 @@ struct NativeEditorTests {
         #expect(ScreenplayWritingProjection(elements: reopened.elements).text == text.string)
     }
 
+    @Test func longScriptUIStressWhenRequested() async throws {
+        guard let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_STRESS_FIXTURE"] else { return }
+        _ = NSApplication.shared
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let suite = "UIStress.\(UUID())"
+        let prefs = try #require(UserDefaults(suiteName: suite))
+        defer {
+            try? FileManager.default.removeItem(at: folder)
+            prefs.removePersistentDomain(forName: suite)
+        }
+        let originalBytes = try Data(contentsOf: URL(fileURLWithPath: path))
+        let url = folder.appendingPathComponent("stress.json")
+        try originalBytes.write(to: url)
+        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+        model.loadOpenScreenplay(at: url)
+        _ = try #require(model.document)
+        let host = NSHostingView(rootView: ContentView(model: model).environment(\.colorScheme, .dark))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.close() }
+        func find(_ view: NSView) -> WritingTextView? {
+            if let text = view as? WritingTextView { return text }
+            return view.subviews.lazy.compactMap { find($0) }.first
+        }
+        func settle() async throws {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(nanoseconds: 50_000_000)
+            host.layoutSubtreeIfNeeded()
+            host.displayIfNeeded()
+        }
+        try await settle()
+        for cycle in 0..<30 {
+            let authored = model.elements
+            model.navigationVisible = cycle % 2 == 0
+            model.contextAssistantVisible = cycle % 3 != 0
+            model.pageZoom = [0.75, 1.0, 1.5][cycle % 3]
+            window.setContentSize(cycle % 2 == 0 ? NSSize(width: 1440, height: 900) : NSSize(width: 1000, height: 700))
+            try await settle()
+            #expect(model.elements == authored)
+            let text = try #require(find(host))
+            let projection = ScreenplayWritingProjection(elements: model.elements)
+            let index = [1, model.elements.count / 2, model.elements.count - 1][cycle % 3]
+            text.setSelectedRange(NSRange(location: NSMaxRange(projection.ranges[index]), length: 0))
+            text.scrollRangeToVisible(text.selectedRange())
+            let before = model.writingText
+            let addition = cycle % 5 == 0 ? "\nStress café 👩🏽‍🚀." : " test"
+            text.insertText(addition, replacementRange: text.selectedRange())
+            try await settle()
+            let after = model.writingText
+            #expect(after != before)
+            #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
+            #expect(NSMaxRange(text.selectedRange()) <= (text.string as NSString).length)
+            if cycle % 3 == 0 {
+                model.undo(); try await settle()
+                #expect(model.writingText == before)
+                model.redo(); try await settle()
+                #expect(model.writingText == after)
+            }
+            if cycle % 4 == 0 {
+                let last = ScreenplayWritingProjection(elements: model.elements).ranges[index]
+                text.setSelectedRange(last)
+                model.toggleWritingEmphasis(\.bold)
+                try await settle()
+                #expect(model.writingText == after)
+            }
+            let page = [0, model.printedPages.count / 2, model.printedPages.count - 1][cycle % 3]
+            model.navigateToPrintedPage(page)
+            try await settle()
+            #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
+            #expect(text.pagePlan != nil)
+            if cycle < 3, let capturePath = ProcessInfo.processInfo.environment["SCREENPLAYOS_STRESS_CAPTURE_DIR"],
+               let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                try bitmap.representation(using: .png, properties: [:])?.write(
+                    to: URL(fileURLWithPath: capturePath).appendingPathComponent("layout-\(cycle).png"))
+            }
+            #expect(model.prepareToClose())
+            let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+            reopened.loadOpenScreenplay(at: try #require(model.saveURL))
+            #expect(reopened.elements == model.elements)
+            #expect(reopened.writingTypography == model.writingTypography)
+            print("SCREENPLAYOS_UI_STRESS_CYCLE=\(cycle + 1)")
+        }
+        let pdf = try #require(PDFDocument(data: model.makePrintPDF()))
+        #expect(pdf.pageCount >= model.printedPages.count)
+        #expect(try Data(contentsOf: URL(fileURLWithPath: path)) == originalBytes)
+        print("SCREENPLAYOS_UI_STRESS_PASSED=30")
+    }
+
 }

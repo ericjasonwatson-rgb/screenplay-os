@@ -6,7 +6,9 @@ Build 7, October 4, 2026. macOS 13 or later, Apple Silicon. This local review bu
 
 Ad-hoc signed; not Developer ID signed or notarized. It is a local development review build, not the downloadable team release. Apple enrollment is still pending according to the user. No bypass of macOS security settings is part of this checklist.
 
-266 automated Release checks passed for source revision `87afa6c`. Build 7 includes the navigator and shared-casing optimizations plus deferred offscreen native layout. The extracted ZIP's ad-hoc signature verified. No fresh manual launch or end-to-end workflow review has been completed for build 7. The user's successful manual import/edit/format/Undo/Redo/save/reopen/title-page/PDF-export report applies to build 4.
+266 automated Release checks passed for source revision `87afa6c`. Build 7 includes the navigator and shared-casing optimizations plus deferred offscreen native layout. The extracted ZIP's ad-hoc signature verified. A direct launch and panel-render check has now been completed for build 7 using the short review document; a complete manual workflow review has not. The user's successful manual import/edit/format/Undo/Redo/save/reopen/title-page/PDF-export report applies to build 4.
+
+Two additional 30-cycle UI stress runs passed text and save/reopen checks on a 132-page fixture. Both produced repeated AppKit table-update reentrancy warnings; their cause remains unresolved. See `ui-stress-review.md` for coverage and limitations.
 
 The latest 132-page benchmark uses 100 edits near the beginning with both panels open. Filtering unchanged navigator redraws reduced the median from 73.1 ms to 61.4 ms, with a repeat at 60.6 ms. Both runs passed save/reopen comparisons. These are harness measurements, not physical key-to-screen latency. The under-50-ms goal and occasional stalls remain unresolved. See `typing-benchmark.md` for the complete measurement history.
 
