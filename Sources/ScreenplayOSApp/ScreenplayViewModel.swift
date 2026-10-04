@@ -870,6 +870,8 @@ final class ScreenplayViewModel: ObservableObject {
             return editGuideCSV()
         case .editTimelineCSV:
             return editTimelineCSV()
+        case .premiereEDL, .finalCutXML:
+            return (try? editInterchangeText(for: selectedProductionExportKind)) ?? "Enable Estimates or add timed boards to export."
         }
     }
 
@@ -1365,8 +1367,13 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func showProductionExportPanel() {
+        if selectedProductionExportKind == .premiereEDL || selectedProductionExportKind == .finalCutXML {
+            do { _ = try editInterchangeText(for: selectedProductionExportKind) }
+            catch { errorMessage = error.localizedDescription; return }
+        }
         let panel = NSSavePanel()
-        panel.allowedContentTypes = selectedProductionExportKind.fileExtension == "csv" ? [.commaSeparatedText] : [.plainText]
+        panel.allowedContentTypes = [UTType(filenameExtension: selectedProductionExportKind.fileExtension) ?? .plainText]
+        panel.message = (selectedProductionExportKind == .premiereEDL || selectedProductionExportKind == .finalCutXML) ? "24 fps timing guide with placeholders, not linked footage. Uses the current Estimates setting. Untimed scenes are omitted: \(untimedEditSceneCount)." : ""
         panel.canCreateDirectories = true
         panel.title = "Export Edit File"
         panel.prompt = "Export"
@@ -3788,6 +3795,9 @@ final class ScreenplayViewModel: ObservableObject {
             text = editGuideCSV()
         case .editTimelineCSV:
             text = editTimelineCSV()
+        case .premiereEDL, .finalCutXML:
+            do { text = try editInterchangeText(for: kind) }
+            catch { errorMessage = error.localizedDescription; return }
         }
 
         do {
@@ -6052,6 +6062,8 @@ enum ProductionExportKind: String, CaseIterable, Identifiable {
     case boardFramesCSV
     case editGuideCSV
     case editTimelineCSV
+    case premiereEDL
+    case finalCutXML
 
     var id: String {
         rawValue
@@ -6071,11 +6083,15 @@ enum ProductionExportKind: String, CaseIterable, Identifiable {
             return "Edit Guide CSV"
         case .editTimelineCSV:
             return "Edit Timeline CSV"
+        case .premiereEDL: return "Premiere EDL (24 fps)"
+        case .finalCutXML: return "Final Cut Pro XML (24 fps)"
         }
     }
 
     var fileExtension: String {
         switch self {
+        case .premiereEDL: return "edl"
+        case .finalCutXML: return "fcpxml"
         case .selectedScenePacket:
             return "txt"
         case .sceneBreakdownCSV, .shotListCSV, .boardFramesCSV, .editGuideCSV, .editTimelineCSV:

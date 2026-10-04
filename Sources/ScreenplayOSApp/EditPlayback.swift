@@ -19,7 +19,7 @@ struct TimedEditSegment: Identifiable {
 }
 
 extension ScreenplayViewModel {
-    /// Derived timeline only: estimates never become persisted or exported clips.
+    /// Derived timeline only: estimates never become persisted clips. Timing-guide exports use placeholders.
     var editTimeline: [TimedEditSegment] {
         if let editTimelineCache { return editTimelineCache }
         let estimates = showEditEstimates ? SceneDurationEstimate.byScene(in: elements) : [:]

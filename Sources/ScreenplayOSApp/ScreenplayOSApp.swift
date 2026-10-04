@@ -103,6 +103,15 @@ struct ScreenplayOSApp: App {
                     }
                     .keyboardShortcut("e", modifiers: [.command, .option])
 
+                    Button("Export Premiere EDL…") {
+                        model.selectedProductionExportKind = .premiereEDL
+                        model.showProductionExportPanel()
+                    }
+                    Button("Export Final Cut Pro XML…") {
+                        model.selectedProductionExportKind = .finalCutXML
+                        model.showProductionExportPanel()
+                    }
+
                     Button("Export Edit File...") {
                         model.showProductionExportPanel()
                     }
