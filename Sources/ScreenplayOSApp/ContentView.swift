@@ -73,6 +73,7 @@ struct ContentView: View {
                 }
             )
         )
+        .sheet(item: $model.boardGenerationSnapshot) { snapshot in BoardImageAssistant(model: model, snapshot: snapshot) }
         .sheet(isPresented: $model.dialogueAssistantPresented) { DialogueAssistantView(model: model) }
         .sheet(isPresented: $model.titlePagePresented) { ScreenplayTitlePageEditor(model: model) }
         .sheet(item: $model.packagePreview) { preview in
@@ -708,7 +709,7 @@ private struct ProposalsSections: View {
             } label: {
                 Label("Generate Proposals", systemImage: "sparkles")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(StudioButtonStyle(ai: true))
             .disabled(!model.currentWorkflowAIEnabled)
         }
 
@@ -782,7 +783,8 @@ private struct ProposalCard: View {
                 .controlSize(.small)
             }
         }
-        .padding(.vertical, 5)
+        .padding(8)
+        .aiSurface()
     }
 }
 
@@ -1057,7 +1059,7 @@ private struct BoardsSections: View {
                 } label: {
                     Label("Generate Boards", systemImage: "rectangle.on.rectangle")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(StudioButtonStyle(ai: true))
 
                 if model.shotsForSelectedScene.isEmpty {
                     Text("Generate a shot list for this scene first.")
@@ -1175,7 +1177,7 @@ private struct SceneBreakdownSections: View {
                 } label: {
                     Label("Generate Shot List", systemImage: "camera.viewfinder")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(StudioButtonStyle(ai: true))
 
                 if model.shotsForSelectedScene.isEmpty {
                     Text("No shots yet for the selected scene.")
@@ -1892,7 +1894,7 @@ private struct ShotListPane: View {
                         } label: {
                             Label(model.shotsForSelectedScene.isEmpty ? "Generate Shot List" : "Regenerate Shot List", systemImage: "camera.viewfinder")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(StudioButtonStyle(ai: true))
 
                         ForEach(model.shotsForSelectedScene) { shot in
                             ShotStageRow(model: model, shot: shot)
@@ -1985,6 +1987,8 @@ private struct ShotComposerPane: View {
 
             if let shot = model.selectedShot {
                 VStack(alignment: .leading, spacing: 12) {
+                    Button("Generate board image…") { model.presentBoardGenerator(for: shot) }
+                        .buttonStyle(StudioButtonStyle(ai: true))
                     TextField("Shot label", text: model.bindingForShotLabel(shot), axis: .vertical)
                         .font(.system(size: 14, weight: .semibold))
                     Picker("Setup", selection: Binding(
@@ -2174,6 +2178,9 @@ private struct BoardStageCard: View {
                             .padding(.horizontal, 10)
                     }
                 }
+                .overlay {
+                    if let version = frame.selectedImage { BoardImageView(version: version).background(Color.black) }
+                }
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
 
                 HStack {
@@ -2227,6 +2234,20 @@ private struct BoardDetailsPane: View {
             Divider()
 
             if let frame = model.selectedBoardFrame {
+                if let shot = model.shots.first(where: { $0.id == frame.shotID }) {
+                    Button("Generate board image…") { model.presentBoardGenerator(for: shot) }
+                        .buttonStyle(StudioButtonStyle(ai: true))
+                }
+                if !frame.imageVersions.isEmpty {
+                    Picker("Image version", selection: Binding(
+                        get: { frame.selectedImageID ?? frame.imageVersions.last!.id },
+                        set: { model.selectBoardImage($0, for: frame.id) }
+                    )) {
+                        ForEach(Array(frame.imageVersions.enumerated()), id: \.element.id) { index, version in
+                            Text("Version \(index + 1)").tag(version.id)
+                        }
+                    }
+                }
                 VStack(alignment: .leading, spacing: 12) {
                     Text(frame.label)
                         .font(.system(size: 14, weight: .semibold))
@@ -2319,6 +2340,11 @@ private struct EditWorkbenchPane: View {
                     }
                 }
                 .padding(16)
+            }
+            .overlay {
+                if let version = model.activeBoardFrame?.selectedImage {
+                    BoardImageView(version: version).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.black)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(12)
@@ -2828,6 +2854,7 @@ private struct ScreenplayPageView: View {
                 } label: {
                     Label("Suggest line", systemImage: "sparkles")
                 }
+                .buttonStyle(StudioButtonStyle(ai: true))
                 .disabled(model.selectedElement?.type != .dialogue)
                 .help("Select a dialogue paragraph to suggest alternatives. Nothing is sent until you approve the context.")
 

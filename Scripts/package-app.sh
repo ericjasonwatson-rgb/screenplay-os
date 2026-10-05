@@ -97,4 +97,9 @@ then
 fi
 xattr -cr "$app_destination"
 codesign --verify --deep --strict --verbose=2 "$app_destination"
+# Only numbered review artifacts in this checkout's outputs are eligible.
+# Keep the newest archive as a usable download/rollback copy.
+if ! python3 Scripts/cleanup-build-artifacts.py "$app_destination" --apply; then
+    echo "Warning: review-artifact cleanup failed; the verified app is ready." >&2
+fi
 echo "$app_destination"

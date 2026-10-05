@@ -10,6 +10,7 @@ enum StudioAppearance {
     static let edge = Color(white: 0.13)
     static let highlight = Color.white.opacity(0.10)
     static let accent = Color(red: 0.88, green: 0.73, blue: 0.39)
+    static let aiBlue = Color(red: 0.12, green: 0.34, blue: 0.62)
     static let selection = Color(red: 0.28, green: 0.43, blue: 0.46)
     static func sceneColor(_ key: String) -> Color {
         let colors: [Color] = [Color(red: 0.48, green: 0.70, blue: 0.70), Color(red: 0.69, green: 0.64, blue: 0.79), Color(red: 0.76, green: 0.68, blue: 0.46), Color(red: 0.56, green: 0.69, blue: 0.52)]
@@ -49,12 +50,14 @@ struct ScriptPageWell<Content: View>: View {
 /// Attached control surfaces, with distinct resting, hover and pressed states.
 struct StudioButtonStyle: ButtonStyle {
     var selected = false
+    var ai = false
     func makeBody(configuration: Configuration) -> some View {
-        Surface(configuration: configuration, selected: selected)
+        Surface(configuration: configuration, selected: selected, ai: ai)
     }
     private struct Surface: View {
         let configuration: ButtonStyle.Configuration
         let selected: Bool
+        let ai: Bool
         @Environment(\.isEnabled) private var enabled
         @State private var hovering = false
         var body: some View {
@@ -62,7 +65,7 @@ struct StudioButtonStyle: ButtonStyle {
                 .font(.system(size: 12, weight: .medium))
                 .padding(.horizontal, 8).frame(minHeight: 24)
                 .foregroundStyle(selected ? Color.black : Color(white: 0.94))
-                .background(selected ? StudioAppearance.accent : (configuration.isPressed ? StudioAppearance.recess : (hovering ? StudioAppearance.hover : StudioAppearance.raised)))
+                .background(selected ? StudioAppearance.accent : (configuration.isPressed ? StudioAppearance.recess : (ai ? StudioAppearance.aiBlue.opacity(hovering ? 0.8 : 1) : (hovering ? StudioAppearance.hover : StudioAppearance.raised))))
                 .clipShape(RoundedRectangle(cornerRadius: 3))
                 .overlay { RoundedRectangle(cornerRadius: 3).strokeBorder(StudioAppearance.edge, lineWidth: 1) }
                 .opacity(enabled ? 1 : 0.4)
@@ -85,4 +88,25 @@ extension View {
             .overlay(alignment: .top) { StudioAppearance.highlight.frame(height: 1).allowsHitTesting(false) }
             .overlay(alignment: .bottom) { StudioAppearance.edge.frame(height: 1).allowsHitTesting(false) }
     }
+}
+
+/// Shared blue surfaces identify suggestions without tinting authored screenplay text.
+private struct AISurface: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    func body(content: Content) -> some View {
+        content
+            .background(colorScheme == .dark
+                ? Color(red: 0.10, green: 0.19, blue: 0.30)
+                : Color(red: 0.88, green: 0.94, blue: 1.0))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay {
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(StudioAppearance.aiBlue, lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+    }
+}
+
+extension View {
+    func aiSurface() -> some View { modifier(AISurface()) }
 }

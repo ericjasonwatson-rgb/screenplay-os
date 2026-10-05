@@ -852,6 +852,18 @@ public enum ShotStatus: String, Codable, CaseIterable {
     case omitted
 }
 
+/// Linked local image, separate from screenplay text. PNG files must travel with the project.
+public struct BoardImageVersion: Codable, Equatable, Identifiable, Sendable {
+    public var id: UUID
+    public var fileURL: URL
+    public var sha256: String
+    public var prompt: String
+    public var model: String
+    public init(id: UUID = UUID(), fileURL: URL, sha256: String, prompt: String, model: String) {
+        self.id = id; self.fileURL = fileURL; self.sha256 = sha256; self.prompt = prompt; self.model = model
+    }
+}
+
 public struct BoardFrame: Codable, Equatable, Identifiable {
     public let id: UUID
     public var shotID: UUID
@@ -862,6 +874,9 @@ public struct BoardFrame: Codable, Equatable, Identifiable {
     public var durationSeconds: Double
     public var status: ShotStatus
     public var notes: String
+    public var imageVersions: [BoardImageVersion] = []
+    public var selectedImageID: UUID?
+    public var selectedImage: BoardImageVersion? { imageVersions.first { $0.id == selectedImageID } }
     public var sourceRefs: [ShotSourceRef]
 
     public init(
@@ -889,6 +904,8 @@ public struct BoardFrame: Codable, Equatable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
+        case imageVersions = "image_versions"
+        case selectedImageID = "selected_image_id"
         case id
         case shotID = "shot_id"
         case sceneSpineID = "scene_spine_id"
@@ -903,6 +920,8 @@ public struct BoardFrame: Codable, Equatable, Identifiable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        imageVersions = try container.decodeIfPresent([BoardImageVersion].self, forKey: .imageVersions) ?? []
+        selectedImageID = try container.decodeIfPresent(UUID.self, forKey: .selectedImageID)
         id = try container.decode(UUID.self, forKey: .id)
         shotID = try container.decode(UUID.self, forKey: .shotID)
         sceneSpineID = try container.decode(String.self, forKey: .sceneSpineID)

@@ -93,7 +93,7 @@ struct DialogueSnapshot {
                     defaults.set(provider.rawValue, forKey: "dialogue.provider")
                     defaults.set(model, forKey: "dialogue.model.\(provider.rawValue)")
                     key = ""; status = "Connected and tested. Saved as your default provider."
-                } else { alternatives = result; status = "Review the alternatives. Your screenplay has not changed." }
+                } else { alternatives = result; status = "Click a suggested line to insert it after the selected dialogue." }
             } catch { if generation == token && !Task.isCancelled { status = error.localizedDescription } }
             if generation == token { busy = false }
         }
@@ -137,20 +137,35 @@ struct DialogueAssistantView: View {
                 ScrollView { Text(snapshot.context).font(.system(.caption, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(height: 145)
                 TextField("Direction (optional): more restrained, evade the question…", text: $direction).disabled(connection.busy)
                 Button("Send context & suggest three lines") { connection.run(context: snapshot.context, direction: direction) }
+                    .buttonStyle(StudioButtonStyle(ai: true))
                     .disabled(connection.busy || accepted || !snapshot.isCurrent(model) || connection.modelID.isEmpty)
                 if !snapshot.isCurrent(model) && !accepted { Text("The script changed. Close and reopen this panel to use the current text.").foregroundStyle(.orange) }
                 ForEach(Array(connection.alternatives.enumerated()), id: \.offset) { _, line in
                     VStack(alignment: .leading) {
-                        Text(line).textSelection(.enabled)
-                        HStack {
-                            Button("Replace") { accepted = snapshot.accept(line, model: model, insert: false); if accepted { dismiss() } }
-                            Button("Insert after") { accepted = snapshot.accept(line, model: model, insert: true); if accepted { dismiss() } }
-                        }.disabled(accepted || !snapshot.isCurrent(model))
-                    }.padding(8).background(Color.secondary.opacity(0.08)).cornerRadius(6)
+                        Button {
+                            accepted = snapshot.accept(line, model: model, insert: true)
+                            if accepted { dismiss() }
+                        } label: {
+                            HStack(alignment: .top) {
+                                Text(line).multilineTextAlignment(.leading)
+                                Spacer(minLength: 12)
+                                Image(systemName: "text.badge.plus")
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(6).contentShape(Rectangle())
+                        }
+                        .buttonStyle(StudioButtonStyle(ai: true))
+                        .accessibilityLabel("Insert suggested dialogue: \(line)")
+                        .help("Insert this line after the selected dialogue. Undo restores the previous script.")
+                        Button("Replace selected dialogue") {
+                            accepted = snapshot.accept(line, model: model, insert: false)
+                            if accepted { dismiss() }
+                        }
+                    }.disabled(accepted || !snapshot.isCurrent(model))
+                    .padding(8).aiSurface()
                 }
             } else { Text("Select a dialogue paragraph, then reopen Suggest dialogue line to request alternatives.") }
             if !connection.status.isEmpty { Text(connection.status).font(.callout) }
-        }.padding(20)
+        }.padding(20).aiSurface()
         }.frame(width: 620, height: 560)
         .onAppear { snapshot = DialogueSnapshot.capture(model) }
         .onDisappear { connection.cancel(); connection.key = "" }

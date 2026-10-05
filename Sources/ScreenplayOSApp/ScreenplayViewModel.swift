@@ -9,6 +9,7 @@ import ScreenplayFDX
 @MainActor
 final class ScreenplayViewModel: ObservableObject {
     @Published var showEditScript = false
+    @Published var boardGenerationSnapshot: BoardGenerationSnapshot?
     @Published var dialogueAssistantPresented = false
     lazy var chromeState = ScreenplayChromeState(model: self)
     @Published private(set) var document: OpenScreenplayDocument? {
@@ -2149,8 +2150,11 @@ final class ScreenplayViewModel: ObservableObject {
         }
 
         rememberUndoState()
-        document?.boardFrames.removeAll { $0.sceneSpineID == breakdown.editSpineID }
-        document?.boardFrames.append(contentsOf: generatedBoardFrames(for: sceneShots, breakdown: breakdown))
+        let existingShots = Set(boardFrames.map(\.shotID))
+        var additions = generatedBoardFrames(for: sceneShots.filter { !existingShots.contains($0.id) }, breakdown: breakdown)
+        let lastNumber = boardFrames.filter { $0.sceneSpineID == breakdown.editSpineID }.map(\.frameNumber).max() ?? 0
+        for index in additions.indices { additions[index].frameNumber = lastNumber + index + 1 }
+        document?.boardFrames.append(contentsOf: additions)
         document?.editorialSpine.syncEditReferences(shots: document?.shots ?? [], boardFrames: document?.boardFrames ?? [])
         recordActivity(
             actor: .manual,
@@ -6520,5 +6524,38 @@ extension ScreenplayViewModel {
         selectElement(id: item.id)
         scrollTargetElementID = item.id
         autosave()
+    }
+}
+
+extension ScreenplayViewModel {
+    func presentBoardGenerator(for shot: Shot) {
+        boardGenerationSnapshot = BoardGenerationSnapshot(model: self, shot: shot)
+    }
+    @discardableResult
+    func adoptBoardImage(_ version: BoardImageVersion, snapshot: BoardGenerationSnapshot) -> Bool {
+        guard snapshot.isCurrent(self), version.fileURL.isFileURL else { return false }
+        rememberUndoState()
+        if let index = document?.boardFrames.firstIndex(where: { $0.id == snapshot.targetBoardID }) {
+            document?.boardFrames[index].imageVersions.append(version)
+            document?.boardFrames[index].selectedImageID = version.id
+        } else {
+            let shot = snapshot.shot
+            var frame = BoardFrame(shotID: shot.id, sceneSpineID: shot.sceneSpineID,
+                frameNumber: boardFrames.filter { $0.sceneSpineID == shot.sceneSpineID }.count + 1,
+                label: shot.label, prompt: version.prompt, sourceRefs: shot.sourceRefs)
+            frame.imageVersions = [version]; frame.selectedImageID = version.id
+            document?.boardFrames.append(frame)
+        }
+        document?.editorialSpine.syncEditReferences(shots: shots, boardFrames: boardFrames)
+        document?.project.metadata.modifiedAt = Date()
+        autosave()
+        return true
+    }
+    func selectBoardImage(_ id: UUID, for frameID: UUID) {
+        guard let index = document?.boardFrames.firstIndex(where: { $0.id == frameID }),
+              document?.boardFrames[index].imageVersions.contains(where: { $0.id == id }) == true else { return }
+        rememberUndoState()
+        document?.boardFrames[index].selectedImageID = id
+        document?.project.metadata.modifiedAt = Date(); autosave()
     }
 }

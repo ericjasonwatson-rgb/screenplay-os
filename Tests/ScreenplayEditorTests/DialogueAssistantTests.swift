@@ -65,6 +65,13 @@ import ScreenplayDomain
         #expect(snapshot.accept("Additional line.", model: model, insert: true))
         #expect(model.elements[3].type == .dialogue)
         #expect(model.elements[3].text == "Additional line.")
+        #expect(model.elements[2] == original[2])
+        #expect(model.selectedElementID == model.elements[3].id)
+        let inserted = model.elements
+        #expect(!snapshot.accept("Duplicate click.", model: model, insert: true))
+        #expect(model.elements == inserted)
+        model.undo(); #expect(model.elements == original)
+        model.redo(); #expect(model.elements == inserted)
         model.undo(); #expect(model.elements == original)
         model.newDocument(); #expect(!snapshot.isCurrent(model))
     }
