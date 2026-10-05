@@ -1837,19 +1837,8 @@ private struct ScriptPreviewPane: View {
 
             Divider()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(model.selectedSceneScriptElements) { element in
-                        Text(element.text.isEmpty ? element.type.displayName : model.displayedText(for: element))
-                            .font(Font(PackageTypography.font(model.writingTypography)))
-                            .foregroundStyle(Color(nsColor: StudioAppearance.ink(model.darkPageMode)).opacity(element.text.isEmpty ? 0.5 : 1))
-                            .frame(maxWidth: .infinity, alignment: element.type == .character || element.type == .dialogue ? .center : .leading)
-                    }
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .background(Color(nsColor: StudioAppearance.paper(model.darkPageMode)))
+            SceneScreenplayPreview(model: model)
+
         }
         .background(ScreenplayOSTokens.Palette.appBackground)
         .overlay(alignment: .leading) {
