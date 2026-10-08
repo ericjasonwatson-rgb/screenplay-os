@@ -66,9 +66,14 @@ Page window displayed the six separate wording blocks, outside the script body.
 The full Defenders export opened with a 15-page script count, matching the earlier
 original-FDX observation. No original screenplay was edited or saved.
 
-The ScreenplayOS export menu/save-panel interaction has not yet been exercised
-live in a freshly packaged app. Snapshot and file-writing behavior are covered by
-automated tests. The installed app and notarized build remain unchanged.
+A separate local audit bundle used the compiled Release executable at `3506373`
+and an isolated bundle identifier. No signing command or credential change was
+needed. Created a new untitled document and typed a synthetic heading. File →
+Export Final Draft FDX displayed the limitations review, then the native save
+panel. Exported `UI-export.fdx` to the audit folder and parsed its XML afterward:
+Scene Heading and `INT. EXPORT CHECK - DAY` were preserved. Quit the audit app.
+The new disposable document autosaved as `Untitled_Screenplay 25.open-screenplay.json`
+in Downloads. The installed app and notarized build remain unchanged.
 
 ## Remaining Phase A work
 
