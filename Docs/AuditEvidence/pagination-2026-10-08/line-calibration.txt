@@ -1,0 +1,20 @@
+Available Courier faces: CourierFinalDraft, CourierNewPS-BoldItalicMT, CourierNewPS-BoldMT, CourierNewPS-ItalicMT, CourierNewPSMT
+font=Courier mode=legacy probeLines=10 baselinePitch=16.0 height=158.0
+  Action-heavy.fdx: paragraphs=120 lines=792 textHeight=12432.0 withLegacy16ptMinimum=12480.0
+  Dialogue-heavy.fdx: paragraphs=252 lines=924 textHeight=14280.0 withLegacy16ptMinimum=14592.0
+font=Courier mode=natural probeLines=10 baselinePitch=14.0 height=140.0
+  Action-heavy.fdx: paragraphs=120 lines=792 textHeight=11088.0 withLegacy16ptMinimum=11136.0
+  Dialogue-heavy.fdx: paragraphs=252 lines=924 textHeight=12936.0 withLegacy16ptMinimum=13248.0
+font=Courier mode=fixed12 probeLines=10 baselinePitch=12.0 height=120.0
+  Action-heavy.fdx: paragraphs=120 lines=792 textHeight=9504.0 withLegacy16ptMinimum=9600.0
+  Dialogue-heavy.fdx: paragraphs=252 lines=924 textHeight=11088.0 withLegacy16ptMinimum=11712.0
+font=CourierFinalDraft mode=legacy probeLines=10 baselinePitch=16.0 height=158.0
+  Action-heavy.fdx: paragraphs=120 lines=792 textHeight=12432.0 withLegacy16ptMinimum=12480.0
+  Dialogue-heavy.fdx: paragraphs=252 lines=924 textHeight=14280.0 withLegacy16ptMinimum=14592.0
+font=CourierFinalDraft mode=natural probeLines=10 baselinePitch=14.0 height=140.0
+  Action-heavy.fdx: paragraphs=120 lines=792 textHeight=11088.0 withLegacy16ptMinimum=11136.0
+  Dialogue-heavy.fdx: paragraphs=252 lines=924 textHeight=12936.0 withLegacy16ptMinimum=13248.0
+font=CourierFinalDraft mode=fixed12 probeLines=10 baselinePitch=12.0 height=120.0
+  Action-heavy.fdx: paragraphs=120 lines=792 textHeight=9504.0 withLegacy16ptMinimum=9600.0
+  Dialogue-heavy.fdx: paragraphs=252 lines=924 textHeight=11088.0 withLegacy16ptMinimum=11712.0
+Heights exclude paragraph gaps, page splitting, continuation markers, and keep-together rules. They are not page counts. fixed12 is an experiment for 12-point fonts, not a released layout profile.
