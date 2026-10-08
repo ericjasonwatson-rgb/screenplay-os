@@ -4629,7 +4629,7 @@ final class ScreenplayViewModel: ObservableObject {
             let source = visibleElements[position]
             let cue = continuationMarker("\(name) (CONT'D)", type: .character, source: source)
             let more = continuationMarker("(MORE)", type: .parenthetical, source: source)
-            return cue.blockHeight + more.blockHeight + 16 <= scriptContentHeight ? name : nil
+            return cue.blockHeight + more.blockHeight + effectiveLineLayout.minimumParagraphHeight <= scriptContentHeight ? name : nil
         }
 
         func appendMore(for source: ScreenplayElement, speaker: String?) {
@@ -4643,9 +4643,18 @@ final class ScreenplayViewModel: ObservableObject {
             usedHeight += marker.blockHeight
         }
 
+        func atPageTop(_ item: PaginatedElement) -> PaginatedElement {
+            guard effectiveLineLayout.removesPageTopSpacing, currentItems.isEmpty else { return item }
+            let spec = item.layout
+            return PaginatedElement(element: item.element, text: item.text,
+                layout: PDFLayoutSpec(x: spec.x, width: spec.width, before: 0, after: spec.after, alignment: spec.alignment, weight: spec.weight),
+                textHeight: item.textHeight, blockHeight: item.blockHeight - spec.before,
+                isContinuation: item.isContinuation, attributed: item.attributed, sourceSpan: item.sourceSpan)
+        }
+
         func appendCue(_ speaker: String?, source: ScreenplayElement) {
             guard currentItems.isEmpty, let speaker else { return }
-            let cue = continuationMarker("\(speaker) (CONT'D)", type: .character, source: source)
+            let cue = atPageTop(continuationMarker("\(speaker) (CONT'D)", type: .character, source: source))
             currentItems.append(cue)
             usedHeight += cue.blockHeight
         }
@@ -4700,7 +4709,7 @@ final class ScreenplayViewModel: ObservableObject {
             let heightLimit = scriptContentHeight - (reserveMore ? moreHeight : 0)
             if earlierDialogue && isSpeech { appendCue(speaker, source: element) }
 
-            let item = paginatedElement(for: element)
+            var item = atPageTop(paginatedElement(for: element))
             let keepTogetherHeight = keepTogetherBlockHeight(in: visibleElements, startingAt: index)
             let requiredHeight = max(item.blockHeight, keepTogetherHeight)
 
@@ -4712,6 +4721,7 @@ final class ScreenplayViewModel: ObservableObject {
                     if isSpeech && earlierDialogue { appendMore(for: element, speaker: speaker) }
                     finishPage()
                     if isSpeech && earlierDialogue { appendCue(speaker, source: element) }
+                    item = atPageTop(item)
                 }
                 currentItems.append(item)
                 usedHeight += item.blockHeight
@@ -4723,7 +4733,7 @@ final class ScreenplayViewModel: ObservableObject {
                 let more = continuationMarker("(MORE)", type: .parenthetical, source: element)
                 while !remaining.isEmpty {
                     if !firstFragment || earlierDialogue { appendCue(speaker, source: element) }
-                    let before = firstFragment ? item.layout.before : 0
+                    let before = firstFragment && !(effectiveLineLayout.removesPageTopSpacing && currentItems.isEmpty) ? item.layout.before : 0
                     let available = scriptContentHeight - usedHeight - before - item.layout.after
                     let remainingAttributes = item.attributed?.attributedSubstring(from: NSRange(location: consumedUTF16, length: (remaining as NSString).length))
                     let willContinue = pdfHeight(for: remaining, width: item.layout.width, type: element.type, attributed: remainingAttributes) > available
@@ -4857,6 +4867,13 @@ final class ScreenplayViewModel: ObservableObject {
             .filter { $0.type != .pageBreak }
             .map { paginatedElement(for: $0) }
         let total = items.map(\.blockHeight).reduce(0, +)
+        if effectiveLineLayout.splitsSpeechAfterCue, items.count > 1,
+           [.character, .parenthetical].contains(element.type), let speech = items.last,
+           speech.element.type == .dialogue {
+            // Keep the cue/parenthetical with at least two spoken lines and room
+            // for MORE. Let the remaining speech use the normal continuation path.
+            return items.dropLast().map(\.blockHeight).reduce(0, +) + min(speech.blockHeight, 36)
+        }
         if total > scriptContentHeight, items.count > 1 {
             return items.dropLast().map(\.blockHeight).reduce(0, +) + min(items.last!.blockHeight, 48)
         }

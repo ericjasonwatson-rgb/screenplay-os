@@ -5,7 +5,9 @@ import ScreenplayDomain
 /// Page splitting and continuation placement remain owned by the print paginator.
 // Internal calibration only: no preference, persisted field, or user-facing conversion.
 enum ScreenplayLineLayout: Hashable {
-    case legacy, twelvePointExperiment
+    case legacy, twelvePointExperiment, twelvePointFlowExperiment, twelvePointPageTopExperiment
+    var splitsSpeechAfterCue: Bool { self == .twelvePointFlowExperiment || self == .twelvePointPageTopExperiment }
+    var removesPageTopSpacing: Bool { self == .twelvePointPageTopExperiment }
     var minimumParagraphHeight: CGFloat { self == .legacy ? 16 : 12 }
 }
 

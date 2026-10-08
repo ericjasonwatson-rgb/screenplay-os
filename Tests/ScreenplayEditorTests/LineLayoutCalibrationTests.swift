@@ -8,7 +8,7 @@ import ScreenplayFDX
 
 @Suite("Line layout calibration") @MainActor
 struct LineLayoutCalibrationTests {
-    private func compare(_ name: String, locked: Bool = false, fontSize: Double? = nil, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
+    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let path = name == "Defenders" ? "Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx" : "Docs/AuditEvidence/pagination-2026-10-08/\(name).fdx"
         let data = try Data(contentsOf: root.appendingPathComponent(path))
@@ -26,7 +26,7 @@ struct LineLayoutCalibrationTests {
         let url = directory.appendingPathComponent("fixture.json")
         try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
         let legacy = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
-        let candidate = ScreenplayViewModel(lineLayoutExperiment: .twelvePointExperiment, loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
+        let candidate = ScreenplayViewModel(lineLayoutExperiment: mode, loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
         legacy.loadOpenScreenplay(at: url); candidate.loadOpenScreenplay(at: url)
         let original = try Data(contentsOf: url)
         try body(legacy, candidate, directory)
@@ -57,19 +57,60 @@ struct LineLayoutCalibrationTests {
     }
 
 
+    @Test func speechAndPageTopTrialsPreserveAllTextAndFitPages() throws {
+        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment] {
+            for name in ["Action-heavy", "Dialogue-heavy", "Defenders"] {
+                try compare(name, mode: mode) { legacy, candidate, _ in
+                    @MainActor func fragments(_ model: ScreenplayViewModel) -> [UUID: String] {
+                        var result: [UUID: String] = [:]
+                        for item in model.printedPages.flatMap(\.elements) where !item.isContinuation {
+                            result[item.element.id, default: ""] += item.text
+                        }
+                        return result
+                    }
+                    #expect(fragments(candidate) == fragments(legacy))
+                    #expect(candidate.printedLayout.unmappedElementIDs.isEmpty)
+                    let expected = name == "Action-heavy" ? 18 : name == "Defenders" ? 15 : mode.removesPageTopSpacing ? 20 : 21
+                    #expect(candidate.printedPages.count == expected)
+                    for (index, page) in candidate.printedPages.enumerated() {
+                        if page.elements.last?.text == "(MORE)" {
+                            #expect(index + 1 < candidate.printedPages.count)
+                            if index + 1 < candidate.printedPages.count {
+                                #expect(candidate.printedPages[index + 1].elements.first?.text.hasSuffix("(CONT'D)") == true)
+                            }
+                        }
+                        #expect(page.elements.map(\.blockHeight).reduce(0, +) <= 648.01)
+                        if let last = page.elements.last(where: { !$0.isContinuation }) {
+                            #expect(last.element.type != .character && last.element.type != .parenthetical)
+                        }
+                        if mode.removesPageTopSpacing { #expect(page.elements.first?.layout.before == 0) }
+                    }
+                    let pdf = try #require(PDFDocument(data: candidate.makePrintPDF()))
+                    #expect(pdf.pageCount == candidate.printedPages.count + 1)
+                    print("FLOW \(name) \(mode): \(candidate.printedPages.count)")
+                    if let output = ProcessInfo.processInfo.environment["SCREENPLAYOS_CALIBRATION_OUTPUT"] {
+                        try candidate.makePrintPDF().write(to: URL(fileURLWithPath: output).appendingPathComponent("\(name)-\(mode).pdf"))
+                    }
+                }
+            }
+        }
+    }
+
     @Test func existingLocksAndOtherFontSizesRetainLegacyLayout() throws {
-        for locked in [true, false] {
-            try compare("Dialogue-heavy", locked: locked, fontSize: locked ? nil : 14) { legacy, candidate, _ in
-                #expect(candidate.effectiveLineLayout == .legacy)
-                #expect(candidate.printedPages.map(\.label) == legacy.printedPages.map(\.label))
-                #expect(candidate.printedPages.flatMap(\.elements).map(\.textHeight) == legacy.printedPages.flatMap(\.elements).map(\.textHeight))
-                #expect(candidate.document == legacy.document)
+        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment] {
+            for locked in [true, false] {
+                try compare("Dialogue-heavy", mode: mode, locked: locked, fontSize: locked ? nil : 14) { legacy, candidate, _ in
+                    #expect(candidate.effectiveLineLayout == .legacy)
+                    #expect(candidate.printedPages.map(\.label) == legacy.printedPages.map(\.label))
+                    #expect(candidate.printedPages.flatMap(\.elements).map(\.textHeight) == legacy.printedPages.flatMap(\.elements).map(\.textHeight))
+                    #expect(candidate.document == legacy.document)
+                }
             }
         }
     }
 
     @Test func nativeEditorMatchesCandidatePrintLinesAtEveryZoom() throws {
-        try compare("Dialogue-heavy") { _, candidate, _ in
+        try compare("Dialogue-heavy", mode: .twelvePointPageTopExperiment) { _, candidate, _ in
             let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: candidate))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false; window.contentView = host

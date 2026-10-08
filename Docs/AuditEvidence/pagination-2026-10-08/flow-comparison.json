@@ -1,0 +1,11 @@
+{
+  "reference_sha256": "a21456a552c24085405ddeadf7cfaff1b8ec00dd8dded35bac8976baff44f67a",
+  "candidate_sha256": "436269e0076cea9d23f54e5fb915df8567f35e3d3dc12612886a104ac06d0acf",
+  "normalization": "Skip candidate title page; remove page-number lines, MORE and cue CONT-D lines; remove whitespace. Preserve remaining characters and order.",
+  "reference_script_pages": 20,
+  "candidate_script_pages": 20,
+  "full_normalized_text_equal": true,
+  "pages_with_equal_normalized_text": [
+    1
+  ]
+}

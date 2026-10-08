@@ -68,3 +68,26 @@ Counts exclude ScreenplayOS's separate exported title page. Matching two totals 
 Validation: five new calibration tests cover source/file preservation, unmapped-fragment detection, PDF/script count agreement, native editor line positions at 80/100/125% zoom, render-cache profile changes, existing-lock fallback, non-12pt fallback, and rejection of experimental page locking. Full Debug and Release suites passed: 280 Swift tests, 37 importer checks, 14 self-tests per configuration. The Defenders sample was added to the comparison test before the Release run. Native views were hosted in test windows; this is not a manual typing or responsiveness benchmark.
 
 Rendered visual checks covered the dialogue reference/candidate first pages and the candidate Defenders first/final script pages. The candidate PDF's measured adjacent dialogue baselines are 12pt. The extra space at the first heading and different page breaks remain visible. No installed app or notarized release was replaced.
+
+
+## Speech flow and page-top trials — 2026-10-08
+
+Two additional internal variants isolate the causes instead of replacing the baseline experiment. `twelvePointFlowExperiment` keeps a character cue and any parenthetical with the opening two dialogue lines plus room for MORE, rather than reserving the entire speech. The existing continuation path then splits the remaining speech. `twelvePointPageTopExperiment` adds suppression of space-before at a page start, including generated continuation cues and paragraphs moved to the next page. Mid-page paragraph gaps remain unchanged.
+
+| Sample | 12pt only | Speech flow | Speech flow + page-top spacing | Final Draft reference |
+| --- | ---: | ---: | ---: | ---: |
+| Action-heavy | 18 | 18 | 18 | 18 |
+| Dialogue-heavy | 24 | 21 | 20 | 20 |
+| Defenders | 15 | 15 | 15 | 15 |
+
+These remain initializer-only experiments. Defaults, installed releases, saved documents, and package-editor layout are unchanged. Existing page locks and non-12pt typography use legacy geometry. No new document setting or conversion has been introduced.
+
+The new checks concatenate every source element's printed fragments and compare exact text against the default renderer, reject page heights above 648pt, reject stranded cues/parentheticals in these samples, pair MORE with the following continued cue, and check zero top spacing in the combined variant. Native editor positions at three zooms are now checked using the combined variant. All experimental variants are checked against existing-lock and 14pt-font fallback.
+
+Rendered review covered the combined dialogue variant's first three script pages, including a split speech with MORE and CONT'D. The complete dialogue PDF text matches the Final Draft reference after excluding generated page numbers/continuation lines and whitespace; hashes and normalization are recorded in `flow-comparison.json`. Only the first of the twenty corresponding pages has identical normalized text. Matching total page counts therefore does not mean matching page boundaries.
+
+A remaining measurable variable is horizontal placement. In the reference first heading, Final Draft explicitly positions adjacent non-space glyphs 7pt apart (14pt across a space), although the embedded 12pt font has a nominal 7.2pt advance. See `character-advance-observation.json`. The observed grid must be tested separately from font choice; it is not evidence that all fonts, sizes, or Final Draft documents should be forced to this grid. Sentence-boundary splitting may also affect page breaks.
+
+Next: test horizontal advance and sentence-boundary behavior against rendered references, including richer typography, before deciding on a document-level compatibility option. Do not expose or persist these experiments as production layout yet.
+
+Validation completed: full Debug and Release runs each passed 281 Swift tests, 37 importer checks, and 14 self-tests (332 checks per configuration). Build/test logs are retained with the local calibration artifacts. No signing, installation, or release publication was performed.

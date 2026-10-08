@@ -1,0 +1,30 @@
+{
+  "reference": "Final Draft 13 dialogue PDF, first scene heading",
+  "reference_glyph_x_positions": [
+    108.0,
+    115.0,
+    122.0,
+    129.0,
+    143.0,
+    150.0,
+    157.0,
+    164.0,
+    178.0,
+    185.0,
+    192.0,
+    199.0,
+    213.0,
+    227.0,
+    241.0,
+    248.0,
+    255.0
+  ],
+  "reference_non_space_position_deltas": {
+    "7.0": 11,
+    "14.0": 5
+  },
+  "font_width_units": 600,
+  "font_size_points": 12,
+  "nominal_advance_points": 7.2,
+  "interpretation": "Final Draft explicitly positions these reference glyphs on a 7pt grid despite the font nominal 7.2pt advance. ScreenplayOS uses AppKit natural advances. This is a remaining wrapping variable, not a global compatibility rule."
+}
