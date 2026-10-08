@@ -3,6 +3,12 @@ import ScreenplayDomain
 
 /// Existing legacy print geometry, shared with the continuous writing surface.
 /// Page splitting and continuation placement remain owned by the print paginator.
+// Internal calibration only: no preference, persisted field, or user-facing conversion.
+enum ScreenplayLineLayout: Hashable {
+    case legacy, twelvePointExperiment
+    var minimumParagraphHeight: CGFloat { self == .legacy ? 16 : 12 }
+}
+
 enum ScreenplayBodyLayout {
     static let textLeft: CGFloat = 108
     static let textWidth: CGFloat = 432
@@ -28,17 +34,18 @@ enum ScreenplayBodyLayout {
         }
     }
 
-    static func textStyle(alignment: NSTextAlignment, scale: CGFloat = 1) -> NSMutableParagraphStyle {
+    static func textStyle(alignment: NSTextAlignment, scale: CGFloat = 1, lineLayout: ScreenplayLineLayout = .legacy) -> NSMutableParagraphStyle {
         let style = NSMutableParagraphStyle()
         style.alignment = alignment
-        style.lineSpacing = 2 * scale
+        if lineLayout == .legacy { style.lineSpacing = 2 * scale }
+        else { style.minimumLineHeight = 12 * scale; style.maximumLineHeight = 12 * scale }
         style.lineBreakMode = .byWordWrapping
         return style
     }
 
-    static func editorStyle(for type: ElementType, scale: CGFloat) -> NSParagraphStyle {
+    static func editorStyle(for type: ElementType, scale: CGFloat, lineLayout: ScreenplayLineLayout = .legacy) -> NSParagraphStyle {
         let layout = spec(for: type)
-        let style = textStyle(alignment: layout.alignment, scale: scale)
+        let style = textStyle(alignment: layout.alignment, scale: scale, lineLayout: lineLayout)
         let leading = layout.x - textLeft
         style.firstLineHeadIndent = leading * scale
         style.headIndent = leading * scale

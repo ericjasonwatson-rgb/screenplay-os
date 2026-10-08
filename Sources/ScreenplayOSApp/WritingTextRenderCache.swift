@@ -13,7 +13,7 @@ final class WritingTextRenderCache {
         let attributed: NSAttributedString
         let typing: [NSAttributedString.Key: Any]
 
-        init(element: ScreenplayElement, displayed: String, body: String, casing: [NSRange], hasSeparator: Bool, typography: DocumentTypography, dark: Bool) {
+        init(element: ScreenplayElement, displayed: String, body: String, casing: [NSRange], hasSeparator: Bool, typography: DocumentTypography, dark: Bool, lineLayout: ScreenplayLineLayout) {
             self.element = element
             self.displayed = displayed
             self.casing = casing
@@ -21,7 +21,7 @@ final class WritingTextRenderCache {
             var attributes: [NSAttributedString.Key: Any] = [
                 .font: PackageTypography.font(typography),
                 .foregroundColor: StudioAppearance.ink(dark),
-                .paragraphStyle: ScreenplayBodyLayout.editorStyle(for: element.type, scale: 1)
+                .paragraphStyle: ScreenplayBodyLayout.editorStyle(for: element.type, scale: 1, lineLayout: lineLayout)
             ]
             if let mark = element.revisionMark {
                 attributes[.backgroundColor] = mark.color.nsColor.withAlphaComponent(0.15)
@@ -40,14 +40,15 @@ final class WritingTextRenderCache {
     private var elements: [ScreenplayElement] = []
     private var renderedLength = 0
     private var typography: DocumentTypography?
+    private var lineLayout: ScreenplayLineLayout?
     private var dark: Bool?
     private(set) var lastReplacementRange: NSRange?
     private(set) var lastUpdatedRange: NSRange?
 
     func update(_ storage: NSTextStorage, elements: [ScreenplayElement], projection: ScreenplayWritingProjection,
-                typography: DocumentTypography, dark: Bool, selectedID: UUID?, nativeEdit: NSRange?) -> [NSAttributedString.Key: Any] {
+                typography: DocumentTypography, dark: Bool, selectedID: UUID?, nativeEdit: NSRange?, lineLayout: ScreenplayLineLayout = .legacy) -> [NSAttributedString.Key: Any] {
         lastUpdatedRange = nil
-        let canReuse = self.typography == typography && self.dark == dark
+        let canReuse = self.typography == typography && self.dark == dark && self.lineLayout == lineLayout
         if canReuse && nativeEdit == nil && self.elements == elements && storage.length == renderedLength {
             lastReplacementRange = nil
             return paragraphs.first(where: { $0.element.id == selectedID })?.typing ?? [:]
@@ -64,7 +65,7 @@ final class WritingTextRenderCache {
             var range = projection.ranges[index]
             if hasSeparator { range.length += 1 }
             let displayed = string.substring(with: range)
-            return Paragraph(element: element, displayed: displayed, body: string.substring(with: projection.ranges[index]), casing: casing, hasSeparator: hasSeparator, typography: typography, dark: dark)
+            return Paragraph(element: element, displayed: displayed, body: string.substring(with: projection.ranges[index]), casing: casing, hasSeparator: hasSeparator, typography: typography, dark: dark, lineLayout: lineLayout)
         }
 
         var prefix = 0, suffix = 0
@@ -98,6 +99,7 @@ final class WritingTextRenderCache {
         self.elements = elements
         renderedLength = string.length
         self.typography = typography
+        self.lineLayout = lineLayout
         self.dark = dark
         return next.first(where: { $0.element.id == selectedID })?.typing ?? [:]
     }

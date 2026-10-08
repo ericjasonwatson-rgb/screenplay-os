@@ -17,7 +17,7 @@ struct PrintedWritingLayout {
     let labels: [String]
     static let stride: CGFloat = 816
 
-    init?(print projection: ScriptPrintProjection, writing: ScreenplayWritingProjection, typography: DocumentTypography, cache: MeasurementCache? = nil) {
+    init?(print projection: ScriptPrintProjection, writing: ScreenplayWritingProjection, typography: DocumentTypography, cache: MeasurementCache? = nil, lineLayout: ScreenplayLineLayout = .legacy) {
         guard projection.unmappedElementIDs.isEmpty else { return nil }
         var lines: [Int: Line] = [:], marks: [Mark] = []
         var nextMeasurements: [MeasurementCache.Key: MeasurementCache.Entry] = [:]
@@ -26,7 +26,7 @@ struct PrintedWritingLayout {
             for item in page.elements {
                 y += item.layout.before
                 let attrs: [NSAttributedString.Key: Any] = [.font: PackageTypography.font(typography),
-                    .paragraphStyle: ScreenplayBodyLayout.textStyle(alignment: item.layout.alignment)]
+                    .paragraphStyle: ScreenplayBodyLayout.textStyle(alignment: item.layout.alignment, lineLayout: lineLayout)]
                 if item.isContinuation {
                     marks.append(Mark(text: item.text, rect: NSRect(x: item.layout.x, y: y + 72, width: item.layout.width, height: item.textHeight + 4), attributes: attrs))
                 } else if let span = item.sourceSpan {

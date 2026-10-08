@@ -82,7 +82,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         private let traceTyping = ProcessInfo.processInfo.environment["SCREENPLAYOS_TRACE_TYPING"] == "1"
         private var renderPhases: [Double] = []
         var nativeEditRange: NSRange?
-        var pageCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography, plan: PrintedWritingLayout?)?
+        var pageCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography, lineLayout: ScreenplayLineLayout, plan: PrintedWritingLayout?)?
         init(_ model: ScreenplayViewModel) { self.model = model }
 
         fileprivate func render(_ view: WritingTextView) {
@@ -112,7 +112,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             if let storage = view.textStorage {
                 activeAttributes = textRenderCache.update(storage, elements: model.elements,
                     projection: writingProjection, typography: model.writingTypography,
-                    dark: model.darkPageMode, selectedID: model.selectedElementID, nativeEdit: nativeEditRange)
+                    dark: model.darkPageMode, selectedID: model.selectedElementID, nativeEdit: nativeEditRange, lineLayout: model.effectiveLineLayout)
             } else { activeAttributes = [:] }
             checkpoint() // Attributed paragraph update.
             nativeEditRange = nil
@@ -129,9 +129,9 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
                 projection.firstSourceCaret(onPage: index).map { PrintedPageGuide(label: projection.pages[index].label, offset: writingProjection.displayRange($0).location) }
             } : []
             view.guideInk = StudioAppearance.ink(model.darkPageMode)
-            if pageCache?.elements != model.elements || pageCache?.lock != model.document?.screenplay.pageLock || pageCache?.typography != model.writingTypography {
-                pageCache = (model.elements, model.document?.screenplay.pageLock, model.writingTypography,
-                    PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography, cache: measurements))
+            if pageCache?.elements != model.elements || pageCache?.lock != model.document?.screenplay.pageLock || pageCache?.typography != model.writingTypography || pageCache?.lineLayout != model.effectiveLineLayout {
+                pageCache = (model.elements, model.document?.screenplay.pageLock, model.writingTypography, model.effectiveLineLayout,
+                    PrintedWritingLayout(print: projection, writing: writingProjection, typography: model.writingTypography, cache: measurements, lineLayout: model.effectiveLineLayout))
             }
             checkpoint() // Page guides and measured layout plan.
             view.setPagePlan(pageCache?.plan, invalidatedFrom: textRenderCache.lastReplacementRange?.location, updatedRange: textRenderCache.lastUpdatedRange)

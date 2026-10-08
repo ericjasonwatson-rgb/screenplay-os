@@ -173,7 +173,14 @@ final class ScreenplayViewModel: ObservableObject {
         .edit: .editorial
     ]
 
-    init(loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil) {
+    private let lineLayoutExperiment: ScreenplayLineLayout
+    var effectiveLineLayout: ScreenplayLineLayout {
+        // Existing locks and arbitrary typography must never be repaginated by this experiment.
+        pagesAreLocked || writingTypography.fontSize != 12 ? .legacy : lineLayoutExperiment
+    }
+
+    init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil) {
+        self.lineLayoutExperiment = lineLayoutExperiment
         self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
         self.preferences = preferences
         self.showEditEstimates = preferences.object(forKey: "editSpine.showDurationEstimates") as? Bool ?? true
@@ -290,7 +297,7 @@ final class ScreenplayViewModel: ObservableObject {
         paginate(elements, includeEmptyElements: true, splitLongElements: false)
     }
 
-    private var printCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography?, projection: ScriptPrintProjection)?
+    private var printCache: (elements: [ScreenplayElement], lock: ProductionPageLock?, typography: DocumentTypography?, lineLayout: ScreenplayLineLayout, projection: ScriptPrintProjection)?
 
     var printedPages: [ScreenplayPage] { printedLayout.pages }
 
@@ -308,10 +315,10 @@ final class ScreenplayViewModel: ObservableObject {
     var printedLayout: ScriptPrintProjection {
         let source = elements
         let lock = document?.screenplay.pageLock
-        if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography { return cache.projection }
+        if let cache = printCache, cache.elements == source, cache.lock == lock, cache.typography == document?.typography, cache.lineLayout == effectiveLineLayout { return cache.projection }
         let pages = paginate(lockedPrintElements(), reuseScenePrefix: lock == nil)
         let projection = ScriptPrintProjection(pages: pages, source: source, preservesWhitespace: printPreservesWhitespace, casing: screenplayCasing, previous: printCache?.projection)
-        printCache = (source, lock, document?.typography, projection)
+        printCache = (source, lock, document?.typography, effectiveLineLayout, projection)
         return projection
     }
 
@@ -4547,6 +4554,7 @@ final class ScreenplayViewModel: ObservableObject {
         let displayed: [String]
         let typography: DocumentTypography?
         let preservesWhitespace: Bool
+        let lineLayout: ScreenplayLineLayout
         let pages: [ScreenplayPage]
         let checkpoints: [PaginationCheckpoint]
     }
@@ -4577,7 +4585,7 @@ final class ScreenplayViewModel: ObservableObject {
         var suffixStart = visibleElements.count
         var suffixCheckpoints: [Int: PaginationCheckpoint] = [:]
         if reuseScenePrefix, let cache = paginationCache,
-           cache.typography == document?.typography, cache.preservesWhitespace == printPreservesWhitespace {
+           cache.typography == document?.typography, cache.preservesWhitespace == printPreservesWhitespace, cache.lineLayout == effectiveLineLayout {
             var dirty = 0
             while dirty < min(cache.elements.count, visibleElements.count),
                   cache.elements[dirty] == visibleElements[dirty], cache.displayed[dirty] == displayed[dirty] {
@@ -4655,7 +4663,7 @@ final class ScreenplayViewModel: ObservableObject {
                     checkpoints.append(contentsOf: cache.checkpoints.filter { $0.index >= index })
                     lastPaginationReusedSuffixElementCount = visibleElements.count - index
                     paginationCache = PaginationCache(elements: visibleElements, displayed: displayed,
-                        typography: document?.typography, preservesWhitespace: printPreservesWhitespace,
+                        typography: document?.typography, preservesWhitespace: printPreservesWhitespace, lineLayout: effectiveLineLayout,
                         pages: pages, checkpoints: checkpoints)
                     return pages
                 }
@@ -4756,7 +4764,7 @@ final class ScreenplayViewModel: ObservableObject {
 
         if reuseScenePrefix {
             paginationCache = PaginationCache(elements: visibleElements, displayed: displayed,
-                typography: document?.typography, preservesWhitespace: printPreservesWhitespace,
+                typography: document?.typography, preservesWhitespace: printPreservesWhitespace, lineLayout: effectiveLineLayout,
                 pages: pages, checkpoints: checkpoints)
         } else {
             paginationCache = nil
@@ -4856,7 +4864,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func fittingPrefix(of text: String, width: CGFloat, type: ElementType, height: CGFloat, attributed: NSAttributedString? = nil) -> String {
-        guard height >= 16 else { return "" }
+        guard height >= effectiveLineLayout.minimumParagraphHeight else { return "" }
         if pdfHeight(for: text, width: width, type: type, attributed: attributed) <= height { return text }
         // Split at the full paragraph's actual line boundaries. Measuring shorter
         // strings and then backing up to a space changes wrapping around hyphens
@@ -4912,6 +4920,7 @@ final class ScreenplayViewModel: ObservableObject {
         let text: String
         let width: CGFloat
         let type: ElementType
+        let lineLayout: ScreenplayLineLayout
         let fontFamily: String?
         let fontSize: Double?
         let attributed: NSAttributedString?
@@ -4920,14 +4929,14 @@ final class ScreenplayViewModel: ObservableObject {
     private var printMeasurementCharacters = 0
 
     private func pdfHeight(for text: String, width: CGFloat, type: ElementType, attributed: NSAttributedString? = nil) -> CGFloat {
-        let key = PrintMeasurementKey(text: text, width: width, type: type,
+        let key = PrintMeasurementKey(text: text, width: width, type: type, lineLayout: effectiveLineLayout,
             fontFamily: document?.typography?.fontFamily, fontSize: document?.typography?.fontSize,
             attributed: attributed.map { NSAttributedString(attributedString: $0) })
         if let height = printMeasurements[key] { return height }
         let attributes = scriptPDFAttributes(type: type, alignment: pdfLayoutSpec(for: type).alignment, weight: pdfLayoutSpec(for: type).weight)
         let rich = attributed ?? NSAttributedString(string: text, attributes: attributes)
         let rect = rich.boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
-        let height = max(16, ceil(rect.height))
+        let height = max(effectiveLineLayout.minimumParagraphHeight, ceil(rect.height))
         // Bound retained source text as well as entry count during long editing sessions.
         let characters = text.utf16.count
         if characters <= 2_000_000 {
@@ -4944,7 +4953,7 @@ final class ScreenplayViewModel: ObservableObject {
     private func scriptPDFAttributes(type: ElementType, alignment: NSTextAlignment, weight: NSFont.Weight) -> [NSAttributedString.Key: Any] {
         var attributes = pdfAttributes(alignment: alignment, weight: weight, size: 12)
         attributes[.font] = PackageTypography.font(writingTypography)
-        attributes[.paragraphStyle] = ScreenplayBodyLayout.textStyle(alignment: alignment)
+        attributes[.paragraphStyle] = ScreenplayBodyLayout.textStyle(alignment: alignment, lineLayout: effectiveLineLayout)
         return attributes
     }
 
@@ -6467,7 +6476,7 @@ extension ScreenplayViewModel {
     }
 
     func lockProductionPages() {
-        guard document != nil, !pagesAreLocked else { return }
+        guard document != nil, !pagesAreLocked, lineLayoutExperiment == .legacy else { return }
         let source = canonicalPrintElements()
         let pages = paginate(source)
         var starts: [UUID: Int] = [:]

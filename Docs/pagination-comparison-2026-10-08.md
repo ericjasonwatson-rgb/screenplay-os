@@ -47,3 +47,24 @@ A second independent constraint exists in `ScreenplayViewModel.pdfHeight`: every
 Validation: XML paragraph counts were cross-checked independently with Python ElementTree (120 action, 252 dialogue) for every font/mode; ten-line probes measured exactly 16, 14, and 12pt baseline spacing. The parser ignores nested metadata paragraphs in Final Draft scene properties. Application source, persistence, production locks, and installed builds were not modified. This is a diagnostic prototype, not an exposed compatibility option or a demonstrated Final Draft pagination match.
 
 Next bounded integration: obtain a rendered Final Draft baseline measurement, then trial the selected pitch through the actual paginator, editor, and PDF projection together. Make paragraph minimum height and cache identity part of that profile; verify complete text coverage, continuation boundaries, zoom, and locked-document behavior before exposing conversion to users.
+
+
+## Actual paginator experiment — 2026-10-08
+
+Final Draft 13 exported the disposable dialogue fixture through Save As PDF (title page excluded). The output has 20 pages. On the first page, dialogue baselines are 12pt apart (129, 141, 153, 165, ... measured from the top). Character/paragraph gaps include 24pt. `final-draft-baselines.json` records the PDF hash and transformed baseline coordinates. `Scripts/Diagnostics/measure-pdf-baselines.py` reproduces the measurement with pypdf. The local reference PDF is retained in the workspace work/pagination-calibration-2026-10-08 directory, outside the source repository.
+
+Added an internal, initializer-only `twelvePointExperiment` to the legacy filmmaking editor. It supplies explicit 12pt line height and paragraph minimum through the actual paginator, PDF renderer, editable text attributes, and printed editor placement. Print, pagination, measurement, and native render caches include the effective layout. The fitting-prefix minimum uses the same profile. Existing callers still select legacy layout; there is no preference, menu command, saved-format field, or document conversion.
+
+Production locks and non-12pt document typography force legacy layout. Experimental instances cannot create production locks, because reopening a saved lock without its experimental profile would be unsafe. Package-editor layout is unchanged and is not part of this experimental integration.
+
+| Sample | Default ScreenplayOS | 12pt experiment | Final Draft reference |
+| --- | ---: | ---: | ---: |
+| Action-heavy | 24 | 18 | 18 |
+| Dialogue-heavy | 30 | 24 | 20 |
+| Defenders pilot | 18 | 15 | 15 |
+
+Counts exclude ScreenplayOS's separate exported title page. Matching two totals does not establish matching page boundaries or Final Draft compatibility. Dialogue remains different. Its current keep-together rule reserves an entire speech with its cue, while the next trial should assess keeping only the cue and the first required lines. Page-top paragraph spacing and continuation behavior also need isolated comparison. Do not alter the default or production documents based solely on these totals.
+
+Validation: five new calibration tests cover source/file preservation, unmapped-fragment detection, PDF/script count agreement, native editor line positions at 80/100/125% zoom, render-cache profile changes, existing-lock fallback, non-12pt fallback, and rejection of experimental page locking. Full Debug and Release suites passed: 280 Swift tests, 37 importer checks, 14 self-tests per configuration. The Defenders sample was added to the comparison test before the Release run. Native views were hosted in test windows; this is not a manual typing or responsiveness benchmark.
+
+Rendered visual checks covered the dialogue reference/candidate first pages and the candidate Defenders first/final script pages. The candidate PDF's measured adjacent dialogue baselines are 12pt. The extra space at the first heading and different page breaks remain visible. No installed app or notarized release was replaced.
