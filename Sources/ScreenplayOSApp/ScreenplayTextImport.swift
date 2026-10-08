@@ -37,7 +37,11 @@ enum ScreenplayTextImport {
                 text = String(data: bytes, encoding: .utf8)
             }
             guard let text else { throw Failure.unreadable }
-            result = Extraction(pages: [text], notice: "Plain text imported. Screenplay roles are not encoded in this format.")
+            if url.pathExtension.lowercased() == "fountain" {
+                result = Extraction(pages: [text], notice: "Fountain markup is not interpreted yet: the file was imported as plain text. Title-page keys, forced elements (!, @, .), [[notes]], /* boneyard */, emphasis markers, and ^ dual dialogue appear as literal text. Review element roles before saving; the original file is unchanged.")
+            } else {
+                result = Extraction(pages: [text], notice: "Plain text imported. Screenplay roles are not encoded in this format.")
+            }
         case "docx":
             let attributed = try NSAttributedString(data: data,
                 options: [.documentType: NSAttributedString.DocumentType.officeOpenXML], documentAttributes: nil)

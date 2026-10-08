@@ -72,7 +72,16 @@ struct PackagePreviewTests {
         let url = root.appendingPathComponent("screenplay.json")
         var data = try Data(contentsOf: url); data.append(32); try data.write(to: url)
         #expect(throws: (any Error).self) { try PackagePreviewReader.read(root) }
-        let model = ScreenplayViewModel(loadInitialDocument: false)
+        // Isolate from the user's real Downloads, defaults, and recovery folder.
+        let suite = "PackagePreviewTests.\(UUID().uuidString)"
+        let preferences = try #require(UserDefaults(suiteName: suite))
+        let workspace = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {
+            preferences.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: workspace)
+        }
+        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: workspace, preferences: preferences,
+                                        recoveryDirectory: workspace.appendingPathComponent("Recovery"))
         model.openDocument(at: root)
         #expect(model.packagePreview == nil && model.errorMessage != nil && model.document == nil)
     }

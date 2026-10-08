@@ -147,6 +147,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var legacyInsertionStyle: StyledText.Style?
     @Published private(set) var documentCaretToken = UUID()
     private var typingGroup: (elementID: UUID, date: Date, caret: NSRange, kind: Int)?
+    private var fieldUndoGroup: (key: String, date: Date)?
     private var undoStack: [EditState] = []
     private var redoStack: [EditState] = []
     private var lastBoardomaticTick: Date?
@@ -308,9 +309,9 @@ final class ScreenplayViewModel: ObservableObject {
             projection.sourceEntries.first { $0.elementID == id }?.documentRange.location
         }
         guard let offset, let index = projection.pageIndex(containing: offset) else {
-            return "PDF: \(projection.pages.count) pages"
+            return projection.pages.count == 1 ? "Script: 1 page" : "Script: \(projection.pages.count) pages"
         }
-        return "PDF page \(projection.pages[index].label) · \(projection.pages.count) pages"
+        return "Script page \(projection.pages[index].label) · \(projection.pages.count) \(projection.pages.count == 1 ? "page" : "pages")"
     }
 
     func navigateToPrintedPage(_ index: Int) {
@@ -324,7 +325,7 @@ final class ScreenplayViewModel: ObservableObject {
         let ids = Set(editingPage.elements.map { $0.element.id })
         let numbers = pages.filter { page in page.elements.contains { ids.contains($0.element.id) } }.map(\.label)
         guard let first = numbers.first, let last = numbers.last else { return "New page" }
-        return first == last ? "PDF page \(first)" : "PDF pages \(first)–\(last)"
+        return first == last ? "Script page \(first)" : "Script pages \(first)–\(last)"
     }
 
     var formatIssues: [FormatIssue] {
@@ -956,7 +957,7 @@ final class ScreenplayViewModel: ObservableObject {
         snapshots = []
         undoStack = []
         redoStack = []
-        typingGroup = nil
+        typingGroup = nil; fieldUndoGroup = nil
         caretRanges = [:]
         legacyInsertionStyle = nil
         documentCaret = nil
@@ -977,10 +978,11 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func setProductionContextEnabled(_ enabled: Bool) {
-        guard document != nil else {
+        guard document != nil, document?.productionContext.contextEnabled != enabled else {
             return
         }
 
+        rememberUndoState()
         document?.productionContext.contextEnabled = enabled
         document?.project.metadata.modifiedAt = Date()
         autosave()
@@ -1277,6 +1279,7 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
 
+        rememberFieldUndoState("revision-label")
         document?.screenplay.revisionSettings.label = label
         document?.project.metadata.modifiedAt = Date()
         autosave()
@@ -1324,7 +1327,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func save() {
-        typingGroup = nil
+        typingGroup = nil; fieldUndoGroup = nil
         saveCurrentDocument()
     }
 
@@ -1477,7 +1480,7 @@ final class ScreenplayViewModel: ObservableObject {
         saveProblem = nil
         undoStack = []
         redoStack = []
-        typingGroup = nil
+        typingGroup = nil; fieldUndoGroup = nil
         caretRanges = [:]
         legacyInsertionStyle = nil
         documentCaret = nil
@@ -1540,24 +1543,38 @@ final class ScreenplayViewModel: ObservableObject {
         do {
             let data = try Data(contentsOf: url)
             let decoded = try BoardImageStorage.resolved(JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data), at: url)
+            // Saving rewrites the file from the decoded model; never autosave over
+            // content this build cannot represent.
+            let dropped = LegacyRoundTrip.droppedPaths(original: data, document: decoded)
             document = decoded
             lastSavedDocument = decoded
-            diskVersion = (url.standardizedFileURL, data)
+            // A lossy file is never treated as this document's saved version, so no save
+            // path can replace it without the user explicitly confirming the overwrite.
+            if dropped.isEmpty {
+                diskVersion = (url.standardizedFileURL, data)
+            } else {
+                diskVersion = nil
+            }
             saveProblem = nil
             undoStack = []
             redoStack = []
-            typingGroup = nil
+            typingGroup = nil; fieldUndoGroup = nil
             caretRanges = [:]
             legacyInsertionStyle = nil
             documentCaret = nil
             documentCaretToken = UUID()
             caretRestoration = nil
             sourceURL = url
-            saveURL = url
+            saveURL = dropped.isEmpty ? url : nil
             selectInitialElement()
             recordRecentDocument(url)
             loadSnapshots()
-            errorMessage = nil
+            if dropped.isEmpty {
+                errorMessage = nil
+            } else {
+                let listed = dropped.prefix(3).joined(separator: ", ") + (dropped.count > 3 ? ", …" : "")
+                errorMessage = "\(url.lastPathComponent) contains data this version of ScreenplayOS cannot preserve (\(listed)). It opened as a copy: edits autosave to a new file in \(autosaveDirectory.lastPathComponent), and the original is not changed unless you choose to replace it. Use Save As to choose where your edits go."
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -2113,6 +2130,19 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
+    /// True while the script editor has keyboard focus; script-editing shortcuts apply only then.
+    @Published private(set) var scriptEditorFocused = false
+
+    func setScriptEditorFocused(_ focused: Bool) {
+        if scriptEditorFocused != focused { scriptEditorFocused = focused }
+    }
+
+    /// Menu commands that choose a sidebar panel must also make the sidebar visible.
+    func revealSidebar() {
+        focusMode = false
+        navigationVisible = true
+    }
+
     func showSidebarMode(_ mode: SidebarMode, workflow: WorkflowMode? = nil) {
         if let workflow {
             setWorkflowMode(workflow)
@@ -2217,7 +2247,7 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
 
-        rememberUndoState()
+        rememberFieldUndoState("board-\(frameID)-duration")
         document?.boardFrames[index].durationSeconds = max(0.5, min(30.0, duration))
         if var document {
             document.editorialSpine.syncEditReferences(shots: document.shots, boardFrames: document.boardFrames)
@@ -2348,16 +2378,27 @@ final class ScreenplayViewModel: ObservableObject {
     private func replaceWritingMatches(in indices: [Int]) {
         guard !findQuery.isEmpty, var candidate = document else { return }
         do {
-            var changed = false
+            var changedIndices: [Int] = []
             for index in indices {
                 let original = elements[index].styledText
-                let updated = try original.replacingOccurrences(of: findQuery, with: replaceText)
-                if updated != original { candidate.screenplay.elements[index].setStyledText(updated); changed = true }
+                var updated = try original.replacingOccurrences(of: findQuery, with: replaceText)
+                guard updated != original else { continue }
+                // Headings, cues, transitions, and shots stay uppercase, as when typed.
+                let type = candidate.screenplay.elements[index].type
+                if [.sceneHeading, .character, .transition, .shot].contains(type) {
+                    let cased = normalizedText(for: type, text: updated.text)
+                    if cased != updated.text, let normalized = try? updated.replacingText(cased) { updated = normalized }
+                }
+                candidate.screenplay.elements[index].setStyledText(updated)
+                changedIndices.append(index)
             }
-            guard changed else { return }
+            guard !changedIndices.isEmpty else { return }
             rememberUndoState()
             candidate.screenplay.revision += 1; candidate.project.metadata.modifiedAt = Date()
-            document = candidate; autosave()
+            document = candidate
+            // Replacements are revisions like typed edits.
+            for index in changedIndices { markRevisionIfNeeded(at: index) }
+            autosave()
         } catch { errorMessage = "Replacement would split a character. Your text and formatting are unchanged." }
     }
 
@@ -2368,23 +2409,53 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
 
-        rememberUndoState()
-        var changed = false
-        for index in elements.indices where document?.screenplay.elements[index].type == .character {
-            let current = document?.screenplay.elements[index].text.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if current.caseInsensitiveCompare(oldName) == .orderedSame {
-                document?.screenplay.elements[index].text = newName
-                changed = true
+        guard var candidate = document else { return }
+        // Renaming JOHN also renames "JOHN (V.O.)" and "JOHN (CONT'D)", keeping the extension.
+        // Choosing a cue that already includes an extension renames only that exact cue.
+        let old = Self.cueNameAndSuffix(oldName)
+        var changedIndices: [Int] = []
+        for index in candidate.screenplay.elements.indices where candidate.screenplay.elements[index].type == .character {
+            let current = candidate.screenplay.elements[index].text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let parts = Self.cueNameAndSuffix(current)
+            let replacement: String?
+            if old.suffix.isEmpty {
+                replacement = parts.name.caseInsensitiveCompare(old.name) == .orderedSame ? newName + parts.suffix : nil
+            } else {
+                // Keep the chosen cue's extension unless the new name supplies its own.
+                let keepsOwnSuffix = !Self.cueNameAndSuffix(newName).suffix.isEmpty
+                replacement = current.caseInsensitiveCompare(oldName) == .orderedSame
+                    ? (keepsOwnSuffix ? newName : newName + old.suffix) : nil
+            }
+            if let replacement, replacement != candidate.screenplay.elements[index].text {
+                candidate.screenplay.elements[index].text = replacement
+                changedIndices.append(index)
             }
         }
 
-        if changed {
-            characterToRename = newName
-            newCharacterName = ""
-            document?.screenplay.revision += 1
-            document?.project.metadata.modifiedAt = Date()
-            autosave()
+        guard !changedIndices.isEmpty else { return }
+        rememberUndoState()
+        candidate.screenplay.revision += 1
+        candidate.project.metadata.modifiedAt = Date()
+        document = candidate
+        for index in changedIndices { markRevisionIfNeeded(at: index) }
+        characterToRename = newName
+        newCharacterName = ""
+        autosave()
+    }
+
+    /// Splits a cue such as "JOHN (V.O.)" or "JOHN ^" into its name and the suffix to keep.
+    static func cueNameAndSuffix(_ cue: String) -> (name: String, suffix: String) {
+        var name = cue.trimmingCharacters(in: .whitespacesAndNewlines)
+        var suffix = ""
+        if name.hasSuffix("^") {
+            name = String(name.dropLast()).trimmingCharacters(in: .whitespaces)
+            suffix = " ^"
         }
+        if let open = name.firstIndex(of: "("), open != name.startIndex {
+            suffix = " " + name[open...].trimmingCharacters(in: .whitespaces) + suffix
+            name = name[..<open].trimmingCharacters(in: .whitespaces)
+        }
+        return (name, suffix)
     }
 
     private static let importedTitlePlaceholders = ["Script Title", "Written by", "Name of First Writer", "Based on, If Any", "Address", "Phone Number"]
@@ -2702,6 +2773,7 @@ final class ScreenplayViewModel: ObservableObject {
 
     func undo() {
         typingGroup = nil
+        fieldUndoGroup = nil
         guard let document, let previous = undoStack.popLast() else { return }
         redoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }, documentCaret: documentCaret))
         restoreEditState(previous)
@@ -2709,6 +2781,7 @@ final class ScreenplayViewModel: ObservableObject {
 
     func redo() {
         typingGroup = nil
+        fieldUndoGroup = nil
         guard let document, let next = redoStack.popLast() else { return }
         undoStack.append(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }, documentCaret: documentCaret))
         restoreEditState(next)
@@ -2716,7 +2789,14 @@ final class ScreenplayViewModel: ObservableObject {
 
     private func restoreEditState(_ state: EditState) {
         legacyInsertionStyle = nil
-        document = state.document
+        // The activity log records what happened (exports, reports); Undo must not erase it.
+        // Merge entries from both versions so a snapshot restore can be undone without losing history.
+        var restored = state.document
+        if let current = document?.activity {
+            let known = Set(restored.activity.map(\.id))
+            restored.activity = Array((current.filter { !known.contains($0.id) } + restored.activity).prefix(200))
+        }
+        document = restored
         documentCaret = state.documentCaret
         documentCaretToken = UUID()
         if let id = state.selection, let range = state.caret {
@@ -3464,7 +3544,7 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
 
-        rememberUndoState()
+        rememberFieldUndoState("title-page-\(field)")
         switch field {
         case .title:
             document?.titlePage.title = value
@@ -3540,7 +3620,7 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
 
-        rememberUndoState()
+        rememberFieldUndoState("shot-\(id)-\(label != nil ? "label" : "notes")")
         if let label {
             document?.shots[index].label = label
         }
@@ -3556,7 +3636,7 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
 
-        rememberUndoState()
+        rememberFieldUndoState("outline-\(id)-notes")
         document?.outline[index].notes = notes
         document?.project.metadata.modifiedAt = Date()
         autosave()
@@ -3567,7 +3647,7 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
 
-        rememberUndoState()
+        rememberFieldUndoState("board-\(id)-\(prompt != nil ? "prompt" : "notes")")
         if let prompt {
             document?.boardFrames[index].prompt = prompt
         }
@@ -3605,14 +3685,28 @@ final class ScreenplayViewModel: ObservableObject {
         )
     }
 
+    /// Records one undo step per burst of typing (or slider movement) in a side field,
+    /// matching script typing, so notes and prompts cannot evict script history.
+    private func rememberFieldUndoState(_ key: String, now: Date = Date()) {
+        if let group = fieldUndoGroup, group.key == key,
+           now.timeIntervalSince(group.date) >= 0, now.timeIntervalSince(group.date) <= 1.2 {
+            fieldUndoGroup = (key, now)
+            return
+        }
+        rememberUndoState()
+        fieldUndoGroup = (key, now)
+    }
+
     private func rememberUndoState() {
         typingGroup = nil
+        fieldUndoGroup = nil
         guard let document else { return }
         recordUndoState(EditState(document: document, selection: selectedElementID, caret: selectedElementID.flatMap { caretRanges[$0] }, documentCaret: documentCaret))
     }
 
     private func recordUndoState(_ state: EditState) {
         typingGroup = nil
+        fieldUndoGroup = nil
         redoStack.removeAll()
         if undoStack.last?.document != state.document {
             undoStack.append(state)
@@ -3714,6 +3808,22 @@ final class ScreenplayViewModel: ObservableObject {
             document.ensureSceneSpineIDs()
             document.ensureEditorialSpine()
             document.editorialSpine.syncEditReferences(shots: document.shots, boardFrames: document.boardFrames)
+            // Save As and moves must keep board images with the project rather than
+            // leaving absolute references into the previous folder.
+            // Gather only when some image version lives outside this project's Board Images
+            // folder (a cheap path check); afterwards autosave does no image I/O.
+            let gathered: (document: OpenScreenplayDocument, unavailable: Int)
+            let boardFolder = url.deletingLastPathComponent().resolvingSymlinksInPath()
+                .appendingPathComponent(BoardImageStorage.folder).standardizedFileURL
+            let hasOutsideImages = document.boardFrames.contains { frame in
+                frame.imageVersions.contains { $0.fileURL.isFileURL && $0.fileURL.deletingLastPathComponent().standardizedFileURL != boardFolder }
+            }
+            if hasOutsideImages {
+                gathered = BoardImageStorage.gathered(document, beside: url)
+            } else {
+                gathered = (document, 0)
+            }
+            document = gathered.document
             let data = try JSONEncoder.openScreenplayEncoder().encode(BoardImageStorage.portableReferences(document, at: url))
             // A first save must never replace an existing file, even if another
             // process creates it after we choose the filename.
@@ -3728,7 +3838,9 @@ final class ScreenplayViewModel: ObservableObject {
             saveURL = url
             sourceURL = url
             recordRecentDocument(url)
-            if reportStatus || wasBlocked {
+            if gathered.unavailable > 0 && (reportStatus || wasBlocked) {
+                errorMessage = "Saved \(url.lastPathComponent). \(gathered.unavailable) board image version\(gathered.unavailable == 1 ? " is" : "s are") missing or unreadable and could not be copied beside it."
+            } else if reportStatus || wasBlocked {
                 errorMessage = "Saved \(url.lastPathComponent)"
             }
             return true
@@ -4675,8 +4787,14 @@ final class ScreenplayViewModel: ObservableObject {
             keepCount = 2
         } else if element.type == .sceneHeading,
                   elements.indices.contains(index + 1),
-                  elements[index + 1].type == .action {
+                  [.action, .shot, .general].contains(elements[index + 1].type) {
             keepCount = 2
+        } else if element.type == .sceneHeading,
+                  elements.indices.contains(index + 1),
+                  elements[index + 1].type == .character {
+            // A heading must never end a page: keep it with the cue and its first speech.
+            let heading = paginatedElement(for: element).blockHeight
+            return heading + keepTogetherBlockHeight(in: elements, startingAt: index + 1)
         }
 
         let items = elements[index..<min(index + keepCount, elements.count)]
@@ -6426,7 +6544,7 @@ extension ScreenplayViewModel {
             saveProblem = nil
             undoStack = []
             redoStack = []
-            typingGroup = nil
+            typingGroup = nil; fieldUndoGroup = nil
             caretRanges = [:]
             legacyInsertionStyle = nil
             documentCaret = nil
@@ -6482,7 +6600,7 @@ extension ScreenplayViewModel {
             if let value = patch.italic { style.italic = value }
             if let value = patch.underline { style.underline = value }
             if let value = patch.strikethrough { style.strikethrough = value }
-            typingGroup = nil; legacyInsertionStyle = style
+            typingGroup = nil; fieldUndoGroup = nil; legacyInsertionStyle = style
             return
         }
         do {

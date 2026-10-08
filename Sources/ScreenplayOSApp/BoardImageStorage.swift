@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import AppKit
 import CryptoKit
 import ScreenplayDomain
@@ -23,10 +24,46 @@ enum BoardImageStorage {
         guard directory.resolvingSymlinksInPath().standardizedFileURL == directory.standardizedFileURL else { throw CocoaError(.fileWriteInvalidFileName) }
         let url = directory.appendingPathComponent(digest(data) + ".png")
         guard url.resolvingSymlinksInPath().standardizedFileURL == url.standardizedFileURL else { throw CocoaError(.fileWriteInvalidFileName) }
+        if let existing = try? Data(contentsOf: url), existing == data { return url }
+        // Write beside the destination, then publish in one step so a crash or full
+        // disk never leaves a partial PNG under its final content-addressed name.
+        let temporary = directory.appendingPathComponent(".board-image-\(UUID().uuidString).tmp")
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        try data.write(to: temporary, options: .withoutOverwriting)
         if FileManager.default.fileExists(atPath: url.path) {
-            guard try Data(contentsOf: url) == data else { throw CocoaError(.fileWriteFileExists) }
-        } else { try data.write(to: url, options: .withoutOverwriting) }
+            // The name is the content hash, so different bytes mean an earlier damaged write.
+            _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary)
+        } else {
+            do { try FileManager.default.linkItem(at: temporary, to: url) } catch {
+                // exFAT, FAT, and some network volumes have no hard links: use an exclusive rename.
+                if !FileManager.default.fileExists(atPath: url.path),
+                   renamex_np(temporary.path, url.path, UInt32(RENAME_EXCL)) == 0 { return url }
+                // Another writer may have published the same image first.
+                guard let existing = try? Data(contentsOf: url), existing == data else { throw error }
+            }
+        }
         return url
+    }
+
+    /// Copies readable image versions that live outside the destination's Board Images
+    /// folder beside it. Unreadable versions keep their reference and are counted.
+    static func gathered(_ document: OpenScreenplayDocument, beside url: URL) -> (document: OpenScreenplayDocument, unavailable: Int) {
+        var result = document
+        var unavailable = 0
+        let directory = url.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(folder).standardizedFileURL
+        for board in result.boardFrames.indices {
+            for index in result.boardFrames[board].imageVersions.indices {
+                let version = result.boardFrames[board].imageVersions[index]
+                guard version.fileURL.isFileURL,
+                      version.fileURL.deletingLastPathComponent().standardizedFileURL != directory else { continue }
+                do {
+                    result.boardFrames[board].imageVersions[index].fileURL = try store(read(version), beside: url)
+                } catch {
+                    unavailable += 1
+                }
+            }
+        }
+        return (result, unavailable)
     }
     static func resolved(_ document: OpenScreenplayDocument, at url: URL) throws -> OpenScreenplayDocument {
         var result = document

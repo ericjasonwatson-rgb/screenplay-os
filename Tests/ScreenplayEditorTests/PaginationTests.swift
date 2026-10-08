@@ -571,7 +571,7 @@ struct PaginationTests {
                 #expect(projection.pageIndex(containing: caret.location) == index)
                 model.navigateToPrintedPage(index)
                 #expect(model.documentCaret == caret)
-                #expect(model.currentPrintedPageStatus.contains("PDF page \(projection.pages[index].label) ·"))
+                #expect(model.currentPrintedPageStatus.hasPrefix("Script page \(projection.pages[index].label) · "))
             }
             let blankEntry = try #require(projection.sourceEntries.last)
             #expect(projection.pageIndex(containing: blankEntry.documentRange.location) == projection.pages.count - 1)

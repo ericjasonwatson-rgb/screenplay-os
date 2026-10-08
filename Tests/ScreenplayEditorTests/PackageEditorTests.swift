@@ -35,7 +35,7 @@ struct PackageEditorTests {
         #expect(!editor.save(to: target))
         #expect(editor.dirty)
         #expect(try editor.session.text(for: id) == "Keep this text")
-        #expect(editor.message?.contains("Retained output") == true)
+        #expect(editor.message?.contains("already exists") == true)
         #expect(try Data(contentsOf: target) == Data("competitor".utf8))
     }
     @Test func routingPreservesLegacyDraft() throws {

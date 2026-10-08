@@ -4,6 +4,7 @@ import Combine
 struct EditPlaybackBar: View {
     @ObservedObject var model: ScreenplayViewModel
     @State private var lastTick = Date()
+    @State private var wasPlaying = false
     private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
     var body: some View {
         HStack {
@@ -22,7 +23,15 @@ struct EditPlaybackBar: View {
         }
         .padding(12)
         .onReceive(timer) { now in
-            let elapsed = now.timeIntervalSince(lastTick)
+            // Leave view state untouched while paused so the Edit view stops redrawing 20×/s.
+            guard model.editIsPlaying else {
+                if wasPlaying { wasPlaying = false }
+                return
+            }
+            // The first tick after any resume (button or shortcut) starts from now; later
+            // ticks use real elapsed time so stalls do not slow playback.
+            let elapsed = wasPlaying ? max(0, now.timeIntervalSince(lastTick)) : 0
+            wasPlaying = true
             lastTick = now
             model.advanceEditPlayback(by: elapsed)
         }

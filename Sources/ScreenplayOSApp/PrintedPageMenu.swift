@@ -33,7 +33,7 @@ struct PrintedPageMenu: NSViewRepresentable {
             menu.addItem(heading)
             let projection = model.printedLayout
             for (index, page) in projection.pages.enumerated() {
-                let item = NSMenuItem(title: "PDF page \(page.label)", action: nil, keyEquivalent: "")
+                let item = NSMenuItem(title: "Script page \(page.label)", action: nil, keyEquivalent: "")
                 item.tag = index
                 item.isEnabled = projection.firstSourceCaret(onPage: index) != nil
                 menu.addItem(item)

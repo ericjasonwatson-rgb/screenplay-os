@@ -3017,8 +3017,14 @@ private struct KeyCommandMonitor: NSViewRepresentable {
                 guard let self else {
                     return event
                 }
+                // Script commands apply only while the script editor has focus. Notes, search,
+                // the palette, and sheets keep their normal text-editing keys (⌘⌫, ⌘1–⌘7, Delete).
+                let scriptEditorFocused = MainActor.assumeIsolated {
+                    (event.window ?? NSApp.keyWindow)?.firstResponder is WritingTextView
+                }
 
-                if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                if scriptEditorFocused,
+                   event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                    let elementType = Self.elementType(forShortcutKeyCode: event.keyCode) {
                     return self.onElementShortcut(elementType) ? nil : event
                 }
@@ -3029,7 +3035,7 @@ private struct KeyCommandMonitor: NSViewRepresentable {
                 }
 
                 let isDelete = event.keyCode == 51 || event.keyCode == 117
-                guard isDelete else {
+                guard isDelete, scriptEditorFocused else {
                     return event
                 }
 

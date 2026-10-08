@@ -82,11 +82,17 @@ enum PackageEditedCopy {
         }
     }
 
+    static func isFinderMetadata(_ name: String) -> Bool {
+        name == ".DS_Store" || name.hasPrefix("._") || name == "Icon\r"
+    }
+
     static func snapshot(_ root: URL) throws -> [String: Data] {
         let descriptor = open(root.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
         guard descriptor >= 0 else { throw Failure.system(errno) }
         defer { close(descriptor) }
-        let names = try FileManager.default.contentsOfDirectory(atPath: root.path)
+        // Finder and non-APFS volumes add metadata files (.DS_Store, AppleDouble "._*",
+        // custom-icon "Icon\r"). They are not authored content and must not block saving.
+        let names = try FileManager.default.contentsOfDirectory(atPath: root.path).filter { !isFinderMetadata($0) }
         guard Set(names).isSubset(of: ["manifest.json", "screenplay.json", "settings.json"]), Set(names).isSuperset(of: ["manifest.json", "screenplay.json"]) else { throw Failure.unsupported }
         var result: [String: Data] = [:]
         for name in names {
@@ -108,7 +114,7 @@ enum PackageEditedCopy {
             guard data.count == status.st_size else { throw Failure.changedSource }
             result[name] = data
         }
-        guard Set(try FileManager.default.contentsOfDirectory(atPath: root.path)) == Set(names) else { throw Failure.changedSource }
+        guard Set(try FileManager.default.contentsOfDirectory(atPath: root.path).filter { !isFinderMetadata($0) }) == Set(names) else { throw Failure.changedSource }
         return result
     }
 

@@ -396,6 +396,12 @@ final class PackageEditor: ObservableObject, Identifiable {
             }
         }
         guard apply() else { return false }
+        // Save As never replaces a package. Say so plainly instead of failing the exclusive
+        // publish later and reporting an unverified save with a leftover hidden copy.
+        if (try? FileManager.default.attributesOfItem(atPath: url.path)) != nil {
+            message = "“\(url.lastPathComponent)” already exists. Save As does not replace packages; choose a different name. Your edits remain here."
+            return false
+        }
         flushRecovery()
         do {
             let result = try PackageCurrentSave.write(session, base: savedFiles, destination: url, replacing: false)

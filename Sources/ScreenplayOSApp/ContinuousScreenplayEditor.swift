@@ -28,6 +28,11 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         view.textContainer?.widthTracksTextView = false
         view.textContainer?.lineFragmentPadding = 0
         view.delegate = context.coordinator
+        // Script-editing menu commands (Delete, Tab, ⌘1–⌘7) follow the editor's focus.
+        let focusModel = model
+        view.focusChanged = { [weak focusModel] focused in
+            DispatchQueue.main.async { focusModel?.setScriptEditorFocused(focused) }
+        }
         scroll.documentView = view
         scroll.viewportChanged = { [weak coordinator = context.coordinator] in
             coordinator?.updateVisiblePage()
@@ -147,9 +152,18 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             var selection = oldSelection
             let restore = restorationToken != model.documentCaretToken
             let moved = selectedID != model.selectedElementID
-            if restore, let caret = model.documentCaret {
+            // A stored caret is only restored while it still belongs to the selected
+            // element. Navigation from Outline, Shot, Boards, or Edit changes the
+            // selection without moving the caret, and must not reopen an old scene.
+            let selectedRange = model.elements.firstIndex(where: { $0.id == model.selectedElementID })
+                .flatMap { model.writingRanges.indices.contains($0) ? model.writingRanges[$0] : nil }
+            let caretMatchesSelection = { (caret: NSRange) -> Bool in
+                guard let range = selectedRange else { return true }
+                return caret.location >= range.location && caret.location <= NSMaxRange(range)
+            }
+            if restore, let caret = model.documentCaret, caretMatchesSelection(caret) {
                 selection = caret
-            } else if moved || (restore && model.documentCaret == nil) {
+            } else if moved || restore {
                 if let index = model.elements.firstIndex(where: { $0.id == model.selectedElementID }) {
                     selection = NSRange(location: NSMaxRange(model.writingRanges[index]), length: 0)
                 }
@@ -289,6 +303,24 @@ struct PrintedPageGuide: Equatable {
 
 final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
     var pageGuides: [PrintedPageGuide] = []
+    var focusChanged: ((Bool) -> Void)?
+
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted { focusChanged?(true) }
+        return accepted
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let accepted = super.resignFirstResponder()
+        if accepted { focusChanged?(false) }
+        return accepted
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil { focusChanged?(false) }
+    }
     var guideInk = NSColor.labelColor
 
     /// Uses the editable source glyph, never a fabricated newline or attachment.

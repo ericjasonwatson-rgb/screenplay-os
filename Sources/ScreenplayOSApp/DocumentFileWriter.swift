@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 enum DocumentSaveError: LocalizedError {
     case changedOnDisk
@@ -24,6 +25,13 @@ enum DocumentFileWriter {
             .appendingPathComponent(".screenplay-save-\(UUID().uuidString).tmp")
         defer { try? FileManager.default.removeItem(at: temporaryURL) }
         try data.write(to: temporaryURL, options: .withoutOverwriting)
-        try FileManager.default.linkItem(at: temporaryURL, to: url)
+        do {
+            try FileManager.default.linkItem(at: temporaryURL, to: url)
+        } catch {
+            // exFAT, FAT, and some network volumes have no hard links. Fall back to an
+            // exclusive rename, which still refuses to replace a file created meanwhile.
+            guard !FileManager.default.fileExists(atPath: url.path),
+                  renamex_np(temporaryURL.path, url.path, UInt32(RENAME_EXCL)) == 0 else { throw error }
+        }
     }
 }

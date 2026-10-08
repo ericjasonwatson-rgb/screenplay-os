@@ -148,6 +148,17 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
             validRoot = elementName == "FinalDraft" && (attributeDict["DocumentType"] ?? "Script") == "Script"
         }
         if elementStack == ["FinalDraft", "Content"] { hasContent = true }
+        // Name each kind of Final Draft data that import does not carry over.
+        if elementStack.count == 3, elementStack[1] == "Content", elementName == "Paragraph",
+           let number = attributeDict["Number"], !number.trimmingCharacters(in: .whitespaces).isEmpty {
+            importWarnings.insert("Final Draft scene numbers were not imported. Re-apply locked or custom numbering, and keep the original FDX.")
+        }
+        if elementName == "ScriptNote" {
+            importWarnings.insert("Final Draft script notes were not imported. Keep the original FDX to retain them.")
+        }
+        if elementName == "Text", let revision = attributeDict["RevisionID"], revision != "0", !revision.isEmpty {
+            importWarnings.insert("Final Draft revision marks were not imported; imported text has no revision color.")
+        }
         if elementStack == ["FinalDraft", "ElementSettings"] { settingType = attributeDict["Type"] }
         if elementStack == ["FinalDraft", "ElementSettings", "FontSpec"],
            (attributeDict["Style"] ?? "").split(separator: "+").contains("AllCaps"), let settingType {

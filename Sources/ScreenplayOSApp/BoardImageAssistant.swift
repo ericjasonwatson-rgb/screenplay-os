@@ -120,7 +120,8 @@ struct BoardImageAssistant: View {
     let snapshot: BoardGenerationSnapshot
     @Environment(\.dismiss) private var dismiss
     @State private var prompt = ""
-    @State private var modelID = "gpt-image-2.5-flare"
+    // Remember the writer's model choice; the default has not been verified against a live account.
+    @AppStorage("boardImage.modelID") private var modelID = "gpt-image-2.5-flare"
     @State private var result: Data?
     @State private var resultPrompt = ""
     @State private var resultModel = ""

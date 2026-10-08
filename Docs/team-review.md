@@ -4,7 +4,7 @@ Review update: page navigation and repaired bundle signing (2026-10-02). The rel
 
 ## Run the review app
 
-Download the zipped ScreenplayOS app from this private repository's Releases page when a release is available. Extract it and open ScreenplayOS.app. The supplied build is for Apple silicon Macs; it is an ad-hoc signed development build, not a Developer ID-signed or notarized distribution. It has not been validated on every supported macOS version. If macOS blocks it, report the exact message; developers can build from source instead.
+Download the zipped ScreenplayOS app from this private repository's Releases page when a release is available. Extract it and open ScreenplayOS.app. The supplied build is for Apple silicon Macs. The 0.1.3 (26) release was Developer ID signed and notarized; earlier review builds were ad-hoc signed, and `Scripts/package-app.sh` still produces ad-hoc builds unless a signing identity is supplied. Notarization confirms the signature and a malware scan, not application correctness. Check the release's SHA-256 and its bundle revision (About window) before reporting results. It has not been validated on every supported macOS version. If macOS blocks it, report the exact message; developers can build from source instead.
 
 Use a duplicate screenplay for review. Legacy imports and new drafts can automatically save into Downloads; editing a previously saved document updates that file. Keep your originals separate. Do not replace production work with this prototype.
 

@@ -1,5 +1,7 @@
 # ScreenplayOS local review build 0.1.3
 
+> Historical: this checklist describes the ad-hoc-signed 0.1.3 build 9 review. For the notarized 0.1.3 (26) release see `Docs/team-review.md` and the release notes.
+
 Build 9, October 4, 2026. macOS 13 or later, Apple Silicon. This local review build includes the native selection/navigation improvement and unchanged-paragraph render reuse. It also includes the clearer New menu, corrected title-page PDF layout, and an exact title-page export preview. The architecture proposal is not implemented.
 
 ## Status

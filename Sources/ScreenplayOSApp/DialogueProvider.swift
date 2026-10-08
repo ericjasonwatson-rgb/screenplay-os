@@ -81,10 +81,17 @@ struct DialogueAPI {
             blocks = json["content"] as? [[String: Any]] ?? []
         }
         let text = blocks.filter { ["text", "output_text"].contains($0["type"] as? String ?? "") }.compactMap { $0["text"] as? String }.joined()
-        guard let lines = try? JSONDecoder().decode([String].self, from: Data(text.utf8)), lines.count == 3 else { throw invalidResponse }
+        guard let lines = dialogueLines(in: text), lines.count == 3 else { throw invalidResponse }
         let cleaned = lines.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         guard Set(cleaned).count == 3, cleaned.allSatisfy({ !$0.isEmpty && $0.count <= 1500 && !$0.contains(where: { $0.isNewline || $0.unicodeScalars.contains(where: { $0.value < 32 }) }) }) else { throw invalidResponse }
         return cleaned
+    }
+    /// Accepts the requested JSON array, also when a model wraps it in a code fence or a
+    /// short sentence. Only one complete array of strings is accepted.
+    static func dialogueLines(in text: String) -> [String]? {
+        if let lines = try? JSONDecoder().decode([String].self, from: Data(text.utf8)) { return lines }
+        guard let start = text.firstIndex(of: "["), let end = text.lastIndex(of: "]"), start < end else { return nil }
+        return try? JSONDecoder().decode([String].self, from: Data(text[start...end].utf8))
     }
     static var invalidResponse: DialogueServiceError { .init(message: "The provider did not return three complete dialogue alternatives. Try again or select another text model.") }
     func models(provider: DialogueProvider, key: String) async throws -> [String] {

@@ -224,73 +224,86 @@ struct ScreenplayOSApp: App {
                     Button("Show Navigator") {
                         model.setWorkflowMode(.writing)
                         model.sidebarMode = .navigator
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("1", modifiers: [.command, .option])
 
                     Button("Show Outline") {
                         model.setWorkflowMode(.outline)
                         model.sidebarMode = .outline
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("u", modifiers: [.command, .option])
 
                     Button("Show Search") {
                         model.setWorkflowMode(.writing)
                         model.sidebarMode = .search
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("f", modifiers: [.command, .option])
 
                     Button("Show Production Context") {
                         model.sidebarMode = .productionContext
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("c", modifiers: [.command, .option])
 
                     Button("Show Breakdown") {
                         model.setWorkflowMode(.directing)
                         model.sidebarMode = .breakdown
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("b", modifiers: [.command, .option])
 
                     Button("Show Boards") {
                         model.setWorkflowMode(.boards)
                         model.sidebarMode = .boards
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("g", modifiers: [.command, .option])
 
                     Button("Show Reports") {
                         model.sidebarMode = .reports
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("r", modifiers: [.command, .option])
 
                     Button("Show Exports") {
                         model.setWorkflowMode(.edit)
                         model.sidebarMode = .exports
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("x", modifiers: [.command, .option])
 
                     Button("Show Edit Spine") {
                         model.setWorkflowMode(.edit)
                         model.sidebarMode = .editorial
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("i", modifiers: [.command, .option])
 
                     Button("Show Activity") {
                         model.sidebarMode = .activity
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("l", modifiers: [.command, .option])
 
                     Button("Show Snapshots") {
                         model.sidebarMode = .snapshots
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("v", modifiers: [.command, .option])
 
                     Button("Show Notes") {
                         model.sidebarMode = .notes
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("n", modifiers: [.command, .option])
 
                     Button("Show Format") {
                         model.setWorkflowMode(.writing)
                         model.sidebarMode = .assistant
+                        model.revealSidebar()
                     }
                     .keyboardShortcut("k", modifiers: [.command, .option])
 
@@ -335,69 +348,76 @@ struct ScreenplayOSApp: App {
 
                     Divider()
 
-                    Button("Delete Selected Element") {
-                        model.deleteSelectedElement()
-                    }
-                    .keyboardShortcut(.delete, modifiers: [])
+                    Group {
+                        Button("Delete Selected Element") {
+                            model.deleteSelectedElement()
+                        }
+                        .keyboardShortcut(.delete, modifiers: [])
 
-                    Button("Clean Blank Elements") {
-                        model.deleteEmptyElements()
+                        Button("Clean Blank Elements") {
+                            model.deleteEmptyElements()
+                        }
+                        .keyboardShortcut(.delete, modifiers: [.command])
+
                     }
-                    .keyboardShortcut(.delete, modifiers: [.command])
+                    .disabled(!model.scriptEditorFocused)
 
                     Button("Clean Script") {
                         model.cleanScript()
                     }
                     .keyboardShortcut("k", modifiers: [.command, .shift])
 
-                    Divider()
+                    Group {
+                        Divider()
 
-                    Button("Cycle Element Type") {
-                        model.cycleSelectedElementType()
+                        Button("Cycle Element Type") {
+                            model.cycleSelectedElementType()
+                        }
+                        .keyboardShortcut(.tab, modifiers: [])
+
+                        Button("Cycle Element Type Backward") {
+                            model.cycleSelectedElementType(forward: false)
+                        }
+                        .keyboardShortcut(.tab, modifiers: [.shift])
+
+                        Divider()
+
+                        Button("Make Scene Heading") {
+                            model.promoteSelectedElementToSceneHeading()
+                        }
+                        .keyboardShortcut("1", modifiers: [.command])
+
+                        Button("Make Action") {
+                            model.setSelectedElementType(.action)
+                        }
+                        .keyboardShortcut("2", modifiers: [.command])
+
+                        Button("Make Character") {
+                            model.promoteSelectedElementToCharacter()
+                        }
+                        .keyboardShortcut("3", modifiers: [.command])
+
+                        Button("Make Dialogue") {
+                            model.setSelectedElementType(.dialogue)
+                        }
+                        .keyboardShortcut("4", modifiers: [.command])
+
+                        Button("Make Parenthetical") {
+                            model.setSelectedElementType(.parenthetical)
+                        }
+                        .keyboardShortcut("5", modifiers: [.command])
+
+                        Button("Make Transition") {
+                            model.setSelectedElementType(.transition)
+                        }
+                        .keyboardShortcut("6", modifiers: [.command])
+
+                        Button("Make Shot") {
+                            model.setSelectedElementType(.shot)
+                        }
+                        .keyboardShortcut("7", modifiers: [.command])
                     }
-                    .keyboardShortcut(.tab, modifiers: [])
-
-                    Button("Cycle Element Type Backward") {
-                        model.cycleSelectedElementType(forward: false)
-                    }
-                    .keyboardShortcut(.tab, modifiers: [.shift])
-
-                    Divider()
-
-                    Button("Make Scene Heading") {
-                        model.promoteSelectedElementToSceneHeading()
-                    }
-                    .keyboardShortcut("1", modifiers: [.command])
-
-                    Button("Make Action") {
-                        model.setSelectedElementType(.action)
-                    }
-                    .keyboardShortcut("2", modifiers: [.command])
-
-                    Button("Make Character") {
-                        model.promoteSelectedElementToCharacter()
-                    }
-                    .keyboardShortcut("3", modifiers: [.command])
-
-                    Button("Make Dialogue") {
-                        model.setSelectedElementType(.dialogue)
-                    }
-                    .keyboardShortcut("4", modifiers: [.command])
-
-                    Button("Make Parenthetical") {
-                        model.setSelectedElementType(.parenthetical)
-                    }
-                    .keyboardShortcut("5", modifiers: [.command])
-
-                    Button("Make Transition") {
-                        model.setSelectedElementType(.transition)
-                    }
-                    .keyboardShortcut("6", modifiers: [.command])
-
-                    Button("Make Shot") {
-                        model.setSelectedElementType(.shot)
-                    }
-                    .keyboardShortcut("7", modifiers: [.command])
+                    .disabled(!model.scriptEditorFocused)
                 }.disabled(model.packageSheetOpen)
             }
         }

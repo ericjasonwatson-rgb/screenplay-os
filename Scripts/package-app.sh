@@ -13,6 +13,24 @@ if [[ -n "$notary_profile" && "$identity" == "-" ]]; then
     echo "Notarization requires SCREENPLAYOS_SIGNING_IDENTITY (Developer ID Application)." >&2
     exit 1
 fi
+# A build must be traceable to the exact source it contains. Refuse uncommitted
+# source unless explicitly allowed, and mark such builds "-dirty" in the bundle.
+source_changes="$(git status --porcelain -- Package.swift Sources Scripts)"
+export SCREENPLAYOS_SOURCE_DIRTY=0
+if [[ -n "$source_changes" ]]; then
+    if [[ "$identity" != "-" || "${SCREENPLAYOS_ALLOW_DIRTY:-0}" != "1" ]]; then
+        echo "Uncommitted source changes; commit them before packaging:" >&2
+        echo "$source_changes" >&2
+        echo "(Local ad-hoc builds only: set SCREENPLAYOS_ALLOW_DIRTY=1 to override.)" >&2
+        exit 1
+    fi
+    export SCREENPLAYOS_SOURCE_DIRTY=1
+fi
+# Signed builds are distributed; their version must be stated, never defaulted.
+if [[ "$identity" != "-" && ( -z "${SCREENPLAYOS_APP_VERSION:-}" || -z "${SCREENPLAYOS_BUILD_NUMBER:-}" ) ]]; then
+    echo "Signed builds require SCREENPLAYOS_APP_VERSION and SCREENPLAYOS_BUILD_NUMBER." >&2
+    exit 1
+fi
 swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
 binary_dir="$(swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
 app_destination="${1:-$PWD/../ScreenplayOS.app}"
@@ -38,6 +56,8 @@ branding = pathlib.Path('Sources/ScreenplayOSApp/Resources')
 shutil.copy2(branding / 'ScreenplayOSLogo.png', resources / 'ScreenplayOSLogo.png')
 shutil.copy2(branding / 'ScreenplayOS.icns', resources / 'ScreenplayOS.icns')
 revision = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text=True).strip()
+if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
+    revision += '-dirty'
 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
     'CFBundleExecutable': 'ScreenplayOS',
     'CFBundleIdentifier': 'dev.screenplayos.prototype',
