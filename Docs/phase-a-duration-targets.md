@@ -114,3 +114,35 @@ sequence's final UI state could not be established. No live Set/Clear/Undo or
 save/reopen success is claimed. User confirmation of the visible Mac state is
 needed before further input. This does not establish that the application itself
 froze. The installed application was not replaced.
+
+### Live-check completion — 2026-10-08
+
+Automation recovered on the next attempt; the earlier timeout's cause remains
+undetermined. Used only `/private/tmp/screenplay-targets-audit/Three-scene-plan.json`
+in the isolated audit bundle (source `53fa30a`). Observed:
+
+- Script inspector initially showed S001 target 0:20, estimate 0:20–0:30,
+  separate beat/scene totals 2:00 (3/3 set), and whole-script estimate 2:00–3:00.
+- Set scene target to 0:40: scene total became 2:20 while beat total remained
+  2:00; gap text correctly reported the target exceeded the estimate by at least
+  0:10. Clear showed Unset and 1:40 (2/3 set). Toolbar Undo restored 0:40;
+  another Undo restored 0:20 and the original scene total.
+- Outline showed all three target fields (0:20, 0:40, 1:00), linked estimates,
+  and independent totals. Attempting to Set 0 showed a validation message and
+  left the plan unchanged. Set 0:30 changed only the beat total to 2:10.
+  Clear reduced that total to 1:40 (2/3 set); toolbar Undo restored 0:30/2:10.
+- Saved, quit the audit app, relaunched the bundle, and inspected the restored
+  project. S001 remained 0:20, beat total 2:10, scene total 2:00 and estimate
+  2:00–3:00. Undo was disabled on fresh launch. Direct file assertions confirmed
+  beat targets [30, 40, 60], scene targets [20, 40, 60], and unchanged text for
+  all six screenplay elements.
+- Screenshots visually confirmed readable target controls in Outline and the
+  Script inspector. The Script controls occupy the inspector, not page height.
+  This was not an exhaustive screen-size or accessibility audit. Keyboard-only
+  Set/Return and live typing-driven estimate changes remain automated evidence,
+  not additional manual claims.
+
+No code changes or additional test reruns were needed for this live check. The
+prior 326 checks/configuration and paired benchmark remain the source validation.
+The audit app is left open with the disposable project for review. The installed
+app was not replaced; no release, signing changes or AI requests occurred.
