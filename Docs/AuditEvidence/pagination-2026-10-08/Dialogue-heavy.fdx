@@ -1,0 +1,1662 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="6">
+
+  <DocumentRef DateTime="20261008T230639" id="d6bb55f2-6ea8-466c-af4a-7d75ba758a1d"/>
+
+  <Content>
+    <Paragraph Type="Scene Heading" id="e156b7fa-ea88-46fe-a45f-2ed3e1e113d3">
+      <SceneProperties Length="1 5/8" Page="1" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="b0eb7a71-e08a-4150-b75c-b1e8a71eb7fa"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="ba464b9c-15ad-4f2d-b2bc-a70952163adb"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 1 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="c4e6994b-e86a-4d56-9184-ad134a7130f4">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="8b9af363-7ca6-4743-9b93-e070d43988f6">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="652a8fd5-d430-4474-bd6a-4bff1eca57c8">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="36a435b6-2c19-476e-8541-4965b9863403">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="b9f35d67-d9e6-4df8-8c3c-19c86169337f">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f56ea263-50b4-4851-af76-4961179d6544">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4c315ba8-3747-4feb-b698-dbb5ec6f82ad">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="88843a68-2154-44af-8830-9fc1c83ffe1d">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="33553ba2-dc63-4042-8e32-86d01def21dd">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4ac1ab2b-4e8d-4684-a449-8ac4d2dc9da6">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="0750f883-e0af-40a8-8e01-3a364ebe6089">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="5b60ab73-21ee-4ff3-82e5-45cfbf367bc8">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="ae18dcfd-18cc-4648-ab75-a54b8cfc5509">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="f9d0ff02-0401-48f8-8428-3a6dbdecf71c">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="dfabfc9f-68c1-4651-a3f5-88a05627eaaa">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="130ea52f-d082-4eb1-ae6f-7e0acb352260">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="c751bb86-4f5b-48a8-ae97-8e56e16334e9">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="e3fbc247-eab1-4618-a95f-6b6eb3c61793">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4c8d16d3-f0b7-4328-a1cd-4f78124fd2bb">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="bd97ff3f-2119-4a8e-bec1-3dd64c28fca3">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="82d18d33-02b9-4143-a896-d3cae0963160">
+      <SceneProperties Length="1 5/8" Page="2" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="a2a81f85-ed5a-423e-8055-84060441c1f5"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="78c0cc38-3f47-4fe3-b2c6-9bac82e181be"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 2 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="3d8abfa8-8585-4b1f-ae7e-c97dd6df04b1">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="ff221521-b97e-4b10-be21-959a5aeabd41">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="f6d69f95-9577-4180-8a9f-0640cf8ba6fd">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="0c239909-19c5-4889-a8a1-8a42eb6602c4">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="dd51b28b-83ba-4e71-b5b3-fa8abacef6bf">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="622618ec-17f1-428c-8173-f35b211a520f">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="dbf2b604-a9e3-4bce-841a-e0233196266e">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="66208bd8-c2f4-415b-b9f9-518a198216a3">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="4374bca9-c902-4824-9d66-0f3b89e9af6b">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="db73dc74-75b4-433c-839a-c3b6eb5585b8">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="638891d1-62cc-4769-8214-bdab3882093d">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="904b3e08-5ef1-4157-8536-1db0ff9e7c62">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="11c77b97-09a7-49c8-b620-9338036ad846">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="968f12c0-b97f-447c-9cc7-0cca6f3ccbba">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="9834e8cd-0291-4f71-b6c9-3971a86c6025">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="a9e37507-068c-4615-8500-cef3eec76378">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="a998bc50-9812-4fb2-95eb-18a0edf7699e">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="255090fe-fd93-4792-950e-5ea0e34928b8">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="72932002-fbf4-4bbc-8079-3d7f612b0d5a">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="21f37217-8312-45ff-8620-e64de57dc1bc">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="207b11de-9e32-4413-adee-a6aeb4c78b91">
+      <SceneProperties Length="1 6/8" Page="4" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="9d32e7a2-d473-40c7-9cfe-b38bf90c1596"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="e4a3b5ed-4d5c-4140-b4a7-de2251d75fcd"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 3 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="9d7c2f92-b936-4f64-9e13-fd0f09f959ba">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="9a179fb9-223b-4b54-aa17-3ee522572719">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="48661ca2-c18c-4272-aa37-5a8df13296d5">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="e9e2e25e-8aa1-4e96-93eb-605d42875b18">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="10279611-721f-4bc8-b50d-8ce27f9ab516">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="2349e2d5-880c-4981-bf29-9343d250d1c6">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="e02e7178-49a2-4831-8de8-ea9cb1516d62">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f84fa496-e559-46fe-8e55-51939948c80b">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="3a5c311a-78da-4186-bfaa-1afa6b994119">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="0d3d7310-f0d7-4abf-8b7d-c85deaf45f53">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="4a3a33ed-b743-4f86-985b-28691ac09f53">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="67bfc427-14f0-4b88-8fd1-0aec9f499ae3">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="63828b22-8fef-4b85-9a0c-b66b62988af5">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="aa4ab797-c159-4b43-b2ed-af6694c299c6">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="29a35097-d918-4c84-9ff9-de532e5e0eba">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="ae5b1e94-535f-43b0-837d-bd69f1d9cc86">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="f60726de-a5f2-4454-b9a2-662e1e9d4171">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="caf7afe7-afb4-4f25-8066-e46be72ab31a">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4892df37-32cc-46d6-82dd-63bbd14a3e9c">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="9f488f56-eb07-427e-b698-05cb6acf1658">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="3a345c17-3773-4a2b-8210-fec6e45466dd">
+      <SceneProperties Length="1 6/8" Page="5" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="fbfb3512-7a1d-4028-8f07-05c89d370e45"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="157d2df8-29eb-4390-8666-7a065e1b2a96"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 4 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="45bb1a3c-c645-4ee5-ae6d-ca17c843847a">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="19c780de-049f-416e-8929-3dc0aa55e158">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="6161bf48-f0f2-4012-9c26-2ac3b61a1eb0">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="4cdc521c-66cb-4197-aed7-99c449609923">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4c657b31-fd15-4b33-86be-71cde83a54bf">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="402718f1-7b1d-4c1d-ab4a-e71068902a3c">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="73e4db73-e0ec-48bf-9629-00809282b216">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="fe8eae9a-c36d-4ba8-9d56-b46476b0cff7">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="181ddb4a-78dd-4029-912c-3d764637c18b">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="402cdd14-21c3-4cf9-9d26-d10546491820">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="2f29a38a-7364-4a7f-9281-e67406ac152a">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="6063590f-e6ad-4f31-8621-2ff667edcef6">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="eddf40b4-786d-4f8a-a936-57327bffba28">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="6c237fb4-7b16-4340-a315-bf66400bf56f">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="9d4b84d2-4261-435d-baaf-27c13cfc341f">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="64945da8-69f6-4699-8836-6ee993abd098">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="ce7bf8ca-e98e-4a57-b78f-c7a8c6a534d3">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="a2eb5709-8f44-45a1-91ef-837b25a80640">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="8bc8bb26-217b-478c-9d0c-7d4c83135851">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="20439a38-3ef6-4982-aa1c-ab20a173c9e1">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="b1eb8606-82e0-4057-be39-ac3a9ad53d08">
+      <SceneProperties Length="1 5/8" Page="7" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="11cf506c-15b0-4813-91a6-e0de29dde5e3"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="7e5cba62-f913-4b4c-8958-fc0c4ea1ce35"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 5 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f2ed0ff1-4f03-46bb-9b8f-8b423a9c620c">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="fe2aca24-5417-4b8b-b3cc-4cacbdbd73f3">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="f1ec8886-5679-40f9-a73a-7d0cb3154f54">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="c10cfc08-837d-44b3-9b3e-dd2d88b91261">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="2e2eadad-c330-4f2c-8bad-7ab3105ee28d">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="6f22a52c-2f15-49ca-bcb5-903413d9e116">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="360cf951-d569-43f4-9af9-bbacd4f0524d">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="4ada3387-1eb4-44b5-8fca-da60ef365538">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="09c71d12-2dd4-49a3-af89-618e3b4186db">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="67f8082f-99a4-4126-9345-0f1871fc4e86">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="72bcb387-a35e-4da8-bfc7-9cab03934d83">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="50661f33-1c55-4da0-9c20-08b4b2ed9f99">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="2618c73f-2949-4624-bd68-9ece05d1a503">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="3d1523b5-fa2d-4889-a827-017569dceeab">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="1f7c0d86-74a0-4789-ab14-657fc6722027">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="713a0fa1-83db-4126-a8a5-ac2048f8cea7">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="8603ecff-ece4-480e-85c0-d09bd3e708fe">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="50572164-0593-446a-84e4-ac49c2d8437f">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="670f3bf8-b5ad-459c-acf8-522997105197">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="df460203-e5fb-4a15-a1e9-2c85276a8f30">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="176423cc-ac5f-4025-b9cd-aceaaf503b3f">
+      <SceneProperties Length="1 6/8" Page="9" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="caba9cdb-7be1-432d-b096-92f6eb26eb95"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="bcc05652-7821-4c21-9eee-a7853e94f93d"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 6 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="87cb19ef-d6e6-47a6-acac-2305d0875cb0">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="270baea3-86bd-4e5a-a72b-23266cda0518">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="d166d862-f6bb-4a63-ad75-80aa702196d6">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="42537713-a773-47bf-999d-d746fa631d76">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="fc800e6a-926a-434f-bc91-541a35c23f8a">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="94eaef69-bd20-43e6-bd92-0e17b03fcb25">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="9d5ccc80-8e1f-4aa4-aeb8-c2c89dad5b78">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f30f9982-c6dd-4a59-a74a-122e8740eea4">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="10b26554-7463-4d4a-ad95-40ae98c6ab9f">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="c68c670a-cb21-45a0-8edb-99bf07d08fc2">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="2298beb2-73a4-44fe-8658-9a0ffe9dd53d">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="f2455f68-3be2-46a8-8a37-86a8800aae89">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="2bd50715-8ed1-46d5-82db-caf99d8231e8">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="e9cc1a30-3894-4bbd-a2e4-64faca056bac">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="50e2056c-8617-47a5-9981-d1eff00dd49f">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="317a04bc-03f9-4b90-ac5e-4b2fecb19b4e">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4c5c8165-3b47-4b5f-bbaa-0046295ac53b">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="a7326757-9454-4458-919c-32529d6c7341">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="ff93ecd2-52da-4482-a50e-c4133c7a243c">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="28fcba13-fa9c-43c9-b82b-fb57761f9fd4">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="45118bdd-8191-49ec-be9b-b2fa8cf1da8a">
+      <SceneProperties Length="1 6/8" Page="10" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="0f10cebe-bf2f-4b9d-8d35-540ecb75db14"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="567ef4c7-2c2e-4c7a-a38c-224f9124bee4"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 7 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="6ee77896-a4cc-4149-bba8-556bc1ea1a7d">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="f6e670c2-a9d6-4bf4-b574-5877e181151d">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="0129d929-3c70-4fe9-91d5-8d584a4947e9">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="ec844ae1-143c-4f1f-8a52-9e0d88091d31">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="046cdcea-f098-4ee4-a0c6-56936f8c3da3">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f4880438-bca8-4fdd-a831-1e0f3a17af34">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="e96e1147-1e3f-4056-b2c8-9d004b37e870">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="68ff3833-7306-4379-8af2-dd6ade176241">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="b0115920-e7b8-4473-9fc5-8c4c7edcc690">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="f4f2f7cc-0edf-468d-b217-b95795876430">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="7b675129-be52-46d1-90ef-64901bc8e70f">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="24d8268d-5319-4056-8fdb-d8bb36d8462a">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="af24f595-b10e-46e3-adf7-8d82ee73c0b8">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="9169e1ab-289b-4371-95d0-18b01d1946c2">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="c5f05ae6-0e52-488c-a15c-ede7f3e7ec1a">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="0fccc8d8-f795-4468-862d-1c17ec65085c">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="8cc3f43c-40bf-4a18-baf2-706cfeffa431">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="db3aa75c-4188-43ce-a836-edb4ff02e1de">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="cdfa2aee-9280-4003-a84d-39333b1c4256">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="a16680d8-2879-4051-b5bf-be4cfa59edcf">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="f5da9843-68a6-4a6d-830d-b92b3e8f4e42">
+      <SceneProperties Length="1 5/8" Page="12" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="b0d77f26-d2f6-451b-9855-ec367f5a2c38"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="00d43768-c4c4-4e6b-b018-52630c7f7bd5"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 8 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="478d21fa-839e-4221-9b86-43b911ade2d4">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="15033e17-134b-40fa-ba2d-aa82b778ca36">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="07449b6b-c0d4-4c16-9673-a1209ab1e53b">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="c1f30240-3d8e-4293-9344-c4ec6377bcc9">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="b07c5f48-31ec-48e7-8528-a91f4f0ba33b">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="59c16d01-e29f-43d9-a71f-a64d6088c800">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="d70cc0bc-579a-40ff-846d-0723ae007e3d">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="d4187d03-6ee8-4eea-be6b-fc25930e2e2b">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="0960a2cc-c3f4-4f95-8da6-dc28c4434fa8">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="77a9e863-26fd-4862-b2e8-952357da142b">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="a40d63ef-5eb4-435d-8544-f190960f757c">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="c9a2cb87-670a-472e-a0c8-61c2512a8fe6">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="cd6f3ee8-249d-4e73-a5e3-6bfc9caec771">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="ad5c1110-37eb-464d-bb5a-4ef7089020aa">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="a8afbd81-6ed5-4a2b-96cf-51a8f38af46e">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="f90159b7-0304-47b1-a886-6e4983d87ab5">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="e205526f-0a23-40c8-b6b8-b633aa1e3c45">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="0b2efc2e-2df4-4925-8a89-bd477452e3c7">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4737fc43-b64c-4c46-a987-941be5c15910">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="d01efafc-bb25-40e4-9f63-7e7a68a8a29a">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="0afc1e42-4a3c-4257-a45f-263053a44768">
+      <SceneProperties Length="1 6/8" Page="14" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="93fc8073-4732-444c-b3bf-cb7a78a8c07f"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="5d050cf1-b0b1-456e-8d88-00258e681443"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 9 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="7bf88b69-0cba-40b7-8ab0-a45522c1b3dc">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="8d88e579-2492-4760-bc29-818730efa64c">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="ee257c5b-9523-48d7-af3e-3cc73fe18981">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="302a4336-69f1-4255-a444-2b7e83aca74c">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="da1e3fd0-7afd-40f8-957d-74e9b364265f">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="3f3190ca-bba3-4068-a525-e5a6574990ac">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="21f701e0-c497-4b31-b283-87196d32a9b7">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="033b2edf-b71b-4229-8852-08541407a737">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="08c3c3d6-0aab-4716-bbcd-0ea246069224">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="28eaaab9-90ab-4307-a5ef-72ef6c1be0d9">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="2aeba773-c8a9-40a6-a3a3-81559a32589d">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="d19c5a37-fc7d-4214-b15f-dc8f53ee2c73">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="2ae67b7f-dc41-4f6f-8f78-61f92dd46eef">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="3f0909e1-0dad-4f40-9644-074763170b1b">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="9126e054-0aee-4d51-ad1d-b9f5ce7046fd">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="b8b5fde2-0128-4ada-8d8e-b33f6fd53236">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="931c712d-ba00-4c86-bc72-aa206085c8a6">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="0cea5f16-5014-4bdd-ad1a-e064e7fa410b">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="310ef138-255b-4875-bfa5-d097d9e726e1">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="ae88cfcf-39bc-4370-8745-d82de8a89668">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="6e9c1c1e-7de5-4785-8d3c-6898236b7f5f">
+      <SceneProperties Length="1 6/8" Page="15" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="ba94e18e-4ce1-4afe-9b6c-aa6b97532cbf"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="1baa039a-4970-4fe8-94d6-303cd2053b52"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 10 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f286c23a-06c8-4ebe-b7a2-9bebcab33608">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="f1c5d098-069e-499f-ba0a-3835a2485101">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="49b0c1b7-5f5a-4d7e-bbe8-9f1b34f41897">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="e43534a9-e11c-4736-b81d-61da2cb0b58c">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="f87a0b45-c472-49cb-8875-f7b852b75f2a">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f88d9657-cd9f-43dc-8130-79dcc5b99bcd">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="a6521e9f-394f-4b7b-bf1f-5cd052f89776">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="b47557e8-8d0a-4045-8001-48cb2231af80">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="1da9e8dc-7cc3-4b7d-b962-c93b251b764f">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="00698cff-dfd5-4902-b47f-4f4870fd6516">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="4522ed3a-f4e3-4639-96e9-0163c335de18">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="2190f5e2-1d3f-4bf3-b541-215583dd3d86">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="3b21bf9b-7b4a-4036-aa91-ceed16b9b226">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="819bcb96-6016-409e-9696-381f30f69848">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="bae6a5a4-85d3-4de6-8a8f-c416416b422d">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="62d1e708-8080-4b2d-923d-91368eaf1606">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="d659b733-eef0-429b-a730-36d8c5cac07c">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="4e398f32-9972-466b-9c69-4145bb8deef9">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="1f54d0de-cf0c-4840-aefc-c67d18f26664">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="491ca755-a716-43ae-8778-52f579a9c79e">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="97ae0e59-8ad3-4b37-a08a-4623da1884f9">
+      <SceneProperties Length="1 5/8" Page="17" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="bc0a001c-2a17-4377-8b99-22ad02771181"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="77d61379-b9f5-453f-ae2d-58474e43fad3"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 11 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="9043fc2c-5b35-4a6f-a3fa-9e94234d7794">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="15c4c92e-4d02-4dda-8d2a-a0a081446a15">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="7cf582da-325f-4443-bd7f-d6730cc687b6">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="f7a4e58b-89f8-4f96-9271-a2148e3bb6ef">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="74a8ddd4-b02c-45e0-9b4e-2b6b7668d6b5">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="d5b4ce22-ce97-4e1c-96b7-bf66a23f4508">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="48bc29e7-3b25-4000-9480-2e0676013cac">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="fe5f7a0c-f80d-43d7-b6be-5da762bc9d62">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="c4a93860-c04e-4a7f-b007-123b050bece1">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="65d51431-29da-4b45-9a6f-587abeef5920">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="aa573e53-9a11-41aa-bd41-ec7dff808bde">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="63453295-f3fc-44ff-99c5-58ddff75e5e5">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="49167c3a-4fb1-4330-bd1d-4ad2d47a84cb">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="c3559f80-ec45-44da-8a4f-05a723c9b545">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="4b17d6ef-ef3b-4b12-808c-dd8b01245b4f">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="c49d209e-33e7-47fd-a404-5e9cc95245f8">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="59b516cb-150f-41bd-873e-68f744ed00fe">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="906cf73c-295c-4bfa-a963-bd76a63cb7a9">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="d5e615b3-670a-47d7-b4a3-5b85b607940a">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="2681232f-3877-41fa-8de8-230274739139">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="33c0bac7-9921-47f4-8cdd-54407e354f8b">
+      <SceneProperties Length="1 6/8" Page="19" Title="">
+        <SceneArcBeats>
+          <CharacterArcBeat Name="ALICE">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="7c5aeea3-df6e-4512-b40b-e18306336006"/>
+          </CharacterArcBeat>
+          <CharacterArcBeat Name="BOB">
+            <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="f8f5c324-fb8c-4870-8d02-ef8a70d9babe"/>
+          </CharacterArcBeat>
+        </SceneArcBeats>
+      </SceneProperties>
+      <Text>INT. TEST ROOM 12 - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="32064a1b-4591-4020-bc5b-36011bea3f7a">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="969ad329-6f44-4ee7-bf34-eaf2e597ac11">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="fb72f49c-ecde-4deb-93e1-754d70f84a56">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="31ca7898-2e2d-403b-88df-da4461201dd7">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="844e5300-bbc8-42e5-8bca-f2333830b1ea">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="c212c4bc-a214-40cb-8092-90c6f4b27110">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="1b0f73cf-2823-4e8b-b15e-23767086e5a3">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="1dabda43-e7ae-4140-8d08-0e43e86c3bfc">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="5605ef3e-a235-4568-8536-b2144dd71d61">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="e747ac1f-4185-4759-a344-51a19b029b01">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="072db9e7-d4ad-4451-8ede-53c089779a02">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="a8826dc8-a994-40f7-9216-029588c36d6a">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="4d4f38ed-5f10-4e50-a6c3-3469e4bffa8a">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="cc6504d4-71e1-45dc-a24e-8ffba8790232">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="40a851b1-def7-4dda-ad43-f78c1e2ea4b6">
+      <Text>ALICE</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="ed4e7196-a1bf-471a-8a75-f3b1440f46ef">
+      <Text>(quietly)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="e011c0b1-c833-429f-8f88-2ec914002e74">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="94d4f37d-a7ff-427a-87a3-2206f3f235e4">
+      <Text>BOB</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="4d347e6e-6543-436e-be69-c6ded9afed09">
+      <Text>We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. We have time to check the plan before the next train arrives. The room is quiet, and everyone is waiting for an answer. </Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="c68b8a95-a8df-4ebb-935d-41ae900add95">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+  </Content>
+
+  <Watermarking Opacity="70" Position="Diagonal Descending">
+    <DynamicContent>
+      <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.00" OutlineLevel="0" RightIndent="1.39" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="d680b251-cfca-4b66-95f9-cb51652ec46b"/>
+    </DynamicContent>
+    <Distribution/>
+    <WatermarkImage Height="144"></WatermarkImage>
+  </Watermarking>
+
+  <HeaderAndFooter FooterFirstPage="Yes" FooterVisible="No" HeaderFirstPage="No" HeaderVisible="Yes" StartingPage="1">
+    <Header>
+      <Paragraph Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" OutlineLevel="0" RightIndent="-1.25" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="960a2caf-180d-41d9-b99b-72ca20f7c02b"/>
+    </Header>
+    <Footer>
+      <Paragraph Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" OutlineLevel="0" RightIndent="-1.25" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="5ccabf43-d051-471d-abed-e476a9e071da"/>
+    </Footer>
+  </HeaderAndFooter>
+
+  <SpellCheckIgnoreLists>
+    <IgnoredRanges/>
+    <IgnoredWords/>
+  </SpellCheckIgnoreLists>
+
+  <PageLayout BottomMargin="72" BreakDialogueAndActionAtSentences="Yes" DocumentLeading="Normal" FooterMargin="36" HeaderMargin="36" InvisiblesColor="#C0C0C0C0C0C0" TopMargin="72" UsesSmartQuotes="Yes">
+    <PageSize Height="11.00" Width="8.50"/>
+    <AutoCastList AddParentheses="Yes" AutomaticallyGenerate="Yes" CastListElement="Cast List"/>
+  </PageLayout>
+
+  <WindowState Height="625" Left="125" Mode="Normal" Top="109" Width="907"/>
+
+  <TextState Scaling="100" Selection="0,0" ShowInvisibles="No"/>
+
+  <ElementSettings Type="General">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="0" Spacing="1" StartsNewPage="No" Type="General"/>
+    <Behavior PaginateAs="General" ReturnKey="General" Shortcut="0" TabKey="" WinShortcut="0"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Scene Heading">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="24" Spacing="1" StartsNewPage="No" Type="Scene Heading"/>
+    <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="1" TabKey="" WinShortcut="1"/>
+    <Outline CanHide="No" Level="2"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Action">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="Action"/>
+    <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="2" TabKey="" WinShortcut="2"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Character">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="3.50" RightIndent="7.25" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="Character"/>
+    <Behavior PaginateAs="Character" ReturnKey="Dialogue" Shortcut="3" TabKey="" WinShortcut="3"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Parenthetical">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="-0.10" Leading="Regular" LeftIndent="3.00" RightIndent="5.50" SpaceBefore="0" Spacing="1" StartsNewPage="No" Type="Parenthetical"/>
+    <Behavior PaginateAs="Parenthetical" ReturnKey="Dialogue" Shortcut="4" TabKey="" WinShortcut="4"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Dialogue">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="2.50" RightIndent="6.00" SpaceBefore="0" Spacing="1" StartsNewPage="No" Type="Dialogue"/>
+    <Behavior PaginateAs="Dialogue" ReturnKey="Action" Shortcut="5" TabKey="" WinShortcut="5"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Transition">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <ParagraphSpec Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="5.50" RightIndent="7.10" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="Transition"/>
+    <Behavior PaginateAs="Transition" ReturnKey="Scene Heading" Shortcut="6" TabKey="" WinShortcut="6"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Shot">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="Shot"/>
+    <Behavior PaginateAs="Scene Heading" ReturnKey="Action" Shortcut="7" TabKey="" WinShortcut="7"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Cast List">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.50" RightIndent="7.50" SpaceBefore="0" Spacing="1" StartsNewPage="No" Type="Cast List"/>
+    <Behavior PaginateAs="Action" ReturnKey="Action" Shortcut="8" TabKey="" WinShortcut="8"/>
+    <Outline CanHide="No" Level="1"/>
+  </ElementSettings>
+
+  <ElementSettings Type="New Act">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="Bold+Underline+AllCaps"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.00" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="Yes" Type="New Act"/>
+    <Behavior PaginateAs="Scene Heading" ReturnKey="Scene Heading" Shortcut="9" TabKey="" WinShortcut="9"/>
+    <Outline CanHide="No" Level="6"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Sequence">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="Bold+Underline+AllCaps"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" RightIndent="7.50" SpaceBefore="24" Spacing="1" StartsNewPage="No" Type="Sequence"/>
+    <Behavior PaginateAs="Scene Heading" ReturnKey="Scene Heading" Shortcut="Ctrl+8" TabKey="" WinShortcut="Shift+8"/>
+    <Outline CanHide="No" Level="4"/>
+  </ElementSettings>
+
+  <ElementSettings Type="End of Act">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="Bold+Underline+AllCaps"/>
+    <ParagraphSpec Alignment="Center" FirstIndent="0.00" Leading="Regular" LeftIndent="1.00" RightIndent="7.50" SpaceBefore="24" Spacing="1" StartsNewPage="No" Type="End of Act"/>
+    <Behavior PaginateAs="Character" ReturnKey="New Act" Shortcut="Ctrl+9" TabKey="" WinShortcut="Shift+9"/>
+    <Outline CanHide="No" Level="6"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Summary">
+    <FontSpec AdornmentStyle="0" Color="#87878F8FE0E0" Font="Arial" RevisionID="0" Size="12" Style="HiddenText"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.88" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="Summary"/>
+    <Behavior PaginateAs="Outline Body" ReturnKey="Summary" Shortcut="Ctrl+0" TabKey="" WinShortcut="Shift+0"/>
+    <Outline CanHide="Yes" Level="0"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Outline 1">
+    <FontSpec AdornmentStyle="0" Color="#87878F8FE0E0" Font="Arial" RevisionID="0" Size="16" Style="Bold+HiddenText"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="0.88" RightIndent="7.50" SpaceBefore="16" Spacing="1" StartsNewPage="No" Type="Outline 1"/>
+    <Behavior PaginateAs="Outline" ReturnKey="Summary" Shortcut="Ctrl+1" TabKey="" WinShortcut="Shift+1"/>
+    <Outline CanHide="Yes" Level="7"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Outline 2">
+    <FontSpec AdornmentStyle="0" Color="#87878F8FE0E0" Font="Arial" RevisionID="0" Size="14" Style="Bold+HiddenText"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.12" RightIndent="7.50" SpaceBefore="14" Spacing="1" StartsNewPage="No" Type="Outline 2"/>
+    <Behavior PaginateAs="Outline" ReturnKey="Summary" Shortcut="Ctrl+2" TabKey="" WinShortcut="Shift+2"/>
+    <Outline CanHide="Yes" Level="5"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Outline 3">
+    <FontSpec AdornmentStyle="0" Color="#87878F8FE0E0" Font="Arial" RevisionID="0" Size="12" Style="Bold+HiddenText"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.38" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="Outline 3"/>
+    <Behavior PaginateAs="Outline" ReturnKey="Summary" Shortcut="Ctrl+3" TabKey="" WinShortcut="Shift+3"/>
+    <Outline CanHide="Yes" Level="3"/>
+  </ElementSettings>
+
+  <ElementSettings Type="Note">
+    <FontSpec AdornmentStyle="0" Color="#87878F8FE0E0" Font="Arial" RevisionID="0" Size="12" Style="Italic+HiddenText"/>
+    <ParagraphSpec Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.62" RightIndent="7.50" SpaceBefore="12" Spacing="1" StartsNewPage="No" Type="Note"/>
+    <Behavior PaginateAs="Outline" ReturnKey="Summary" Shortcut="Ctrl+4" TabKey="" WinShortcut="Shift+4"/>
+    <Outline CanHide="Yes" Level="1"/>
+  </ElementSettings>
+
+  <TitlePage>
+    <HeaderAndFooter FooterFirstPage="Yes" FooterVisible="No" HeaderFirstPage="No" HeaderVisible="Yes" StartingPage="1">
+      <Header>
+        <Paragraph Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" OutlineLevel="0" RightIndent="-1.25" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="23eb4fd8-715c-4c9d-8790-9df7ec33055b">
+          <DynamicLabel AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="" Type="Page #"/>
+          <Text AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style="">.</Text>
+        </Paragraph>
+      </Header>
+      <Footer>
+        <Paragraph Alignment="Right" FirstIndent="0.00" Leading="Regular" LeftIndent="1.25" OutlineLevel="0" RightIndent="-1.25" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="994dfe67-39e3-466e-9ccb-4b8787e4bb62">
+          <Text AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""> </Text>
+        </Paragraph>
+      </Footer>
+    </HeaderAndFooter>
+    <Content>
+      <Paragraph Alignment="Left" FirstIndent="0.00" Leading="Regular" LeftIndent="1.00" OutlineLevel="0" RightIndent="7.50" SpaceBefore="0" Spacing="1" StartsNewPage="No" id="98a3ad16-3f95-4cee-aa9e-86d795af7f3b"/>
+    </Content>
+    <TextState Scaling="75" Selection="0,0" ShowInvisibles="No"/>
+  </TitlePage>
+
+  <SmartType>
+    <Characters/>
+    <Extensions>
+      <Extension>(V.O.)</Extension>
+      <Extension>(O.S.)</Extension>
+      <Extension>(O.C.)</Extension>
+      <Extension>(CONT'D)</Extension>
+      <Extension>(SUBTITLE)</Extension>
+    </Extensions>
+    <SceneIntros Separator=". ">
+      <SceneIntro>Int</SceneIntro>
+      <SceneIntro>Ext</SceneIntro>
+      <SceneIntro>I/E</SceneIntro>
+    </SceneIntros>
+    <Locations/>
+    <TimesOfDay Separator=" - ">
+      <TimeOfDay>Day</TimeOfDay>
+      <TimeOfDay>Night</TimeOfDay>
+      <TimeOfDay>Afternoon</TimeOfDay>
+      <TimeOfDay>Morning</TimeOfDay>
+      <TimeOfDay>Evening</TimeOfDay>
+      <TimeOfDay>Later</TimeOfDay>
+      <TimeOfDay>Moments Later</TimeOfDay>
+      <TimeOfDay>Continuous</TimeOfDay>
+      <TimeOfDay>The Next Day</TimeOfDay>
+      <TimeOfDay>Magic Hour</TimeOfDay>
+      <TimeOfDay>Dawn</TimeOfDay>
+      <TimeOfDay>Dusk</TimeOfDay>
+      <TimeOfDay>Same</TimeOfDay>
+      <TimeOfDay>Same Time</TimeOfDay>
+    </TimesOfDay>
+    <Transitions>
+      <Transition>Cut To:</Transition>
+      <Transition>Fade In:</Transition>
+      <Transition>Fade Out.</Transition>
+      <Transition>Fade To:</Transition>
+      <Transition>Dissolve To:</Transition>
+      <Transition>Back To:</Transition>
+      <Transition>Match Cut To:</Transition>
+      <Transition>Jump Cut To:</Transition>
+      <Transition>Fade To Black.</Transition>
+      <Transition>Smash Cut To:</Transition>
+      <Transition>Cut to Black.</Transition>
+      <Transition>Time Cut:</Transition>
+    </Transitions>
+  </SmartType>
+
+  <MoresAndContinueds>
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+    <DialogueBreaks AutomaticCharacterContinueds="Yes" BottomOfPage="Yes" DialogueBottom="(MORE)" DialogueTop="(CONT'D)" TopOfNext="Yes"/>
+    <SceneBreaks ContinuedNumber="No" SceneBottom="(CONTINUED)" SceneBottomOfPage="No" SceneTop="CONTINUED:" SceneTopOfNext="No"/>
+  </MoresAndContinueds>
+
+  <LockedPages/>
+
+  <Revisions ActiveSet="1" Location="7.75" RevisionMode="No" RevisionsShown="Active" ShowPageColor="No">
+    <Revision Color="#EBEB62627B7B" FullRevision="No" ID="1" Mark="*" Name="First Revision" PageColor="#FFFFFFFFFFFF" Style=""/>
+    <Revision Color="#6363A7A7EFEF" FullRevision="No" ID="2" Mark="*" Name="Second Revision" PageColor="#FFFFFFFFFFFF" Style=""/>
+    <Revision Color="#8F8FC3C36A6A" FullRevision="No" ID="3" Mark="*" Name="Third Revision" PageColor="#FFFFFFFFFFFF" Style=""/>
+    <Revision Color="#E5E5CBCB6C6C" FullRevision="No" ID="4" Mark="*" Name="Fourth Revision" PageColor="#FFFFFFFFFFFF" Style=""/>
+  </Revisions>
+
+  <SplitState ActivePanel="1" CardsAcross="2" ShowAction="Yes" ShowSceneTitle="Yes" ShowSummary="Yes" SplitMode="None" SplitterPosition="0">
+    <ScriptPanel DisplayMode="Page">
+      <FontSpec AdornmentStyle="0" Font="Arial" RevisionID="0" Size="9" Style=""/>
+    </ScriptPanel>
+  </SplitState>
+
+  <Macros>
+    <Macro Element="Scene Heading" Name="INT" Shortcut="Ctrl+Alt+1" Text="INT. " Transition="None">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Scene Heading" Name="EXT" Shortcut="Ctrl+Alt+2" Text="EXT. " Transition="None">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Scene Heading" Name="I/E" Shortcut="Ctrl+Alt+3" Text="I/E " Transition="None">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Scene Heading" Name="DAY" Shortcut="Ctrl+Alt+4" Text=" - DAY" Transition="Action">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Scene Heading" Name="NIGHT" Shortcut="Ctrl+Alt+5" Text=" - NIGHT" Transition="Action">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Scene Heading" Name="SUNRISE" Shortcut="Ctrl+Alt+6" Text=" - SUNRISE" Transition="Action">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Scene Heading" Name="MAGIC" Shortcut="Ctrl+Alt+7" Text=" - MAGIC" Transition="Action">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Parenthetical" Name="CONT" Shortcut="Ctrl+Alt+8" Text="continuing" Transition="Dialogue">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Parenthetical" Name="INTER" Shortcut="Ctrl+Alt+9" Text="interrupting" Transition="Dialogue">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="None" Name="" Shortcut="Ctrl+Alt+0" Text="" Transition="None">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="CUTTO" Shortcut="Ctrl+Shift+Alt+1" Text="CUT TO:" Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Action" Name="FADEIN" Shortcut="Ctrl+Shift+Alt+2" Text="FADE IN:" Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="FADEOUT" Shortcut="Ctrl+Shift+Alt+3" Text="FADE OUT." Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="FADETO" Shortcut="Ctrl+Shift+Alt+4" Text="FADE TO:" Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="DISSLV" Shortcut="Ctrl+Shift+Alt+5" Text="DISSOLVE TO:" Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="BACKTO" Shortcut="Ctrl+Shift+Alt+6" Text="BACK TO:" Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="MATCHCUT" Shortcut="Ctrl+Shift+Alt+7" Text="MATCH CUT TO:" Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="JUMPCUT" Shortcut="Ctrl+Shift+Alt+8" Text="JUMP CUT TO:" Transition="Scene Heading">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="Transition" Name="FBLACK" Shortcut="Ctrl+Shift+Alt+9" Text="FADE TO BLACK." Transition="None">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+    <Macro Element="None" Name="" Shortcut="Ctrl+Shift+Alt+0" Text="" Transition="None">
+      <Alias Confirm="No" MatchCase="No" SmartReplace="Yes" Text="" WordOnly="No">
+        <ActivateIn Element="General"/>
+        <ActivateIn Element="Scene Heading"/>
+        <ActivateIn Element="Action"/>
+        <ActivateIn Element="Character"/>
+        <ActivateIn Element="Parenthetical"/>
+        <ActivateIn Element="Dialogue"/>
+        <ActivateIn Element="Transition"/>
+        <ActivateIn Element="Shot"/>
+        <ActivateIn Element="Cast List"/>
+        <ActivateIn Element="New Act"/>
+        <ActivateIn Element="Sequence"/>
+        <ActivateIn Element="End of Act"/>
+        <ActivateIn Element="Summary"/>
+        <ActivateIn Element="Outline 1"/>
+        <ActivateIn Element="Outline 2"/>
+        <ActivateIn Element="Outline 3"/>
+        <ActivateIn Element="Note"/>
+      </Alias>
+    </Macro>
+  </Macros>
+
+  <Actors>
+    <Actor MacVoice="Ralph" Name="Man 1" Pitch="High" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Fred" Name="Man 2" Pitch="Normal" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Albert" Name="Woman 1" Pitch="Normal" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Kathy" Name="Woman 2" Pitch="Normal" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Junior" Name="Boy 1" Pitch="High" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Albert" Name="Boy 2" Pitch="Low" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Albert" Name="Girl 1" Pitch="Normal" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Albert" Name="Girl 2" Pitch="High" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Albert" Name="Old Man" Pitch="Normal" Speed="Medium" WinVoice="��?�"/>
+    <Actor MacVoice="Albert" Name="Old Woman" Pitch="Normal" Speed="Slow" WinVoice="��?�"/>
+  </Actors>
+
+  <Cast>
+    <Narrator Actor=""/>
+  </Cast>
+
+  <SceneNumberOptions AutoHideNumbersOnRight="No" LeftLocation="0.75" NumberScheme="1A" RightLocation="7.38" ShowNumbersOnLeft="Yes" ShowNumbersOnRight="Yes">
+    <FontSpec AdornmentStyle="0" Font="Courier Final Draft" RevisionID="0" Size="12" Style=""/>
+  </SceneNumberOptions>
+
+  <CastList SortOption="Alphabetical">
+    <CustomOrder/>
+  </CastList>
+
+  <CharacterHighlighting>
+    <Character Color="#RRRRGGGGBBBB" Name="ALICE" Visible="No"/>
+    <Character Color="#RRRRGGGGBBBB" Name="BOB" Visible="No"/>
+  </CharacterHighlighting>
+
+  <ScriptNavigatorPreferences>
+    <TableColumnSettings Filter="" IsSortAscending="Yes" Label="Script" SortColumn="" TableIdentifier="NavDynScenes" id="de7e6f3b-2a9f-47aa-bd34-2f283a77b145"/>
+  </ScriptNavigatorPreferences>
+
+  <AltCollection/>
+
+  <TargetScriptLength>120</TargetScriptLength>
+
+  <ListItems/>
+
+  <DisplayBoards>
+    <DisplayBoard Height="10000" Id="abc5b8bf-9690-4c96-a676-e017f8e54579" ScrollOrigin="0,0" Type="Beat" Width="24000" ZoomLevel="100.000"/>
+    <DisplayBoard Height="90" Id="fc2c343d-b9d1-4382-84c6-31daa8129e36" ScrollOrigin="0,0" Type="StoryMap" Width="2000" ZoomLevel="100.000">
+      <Lanes>
+        <Lane Id="c69aec5e-2155-4205-bedc-a3b942e78940" Label="Outline 1" Level="7" Type="Outline 1"/>
+        <Lane Id="728d05ea-1036-4154-abda-7f6dfc15a6a6" Label="Outline 2" Level="5" Type="Outline 2"/>
+      </Lanes>
+    </DisplayBoard>
+  </DisplayBoards>
+
+  <Writers/>
+
+  <WriterMarkup State="Off"/>
+
+  <TagData>
+    <TagCategories>
+      <TagCategory Color="#00003600B700" Id="01fc9642-84ff-4366-b37c-a3068dee57e8" Name="Cast Members" Number="2" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="028a4e2b-b507-4d09-88ab-90e3edae9071" Name="Background Actors" Number="3" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0377dbe6-77a3-41af-bda8-86eb2468fdbf" Name="Stunts" Number="4" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="04721a56-f54b-49c8-80ad-d53887d6b851" Name="Vehicles" Number="5" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="05c556eb-6bc1-4a3a-b09f-f8b5ba1b6afa" Name="Props" Number="6" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="069e18b8-2109-4f3d-94e7-d802027a60a8" Name="Special Effects" Number="8" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0726fa85-1e65-4ab8-87de-bf21d09b01f0" Name="Wardrobe" Number="9" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="08ae1eef-32ce-415f-9a9b-0982d2453ec4" Name="Makeup/Hair" Number="10" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="09cb0d1c-ce01-4f22-bb64-b5f2e6c491c6" Name="Animals" Number="11" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0ae40617-cc7c-48e6-ae2b-5aaecc09986f" Name="Animal Wrangler" Number="12" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0b0b44c9-aa4b-4c40-88b1-d94472ad7a26" Name="Music" Number="13" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0ce7d308-096d-4603-8fe8-349f72cd89ff" Name="Sound" Number="14" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0debb71b-5743-4c53-80cc-e17e841ce645" Name="Set Dressing" Number="16" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0e7a8fc5-5441-4bad-a9bf-5ddd3fe51c69" Name="Greenery" Number="17" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="0ff5cda4-4d43-4cfe-940f-91380c46fdad" Name="Special Equipment" Number="19" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="109d0eaa-0334-4823-ac0c-b44d3f209dc4" Name="Security" Number="18" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="1179a4b1-70ee-4011-b4a2-809a0af09e92" Name="Additional Labor" Number="20" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="12ab0932-e3b9-4b4a-bcd0-3da1b4e61d5e" Name="Visual Effects" Number="21" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="135cc9d1-c4d5-4d00-83d9-571f584ea9cd" Name="Mechanical Effects" Number="22" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="148267ae-50ae-4746-8202-659fb7447b55" Name="Miscellaneous" Number="23" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="15b6f4fd-4e74-4ad8-9971-b239d88c2997" Name="Notes" Number="24" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="216f33fd-fc42-4269-be01-b05b18f815a0" Name="Comments" Number="29" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="47b02ff1-5161-4137-b736-f36eebba7643" Name="Camera" Number="7" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="4a84b619-62f9-4c04-8e46-bf2cd0b7f582" Name="Art Department" Number="15" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="63c140da-ef2b-491a-b416-b46f461abb89" Name="Script Day" Number="25" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="70877d87-30ef-45b6-be46-c6fa94b83a71" Name="Sequence" Number="27" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="849f1ebf-5507-4f33-bff6-3a5b4d73be14" Name="Unit" Number="26" Style="Bold"/>
+      <TagCategory Color="#000000000000" Id="8e5e75c2-713b-47df-a75f-f12648b98ded" Name="Synopsis" Number="1" Style="Bold"/>
+      <TagCategory Color="#940011000000" Id="c5e89e4d-f83e-4c28-950c-92a63f1b5f26" Name="Location" Number="28" Style="Bold"/>
+    </TagCategories>
+  </TagData>
+
+  <Characters>
+    <CharacterTraitData>
+      <Traits>
+        <Trait ID="a771e8a7-0c6f-401c-ab87-b50f83fc64b4" Name="Age" Type="text"/>
+        <Trait ID="6b3a0017-69de-4c7a-b6e8-1d0b4d2ad047" Name="Disability" Type="text"/>
+        <Trait ID="4b987a9f-24dc-44ae-9bb5-0756485c1c80" Name="Ethnicity" Type="text"/>
+        <Trait ID="611965b7-ffab-41a1-a154-023ea8caf768" Name="Gender" Type="text"/>
+        <Trait ID="9b51b304-a8c0-4277-a841-342b5f84fc65" Name="Occupation" Type="text"/>
+        <Trait ID="ecdbbc67-9a69-40dc-8e9f-745a665ab73a" Name="Orientation" Type="text"/>
+        <Trait ID="338d378b-5235-40ad-8102-0dbe0b32ff84" Name="Role" Type="text"/>
+      </Traits>
+      <Holders/>
+    </CharacterTraitData>
+    <ChartOptions Identifier="InclusivityAnalysis"/>
+  </Characters>
+
+  <ScriptNotes/>
+
+  <Navigator>
+    <Tabs>
+      <Tab Selected="Yes" id="de7e6f3b-2a9f-47aa-bd34-2f283a77b145"/>
+    </Tabs>
+  </Navigator>
+
+  <Images/>
+
+  <Outlines Paragraphs="Show" StructureLines="Hide"/>
+
+</FinalDraft>
