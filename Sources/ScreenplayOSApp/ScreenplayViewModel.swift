@@ -4110,13 +4110,12 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     private func editTimelineCSV() -> String {
-        let clips = editorialBeats
-            .flatMap { beat in
-                beat.editClips.map { clip in
-                    (beat: beat, clip: clip)
-                }
-            }
-            .sorted { $0.clip.timelineStartSeconds < $1.clip.timelineStartSeconds }
+        // Match the live timing lane. Estimates are not authored clips and remain
+        // absent from this clip-only report, but their positions are respected.
+        let beatsByScene = Dictionary(editorialBeats.map { ($0.sceneSpineID, $0) }, uniquingKeysWith: { first, _ in first })
+        let clips = timedEditClips.compactMap { timed in
+            beatsByScene[timed.clip.sceneSpineID].map { (beat: $0, timed: timed) }
+        }
 
         var rows = [[
             "sequence_name",
@@ -4141,8 +4140,8 @@ final class ScreenplayViewModel: ObservableObject {
         ]]
 
         rows.append(contentsOf: clips.map { item in
-            let clip = item.clip
-            let endSeconds = clip.timelineStartSeconds + clip.timelineDurationSeconds
+            let clip = item.timed.clip
+            let endSeconds = item.timed.start + item.timed.duration
             return [
                 "Main Sequence",
                 String(item.beat.order),
@@ -4153,10 +4152,10 @@ final class ScreenplayViewModel: ObservableObject {
                 clip.boardFrameID?.uuidString ?? "",
                 clip.sourceKind.rawValue,
                 clip.status.rawValue,
-                String(format: "%.3f", clip.timelineStartSeconds),
+                String(format: "%.3f", item.timed.start),
                 String(format: "%.3f", endSeconds),
-                String(format: "%.3f", clip.timelineDurationSeconds),
-                timecode(seconds: clip.timelineStartSeconds, frameRate: 24),
+                String(format: "%.3f", item.timed.duration),
+                timecode(seconds: item.timed.start, frameRate: 24),
                 timecode(seconds: endSeconds, frameRate: 24),
                 String(format: "%.3f", clip.sourceStartSeconds),
                 clip.sourceElementIDs.map(\.uuidString).joined(separator: "; "),

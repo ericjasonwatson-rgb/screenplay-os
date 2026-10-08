@@ -118,6 +118,38 @@ import ScreenplayDomain
         }
     }
 
+    @Test func placeholderOnlySceneIsUntimedWithoutEstimatesAndOmittedBoardsStayOutOfExports() throws {
+        try fixture { model, directory in
+            let script = Screenplay(metadata: .init(title: "Timing"), elements: [
+                .init(type: .sceneHeading, text: "INT. FIRST - DAY", spineID: "S001"),
+                .init(type: .dialogue, text: Array(repeating: "word", count: 180).joined(separator: " ")),
+                .init(type: .sceneHeading, text: "INT. SECOND - DAY", spineID: "S002")])
+            let shots = [Shot(sceneSpineID: "S001", shotNumber: 1, label: "Placeholder"), Shot(sceneSpineID: "S002", shotNumber: 2, label: "Board")]
+            var omitted = BoardFrame(shotID: shots[1].id, sceneSpineID: "S002", frameNumber: 1, label: "Omitted")
+            omitted.status = .omitted
+            let board = BoardFrame(shotID: shots[1].id, sceneSpineID: "S002", frameNumber: 2, label: "Retained", durationSeconds: 3)
+            let document = OpenScreenplayDocument(project: Project(metadata: .init(title: "Timing", author: ""), screenplayID: script.id), screenplay: script, shots: shots, boardFrames: [omitted, board])
+            let url = directory.appendingPathComponent("timing.json")
+            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
+            model.loadOpenScreenplay(at: url)
+            let before = model.document
+            model.showEditEstimates = false
+            #expect(model.editTimeline.map(\.label) == ["Retained"])
+            #expect(model.editDuration == 3 && model.untimedEditSceneCount == 1)
+            let xml = try model.editInterchangeText(for: .finalCutXML)
+            #expect(!xml.contains("Omitted"))
+            #expect(try EditInterchange.events(model.editTimeline).count == 1)
+            model.selectedProductionExportKind = .editTimelineCSV
+            let csv = model.productionExportPreview
+            #expect(!csv.contains("shot_placeholder") && !csv.contains("Omitted"))
+            #expect(csv.contains("Retained"))
+            model.showEditEstimates = true
+            #expect(model.editTimeline.map(\.duration) == [75, 3])
+            #expect(model.editTimeline.map(\.start) == [0, 75])
+            #expect(model.document == before)
+        }
+    }
+
     @Test func timelineRecalculatesAfterWritingUndoAndEditorialReorder() throws {
         try fixture { model, directory in
             let script = Screenplay(metadata: ScreenplayMetadata(title: "Timing edits"), elements: [

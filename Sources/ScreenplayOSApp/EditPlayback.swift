@@ -28,14 +28,14 @@ extension ScreenplayViewModel {
         for beat in editorialBeats {
             // Authored boards/media retain their existing timing. Shot placeholders
             // can yield to a whole-scene estimate until timed material exists.
-            let hasTimedMaterial = beat.editClips.contains { $0.sourceKind != .shotPlaceholder }
-            if !hasTimedMaterial, let estimate = estimates[beat.sceneSpineID] {
+            let hasAuthoredMaterial = beat.editClips.contains { $0.sourceKind != .shotPlaceholder }
+            if !hasAuthoredMaterial, let estimate = estimates[beat.sceneSpineID] {
                 let duration = (estimate.minimumSeconds + estimate.maximumSeconds) / 2
                 result.append(TimedEditSegment(id: beat.id, sceneSpineID: beat.sceneSpineID,
                     label: beat.title, start: cursor, duration: duration, clip: nil, estimate: estimate))
                 cursor += duration
             } else {
-                for clip in beat.editClips {
+                for clip in ScenePlanningTimeline.playableClips(in: beat) {
                     let duration = TimedEditClip(clip: clip, start: cursor).duration
                     result.append(TimedEditSegment(id: clip.id, sceneSpineID: beat.sceneSpineID,
                         label: clip.label, start: cursor, duration: duration, clip: clip, estimate: nil))

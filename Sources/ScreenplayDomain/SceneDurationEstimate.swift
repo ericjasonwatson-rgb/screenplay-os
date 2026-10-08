@@ -6,17 +6,39 @@ public struct SceneDurationEstimate: Equatable {
     public let maximumSeconds: Double
 
     public init?(elements: [ScreenplayElement]) {
-        var dialogue = 0, action = 0
+        var dialogue = 0, actionLines = 0
         for element in elements {
             let words = element.text.split(whereSeparator: { $0.isWhitespace }).count
             if element.type == .dialogue { dialogue += words }
-            if element.type == .action { action += words }
+            if element.type == .action, words > 0 { actionLines += Self.planningLines(element.text) + 1 }
         }
-        guard dialogue + action > 0 else { return nil }
-        // Deliberately broad, explicit assumptions: speech 120–180 words/minute;
-        // action prose 60–120 words/minute. Action may take much longer on screen.
-        minimumSeconds = max(5, floor((Double(dialogue) / 3 + Double(action) / 2) / 5) * 5)
-        maximumSeconds = max(minimumSeconds + 5, ceil((Double(dialogue) / 2 + Double(action)) / 5) * 5)
+        guard dialogue + actionLines > 0 else { return nil }
+        // A fixed planning page, independent of zoom/font/pagination: 60 columns,
+        // 54 lines including paragraph spacing. One action page centers on 60s,
+        // with a 45–75s band. This is a heuristic, not a performance prediction.
+        let actionPages = Double(actionLines) / 54
+        minimumSeconds = max(5, floor((Double(dialogue) / 3 + actionPages * 45) / 5) * 5)
+        maximumSeconds = max(minimumSeconds + 5, ceil((Double(dialogue) / 2 + actionPages * 75) / 5) * 5)
+    }
+
+    private static func planningLines(_ text: String) -> Int {
+        var lines = 0
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let words = line.split(whereSeparator: { $0.isWhitespace })
+            guard !words.isEmpty else { lines += 1; continue }
+            var used = 0
+            for word in words {
+                let length = word.count
+                if used > 0, used + 1 + length <= 60 { used += 1 + length }
+                else {
+                    if used > 0 { lines += 1 }
+                    lines += (length - 1) / 60
+                    used = (length - 1) % 60 + 1
+                }
+            }
+            if used > 0 { lines += 1 }
+        }
+        return lines
     }
 
     public static func byScene(in elements: [ScreenplayElement]) -> [String: SceneDurationEstimate] {

@@ -5,16 +5,16 @@ import ScreenplayDomain
 struct SceneTimingDisplay {
     let timing: String
     let estimate: String?
-    static let assumptions = "Script estimate: dialogue at 120–180 words/minute; action prose at 60–120 words/minute, rounded to 5 seconds. Staging, pauses and action can fall outside this range. Estimates never change clip timing. Media edit timing describes the current cut, not scene completeness."
+    static let assumptions = "Script estimate: dialogue at 120–180 words/minute; action at 45–75 seconds per planning page (60 columns, 54 lines including paragraph spacing), rounded to 5 seconds. Staging, pauses and action can fall outside this range. Estimates never change clip timing. Media edit timing describes the current cut, not scene completeness."
 
     init(beat: EditorialBeat, scriptEstimate: SceneDurationEstimate?, showEstimate: Bool) {
-        let clips = beat.editClips
+        let clips = ScenePlanningTimeline.playableClips(in: beat)
         let valid = !clips.isEmpty && clips.allSatisfy { $0.timelineDurationSeconds.isFinite && $0.timelineDurationSeconds > 0 }
         let media = ScenePlanningTimeline.mediaDuration(for: beat) != nil
         if valid {
             let kind = media ? "Media edit" : clips.allSatisfy { $0.sourceKind == .boardFrame } ? "Boards" : "Planned edit"
             timing = String(format: "%@: %.1fs · %d %@", kind, clips.reduce(0) { $0 + $1.timelineDurationSeconds }, clips.count, clips.count == 1 ? "clip" : "clips")
-                + (clips.contains { $0.status == .omitted } ? " · includes omitted" : "")
+                + (beat.editClips.contains { $0.status == .omitted } ? " · omitted clips excluded" : "")
         } else { timing = "No timed clips" }
         if showEstimate && !media {
             estimate = scriptEstimate.map { "Est. \(Self.clock($0.minimumSeconds))–\(Self.clock($0.maximumSeconds))" } ?? "Est. unavailable"

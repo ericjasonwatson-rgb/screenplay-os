@@ -45,6 +45,21 @@ public struct ScenePlanningTimeline {
         maximumSeconds = maximum
     }
 
+    /// Board durations are authored planning timing. Placeholder and omitted clips
+    /// contribute no playback time; media timing requires a conformed status.
+    public static func playableClips(in beat: EditorialBeat) -> [EditClip] {
+        beat.editClips.filter {
+            guard $0.timelineDurationSeconds.isFinite, $0.timelineDurationSeconds > 0,
+                  $0.status != .omitted, $0.status != .placeholder else { return false }
+            switch $0.sourceKind {
+            case .shotPlaceholder: return false
+            case .boardFrame: return true
+            case .productionMedia, .generatedVideo:
+                return [.assembled, .locked, .replaced].contains($0.status)
+            }
+        }
+    }
+
     /// Current-cut timing is available only when every clip is usable media.
     /// Boards, placeholders, mixed and omitted clips do not confirm scene runtime.
     public static func mediaDuration(for beat: EditorialBeat) -> Double? {

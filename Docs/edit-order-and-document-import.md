@@ -17,7 +17,7 @@ Use 1.2 documents in this build or later. The immediately preceding builds rejec
 
 The clip time ruler uses durations to set exact horizontal widths. Whole-edit
 playback and scrubbing traverse clips in edit order and update scene/board
-selection. Shot placeholders retain the pre-existing four-second default;
+selection. Stored shot placeholders retain the legacy four-second default, but as of October 8 they contribute no derived playback/export time;
 untimed scenes have no invented runtime and remain in the scene strip. This is
 board/placeholder playback, not a video player. Clip trimming and drag reordering
 are not implemented. Clip order/timing still derive from boards and shots.
