@@ -256,3 +256,11 @@ optional cost and currency); audio items (kind, media, stable scene/shot/dialogu
 anchor, offset, duration, gain and fades); and imported edit-decision proposals
 (trim/reorder/removal/added clip, source file, timestamp, pending/accepted/rejected).
 Prompt storage is local and does not grant permission to transmit it.
+
+### Phase A status update — 2026-10-08
+
+FDX export now exists for the main and package editors, with six regression tests
+and successful opening of disposable exports in Final Draft 13. The inventory
+above remains the pre-Phase-A baseline. See `phase-a-fdx-export.md` for exact support,
+manual observations, performance and limits. This does not establish full FDX
+fidelity, matching pagination, or completion of the timing/target-duration work.

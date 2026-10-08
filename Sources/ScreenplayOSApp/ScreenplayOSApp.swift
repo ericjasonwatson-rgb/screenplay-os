@@ -108,6 +108,9 @@ struct ScreenplayOSApp: App {
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
 
+                    Button("Export Final Draft FDX…", action: model.showExportFDXPanel)
+                        .disabled(model.document == nil && model.packageEditor == nil)
+
                     Button("Export Portable Project Copy…") { model.exportPortableProject() }
                         .disabled(model.document == nil || model.packageEditor != nil || model.portableExportInProgress)
 
