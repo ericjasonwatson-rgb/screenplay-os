@@ -80,6 +80,14 @@ struct ContentView: View {
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
         }
         .safeAreaInset(edge: .bottom) {
+            if let status = model.portableExportStatus {
+                HStack {
+                    if model.portableExportInProgress { ProgressView().controlSize(.small) }
+                    Text(status).font(.caption).textSelection(.enabled)
+                    Spacer()
+                    if !model.portableExportInProgress { Button("Dismiss") { model.portableExportStatus = nil } }
+                }.padding(8).background(.regularMaterial)
+            }
             if let problem = model.saveProblem {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -2769,15 +2777,11 @@ private struct ScreenplayPageView: View {
     @State private var preview: PrintPreviewSnapshot?
     @State private var showsPages = true
     @State private var showsPageBox = false
+    @State private var showsFormatting = false
+    @State private var showsDocumentOptions = false
 
     var body: some View {
         VStack(spacing: 0) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) { formattingControls.fixedSize(); Spacer(minLength: 0); documentControls.fixedSize() }
-                VStack(alignment: .leading, spacing: 6) { formattingControls; documentControls }
-            }
-            .buttonStyle(StudioButtonStyle())
-            .padding(.horizontal, 12).padding(.vertical, 6).studioStrip()
             if let notice = PackageTypography.substitution(model.writingTypography) {
                 Text(notice).font(.caption).padding(.horizontal, 8)
             }
@@ -2785,7 +2789,25 @@ private struct ScreenplayPageView: View {
                 Text("Continuous view: this layout cannot yet show exact editable pages. Use Print Preview for page placement.")
                     .font(.caption).padding(.horizontal, 8)
             }
+            ScrollView(.horizontal) {
             HStack(spacing: 8) {
+                Button("Font & Style") { showsFormatting.toggle() }
+                    .popover(isPresented: $showsFormatting) { formattingControls.padding(12) }
+                Button("Document") { showsDocumentOptions.toggle() }
+                    .popover(isPresented: $showsDocumentOptions) { documentControls.padding(12) }
+                Button { model.dialogueAssistantPresented = true } label: {
+                    Label("Suggest line", systemImage: "sparkles")
+                }
+                .buttonStyle(StudioButtonStyle(ai: true))
+                .disabled(model.selectedElement?.type != .dialogue)
+                .help("Select dialogue to request alternatives; review context before sending.")
+                if let element = model.selectedElement {
+                    ElementFormatStrip(selectedType: element.type, leading: 0) { model.setType($0, for: element.id) }
+                    if let mark = element.revisionMark {
+                        Text(mark.label).foregroundStyle(mark.color.swiftUIColor)
+                    }
+                    Button("Notes (\(model.openNoteCount(for: element.id)))") { model.showNotesForElement(element.id) }
+                }
                 Toggle(isOn: $showsPages) { Label("Pages", systemImage: "sidebar.left") }
                     .toggleStyle(.button)
                     .help("Show or hide the scrollable script page navigator")
@@ -2798,25 +2820,21 @@ private struct ScreenplayPageView: View {
                 Text("\(model.printedPages.count) pages").font(.caption).foregroundStyle(.secondary)
             }
             .buttonStyle(StudioButtonStyle())
-            .padding(.horizontal, 12).padding(.vertical, 5).studioStrip()
+            .padding(.horizontal, 8)
+            }
+            .scrollIndicators(.hidden)
+            .frame(height: 32).studioStrip()
             HStack(spacing: 0) {
                 if showsPages && !model.focusMode {
                     ScriptPageNavigator(model: model)
                         .frame(width: 160)
                     Divider()
                 }
-                ScriptPageWell(width: 760 * model.pageZoom) {
+                ScriptPageWell(width: 760 * model.pageZoom, verticalInset: 2) {
                     ContinuousScreenplayEditor(model: model)
                 }
             }
             if let element = model.selectedElement {
-                HStack {
-                    ElementFormatStrip(selectedType: element.type, leading: 0) { model.setType($0, for: element.id) }
-                    if let mark = element.revisionMark {
-                        Text(mark.label).foregroundStyle(mark.color.swiftUIColor)
-                    }
-                    Button("Notes (\(model.openNoteCount(for: element.id)))") { model.showNotesForElement(element.id) }
-                }.buttonStyle(StudioButtonStyle()).padding(.horizontal, 12).padding(.vertical, 5).studioStrip()
                 let suggestions = model.characterSuggestions(for: element)
                 if !suggestions.isEmpty {
                     CharacterSuggestionStrip(suggestions: suggestions, leading: 0) { model.applyCharacterSuggestion($0, to: element.id) }
@@ -2848,15 +2866,6 @@ private struct ScreenplayPageView: View {
                         .disabled(model.document == nil)
                         .help("Preserve current page numbers; additions use lettered pages and deletions retain omitted pages.")
                 }
-
-                Button {
-                    model.dialogueAssistantPresented = true
-                } label: {
-                    Label("Suggest line", systemImage: "sparkles")
-                }
-                .buttonStyle(StudioButtonStyle(ai: true))
-                .disabled(model.selectedElement?.type != .dialogue)
-                .help("Select a dialogue paragraph to suggest alternatives. Nothing is sent until you approve the context.")
 
                 Button("Title Page") { model.titlePagePresented = true }
                 Button {

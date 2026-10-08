@@ -15,3 +15,17 @@ The UI explicitly discloses this limitation: sending or relocating the screenpla
 ## Deferred
 
 Portable attachment copying and relinking, reference-image inputs, continuity libraries, multiple candidates per request, provider/model discovery for image capabilities, and live provider/manual UI validation remain outstanding. Anthropic dialogue connections are not routed into the OpenAI image endpoint. Existing EDL/FCPXML exports remain timing guides; attaching images does not turn them into linked-media exports.
+
+## Build 23 update: context, billing, and portable board copies
+
+The reviewed, editable prompt now includes up to 7,000 characters from the shot's linked scene, including character cues, action, and dialogue. No scene text is sent until the user presses the explicit send button. The existing stale-input and explicit-adoption checks remain in force. A no-credit HTTP 429 message now explains that waiting will not restore a balance and offers an OpenAI billing link.
+
+**Use board in project** stores a validated immutable, content-addressed PNG in `Board Images/` beside the saved legacy JSON. An unsaved screenplay must be saved first. Saved JSON uses relative URLs for images in that folder; in-memory references are resolved against the document location. Relative paths are limited to one filename inside `Board Images/`, and symlink escapes are rejected. Existing absolute image references still work. Save As alone may retain links to the original media location; use the portable-copy command to gather media.
+
+**File → Export Portable Project Copy…** creates a new folder containing `Project.open-screenplay.json` and all current board-image versions, including unselected versions. Export validates image hashes and PNGs, stages the copy, and refuses to publish an incomplete copy or overwrite an existing destination. Move or ZIP the whole folder, then open its JSON in this build or later. This exports the current authored project; external media other than board images and named snapshot history are not gathered. The original document and files are unchanged.
+
+This remains a legacy project transport folder, not migration to the draft `.screenplay` package or a claim of package-format conformance. Older builds do not resolve these relative media references. No media is deleted automatically, including images retained for Undo or snapshots.
+
+Dialog review: shell refresh signals cover the AI dialog and board-generation snapshot. Title-page and package-preview states already force a shell refresh; print preview uses local SwiftUI state, and package-editor preview observes its editor directly. Regression coverage includes AI open/dismiss and title-page open/dismiss. Live checks verified provider, board, title-page, and print-preview dismissal; this does not claim every macOS system panel was exercised.
+
+Build 24 hardening: portable copying runs off the interface thread with a shared progress/result banner; duplicate exports are disabled while one runs. Relative filenames use URL component encoding, and managed PNG symlinks are rejected. See `build24-audit.md` for validation and remaining limits.

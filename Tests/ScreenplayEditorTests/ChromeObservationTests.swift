@@ -250,6 +250,14 @@ struct ChromeObservationTests {
             await expectRefresh(.elementType) { model.setSelectedElementType(.dialogue) }
             await expectRefresh(.shell) { model.sourceNavigationProblem = "Source missing" }
             await expectRefresh(.shell) { model.sourceNavigationProblem = nil }
+            await expectRefresh(.shell) { model.dialogueAssistantPresented = true }
+            await expectRefresh(.shell) { model.dialogueAssistantPresented = false }
+            await expectRefresh(.shell) { model.titlePagePresented = true }
+            await expectRefresh(.shell) { model.titlePagePresented = false }
+            await expectRefresh(.shell) { model.portableExportInProgress = true }
+            await expectRefresh(.shell) { model.portableExportInProgress = false }
+            await expectRefresh(.shell) { model.portableExportStatus = "Copied" }
+            await expectRefresh(.shell) { model.portableExportStatus = nil }
             await expectRefresh(.page) { model.errorMessage = "Format notice" }
             await expectRefresh(.workspace) { model.contextAssistantVisible = false }
             await expectRefresh(.shell) { model.navigationVisible = false }

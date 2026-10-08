@@ -98,6 +98,9 @@ struct ScreenplayOSApp: App {
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
 
+                    Button("Export Portable Project Copy…") { model.exportPortableProject() }
+                        .disabled(model.document == nil || model.packageEditor != nil || model.portableExportInProgress)
+
                     Button("Export Report...") {
                         model.showExportReportPanel()
                     }

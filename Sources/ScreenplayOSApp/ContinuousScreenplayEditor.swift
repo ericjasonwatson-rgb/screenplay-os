@@ -329,9 +329,17 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
             let starts = wrappingValidator.lineStarts()
             guard Set(plan.lines.keys).isSubset(of: starts) else {
                 // Never draw a mixture of paged and continuous coordinates.
+                let wasPaged = pagePlan != nil
                 pagePlan = nil
-                manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
-                manager.ensureLayout(for: container)
+                if wasPaged {
+                    manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
+                    manager.ensureLayout(for: container)
+                } else {
+                    // TextKit has already invalidated the edited paragraph. Repeated
+                    // fallback must not force every offscreen paragraph to lay out.
+                    let viewport = visibleRect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y)
+                    manager.ensureLayout(forBoundingRect: viewport, in: container)
+                }
                 return
             }
             pagePlan = plan

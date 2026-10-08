@@ -32,6 +32,7 @@ struct StudioSurface: View {
 
 struct ScriptPageWell<Content: View>: View {
     var width: CGFloat = 760
+    var verticalInset: CGFloat = 10
     @ViewBuilder var content: Content
     var body: some View {
         GeometryReader { geometry in
@@ -42,7 +43,7 @@ struct ScriptPageWell<Content: View>: View {
                     .overlay { Rectangle().strokeBorder(.black.opacity(0.25), lineWidth: 1).allowsHitTesting(false) }
                     .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
                 Spacer(minLength: 0)
-            }.padding(.vertical, 10)
+            }.padding(.vertical, verticalInset)
         }.background { StudioSurface() }
     }
 }

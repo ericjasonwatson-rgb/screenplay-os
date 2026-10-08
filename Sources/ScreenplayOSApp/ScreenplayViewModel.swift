@@ -11,6 +11,8 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var showEditScript = false
     @Published var boardGenerationSnapshot: BoardGenerationSnapshot?
     @Published var dialogueAssistantPresented = false
+    @Published var portableExportInProgress = false
+    @Published var portableExportStatus: String?
     lazy var chromeState = ScreenplayChromeState(model: self)
     @Published private(set) var document: OpenScreenplayDocument? {
         didSet {
@@ -1537,7 +1539,7 @@ final class ScreenplayViewModel: ObservableObject {
         guard saveBeforeReplacingDocument() else { return }
         do {
             let data = try Data(contentsOf: url)
-            let decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+            let decoded = try BoardImageStorage.resolved(JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data), at: url)
             document = decoded
             lastSavedDocument = decoded
             diskVersion = (url.standardizedFileURL, data)
@@ -3712,7 +3714,7 @@ final class ScreenplayViewModel: ObservableObject {
             document.ensureSceneSpineIDs()
             document.ensureEditorialSpine()
             document.editorialSpine.syncEditReferences(shots: document.shots, boardFrames: document.boardFrames)
-            let data = try JSONEncoder.openScreenplayEncoder().encode(document)
+            let data = try JSONEncoder.openScreenplayEncoder().encode(BoardImageStorage.portableReferences(document, at: url))
             // A first save must never replace an existing file, even if another
             // process creates it after we choose the filename.
             let expected = diskVersion?.url == url.standardizedFileURL ? diskVersion?.data : approvedExistingData
@@ -4690,23 +4692,25 @@ final class ScreenplayViewModel: ObservableObject {
     private func fittingPrefix(of text: String, width: CGFloat, type: ElementType, height: CGFloat, attributed: NSAttributedString? = nil) -> String {
         guard height >= 16 else { return "" }
         if pdfHeight(for: text, width: width, type: type, attributed: attributed) <= height { return text }
-        // Search only grapheme boundaries: emoji and combining marks stay intact.
-        let boundaries = Array(text.indices) + [text.endIndex]
-        var low = 0
-        var high = boundaries.count - 1
-        while low < high {
-            let middle = (low + high + 1) / 2
-            let candidate = String(text[..<boundaries[middle]])
-            if pdfHeight(for: candidate, width: width, type: type, attributed: attributed?.attributedSubstring(from: NSRange(location: 0, length: (candidate as NSString).length))) <= height {
-                low = middle
-            } else { high = middle - 1 }
+        // Split at the full paragraph's actual line boundaries. Measuring shorter
+        // strings and then backing up to a space changes wrapping around hyphens
+        // and long words, leaving print fragments that the editor cannot place.
+        let attributes = scriptPDFAttributes(type: type, alignment: pdfLayoutSpec(for: type).alignment, weight: pdfLayoutSpec(for: type).weight)
+        let storage = NSTextStorage(attributedString: attributed ?? NSAttributedString(string: text, attributes: attributes))
+        let manager = NSLayoutManager()
+        storage.addLayoutManager(manager)
+        let container = NSTextContainer(size: NSSize(width: width, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        manager.addTextContainer(container)
+        manager.ensureLayout(for: container)
+        var end = 0
+        manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { rect, _, _, glyphs, stop in
+            guard ceil(rect.maxY) <= height else { stop.pointee = true; return }
+            end = NSMaxRange(manager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil))
         }
-        var prefix = String(text[..<boundaries[low]])
-        // Prefer word boundaries, retaining whitespace so concatenation is lossless.
-        if let space = prefix.lastIndex(where: { $0.isWhitespace }), space != prefix.startIndex {
-            prefix = String(prefix[...space])
-        }
-        return prefix
+        let range = NSRange(location: 0, length: end)
+        guard let boundary = Range(range, in: text) else { return "" }
+        return String(text[boundary])
     }
 
     private func paginatedElement(for element: ScreenplayElement) -> PaginatedElement {

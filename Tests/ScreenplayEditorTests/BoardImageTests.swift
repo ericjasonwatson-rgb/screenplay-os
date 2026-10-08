@@ -5,6 +5,72 @@ import ScreenplayDomain
 @testable import ScreenplayOSApp
 
 @Suite("Board image generation and adoption") struct BoardImageTests {
+    @Test func providerFailuresExplainTheCauseWithoutExposingKeys() throws {
+        let data = try JSONSerialization.data(withJSONObject: ["error": ["code": "insufficient_quota", "message": "Quota exceeded for sk-private-secret. PRIVATE PROMPT"]])
+        let error = BoardImageAPI.failure(status: 429, data: data, key: "sk-private-secret", prompt: "PRIVATE PROMPT").message
+        #expect(error.contains("HTTP 429"))
+        #expect(error.contains("billing credits"))
+        #expect(!error.contains("sk-private-secret"))
+        #expect(!error.contains("PRIVATE PROMPT"))
+        #expect(BoardImageAPI.failure(status: 403, data: Data(), key: "", prompt: "").message.contains("verification"))
+        #expect(BoardImageAPI.failure(status: 404, data: Data(), key: "", prompt: "").message.contains("model name"))
+        #expect(BoardImageAPI.failure(status: 500, data: Data(), key: "", prompt: "").message.contains("service problem"))
+    }
+    @Test func creditFailureWithoutCodeIsActionable() throws {
+        let data = try JSONSerialization.data(withJSONObject: ["error": ["message": "You have no credits remaining."]])
+        let message = BoardImageAPI.failure(status: 429, data: data, key: "", prompt: "").message
+        #expect(message.contains("Add API credits"))
+        #expect(!message.contains("Wait before retrying"))
+    }
+    @Test func portableImagesSurviveRelocationAndRejectIncompleteCopies() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).resolvingSymlinksInPath()
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 2, pixelsHigh: 2,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        let png = try #require(bitmap.representation(using: .png, properties: [:]))
+        let source = root.appendingPathComponent("original.json")
+        let image = try BoardImageStorage.store(png, beside: source)
+        let screenplay = Screenplay(metadata: .init(title: "Portable"), elements: [])
+        var doc = OpenScreenplayDocument(project: Project(metadata: .init(title: "Portable", author: ""), screenplayID: screenplay.id), screenplay: screenplay)
+        var board = BoardFrame(shotID: UUID(), sceneSpineID: "S001", frameNumber: 1, label: "Test")
+        let version = BoardImageVersion(fileURL: image, sha256: BoardImageStorage.digest(png), prompt: "Approved", model: "test")
+        board.imageVersions = [version]; board.selectedImageID = version.id; doc.boardFrames = [board]
+        var unusual = doc
+        let unusualURL = image.deletingLastPathComponent().appendingPathComponent("board #1? 100%.png")
+        unusual.boardFrames[0].imageVersions[0].fileURL = unusualURL
+        let relative = BoardImageStorage.portableReferences(unusual, at: source)
+        let roundTrip = try BoardImageStorage.resolved(relative, at: source)
+        #expect(roundTrip.boardFrames[0].imageVersions[0].fileURL == unusualURL)
+        let external = root.appendingPathComponent("external.png")
+        try png.write(to: external)
+        try FileManager.default.removeItem(at: image)
+        try FileManager.default.createSymbolicLink(at: image, withDestinationURL: external)
+        #expect(throws: (any Error).self) { try BoardImageStorage.store(png, beside: source) }
+        try FileManager.default.removeItem(at: image)
+        _ = try BoardImageStorage.store(png, beside: source)
+        let copy = root.appendingPathComponent("copy")
+        try BoardImageStorage.export(doc, to: copy)
+        let moved = root.appendingPathComponent("moved")
+        try FileManager.default.moveItem(at: copy, to: moved)
+        try FileManager.default.removeItem(at: image)
+        let file = moved.appendingPathComponent("Project.open-screenplay.json")
+        let bytes = try Data(contentsOf: file)
+        #expect(!String(decoding: bytes, as: UTF8.self).contains(root.path))
+        let decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: bytes)
+        let resolved = try BoardImageStorage.resolved(decoded, at: file)
+        #expect(try BoardImageStorage.read(resolved.boardFrames[0].imageVersions[0]) == png)
+        #expect(resolved.boardFrames[0].id == board.id)
+        #expect(resolved.boardFrames[0].selectedImageID == version.id)
+        let missingCopy = root.appendingPathComponent("missing")
+        #expect(throws: (any Error).self) { try BoardImageStorage.export(doc, to: missingCopy) }
+        #expect(!FileManager.default.fileExists(atPath: missingCopy.path))
+        var unsafe = decoded
+        unsafe.boardFrames[0].imageVersions[0].fileURL = URL(string: "../outside.png")!
+        #expect(throws: (any Error).self) { try BoardImageStorage.resolved(unsafe, at: file) }
+        #expect(throws: (any Error).self) { try BoardImageStorage.export(resolved, to: moved) }
+    }
     @Test func requestSendsOnlyReviewedPrompt() throws {
         let request = try BoardImageAPI.request(key: "test-only", model: "image-test", prompt: "Approved shot")
         #expect(request.url?.absoluteString == "https://api.openai.com/v1/images/generations")
@@ -48,6 +114,8 @@ import ScreenplayDomain
         model.setBoardFrameDuration(7.5, for: board.id)
         let original = try #require(model.document)
         let snapshot = try #require(BoardGenerationSnapshot(model: model, shot: shot))
+        #expect(snapshot.sceneExcerpt.contains("INT. ROOM - DAY"))
+        #expect(snapshot.prompt.contains("Scene excerpt"))
         let image = BoardImageVersion(fileURL: directory.appendingPathComponent("board.png"), sha256: "test", prompt: "Reviewed prompt", model: "test-model")
         #expect(model.adoptBoardImage(image, snapshot: snapshot))
         #expect(model.boardFrames.first?.id == board.id)

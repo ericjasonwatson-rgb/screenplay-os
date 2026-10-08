@@ -86,7 +86,9 @@ final class ScreenplayChromeState: ObservableObject {
         case .all: return capture(model)
         case .shell:
             return .fields([String(model.navigationVisible), String(model.focusMode), model.saveProblem,
-                String(!model.recoveryCopies.isEmpty), model.sourceNavigationProblem])
+                String(!model.recoveryCopies.isEmpty), model.sourceNavigationProblem,
+                String(model.dialogueAssistantPresented), model.boardGenerationSnapshot?.id.uuidString,
+                String(model.portableExportInProgress), model.portableExportStatus])
         case .workspace:
             return .fields([String(model.contextAssistantVisible), String(model.focusMode)])
         case .commands:

@@ -109,6 +109,53 @@ struct PaginationTests {
         }
     }
 
+    @Test func importedScriptKeepsPrintedPaginationThroughEdits() throws {
+        let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Defenders_of_Cat_Island.open-screenplay.json")
+        let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: Data(contentsOf: fixture))
+        let stressElements = (0..<6).flatMap { _ in document.screenplay.elements.map { source in
+            var copy = ScreenplayElement(type: source.type, text: source.text)
+            copy.setStyledText(source.styledText)
+            return copy
+        } }
+        try withDocument(stressElements) { model, _ in
+            let original = model.elements
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: model))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            func find(_ view: NSView) -> WritingTextView? {
+                if let text = view as? WritingTextView { return text }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            for step in 0..<3 {
+                host.layoutSubtreeIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+                let editor = try #require(find(host))
+                let plan = try #require(editor.pagePlan, "Full imported script must retain printed page positions")
+                #expect(plan.labels == model.printedPages.map(\.label))
+                let manager = try #require(editor.layoutManager), container = try #require(editor.textContainer)
+                manager.ensureLayout(for: container)
+                var actual: [Int: CGFloat] = [:]
+                manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { rect, _, _, glyphs, _ in
+                    actual[manager.characterIndexForGlyph(at: glyphs.location)] = rect.minY
+                }
+                for (offset, line) in plan.lines {
+                    #expect(abs(try #require(actual[offset]) - line.y) < 0.01)
+                }
+                for page in model.printedLayout.pages.indices {
+                    let caret = try #require(model.printedLayout.firstSourceCaret(onPage: page))
+                    #expect(model.printedLayout.pageIndex(containing: caret.location) == page)
+                }
+                if step == 0 {
+                    editor.setSelectedRange(NSRange(location: editor.string.utf16.count / 2, length: 0))
+                    editor.insertText("hyphenated-word ", replacementRange: editor.selectedRange())
+                } else if step == 1 { model.undo() }
+            }
+            #expect(model.elements == original)
+        }
+    }
+
     @Test func incrementalNativeLayoutMatchesFreshPlanAfterEdits() throws {
         let source = (0..<8).flatMap { index in
             [ScreenplayElement(type: .sceneHeading, text: "INT. ROOM \(index) - DAY"),

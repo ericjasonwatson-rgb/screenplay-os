@@ -8,6 +8,8 @@ final class NativeWrappingValidator {
     private let manager = NSLayoutManager()
     private let container = NSTextContainer(size: .zero)
     private var initialized = false
+    private var cachedStarts: Set<Int>?
+    private var dirtyParagraphs: NSRange?
 
     init() {
         storage.addLayoutManager(manager)
@@ -16,6 +18,11 @@ final class NativeWrappingValidator {
 
     func update(from source: NSTextStorage, changedRange: NSRange?, container sourceContainer: NSTextContainer,
                 manager sourceManager: NSLayoutManager) {
+        let geometryChanged = container.containerSize != sourceContainer.containerSize ||
+            container.lineFragmentPadding != sourceContainer.lineFragmentPadding ||
+            manager.usesFontLeading != sourceManager.usesFontLeading ||
+            manager.usesDefaultHyphenation != sourceManager.usesDefaultHyphenation
+        if geometryChanged { cachedStarts = nil; dirtyParagraphs = nil }
         if container.containerSize != sourceContainer.containerSize { container.containerSize = sourceContainer.containerSize }
         if container.lineFragmentPadding != sourceContainer.lineFragmentPadding { container.lineFragmentPadding = sourceContainer.lineFragmentPadding }
         if manager.usesFontLeading != sourceManager.usesFontLeading { manager.usesFontLeading = sourceManager.usesFontLeading }
@@ -25,24 +32,51 @@ final class NativeWrappingValidator {
             // typing that occurred before the coordinator's paragraph replacement.
             let oldLength = range.length - (source.length - storage.length)
             if oldLength >= 0 && range.location >= 0 && NSMaxRange(range) <= source.length && range.location + oldLength <= storage.length {
-                storage.replaceCharacters(in: NSRange(location: range.location, length: oldLength),
+                let oldRange = NSRange(location: range.location, length: oldLength)
+                let oldParagraphs = (storage.string as NSString).paragraphRange(for: oldRange)
+                let newParagraphs = (source.string as NSString).paragraphRange(for: range)
+                let delta = source.length - storage.length
+                if let starts = cachedStarts, dirtyParagraphs == nil,
+                   oldParagraphs.location == newParagraphs.location,
+                   NSMaxRange(oldParagraphs) + delta == NSMaxRange(newParagraphs) {
+                    cachedStarts = Set(starts.compactMap { offset in
+                        if offset < oldParagraphs.location { return offset }
+                        if offset >= NSMaxRange(oldParagraphs) { return offset + delta }
+                        return nil
+                    })
+                    dirtyParagraphs = newParagraphs
+                } else { cachedStarts = nil; dirtyParagraphs = nil }
+                storage.replaceCharacters(in: oldRange,
                     with: source.attributedSubstring(from: range))
                 return
             }
         } else if initialized && storage.isEqual(to: source) {
             return
         }
+        cachedStarts = nil; dirtyParagraphs = nil
         storage.setAttributedString(source)
         initialized = true
     }
 
     func lineStarts() -> Set<Int> {
-        manager.ensureLayout(for: container)
-        var starts = Set<Int>()
-        manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { _, _, _, glyphs, _ in
-            starts.insert(self.manager.characterIndexForGlyph(at: glyphs.location))
+        if let cachedStarts, dirtyParagraphs == nil { return cachedStarts }
+        var starts: Set<Int>
+        let glyphs: NSRange
+        if let cached = cachedStarts, let dirty = dirtyParagraphs {
+            starts = cached
+            manager.ensureLayout(forCharacterRange: dirty)
+            glyphs = manager.glyphRange(forCharacterRange: dirty, actualCharacterRange: nil)
+        } else {
+            starts = []
+            manager.ensureLayout(for: container)
+            glyphs = manager.glyphRange(for: container)
+        }
+        manager.enumerateLineFragments(forGlyphRange: glyphs) { _, _, _, line, _ in
+            starts.insert(self.manager.characterIndexForGlyph(at: line.location))
         }
         if storage.length == 0 || storage.string.hasSuffix("\n") { starts.insert(storage.length) }
+        else { starts.remove(storage.length) }
+        cachedStarts = starts; dirtyParagraphs = nil
         return starts
     }
 }

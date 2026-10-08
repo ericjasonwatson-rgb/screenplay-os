@@ -41,6 +41,22 @@ struct NativeWrappingValidatorTests {
         check(NSRange(location: 0, length: 7))
         source.addAttribute(.font, value: NSFont(name: "Courier", size: 18)!, range: NSRange(location: 0, length: source.length))
         check(NSRange(location: 0, length: source.length))
+        // Exercise cached suffix offsets through repeated paragraph splits, merges,
+        // same-length replacements, and empty trailing paragraphs.
+        for iteration in 0..<60 {
+            let text = source.string as NSString
+            let middle = text.length / 2
+            let paragraph = text.paragraphRange(for: NSRange(location: middle, length: 0))
+            let location = paragraph.location
+            let addition = iteration % 3 == 0 ? "New line.\n" : "x"
+            source.replaceCharacters(in: NSRange(location: location, length: 0), with: addition)
+            check(NSRange(location: location, length: (addition as NSString).length))
+            if iteration % 2 == 0 {
+                source.replaceCharacters(in: NSRange(location: location, length: (addition as NSString).length), with: "")
+                check(NSRange(location: location, length: 0))
+            }
+            #expect(retained.lineStarts() == freshStarts()) // Unchanged cached reads too.
+        }
         container.containerSize.width = 280
         check(nil)
         // An unspecified update must also catch equal-length changes.
