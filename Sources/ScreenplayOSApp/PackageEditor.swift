@@ -16,6 +16,7 @@ final class PackageEditor: ObservableObject, Identifiable {
     @Published var navigationVisible = false
     @Published private(set) var currentURL: URL?
     private var savedFiles: [String: Data] = [:]
+    private var retryFiles: [String: Data]?
     var didSave: ((URL) -> Void)?
     @Published var previousVersionURL: URL?
     let title: String
@@ -130,7 +131,11 @@ final class PackageEditor: ObservableObject, Identifiable {
         } catch { message = "The matches changed. Search again before replacing; your screenplay is unchanged." }
     }
     private var savedBytes: Data
-    private var recoveryID = UUID()
+    private(set) var recoveryID = UUID()
+    private var restoredRecoveryID: UUID?
+    var ownedRecoveryIDs: Set<UUID> {
+        Set([recoveryID] + [restoredRecoveryID].compactMap { $0 })
+    }
     private let recoveryDirectory: URL?
     private var recoveryTask: Task<Void, Never>?
     @Published var recoveryStatus: String?
@@ -179,7 +184,9 @@ final class PackageEditor: ObservableObject, Identifiable {
         let restored = try PackageRecovery.materialize(recovery, directory: directory)
         try self.init(source: restored, recoveryDirectory: directory)
         currentURL = nil
-        recoveryID = recovery.id
+        // A restored window owns a new checkpoint. Never overwrite or remove
+        // the source checkpoint, which another editor may still be using.
+        restoredRecoveryID = recovery.id
         originalSource = recovery.originalSource
         savedBytes = Data()
         if let selected = recovery.selected, rows.contains(where: { $0.id == selected }) {
@@ -193,7 +200,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         guard let selected, let text = try? session.text(for: selected) else { return false }
         return !text.unicodeScalars.elementsEqual(draft.unicodeScalars)
     }
-    var dirty: Bool { pending || session.screenplayBytes != savedBytes || session.settingsBytes != savedFiles["settings.json"] }
+    var dirty: Bool { retryFiles != nil || pending || session.screenplayBytes != savedBytes || session.settingsBytes != savedFiles["settings.json"] }
     var canUndo: Bool { pending || session.canUndo }
     var canRedo: Bool { !pending && session.canRedo }
 
@@ -420,7 +427,7 @@ final class PackageEditor: ObservableObject, Identifiable {
     private func adoptSave(_ result: PackageCurrentSave.Receipt) {
         previousVersionURL = result.previous
         currentURL = result.destination; originalSource = result.destination
-        savedFiles = result.files; savedBytes = session.screenplayBytes
+        savedFiles = result.files; savedBytes = session.screenplayBytes; retryFiles = nil
         discardRecovery(); didSave?(result.destination)
     }
     @discardableResult func saveCurrent(checkpoint: (String, URL) throws -> Void = { _, _ in }) -> Bool {
@@ -429,12 +436,18 @@ final class PackageEditor: ObservableObject, Identifiable {
         guard apply() else { return false }
         flushRecovery()
         do {
-            let result = try PackageCurrentSave.write(session, base: savedFiles, destination: currentURL, replacing: true, checkpoint: checkpoint)
+            let result = try PackageCurrentSave.write(session, base: retryFiles ?? savedFiles, destination: currentURL, replacing: true, checkpoint: checkpoint)
             adoptSave(result)
             message = "Saved: " + result.destination.path
 
             return true
         } catch let error as PackageCurrentSave.RetainedFailure {
+            if let files = error.verifiedPublishedFiles {
+                // Keep savedBytes and the recovery record: this is a retry baseline,
+                // not a successful save or a reason to clear the dirty state.
+                retryFiles = files
+                previousVersionURL = error.location
+            }
             message = "Save not verified. Keep editing or save a new copy. Retained files: " + error.location.path
         } catch {
             message = "Save stopped: the file changed outside this editor or is unavailable. Your edits remain here. Save a new copy to keep both versions."

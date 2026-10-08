@@ -21,7 +21,25 @@ struct PackageRecoveryTests {
         let output = root.appendingPathComponent("Recovered Copy.screenplay")
         #expect(restored.save(to: output))
         #expect(try PackageEditedCopy.load(output).text(for: id) == "Unapplied e\u{301} 👩🏽‍🚀")
-        #expect(PackageRecovery.list(store).isEmpty)
+        #expect(PackageRecovery.list(store).map(\.id) == [record.id])
+    }
+    @Test func restoredEditorsKeepIndependentCheckpoints() throws {
+        let (root, source, _, id) = try PackageEditedCopyTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = root.appendingPathComponent("Recovery")
+        let original = try PackageEditor(source: source, recoveryDirectory: store)
+        original.select(id); original.draft = "original checkpoint"; original.flushRecovery()
+        let record = try #require(PackageRecovery.list(store).first)
+        let before = try Data(contentsOf: store.appendingPathComponent(record.id.uuidString + ".json"))
+        let a = try PackageEditor(recovery: record, directory: store)
+        let b = try PackageEditor(recovery: record, directory: store)
+        a.draft = "first restored editor"; a.flushRecovery()
+        b.draft = "second restored editor"; b.flushRecovery()
+        #expect(Set(PackageRecovery.list(store).map(\.id)).count == 3)
+        #expect(a.save(to: root.appendingPathComponent("Saved.screenplay")))
+        #expect(Set(PackageRecovery.list(store).map(\.id)) == [record.id, b.recoveryID])
+        #expect(try Data(contentsOf: store.appendingPathComponent(record.id.uuidString + ".json")) == before)
+        #expect(b.dirty && b.draft == "second restored editor")
     }
     @Test func interruptedReplacementKeepsPreviousRecord() throws {
         let (root, _, session, _) = try PackageEditedCopyTests().fixture()

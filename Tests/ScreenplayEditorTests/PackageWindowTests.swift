@@ -18,6 +18,31 @@ struct PackageWindowTests {
         #expect(model.packageEditor?.currentURL?.path == target.path)
         #expect(model.document != nil && model.errorMessage == nil)
     }
+    @Test func recoveryListExcludesEveryOpenWindowAndRejectsStaleActions() throws {
+        _ = NSApplication.shared
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let suite = "PackageWindowTests." + UUID().uuidString
+        let preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite) }
+        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: root, preferences: preferences)
+        let owner = PackageWindows(model: model); model.packageWindows = owner
+        let store = root.appendingPathComponent("Recovery/Packages")
+        let first = try PackageEditor.newPackage(directory: root, recoveryDirectory: store)
+        let second = try PackageEditor.newPackage(directory: root, recoveryDirectory: store)
+        first.draft = "First window"; first.flushRecovery()
+        second.draft = "Second window"; second.flushRecovery()
+        let records = PackageRecovery.list(store)
+        #expect(records.count == 2)
+        owner.present(first, show: false); owner.present(second, show: false)
+        defer { for controller in owner.controllers { controller.close() } }
+        model.refreshPackageRecoveries()
+        #expect(model.packageRecoveries.isEmpty)
+        for record in records { model.openPackageRecovery(record) }
+        #expect(owner.controllers.count == 2)
+        owner.removed(owner.controllers[0])
+        #expect(model.packageRecoveries.map(\.id) == [first.recoveryID])
+    }
     @Test func separateEditorsKeepHistoryAndDestination() throws {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

@@ -58,3 +58,27 @@ No line-pitch change was made here.
 
 Fetch is blocked by unavailable GitHub credentials. Terminal authentication has been
 requested. Neither main nor the source tag has been pushed in this validation pass.
+
+## Follow-up persistence fixes
+
+- Restoring a package creates an independent recovery ID. Saving the restored
+  window removes only its own checkpoint. The original checkpoint remains intact;
+  it can reappear after the restored window closes. This deliberately favors
+  preserving recoverable work over automatically deleting an older checkpoint.
+- Recovery lists exclude checkpoints owned by any open package window, including
+  the checkpoint used to restore that window. Stale open-recovery actions are
+  rejected while the checkpoint is owned.
+- If publication succeeds but final verification fails, an exact readback allows
+  a separate retry baseline. The editor remains dirty and retains recovery until
+  a successful save. External changes before or after readback still stop retries.
+  Font-only edits follow the same rule.
+- Unstyled span edits now validate prefix, suffix, and nonoverlap before mutation,
+  matching the existing styled-text boundary checks.
+
+These changes have regression coverage; they have not yet had a separate live UI
+pass or been installed over the user's app. The remaining handoff backlog is not
+complete. Source upload still requires GitHub CLI authentication.
+
+Follow-up automated validation: Debug and Release each pass 253 Swift tests,
+37 Python tests, and 14 executable self-tests (304 per configuration). Logs:
+`/tmp/screenplay-persistence-debug.log` and `/tmp/screenplay-persistence-release.log`.

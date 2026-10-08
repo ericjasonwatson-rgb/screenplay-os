@@ -61,7 +61,48 @@ struct PackageCurrentSaveTests {
             if ["published", "published_readback"].contains(phase) {
                 #expect(try PackageEditedCopy.snapshot(try #require(staged)) == original)
                 #expect(try PackageEditedCopy.load(source).text(for: id) == "Retain these edits")
+                editor.draft = "Retry succeeds"
+                #expect(editor.saveCurrent())
+                #expect(!editor.dirty && PackageRecovery.list(store).isEmpty)
+                #expect(try PackageEditedCopy.load(source).text(for: id) == "Retry succeeds")
             } else { #expect(try PackageEditedCopy.snapshot(source) == original) }
+        }
+    }
+    @Test func fontOnlyPublishedFailureStaysDirtyUntilVerifiedRetry() throws {
+        let (root, source, _, _) = try PackageEditedCopyTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = root.appendingPathComponent("Recovery")
+        let editor = try PackageEditor(source: source, recoveryDirectory: store)
+        editor.changeTypography(size: 18)
+        #expect(!editor.saveCurrent { phase, _ in
+            if phase == "published" { throw Injected.stop }
+        })
+        #expect(editor.dirty && !PackageRecovery.list(store).isEmpty)
+        #expect(editor.saveCurrent())
+        #expect(!editor.dirty && PackageRecovery.list(store).isEmpty)
+        #expect(try PackageEditedCopy.load(source).typography.fontSize == 18)
+    }
+    @Test func failedPublicationNeverAdoptsAnExternalEdit() throws {
+        for editDuringFailure in [true, false] {
+            let (root, source, _, id) = try PackageEditedCopyTests().fixture()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let editor = try PackageEditor(source: source)
+            editor.select(id); editor.draft = "Our published edit"
+            func externalEdit() throws {
+                var outside = try PackageEditedCopy.load(source)
+                try outside.replaceText(elementID: id, expectedRevision: outside.revision,
+                    expectedText: outside.text(for: id), replacement: "External edit")
+                try outside.screenplayBytes.write(to: source.appendingPathComponent("screenplay.json"), options: .atomic)
+            }
+            #expect(!editor.saveCurrent { phase, _ in
+                if phase == "published" {
+                    if editDuringFailure { try externalEdit() }
+                    throw Injected.stop
+                }
+            })
+            if !editDuringFailure { try externalEdit() }
+            #expect(!editor.saveCurrent() && editor.dirty)
+            #expect(try PackageEditedCopy.load(source).text(for: id) == "External edit")
         }
     }
     @Test func lateConflictAndUnsupportedCompanionsAreNotOverwritten() throws {

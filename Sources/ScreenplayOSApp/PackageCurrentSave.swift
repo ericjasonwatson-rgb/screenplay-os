@@ -5,7 +5,13 @@ import ScreenplayDomain
 /// Whole-package publication on macOS. Prior generations are retained, never pruned here.
 enum PackageCurrentSave {
     struct Receipt { let destination: URL; let files: [String: Data]; let previous: URL? }
-    struct RetainedFailure: Error { let location: URL; let published: Bool; let underlying: Error }
+    struct RetainedFailure: Error {
+        let location: URL
+        let published: Bool
+        let underlying: Error
+        /// Exact readback permits retrying against these bytes, but does not prove durability.
+        let verifiedPublishedFiles: [String: Data]?
+    }
     static func write(_ session: PackageTextSession, base: [String: Data], destination: URL,
                       replacing: Bool, checkpoint: (String, URL) throws -> Void = { _, _ in }) throws -> Receipt {
         let parent = destination.deletingLastPathComponent().resolvingSymlinksInPath()
@@ -61,7 +67,9 @@ enum PackageCurrentSave {
         } catch {
             // No blind rollback: a noncooperating writer may have changed either path.
             // Preserve both generations and leave the live editor dirty on any failure.
-            throw RetainedFailure(location: published && !replacing ? target : stage, published: published, underlying: error)
+            let verified = published && (try? PackageEditedCopy.snapshot(target)) == files
+            throw RetainedFailure(location: published && !replacing ? target : stage, published: published,
+                                  underlying: error, verifiedPublishedFiles: verified ? files : nil)
         }
     }
 }

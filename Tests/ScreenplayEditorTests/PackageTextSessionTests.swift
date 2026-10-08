@@ -13,6 +13,24 @@ struct PackageTextSessionTests {
             ["id": first.uuidString, "type": "action", "text": "first"]]]
         return try ["manifest.json": JSONSerialization.data(withJSONObject: manifest), "screenplay.json": JSONSerialization.data(withJSONObject: script)]
     }
+    @Test func unstyledSpansRejectInvalidBoundariesWithoutChangingHistory() throws {
+        for (end, prefix, suffix) in [(first, "wrong", "st"), (first, "sec", "wrong"),
+                                     (second, "second", "ond")] {
+            var session = try PackageTextSession(files: fixture())
+            let before = session.screenplayBytes, revision = session.revision
+            #expect(throws: PackageTextSession.Failure.self) {
+                try session.editSpan(startID: second, endID: end, expectedRevision: revision,
+                                     prefix: prefix, replacement: "insert", suffix: suffix)
+            }
+            #expect(session.screenplayBytes == before && session.revision == revision && !session.canUndo)
+        }
+        var session = try PackageTextSession(files: fixture())
+        let before = session.screenplayBytes
+        try session.editSpan(startID: second, endID: first, expectedRevision: session.revision,
+                             prefix: "sec", replacement: " edited ", suffix: "st")
+        #expect(try session.text(for: second) == "sec edited st")
+        session.undo(); #expect(session.screenplayBytes == before)
+    }
     @Test func identityNotOrderAndExactUndo() throws {
         let files = try fixture()
         var session = try PackageTextSession(files: files)

@@ -42,6 +42,7 @@ final class ScreenplayViewModel: ObservableObject {
             packageEditorChanges = packageEditor?.objectWillChange.sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
+            refreshPackageRecoveries()
         }
     }
     private var packageEditorChanges: AnyCancellable?
@@ -60,8 +61,16 @@ final class ScreenplayViewModel: ObservableObject {
     }
     @Published var packageRecoveries: [PackageRecovery.Record] = []
     private var packageRecoveryDirectory: URL { recoveryDirectory.appendingPathComponent("Packages") }
-    func refreshPackageRecoveries() { packageRecoveries = PackageRecovery.list(packageRecoveryDirectory) }
+    private var ownedPackageRecoveryIDs: Set<UUID> {
+        let editors = (packageWindows?.controllers.map(\.editor) ?? []) + [packageEditor].compactMap { $0 }
+        return editors.reduce(into: Set<UUID>()) { $0.formUnion($1.ownedRecoveryIDs) }
+    }
+    func refreshPackageRecoveries() {
+        let owned = ownedPackageRecoveryIDs
+        packageRecoveries = PackageRecovery.list(packageRecoveryDirectory).filter { !owned.contains($0.id) }
+    }
     func openPackageRecovery(_ record: PackageRecovery.Record) {
+        guard !ownedPackageRecoveryIDs.contains(record.id) else { return }
         do {
             let current = try PackageRecovery.read(packageRecoveryDirectory.appendingPathComponent(record.id.uuidString + ".json"))
             presentPackage(try PackageEditor(recovery: current, directory: packageRecoveryDirectory))
