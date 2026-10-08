@@ -62,7 +62,7 @@ struct AuditFixTests {
     }
 
     /// The fixture with one unknown top-level object, one unknown element field,
-    /// and one empty value that carries no content.
+    /// and one unknown null value.
     private func fixtureWithUnknownContent() throws -> Data {
         var json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fixtureURL)) as? [String: Any])
         json["future_feature"] = ["kept": true]
@@ -81,13 +81,57 @@ struct AuditFixTests {
         #expect(LegacyRoundTrip.droppedPaths(original: data, document: document).isEmpty)
     }
 
-    @Test func unknownContentIsNamedButEmptyValuesAreNot() throws {
+    @Test func unknownContentIncludingNullIsNamed() throws {
         let data = try fixtureWithUnknownContent()
         let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
         let dropped = LegacyRoundTrip.droppedPaths(original: data, document: document)
         #expect(dropped.contains("future_feature"))
         #expect(dropped.contains("screenplay.elements[0].custom_tag"))
-        #expect(!dropped.contains("empty_note"))
+        #expect(dropped.contains("empty_note"))
+    }
+
+    @Test func unknownEmptyValuesProtectOriginalEvenAfterEditing() throws {
+        for value: Any in [false, "", [Any](), [String: Any](), NSNull()] {
+            try withModel { model, directory in
+                var json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fixtureURL)) as? [String: Any])
+                json["future_setting"] = value
+                let data = try JSONSerialization.data(withJSONObject: json)
+                let url = directory.appendingPathComponent("Future.json")
+                try data.write(to: url)
+                model.loadOpenScreenplay(at: url)
+                #expect(model.document != nil)
+                #expect(model.saveURL == nil)
+                let element = try #require(model.elements.first)
+                model.editText(id: element.id, text: element.text + " edited",
+                               before: .init(location: 0, length: 0),
+                               after: .init(location: 0, length: 0), groupable: false)
+                #expect(try Data(contentsOf: url) == data)
+                #expect(model.saveURL?.standardizedFileURL != url.standardizedFileURL)
+            }
+        }
+    }
+
+    @Test func changedArrayLengthCannotHideUnknownFields() throws {
+        let data = try fixtureWithUnknownContent()
+        var document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+        document.screenplay.elements.removeLast()
+        #expect(LegacyRoundTrip.droppedPaths(original: data, document: document).contains("screenplay.elements"))
+        document.screenplay.elements.append(.init(type: .action, text: "Added"))
+        document.screenplay.elements.append(.init(type: .action, text: "Another"))
+        #expect(LegacyRoundTrip.droppedPaths(original: data, document: document).contains("screenplay.elements"))
+    }
+
+    @Test func migrationExceptionIsScopedAndMalformedComparisonFailsClosed() throws {
+        var json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fixtureURL)) as? [String: Any])
+        json["ai_settings"] = ["post_enabled": true]
+        json["post_enabled"] = "Unrelated future root field"
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+        let dropped = LegacyRoundTrip.droppedPaths(original: data, document: document)
+        #expect(document.aiSettings.editEnabled)
+        #expect(!dropped.contains("ai_settings.post_enabled"))
+        #expect(dropped.contains("post_enabled"))
+        #expect(!LegacyRoundTrip.droppedPaths(original: Data("invalid".utf8), document: document).isEmpty)
     }
 
     @Test func projectWithUnknownContentOpensAsCopyAndOriginalIsNeverRewritten() throws {
