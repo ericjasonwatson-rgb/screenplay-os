@@ -1,5 +1,24 @@
 # ScreenplayOS Product Architecture
 
+ScreenplayOS is a narrative suite that keeps the edit in mind from the first beat:
+outline → script → shot list → boards → animatic → generation or shooting → edit.
+It is built for professional teams working in AI-assisted film and TV, where writer,
+director, and producer are often the same few people. Every stage carries timing
+and editorial intent forward. The suite hands off to dedicated tools (NLEs,
+generation services, DAWs) and reads their decisions back. It does not try to
+replace them.
+
+Edit-aware everywhere: expose planned versus estimated screen time and carry
+consequences downstream. Hand off through open, standard formats with stable media
+references. Imported editorial decisions are reviewable proposals, never silent
+script mutations. Audio is first-class in an animatic. Correct screenplay output
+remains mandatory; the connected pipeline is the product's distinguishing value.
+
+Adopted 2026-10-08. The following capability inventory distinguishes current code
+from the target product. Earlier future-tense descriptions remain design intent.
+The package editor and legacy filmmaking document have different implemented
+capabilities; no complete-project migration is implied.
+
 ScreenplayOS is one film project represented through five synchronized views:
 
 **OUTLINE · SCRIPT · SHOT · BOARDS · EDIT**
@@ -197,3 +216,43 @@ Those capabilities can live in navigator, browser, contextual inspector, Shot Co
 The primary mental model remains:
 
 **OUTLINE · SCRIPT · SHOT · BOARDS · EDIT**
+
+## Pipeline stages and handoffs
+
+Status is relative to the requested end-to-end pipeline, not a claim of external
+application compatibility. Implemented means the named bounded behavior exists;
+Partial means important parts of that stage are missing; Planned means no working
+end-to-end implementation was found. Inventory inspected at `2ee74fd`.
+
+| Stage | Status | Canonical data and timing signal | Current interchange; planned handoff | Evidence and remaining gap |
+| --- | --- | --- | --- | --- |
+| Outline | Partial | Story-template beats, scenes and stable source references; derived scene estimates | Native legacy document; target-duration fields and plan totals planned | `ScreenplayViewModel.swift` scene/story-template commands; `SceneSummaryTests.swift`, `EditorialIdentityTests.swift`. Beat and scene targets are not implemented. |
+| Script | Partial | Elements, styles, title page, page layout; `SceneDurationEstimate` ranges | FDX import, reviewed DOCX/PDF/text import, PDF output; FDX export planned | `ScreenplayFDX/FDXImporter.swift`, `FDXImportTests.swift`, `PaginationTests.swift`, `PackagePrintTests.swift`. FDX export is absent; Defenders pagination differs from Final Draft. |
+| Shot list | Partial | `Shot`, source references and setup/coverage intent | Native records and production reports; timed shot plan planned | `ScreenplayDomain/ScreenplayDocument.swift`, `EditorialIdentityTests.swift`. Ordered takes and explicit planned shot duration are not implemented. |
+| Boards | Implemented (bounded board workflow) | `BoardFrame`, `BoardImageVersion`, duration and selection | Local image import/storage and explicit-consent generation; portable relative Board Images paths | `BoardImageStorage.swift`, `BoardImageAssistant.swift`, `BoardImageTests.swift`. This does not establish video takes or the proposed take migration. |
+| Animatic | Partial | Timed boards and derived estimated scene segments, playhead and editorial order | Local board/placeholder playback, CSV and timing guides | `EditPlayback.swift`, `EditTimeLane.swift`, `ScenePlanningTimelineTests.swift`. Audio lanes, synchronized audiovisual playback, waveforms and scene looping remain acceptance work. |
+| Generation or shooting | Planned (take workflow) | Proposed ordered takes, stable media references, provenance, selection, cost | Local video/still imports planned; existing board generation is a narrower feature | Existing `BoardImageVersion` is not a general take. Media-kind enum cases do not prove media decoding or substitution. No new generation integration is authorized for Phase C. |
+| Edit handoff | Partial | Derived clips and independent scene-level editorial order; current 24 fps guide timing | CSV, Premiere EDL offline placeholders, FCPXML named gaps; media-linked OTIO and audio planned | `EditInterchange.swift`, `EditInterchangeTests.swift`, `ImportAndEditTests.swift`. Current EDL/FCPXML do not transfer linked media or audio; external NLE imports remain unverified. |
+| Editorial round trip | Planned | Proposed imported edit decisions with source identity, timestamp and acceptance status | OTIO/FCPXML import and reviewable acceptance planned | No edited-timeline importer or transactional acceptance workflow exists. Changes must remain proposals until explicitly accepted, with Undo. |
+
+### Phased implementation contract
+
+Use the detailed [acceptance scenario](pipeline-acceptance-scenario.md). Implement
+A (timing and interchange), B (audio), C (takes), then D (handoff and round trip),
+with bounded commits and evidence notes. Extend canonical data only when its phase
+needs it; do not introduce empty infrastructure for all phases at once.
+
+Each new type requires encode/decode, unknown-field preservation, and legacy 0.1.3
+migration tests. A reader rejecting unknown data and opening a protected copy is
+not proof of lossless migration. Preserve source bytes and original identities;
+version bumps require a tested migration. Large media remains outside canonical
+JSON, addressed by stable IDs and portable relative paths. Board image versions
+must migrate to takes without losing version history or metadata.
+
+The planned fields are optional beat/scene targets; shot planned duration and
+coverage type; ordered takes (kind, media, duration, in/out, candidate/selected/
+rejected, selection note, local provenance/prompt, created time, rights notes,
+optional cost and currency); audio items (kind, media, stable scene/shot/dialogue
+anchor, offset, duration, gain and fades); and imported edit-decision proposals
+(trim/reorder/removal/added clip, source file, timestamp, pending/accepted/rejected).
+Prompt storage is local and does not grant permission to transmit it.

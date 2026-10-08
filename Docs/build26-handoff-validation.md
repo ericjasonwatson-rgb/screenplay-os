@@ -56,8 +56,9 @@ No line-pitch change was made here.
 
 ## Source publishing
 
-Fetch is blocked by unavailable GitHub credentials. Terminal authentication has been
-requested. Neither main nor the source tag has been pushed in this validation pass.
+On October 7, GitHub authentication succeeded. Pushed main through `2ee74fd` and
+`v0.1.3-build26-source` atomically, then verified both remote hashes matched local.
+No release was published.
 
 ## Follow-up persistence fixes
 
@@ -77,8 +78,17 @@ requested. Neither main nor the source tag has been pushed in this validation pa
 
 These changes have regression coverage; they have not yet had a separate live UI
 pass or been installed over the user's app. The remaining handoff backlog is not
-complete. Source upload still requires GitHub CLI authentication.
+complete. The source upload was subsequently completed as recorded above.
 
 Follow-up automated validation: Debug and Release each pass 253 Swift tests,
 37 Python tests, and 14 executable self-tests (304 per configuration). Logs:
 `/tmp/screenplay-persistence-debug.log` and `/tmp/screenplay-persistence-release.log`.
+
+## Remaining original live check — 2026-10-08
+
+In the isolated audit app (the earlier focus-fix build, not a fresh installation
+of the persistence changes), created a new untitled document. Pressing Tab changed
+the visible element type from Scene Heading to Action; Cmd+Z restored Scene Heading.
+The app autosaved its new disposable document to Downloads as
+`Untitled_Screenplay 23.open-screenplay.json`; it was not an original screenplay.
+Quit the audit app afterward. No original source or installed app was modified.
