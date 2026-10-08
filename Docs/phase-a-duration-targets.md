@@ -101,3 +101,16 @@ or hardware key-to-screen latency. Logs: `/tmp/phase-a-targets-before.log`,
 
 Manual UI verification is pending in this source commit. No installed-app update
 or public release is included.
+
+### Live-check attempt — 2026-10-08
+
+Launched `/private/tmp/screenplay-targets-audit/ScreenplayOS Timing Audit.app`.
+Its executable matches the tested Release binary byte-for-byte and its source
+revision is `53fa30a5c7f87af93696c716a38a63708b3ac149`. The accessibility tree
+confirmed an empty Untitled Screenplay in Script mode with the inspector closed.
+After requesting New/Open, automation timed out (`-10005 timeoutReached`); both
+subsequent accessibility inspection and screen capture also timed out. The
+sequence's final UI state could not be established. No live Set/Clear/Undo or
+save/reopen success is claimed. User confirmation of the visible Mac state is
+needed before further input. This does not establish that the application itself
+froze. The installed application was not replaced.
