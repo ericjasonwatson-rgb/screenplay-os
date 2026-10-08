@@ -57,3 +57,28 @@ public struct SceneDurationEstimate: Equatable {
         return result
     }
 }
+
+/// Ephemeral derived cache: reuses estimates for unchanged scenes while preserving
+/// the same result as a fresh byScene pass after splits, merges, moves or deletion.
+public struct SceneDurationEstimateCache {
+    private var scenes: [UUID: (source: [ScreenplayElement], estimate: SceneDurationEstimate?)] = [:]
+    public init() {}
+
+    public mutating func estimates(in elements: [ScreenplayElement]) -> [String: SceneDurationEstimate] {
+        var next: [UUID: (source: [ScreenplayElement], estimate: SceneDurationEstimate?)] = [:]
+        var result: [String: SceneDurationEstimate] = [:]
+        let starts = elements.indices.filter { elements[$0].type == .sceneHeading }
+        for (position, start) in starts.enumerated() {
+            let end = position + 1 < starts.count ? starts[position + 1] : elements.count
+            let heading = elements[start]
+            let source = Array(elements[start..<end])
+            let estimate: SceneDurationEstimate?
+            if let prior = scenes[heading.id], prior.source == source { estimate = prior.estimate }
+            else { estimate = SceneDurationEstimate(elements: source) }
+            next[heading.id] = (source, estimate)
+            if let id = heading.spineID, let estimate { result[id] = estimate }
+        }
+        scenes = next
+        return result
+    }
+}

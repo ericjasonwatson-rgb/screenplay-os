@@ -48,6 +48,12 @@
       },
       "default": []
     },
+    "scene_duration_targets": {
+      "type": "object",
+      "description": "Optional planned seconds keyed by scene-heading element UUID.",
+      "propertyNames": { "format": "uuid" },
+      "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 86400 }
+    },
     "script_notes": {
       "type": "array",
       "items": {
@@ -468,6 +474,9 @@
         },
         "notes": {
           "type": "string"
+        },
+        "target_duration_seconds": {
+          "type": "integer", "minimum": 1, "maximum": 86400
         },
         "linked_scene_spine_ids": {
           "type": "array",

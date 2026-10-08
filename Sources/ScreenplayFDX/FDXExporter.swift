@@ -44,7 +44,7 @@ public enum FDXExporter {
         }
         let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<FinalDraft DocumentType=\"Script\" Template=\"No\" Version=\"6\">\n<Content>\n" + paragraphs.joined(separator: "\n") + "\n</Content>\n" + title + "\n</FinalDraft>\n"
         return Result(data: Data(xml.utf8), warnings: [
-            "Exports screenplay text, paragraph types and bold/italic/underline/strikeout. Final Draft controls pagination and font layout; page locks, revision marks, notes, shots, boards and edit data are not transferred. Keep your native project.",
+            "Exports screenplay text, paragraph types and bold/italic/underline/strikeout. Final Draft controls pagination and font layout; page locks, revision marks, notes, duration targets, shots, boards and edit data are not transferred. Keep your native project.",
             "Title-page wording is exported separately. Its layout and author/contact field roles need review after reimport.",
             "Dual dialogue is not represented by the native editor. Previously imported dual speeches export sequentially; simultaneous delivery cannot be reconstructed."
         ])

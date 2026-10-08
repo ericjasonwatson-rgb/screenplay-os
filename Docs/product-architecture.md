@@ -264,3 +264,10 @@ and successful opening of disposable exports in Final Draft 13. The inventory
 above remains the pre-Phase-A baseline. See `phase-a-fdx-export.md` for exact support,
 manual observations, performance and limits. This does not establish full FDX
 fidelity, matching pagination, or completion of the timing/target-duration work.
+
+
+Optional beat and scene duration targets now exist in the legacy filmmaking
+workflow, with independent totals and estimated range comparisons in Outline and
+the Script inspector. No target automatically retimes clips. Native package
+support and the rest of Phase A remain incomplete. See `phase-a-duration-targets.md`
+for persistence, source-protection, Undo, performance and live-check evidence.

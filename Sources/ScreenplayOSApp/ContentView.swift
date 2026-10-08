@@ -395,6 +395,7 @@ private struct BeatSheetTemplateControls: View {
                 }
             }
             Text(model.outlineCoverageSummary).font(.caption).foregroundStyle(.secondary)
+            TimingPlanTotals(model: model)
         }
         .confirmationDialog("Replace the current beat sheet?", isPresented: $replacing) {
             Button("Replace with \(model.selectedOutlineTemplate.displayName)", role: .destructive) {
@@ -402,7 +403,7 @@ private struct BeatSheetTemplateControls: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("This replaces beat names, notes, and scene links. Screenplay scenes stay intact. You can undo the replacement.")
+            Text("This replaces beat names, notes, targets, and scene links. Screenplay scenes stay intact. You can undo the replacement.")
         }
     }
 }
@@ -427,6 +428,12 @@ private struct OutlineBeatCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
+
+            DurationTargetEditor(label: "Beat target", value: beat.targetDurationSeconds) {
+                model.setBeatTarget(beat.id, seconds: $0)
+            }.id(beat.id)
+            PlanningEstimateView(summary: .init(target: beat.targetDurationSeconds,
+                sceneIDs: beat.linkedSceneSpineIDs, estimates: model.scenePlanningEstimates))
 
             TextField("Notes", text: model.bindingForOutlineNotes(beat), axis: .vertical)
                 .font(.caption)
@@ -1705,6 +1712,8 @@ private struct OutlineSceneCard: View {
                     .foregroundStyle(.secondary)
             }
 
+            SceneTargetControls(model: model, scene: breakdown)
+
             if !breakdown.firstAction.isEmpty {
                 Text(breakdown.firstAction)
                     .font(.caption)
@@ -2437,6 +2446,19 @@ private struct ContextAssistantPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     InspectorHeader(model: model, context: model.inspectorContext)
+
+                    if model.workflowMode == .writing, model.document != nil {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Scene timing").font(.headline)
+                            if let scene = model.selectedSceneBreakdown {
+                                Text(scene.editSpineID).font(.caption.monospaced())
+                                SceneTargetControls(model: model, scene: scene)
+                            }
+                            Divider()
+                            TimingPlanTotals(model: model)
+                        }
+                    }
+
 
                     Toggle(isOn: Binding(
                         get: { model.productionContextEnabled },

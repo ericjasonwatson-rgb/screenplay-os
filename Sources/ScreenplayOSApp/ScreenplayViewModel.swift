@@ -19,6 +19,7 @@ final class ScreenplayViewModel: ObservableObject {
             // Includes nested edits, production-context changes, Undo/Redo and Open.
             // Selection and workspace changes can reuse the same derived summaries.
             sceneBreakdownCache = nil
+            planningEstimateCache = nil
             editTimelineCache = nil
             if oldValue?.screenplay.elements != document?.screenplay.elements { writingSourceCache = nil }
             if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.outline.first?.template != document?.outline.first?.template,
@@ -32,6 +33,8 @@ final class ScreenplayViewModel: ObservableObject {
     }
     private var writingSourceCache: (text: String, ranges: [NSRange])?
     private var sceneBreakdownCache: [SceneBreakdown]?
+    private var planningEstimateCache: [String: SceneDurationEstimate]?
+    private var sceneEstimateSourceCache = SceneDurationEstimateCache()
     @Published private(set) var sourceURL: URL?
     @Published private(set) var saveURL: URL?
     @Published var errorMessage: String?
@@ -1067,6 +1070,39 @@ final class ScreenplayViewModel: ObservableObject {
         autosave()
     }
 
+    var scenePlanningEstimates: [String: SceneDurationEstimate] {
+        if let planningEstimateCache { return planningEstimateCache }
+        let result = sceneEstimateSourceCache.estimates(in: elements)
+        planningEstimateCache = result
+        return result
+    }
+
+    func sceneTargetSeconds(_ headingID: UUID) -> Int? {
+        document?.sceneDurationTargets?[headingID.uuidString]
+    }
+
+    @discardableResult func setSceneTarget(_ headingID: UUID, seconds: Int?) -> Bool {
+        guard var updated = document,
+              updated.setSceneDurationTarget(headingID: headingID, seconds: seconds) else { return false }
+        guard sceneTargetSeconds(headingID) != seconds else { return true }
+        rememberUndoState()
+        updated.project.metadata.modifiedAt = Date()
+        document = updated
+        autosave()
+        return true
+    }
+
+    @discardableResult func setBeatTarget(_ beatID: UUID, seconds: Int?) -> Bool {
+        guard var updated = document,
+              updated.setOutlineDurationTarget(beatID: beatID, seconds: seconds) else { return false }
+        guard document?.outline.first(where: { $0.id == beatID })?.targetDurationSeconds != seconds else { return true }
+        rememberUndoState()
+        updated.project.metadata.modifiedAt = Date()
+        document = updated
+        autosave()
+        return true
+    }
+
     func bindingForOutlineNotes(_ beat: OutlineBeat) -> Binding<String> {
         Binding(
             get: { [weak self] in
@@ -1980,6 +2016,9 @@ final class ScreenplayViewModel: ObservableObject {
                 revisionMark: currentRevisionMark() ?? element.revisionMark
             )
             copy.setStyledText(element.styledText)
+            if element.type == .sceneHeading, let target = document.sceneDurationTargets?[element.id.uuidString] {
+                document.sceneDurationTargets?[copy.id.uuidString] = target
+            }
             return copy
         }
         document.screenplay.elements.insert(contentsOf: duplicated, at: range.upperBound)
@@ -2016,6 +2055,7 @@ final class ScreenplayViewModel: ObservableObject {
 
         rememberUndoState()
         document.screenplay.elements.removeSubrange(range)
+        document.sceneDurationTargets?[breakdown.elementID.uuidString] = nil
         document.screenplay.revision += 1
         document.project.metadata.modifiedAt = Date()
         document.shots.removeAll { $0.sceneSpineID == breakdown.editSpineID }

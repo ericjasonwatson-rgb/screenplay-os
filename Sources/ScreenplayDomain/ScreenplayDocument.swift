@@ -12,6 +12,8 @@ public struct OpenScreenplayDocument: Codable, Equatable {
     public var proposals: [AIProposal]
     public var activity: [ActivityEvent]
     public var outline: [OutlineBeat]
+    /// Optional plans keyed by the stable scene-heading element UUID, never scene order.
+    public var sceneDurationTargets: [String: Int]?
     public var scriptNotes: [ScriptNote]
     public var shots: [Shot]
     public var boardFrames: [BoardFrame]
@@ -63,6 +65,7 @@ public struct OpenScreenplayDocument: Codable, Equatable {
         case proposals
         case activity
         case outline
+        case sceneDurationTargets = "scene_duration_targets"
         case scriptNotes = "script_notes"
         case shots
         case boardFrames = "board_frames"
@@ -86,6 +89,17 @@ public struct OpenScreenplayDocument: Codable, Equatable {
         proposals = try container.decodeIfPresent([AIProposal].self, forKey: .proposals) ?? []
         activity = try container.decodeIfPresent([ActivityEvent].self, forKey: .activity) ?? []
         outline = try container.decodeIfPresent([OutlineBeat].self, forKey: .outline) ?? []
+        sceneDurationTargets = try container.decodeIfPresent([String: Int].self, forKey: .sceneDurationTargets)
+        if let targets = sceneDurationTargets {
+            var canonical: [String: Int] = [:]
+            for (key, value) in targets {
+                guard let id = UUID(uuidString: key), DurationTarget.isValid(value), canonical[id.uuidString] == nil else {
+                    throw DecodingError.dataCorruptedError(forKey: .sceneDurationTargets, in: container, debugDescription: "Scene targets require unique heading UUID keys and 1–86400 whole seconds")
+                }
+                canonical[id.uuidString] = value
+            }
+            sceneDurationTargets = canonical
+        }
         scriptNotes = try container.decodeIfPresent([ScriptNote].self, forKey: .scriptNotes) ?? []
         shots = try container.decodeIfPresent([Shot].self, forKey: .shots) ?? []
         boardFrames = try container.decodeIfPresent([BoardFrame].self, forKey: .boardFrames) ?? []
@@ -575,6 +589,7 @@ public struct OutlineBeat: Codable, Equatable, Identifiable {
     public var purpose: String
     public var notes: String
     public var linkedSceneSpineIDs: [String]
+    public var targetDurationSeconds: Int?
 
     public init(
         id: UUID = UUID(),
@@ -583,7 +598,8 @@ public struct OutlineBeat: Codable, Equatable, Identifiable {
         name: String,
         purpose: String,
         notes: String = "",
-        linkedSceneSpineIDs: [String] = []
+        linkedSceneSpineIDs: [String] = [],
+        targetDurationSeconds: Int? = nil
     ) {
         self.id = id
         self.template = template
@@ -592,6 +608,7 @@ public struct OutlineBeat: Codable, Equatable, Identifiable {
         self.purpose = purpose
         self.notes = notes
         self.linkedSceneSpineIDs = linkedSceneSpineIDs
+        self.targetDurationSeconds = targetDurationSeconds
     }
 
     enum CodingKeys: String, CodingKey {
@@ -602,6 +619,22 @@ public struct OutlineBeat: Codable, Equatable, Identifiable {
         case purpose
         case notes
         case linkedSceneSpineIDs = "linked_scene_spine_ids"
+        case targetDurationSeconds = "target_duration_seconds"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        template = try c.decode(String.self, forKey: .template)
+        order = try c.decode(Int.self, forKey: .order)
+        name = try c.decode(String.self, forKey: .name)
+        purpose = try c.decode(String.self, forKey: .purpose)
+        notes = try c.decode(String.self, forKey: .notes)
+        linkedSceneSpineIDs = try c.decode([String].self, forKey: .linkedSceneSpineIDs)
+        targetDurationSeconds = try c.decodeIfPresent(Int.self, forKey: .targetDurationSeconds)
+        if let targetDurationSeconds, !DurationTarget.isValid(targetDurationSeconds) {
+            throw DecodingError.dataCorruptedError(forKey: .targetDurationSeconds, in: c, debugDescription: "Target must be 1–86400 whole seconds")
+        }
     }
 }
 
