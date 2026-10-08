@@ -3020,7 +3020,7 @@ private struct KeyCommandMonitor: NSViewRepresentable {
                 // Script commands apply only while the script editor has focus. Notes, search,
                 // the palette, and sheets keep their normal text-editing keys (⌘⌫, ⌘1–⌘7, Delete).
                 let scriptEditorFocused = MainActor.assumeIsolated {
-                    (event.window ?? NSApp.keyWindow)?.firstResponder is WritingTextView
+                    WritingTextView.acceptsScriptCommands(in: NSApp.keyWindow ?? event.window)
                 }
 
                 if scriptEditorFocused,

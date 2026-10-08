@@ -10,6 +10,39 @@ import ScreenplayFDX
 @Suite("Build 26 audit fixes")
 @MainActor
 struct AuditFixTests {
+    @Test func scriptCommandsRejectSideFieldsAndAttachedSheets() throws {
+        _ = NSApplication.shared
+        // The test runner has no window-server sheet presentation. Supply the
+        // same attachedSheet state while exercising real AppKit first responders.
+        final class SheetWindow: NSWindow {
+            var testSheet: NSWindow?
+            override var attachedSheet: NSWindow? { testSheet }
+        }
+        let window = SheetWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let script = WritingTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 200))
+        window.contentView = script
+        defer { window.close() }
+        window.makeFirstResponder(script)
+        #expect(WritingTextView.acceptsScriptCommands(in: window))
+        let field = NSTextView(frame: .zero)
+        script.addSubview(field)
+        window.makeFirstResponder(field)
+        #expect(!WritingTextView.acceptsScriptCommands(in: window))
+        window.makeFirstResponder(script)
+        let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+                             styleMask: [.titled], backing: .buffered, defer: false)
+        sheet.isReleasedWhenClosed = false
+        window.testSheet = sheet
+        #expect(!WritingTextView.acceptsScriptCommands(in: window))
+        #expect(!WritingTextView.acceptsScriptCommands(in: sheet))
+        window.testSheet = nil
+        #expect(WritingTextView.acceptsScriptCommands(in: window))
+        sheet.close()
+        #expect(!WritingTextView.acceptsScriptCommands(in: nil))
+    }
+
     private var fixtureURL: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Defenders_of_Cat_Island.open-screenplay.json")

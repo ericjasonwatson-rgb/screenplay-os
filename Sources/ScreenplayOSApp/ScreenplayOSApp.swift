@@ -12,6 +12,16 @@ struct ScreenplayOSApp: App {
         return text
     }
 
+    private func performScriptCommand(_ command: () -> Void) {
+        guard WritingTextView.acceptsScriptCommands(in: NSApp.keyWindow) else { return }
+        command()
+    }
+
+    private var scriptCommandsDisabled: Bool {
+        !model.scriptEditorFocused || model.titlePagePresented ||
+        model.dialogueAssistantPresented || model.boardGenerationSnapshot != nil
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
@@ -350,17 +360,17 @@ struct ScreenplayOSApp: App {
 
                     Group {
                         Button("Delete Selected Element") {
-                            model.deleteSelectedElement()
+                            performScriptCommand { model.deleteSelectedElement() }
                         }
                         .keyboardShortcut(.delete, modifiers: [])
 
                         Button("Clean Blank Elements") {
-                            model.deleteEmptyElements()
+                            performScriptCommand { model.deleteEmptyElements() }
                         }
                         .keyboardShortcut(.delete, modifiers: [.command])
 
                     }
-                    .disabled(!model.scriptEditorFocused)
+                    .disabled(scriptCommandsDisabled)
 
                     Button("Clean Script") {
                         model.cleanScript()
@@ -371,53 +381,53 @@ struct ScreenplayOSApp: App {
                         Divider()
 
                         Button("Cycle Element Type") {
-                            model.cycleSelectedElementType()
+                            performScriptCommand { model.cycleSelectedElementType() }
                         }
                         .keyboardShortcut(.tab, modifiers: [])
 
                         Button("Cycle Element Type Backward") {
-                            model.cycleSelectedElementType(forward: false)
+                            performScriptCommand { model.cycleSelectedElementType(forward: false) }
                         }
                         .keyboardShortcut(.tab, modifiers: [.shift])
 
                         Divider()
 
                         Button("Make Scene Heading") {
-                            model.promoteSelectedElementToSceneHeading()
+                            performScriptCommand { model.promoteSelectedElementToSceneHeading() }
                         }
                         .keyboardShortcut("1", modifiers: [.command])
 
                         Button("Make Action") {
-                            model.setSelectedElementType(.action)
+                            performScriptCommand { model.setSelectedElementType(.action) }
                         }
                         .keyboardShortcut("2", modifiers: [.command])
 
                         Button("Make Character") {
-                            model.promoteSelectedElementToCharacter()
+                            performScriptCommand { model.promoteSelectedElementToCharacter() }
                         }
                         .keyboardShortcut("3", modifiers: [.command])
 
                         Button("Make Dialogue") {
-                            model.setSelectedElementType(.dialogue)
+                            performScriptCommand { model.setSelectedElementType(.dialogue) }
                         }
                         .keyboardShortcut("4", modifiers: [.command])
 
                         Button("Make Parenthetical") {
-                            model.setSelectedElementType(.parenthetical)
+                            performScriptCommand { model.setSelectedElementType(.parenthetical) }
                         }
                         .keyboardShortcut("5", modifiers: [.command])
 
                         Button("Make Transition") {
-                            model.setSelectedElementType(.transition)
+                            performScriptCommand { model.setSelectedElementType(.transition) }
                         }
                         .keyboardShortcut("6", modifiers: [.command])
 
                         Button("Make Shot") {
-                            model.setSelectedElementType(.shot)
+                            performScriptCommand { model.setSelectedElementType(.shot) }
                         }
                         .keyboardShortcut("7", modifiers: [.command])
                     }
-                    .disabled(!model.scriptEditorFocused)
+                    .disabled(scriptCommandsDisabled)
                 }.disabled(model.packageSheetOpen)
             }
         }

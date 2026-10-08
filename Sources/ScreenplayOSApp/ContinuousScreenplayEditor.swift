@@ -303,6 +303,12 @@ struct PrintedPageGuide: Equatable {
 
 final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
     var pageGuides: [PrintedPageGuide] = []
+    /// A sheet can own keyboard focus while the parent retains its first responder.
+    static func acceptsScriptCommands(in window: NSWindow?) -> Bool {
+        guard let window, window.attachedSheet == nil else { return false }
+        return window.firstResponder is WritingTextView
+    }
+
     var focusChanged: ((Bool) -> Void)?
 
     override func becomeFirstResponder() -> Bool {
@@ -317,10 +323,6 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
         return accepted
     }
 
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if window == nil { focusChanged?(false) }
-    }
     var guideInk = NSColor.labelColor
 
     /// Uses the editable source glyph, never a fabricated newline or attachment.
@@ -466,6 +468,10 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        guard window != nil else {
+            focusChanged?(false)
+            return
+        }
         DispatchQueue.main.async { [weak self] in
             guard let self, let window = self.window else { return }
             window.makeFirstResponder(self)
