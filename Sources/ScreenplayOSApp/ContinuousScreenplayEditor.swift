@@ -340,23 +340,27 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
 
     private(set) var pagePlan: PrintedWritingLayout?
     private var attemptedPlanID: UUID?
+    private var lineBreaks: NativeLineBreaks?
     private let wrappingValidator = NativeWrappingValidator()
     func setPagePlan(_ plan: PrintedWritingLayout?, invalidatedFrom: Int? = nil, updatedRange: NSRange? = nil) {
         if let id = plan?.id, attemptedPlanID == id, updatedRange == nil { return }
+        let breaksChanged = lineBreaks != plan?.lineBreaks
         if let storage = textStorage, let container = textContainer, let manager = layoutManager {
-            wrappingValidator.update(from: storage, changedRange: updatedRange, container: container, manager: manager)
+            wrappingValidator.update(from: storage, changedRange: updatedRange, container: container, manager: manager, lineBreaks: plan?.lineBreaks)
         }
         if let id = plan?.id, attemptedPlanID == id { return }
+        lineBreaks = plan?.lineBreaks
         attemptedPlanID = plan?.id
         var start = 0
-        if let previous = pagePlan, let plan, let invalidatedFrom {
+        if !breaksChanged, let previous = pagePlan, let plan, let invalidatedFrom {
             let changedLines = previous.lines.keys.filter { previous.lines[$0] != plan.lines[$0] }
                 + plan.lines.keys.filter { previous.lines[$0] == nil }
             start = min(invalidatedFrom, changedLines.min() ?? invalidatedFrom)
         }
         start = min(max(0, start), (string as NSString).length)
         let invalidated = NSRange(location: start, length: (string as NSString).length - start)
-        // Keep natural wrapping in its own retained TextKit layout. The displayed
+        // Validate wrapping in a separate retained TextKit layout, including any
+        // experimental print-derived break opportunities. The displayed
         // editor only lays out paged coordinates, rather than laying out twice.
         layoutManager?.delegate = self
         if let plan, let manager = layoutManager, let container = textContainer {
@@ -365,7 +369,8 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
                 // Never draw a mixture of paged and continuous coordinates.
                 let wasPaged = pagePlan != nil
                 pagePlan = nil
-                if wasPaged {
+                lineBreaks = nil
+                if wasPaged || breaksChanged {
                     manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
                     manager.ensureLayout(for: container)
                 } else {
@@ -398,6 +403,12 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
             pagePlan = nil
             layoutManager?.invalidateLayout(forCharacterRange: NSRange(location: 0, length: (string as NSString).length), actualCharacterRange: nil)
         }
+    }
+    func layoutManager(_ manager: NSLayoutManager, shouldBreakLineByWordBeforeCharacterAt index: Int) -> Bool {
+        lineBreaks?.allows(index) ?? true
+    }
+    func layoutManager(_ manager: NSLayoutManager, shouldBreakLineByHyphenatingBeforeCharacterAt index: Int) -> Bool {
+        lineBreaks?.allows(index) ?? true
     }
     func layoutManager(_ manager: NSLayoutManager, shouldSetLineFragmentRect rect: UnsafeMutablePointer<NSRect>,
         lineFragmentUsedRect used: UnsafeMutablePointer<NSRect>, baselineOffset: UnsafeMutablePointer<CGFloat>,

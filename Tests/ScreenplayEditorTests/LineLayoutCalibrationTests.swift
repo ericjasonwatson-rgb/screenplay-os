@@ -8,7 +8,7 @@ import ScreenplayFDX
 
 @Suite("Line layout calibration") @MainActor
 struct LineLayoutCalibrationTests {
-    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, dialogueText: String? = nil, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
+    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, dialogueText: String? = nil, editing: Bool = false, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let path = name == "Defenders" ? "Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx" : "Docs/AuditEvidence/pagination-2026-10-08/\(name).fdx"
         let data = try Data(contentsOf: root.appendingPathComponent(path))
@@ -35,8 +35,10 @@ struct LineLayoutCalibrationTests {
         legacy.loadOpenScreenplay(at: url); candidate.loadOpenScreenplay(at: url)
         let original = try Data(contentsOf: url)
         try body(legacy, candidate, directory)
-        // Calibration and rendering must never autosave a different layout into the fixture.
-        #expect(try Data(contentsOf: url) == original)
+        // Rendering alone must not rewrite the disposable file. Editing tests
+        // intentionally exercise its autosave; the checked-in source stays intact.
+        if !editing { #expect(try Data(contentsOf: url) == original) }
+        #expect(try Data(contentsOf: root.appendingPathComponent(path)) == data)
     }
 
     @Test func fixturesRetainSourceAndProduceConsistentPrintPlans() throws {
@@ -63,7 +65,7 @@ struct LineLayoutCalibrationTests {
 
 
     @Test func speechAndPageTopTrialsPreserveAllTextAndFitPages() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment] {
             for name in ["Action-heavy", "Dialogue-heavy", "Defenders"] {
                 try compare(name, mode: mode) { legacy, candidate, _ in
                     @MainActor func fragments(_ model: ScreenplayViewModel) -> [UUID: String] {
@@ -121,7 +123,7 @@ struct LineLayoutCalibrationTests {
     }
 
     @Test func existingLocksAndOtherFontSizesRetainLegacyLayout() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment] {
             for locked in [true, false] {
                 try compare("Dialogue-heavy", mode: mode, locked: locked, fontSize: locked ? nil : 14) { legacy, candidate, _ in
                     #expect(candidate.effectiveLineLayout == .legacy)
@@ -133,8 +135,9 @@ struct LineLayoutCalibrationTests {
         }
     }
 
-    @Test(arguments: [false, true]) func nativeEditorMatchesCandidatePrintLinesAtEveryZoom(synthetic: Bool) throws {
-        try compare("Dialogue-heavy", mode: synthetic ? .sentenceAlignedLineExperiment : .footerContinuationExperiment,
+    @Test(arguments: [0, 1, 2]) func nativeEditorMatchesCandidatePrintLinesAtEveryZoom(sample: Int) throws {
+        let synthetic = sample == 2
+        try compare("Dialogue-heavy", mode: sample == 0 ? .footerContinuationExperiment : .sentenceBoundaryExperiment,
                     dialogueText: synthetic ? String(repeating: "We must wait beside the door. ", count: 12) : nil) { _, candidate, directory in
             if synthetic {
                 let suite = "SentenceFooterComparison.\(UUID())"
@@ -178,6 +181,95 @@ struct LineLayoutCalibrationTests {
         }
     }
 
+    @Test func interiorBreakTypingSelectionAndUndoPreserveSource() throws {
+        try compare("Dialogue-heavy", mode: .sentenceBoundaryExperiment, editing: true) { _, candidate, _ in
+            let original = candidate.elements
+            let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: candidate))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = host
+            defer { window.close() }
+            func find(_ view: NSView) -> WritingTextView? {
+                if let value = view as? WritingTextView { return value }
+                return view.subviews.lazy.compactMap { find($0) }.first
+            }
+            @MainActor func refresh() {
+                host.layoutSubtreeIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.03))
+            }
+            refresh()
+            let editor = try #require(find(host))
+            @MainActor func verify() throws {
+                refresh()
+                let plan = try #require(editor.pagePlan)
+                let fresh = try #require(PrintedWritingLayout(print: candidate.printedLayout,
+                    writing: ScreenplayWritingProjection(elements: candidate.elements, casing: candidate.screenplayCasing),
+                    typography: candidate.writingTypography, lineLayout: candidate.effectiveLineLayout))
+                #expect(plan.lines == fresh.lines)
+                #expect(plan.lineBreaks == fresh.lineBreaks)
+                let manager = try #require(editor.layoutManager), container = try #require(editor.textContainer)
+                manager.ensureLayout(for: container)
+                var actual: [Int: CGFloat] = [:]
+                manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { rect, _, _, glyphs, _ in
+                    actual[manager.characterIndexForGlyph(at: glyphs.location)] = rect.minY
+                }
+                for (start, line) in plan.lines {
+                    #expect(abs(try #require(actual[start]) - line.y) < 0.01)
+                    if start < editor.string.utf16.count {
+                        let glyph = manager.glyphIndexForCharacter(at: start)
+                        let rect = manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+                        let position = manager.location(forGlyphAt: glyph)
+                        let point = NSPoint(x: rect.minX + position.x + 0.1, y: rect.midY)
+                        #expect(manager.characterIndex(for: point, in: container, fractionOfDistanceBetweenInsertionPoints: nil) == start)
+                    }
+                }
+                #expect(editor.string == ScreenplayWritingProjection(elements: candidate.elements, casing: candidate.screenplayCasing).text)
+            }
+            try verify()
+            let span = try #require(candidate.printedPages.flatMap(\.elements)
+                .first { $0.element.type == .dialogue && ($0.sourceSpan?.elementRange.location ?? 0) > 0 }?.sourceSpan)
+            let writing = ScreenplayWritingProjection(elements: candidate.elements, casing: candidate.screenplayCasing)
+            let boundary = writing.displayRange(span.documentRange).location
+            let across = NSRange(location: boundary - 8, length: 16)
+            editor.setSelectedRange(across)
+            #expect(editor.selectedRange() == across)
+            // Requires the macOS pasteboard service, unavailable in a filesystem
+            // sandbox. Opt in explicitly for the local native verification run.
+            if ProcessInfo.processInfo.environment["SCREENPLAYOS_TEST_PASTEBOARD"] == "1" {
+                let pasteboard = NSPasteboard.withUniqueName()
+                defer { pasteboard.releaseGlobally() }
+                #expect(editor.writeSelection(to: pasteboard, types: editor.writablePasteboardTypes))
+                #expect(pasteboard.string(forType: .string) == (writing.text as NSString).substring(with: across))
+            }
+            editor.insertText(" A café 🛰️ waits. ", replacementRange: across)
+            let edited = candidate.elements
+            #expect(edited != original)
+            try verify()
+            candidate.undo(); try verify(); #expect(candidate.elements == original)
+            candidate.redo(); try verify(); #expect(candidate.elements == edited)
+            candidate.undo(); try verify(); #expect(candidate.elements == original)
+            // Removing the space that allowed the original sentence break must
+            // recalculate both layouts, without leaving a stale forced boundary.
+            editor.setSelectedRange(NSRange(location: boundary - 1, length: 1))
+            editor.insertText("", replacementRange: editor.selectedRange())
+            try verify()
+            candidate.undo(); try verify(); #expect(candidate.elements == original)
+        }
+    }
+
+    @Test func interiorSentencePreferenceKeepsTwoLinesAndWordBoundaries() {
+        let text = "The train arrives. We wait by the door. Another sentence follows."
+        let source = text as NSString
+        let first = source.range(of: "We wait").location
+        let second = source.range(of: "Another").location
+        #expect(SentenceAlignedSplit.preferredInteriorEnd(in: text, fittingLineEnds: [12, second + 4]) == second)
+        #expect(SentenceAlignedSplit.preferredInteriorEnd(in: text, fittingLineEnds: [first, second - 1]) == second - 1)
+        #expect(SentenceAlignedSplit.preferredInteriorEnd(in: text, fittingLineEnds: [12]) == 12)
+        #expect(SentenceAlignedSplit.preferredInteriorEnd(in: text, fittingLineEnds: []) == 0)
+        let policy = NativeLineBreaks(starts: [10, 20], paragraphs: [NSRange(location: 10, length: 20)])
+        #expect(policy.allows(10) && policy.allows(20) && policy.allows(9) && policy.allows(30))
+        #expect(!policy.allows(15))
+    }
+
     @Test func sentencePreferenceUsesOnlyEligibleNativeBoundaries() {
         let text = "She waits by the door. He stays beside the window. They leave together."
         let source = text as NSString
@@ -212,7 +304,7 @@ struct LineLayoutCalibrationTests {
         for i in 1..<10 {
             #expect(abs(layout.location(forGlyphAt: i).x - layout.location(forGlyphAt: i - 1).x - 7) < 0.001)
         }
-        for mode: ScreenplayLineLayout in [.sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment] {
+        for mode: ScreenplayLineLayout in [.sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment] {
             try compare("Dialogue-heavy", mode: mode, fontFamily: "Helvetica") { legacy, candidate, _ in
                 #expect(candidate.effectiveLineLayout == .legacy)
                 #expect(candidate.printedPages.count == legacy.printedPages.count)
@@ -220,8 +312,8 @@ struct LineLayoutCalibrationTests {
         }
     }
 
-    @Test func candidateCannotCreateProductionLocks() throws {
-        try compare("Dialogue-heavy") { _, candidate, _ in
+    @Test(arguments: [ScreenplayLineLayout.twelvePointExperiment, .sentenceBoundaryExperiment]) func candidateCannotCreateProductionLocks(mode: ScreenplayLineLayout) throws {
+        try compare("Dialogue-heavy", mode: mode) { _, candidate, _ in
             let original = candidate.document
             candidate.lockProductionPages()
             #expect(!candidate.pagesAreLocked)

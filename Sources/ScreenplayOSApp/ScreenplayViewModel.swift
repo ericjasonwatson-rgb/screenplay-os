@@ -4906,6 +4906,9 @@ final class ScreenplayViewModel: ObservableObject {
         if effectiveLineLayout == .sentenceAlignedLineExperiment, type == .dialogue {
             end = SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: fittingLineEnds)
         }
+        if effectiveLineLayout == .sentenceBoundaryExperiment, type == .dialogue {
+            end = SentenceAlignedSplit.preferredInteriorEnd(in: text, fittingLineEnds: fittingLineEnds)
+        }
         let range = NSRange(location: 0, length: end)
         guard let boundary = Range(range, in: text) else { return "" }
         return String(text[boundary])

@@ -1,23 +1,33 @@
 import AppKit
 
-/// Retains one natural (unpaged) TextKit layout for the current editor. The visible
+/// Retains an unpaged TextKit layout with the editor's same break policy. The visible
 /// text view must never be switched to natural coordinates just to validate wraps.
 @MainActor
-final class NativeWrappingValidator {
+// This private layout manager is owned and driven on the main actor. AppKit
+// exposes its Objective-C delegate requirements without actor annotations.
+final class NativeWrappingValidator: NSObject, @preconcurrency NSLayoutManagerDelegate {
     private let storage = NSTextStorage()
     private let manager = NSLayoutManager()
     private let container = NSTextContainer(size: .zero)
+    private var lineBreaks: NativeLineBreaks?
     private var initialized = false
     private var cachedStarts: Set<Int>?
     private var dirtyParagraphs: NSRange?
 
-    init() {
+    override init() {
+        super.init()
+        manager.delegate = self
         storage.addLayoutManager(manager)
         manager.addTextContainer(container)
     }
 
     func update(from source: NSTextStorage, changedRange: NSRange?, container sourceContainer: NSTextContainer,
-                manager sourceManager: NSLayoutManager) {
+                manager sourceManager: NSLayoutManager, lineBreaks: NativeLineBreaks? = nil) {
+        if self.lineBreaks != lineBreaks {
+            self.lineBreaks = lineBreaks
+            cachedStarts = nil; dirtyParagraphs = nil
+            manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: storage.length), actualCharacterRange: nil)
+        }
         let geometryChanged = container.containerSize != sourceContainer.containerSize ||
             container.lineFragmentPadding != sourceContainer.lineFragmentPadding ||
             manager.usesFontLeading != sourceManager.usesFontLeading ||
@@ -56,6 +66,14 @@ final class NativeWrappingValidator {
         cachedStarts = nil; dirtyParagraphs = nil
         storage.setAttributedString(source)
         initialized = true
+    }
+
+    func layoutManager(_ manager: NSLayoutManager, shouldBreakLineByWordBeforeCharacterAt index: Int) -> Bool {
+        lineBreaks?.allows(index) ?? true
+    }
+
+    func layoutManager(_ manager: NSLayoutManager, shouldBreakLineByHyphenatingBeforeCharacterAt index: Int) -> Bool {
+        lineBreaks?.allows(index) ?? true
     }
 
     func lineStarts() -> Set<Int> {

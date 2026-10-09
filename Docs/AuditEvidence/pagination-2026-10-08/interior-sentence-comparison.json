@@ -1,0 +1,87 @@
+{
+  "reference_sha256": "a21456a552c24085405ddeadf7cfaff1b8ec00dd8dded35bac8976baff44f67a",
+  "normalization": "Exclude candidate title page, standalone page numbers, MORE and CONT-D cue lines (straight or curly apostrophe); remove whitespace.",
+  "comparisons": [
+    {
+      "mode": "footerContinuationExperiment",
+      "candidate_sha256": "4bde62f3d7ccf8151df463fae4ae63c32a4bb382046ee6e253e06be3d186672a",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "pages_with_equal_text": [
+        1
+      ]
+    },
+    {
+      "mode": "sentenceBoundaryExperiment",
+      "candidate_sha256": "fc911ae6babb84c1f1ded5df2cb469c78ab61f989477bea88056ae8acfe56128",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "pages_with_equal_text": [
+        1,
+        2
+      ]
+    }
+  ],
+  "changed_pages_against_footer": {
+    "Action-heavy": [],
+    "Dialogue-heavy": [
+      2,
+      3,
+      4,
+      5,
+      7,
+      8,
+      9,
+      10,
+      12,
+      13,
+      14,
+      15,
+      17,
+      18,
+      19,
+      20
+    ],
+    "Defenders": []
+  },
+  "continuation_top_observation": {
+    "reference": {
+      "script_page": 3,
+      "top_baselines": [
+        {
+          "from_top": 68.0,
+          "text": "BOB (CONT\u2019D)"
+        },
+        {
+          "from_top": 81.0,
+          "text": "Theroomisquiet,andeveryoneis"
+        },
+        {
+          "from_top": 93.0,
+          "text": "waitingforananswer."
+        }
+      ]
+    },
+    "candidate": {
+      "script_page": 3,
+      "top_baselines": [
+        {
+          "from_top": 39.0,
+          "text": "3."
+        },
+        {
+          "from_top": 81.0,
+          "text": "BOB (CONT'D)"
+        },
+        {
+          "from_top": 93.0,
+          "text": "The room is quiet, and everyone is"
+        },
+        {
+          "from_top": 105.0,
+          "text": "waiting for an answer."
+        }
+      ]
+    }
+  }
+}
