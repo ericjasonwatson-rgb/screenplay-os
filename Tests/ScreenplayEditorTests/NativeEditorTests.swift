@@ -416,6 +416,26 @@ struct NativeEditorTests {
             try await settle()
             #expect(text.string == ScreenplayWritingProjection(elements: model.elements).text)
             #expect(text.pagePlan != nil)
+            if ProcessInfo.processInfo.environment["SCREENPLAYOS_STRESS_VERIFY_GEOMETRY"] == "1" {
+                let plan = try #require(text.pagePlan)
+                let layout = try #require(text.layoutManager), container = try #require(text.textContainer)
+                layout.ensureLayout(for: container)
+                var actual: [Int: CGFloat] = [:]
+                layout.enumerateLineFragments(forGlyphRange: layout.glyphRange(for: container)) { rect, _, _, glyphs, _ in
+                    actual[layout.characterIndexForGlyph(at: glyphs.location)] = rect.minY
+                }
+                // A trailing empty paragraph has no glyphs; AppKit exposes its
+                // caret row separately from enumerateLineFragments.
+                if text.string.isEmpty || text.string.hasSuffix("\n") {
+                    #expect(layout.extraLineFragmentTextContainer === container)
+                    actual[(text.string as NSString).length] = layout.extraLineFragmentRect.minY
+                }
+                for (start, line) in plan.lines {
+                    let y = try #require(actual[start], "Missing native line at UTF-16 offset \(start)")
+                    #expect(abs(y - line.y) < 0.01)
+                }
+                #expect(plan.labels == model.printedPages.map(\.label))
+            }
             if cycle < 3, let capturePath = ProcessInfo.processInfo.environment["SCREENPLAYOS_STRESS_CAPTURE_DIR"],
                let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
                 host.cacheDisplay(in: host.bounds, to: bitmap)
