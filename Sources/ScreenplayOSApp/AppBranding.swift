@@ -15,9 +15,24 @@ enum AppBranding {
         return image
     }()
 
+    static let appIcon: NSImage = {
+        let url = Bundle.main.url(forResource: "ScreenplayOS", withExtension: "icns")
+            ?? Bundle.module.url(forResource: "ScreenplayOS", withExtension: "icns")
+        return url.flatMap(NSImage.init(contentsOf:)) ?? logo
+    }()
+
+    /// Give the menu bar a small representation without changing the source image.
+    static let menuBarIcon: NSImage = {
+        let image = appIcon.copy() as! NSImage
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = false
+        return image
+    }()
+
     private static var aboutWindow: NSWindow?
 
     static func showAbout() {
+        NSApp.activate(ignoringOtherApps: true)
         if let aboutWindow {
             aboutWindow.makeKeyAndOrderFront(nil)
             return
@@ -55,5 +70,21 @@ private struct AboutScreenplayOSView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Always-visible branding, including when document panels are collapsed.
+struct AppLogoButton: View {
+    var body: some View {
+        Button(action: AppBranding.showAbout) {
+            Image(nsImage: AppBranding.appIcon)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("About ScreenplayOS")
+        .help("About ScreenplayOS")
     }
 }

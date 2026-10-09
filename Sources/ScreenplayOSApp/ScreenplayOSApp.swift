@@ -434,6 +434,18 @@ struct ScreenplayOSApp: App {
                 }.disabled(model.packageSheetOpen)
             }
         }
+        MenuBarExtra {
+            Button("Bring Windows to Front") {
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.arrangeInFront(nil)
+            }
+            Button("About ScreenplayOS", action: AppBranding.showAbout)
+            Divider()
+            Button("Quit ScreenplayOS") { appDelegate.requestQuit() }
+        } label: {
+            Image(nsImage: AppBranding.menuBarIcon)
+                .accessibilityLabel("ScreenplayOS")
+        }
     }
 }
 
@@ -461,6 +473,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.applicationIconImage = AppBranding.appIcon
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

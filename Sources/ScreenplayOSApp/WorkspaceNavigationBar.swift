@@ -6,6 +6,7 @@ struct WorkspaceNavigationBar: View {
     init(model: ScreenplayViewModel) { _model = ChromeObserved(wrappedValue: model, .navigation) }
     var body: some View {
         HStack(spacing: 10) {
+            AppLogoButton()
             DocumentPanelButton(isVisible: model.visibleWorkspaceRegions.contains(.navigation)) {
                 if model.focusMode {
                     model.focusMode = false
@@ -50,6 +51,7 @@ struct PackageNavigationBar: View {
     @Binding var navigationVisible: Bool
     var body: some View {
         HStack(spacing: 10) {
+            AppLogoButton()
             DocumentPanelButton(isVisible: navigationVisible) { navigationVisible.toggle() }
             HStack { Text("Mode").foregroundStyle(.secondary); Text("Script") }
             HStack { Text("Workspace").foregroundStyle(.secondary); Text("Editor") }
