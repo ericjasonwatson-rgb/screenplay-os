@@ -1,0 +1,314 @@
+{
+  "reference_sha256": "a21456a552c24085405ddeadf7cfaff1b8ec00dd8dded35bac8976baff44f67a",
+  "normalization": "Exclude candidate title page, standalone page numbers, MORE and CONT-D cue lines (straight or curly apostrophe); remove whitespace.",
+  "comparisons": [
+    {
+      "mode": "sentenceBoundaryExperiment",
+      "candidate_sha256": "ba192e209a3863a7bee6fe3aa5eea066d6ba8fb2e03716d67c781c46b4dc7880",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "pages_with_equal_text": [
+        1,
+        2
+      ]
+    },
+    {
+      "mode": "headerContinuationExperiment",
+      "candidate_sha256": "b9684588c664b56eae58e3d8ce95eccbfa3fc34e5abb1652e5a2792af72704d5",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "pages_with_equal_text": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    }
+  ],
+  "body_lines_equal_pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "body_text_and_baselines_equal_pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "continuation_baselines": {
+    "reference": [
+      {
+        "page": 2,
+        "from_top": 728.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 3,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      },
+      {
+        "page": 4,
+        "from_top": 728.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 5,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      },
+      {
+        "page": 5,
+        "from_top": 716.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 6,
+        "from_top": 68.0,
+        "text": "ALICE(CONT\u2019D)"
+      },
+      {
+        "page": 6,
+        "from_top": 716.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 7,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      },
+      {
+        "page": 9,
+        "from_top": 728.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 10,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      },
+      {
+        "page": 10,
+        "from_top": 716.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 11,
+        "from_top": 68.0,
+        "text": "ALICE(CONT\u2019D)"
+      },
+      {
+        "page": 11,
+        "from_top": 716.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 12,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      },
+      {
+        "page": 14,
+        "from_top": 728.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 15,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      },
+      {
+        "page": 15,
+        "from_top": 716.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 16,
+        "from_top": 68.0,
+        "text": "ALICE(CONT\u2019D)"
+      },
+      {
+        "page": 16,
+        "from_top": 716.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 17,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      },
+      {
+        "page": 19,
+        "from_top": 728.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 20,
+        "from_top": 68.0,
+        "text": "BOB(CONT\u2019D)"
+      }
+    ],
+    "candidate": [
+      {
+        "page": 2,
+        "from_top": 729.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 3,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      },
+      {
+        "page": 4,
+        "from_top": 729.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 5,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      },
+      {
+        "page": 5,
+        "from_top": 717.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 6,
+        "from_top": 68.0,
+        "text": "ALICE(CONT'D)"
+      },
+      {
+        "page": 6,
+        "from_top": 717.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 7,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      },
+      {
+        "page": 9,
+        "from_top": 729.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 10,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      },
+      {
+        "page": 10,
+        "from_top": 717.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 11,
+        "from_top": 68.0,
+        "text": "ALICE(CONT'D)"
+      },
+      {
+        "page": 11,
+        "from_top": 717.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 12,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      },
+      {
+        "page": 14,
+        "from_top": 729.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 15,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      },
+      {
+        "page": 15,
+        "from_top": 717.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 16,
+        "from_top": 68.0,
+        "text": "ALICE(CONT'D)"
+      },
+      {
+        "page": 16,
+        "from_top": 717.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 17,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      },
+      {
+        "page": 19,
+        "from_top": 729.0,
+        "text": "(MORE)"
+      },
+      {
+        "page": 20,
+        "from_top": 68.0,
+        "text": "BOB(CONT'D)"
+      }
+    ]
+  }
+}

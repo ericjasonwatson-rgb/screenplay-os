@@ -8,7 +8,7 @@ import ScreenplayFDX
 
 @Suite("Line layout calibration") @MainActor
 struct LineLayoutCalibrationTests {
-    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, dialogueText: String? = nil, editing: Bool = false, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
+    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, dialogueText: String? = nil, speakerText: String? = nil, editing: Bool = false, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let path = name == "Defenders" ? "Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx" : "Docs/AuditEvidence/pagination-2026-10-08/\(name).fdx"
         let data = try Data(contentsOf: root.appendingPathComponent(path))
@@ -16,6 +16,11 @@ struct LineLayoutCalibrationTests {
         if let dialogueText {
             for index in document.screenplay.elements.indices where document.screenplay.elements[index].type == .dialogue {
                 document.screenplay.elements[index].text = dialogueText
+            }
+        }
+        if let speakerText {
+            for index in document.screenplay.elements.indices where document.screenplay.elements[index].type == .character {
+                document.screenplay.elements[index].text = speakerText
             }
         }
         if locked {
@@ -65,7 +70,7 @@ struct LineLayoutCalibrationTests {
 
 
     @Test func speechAndPageTopTrialsPreserveAllTextAndFitPages() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment, .headerContinuationExperiment] {
             for name in ["Action-heavy", "Dialogue-heavy", "Defenders"] {
                 try compare(name, mode: mode) { legacy, candidate, _ in
                     @MainActor func fragments(_ model: ScreenplayViewModel) -> [UUID: String] {
@@ -92,7 +97,10 @@ struct LineLayoutCalibrationTests {
                         if let last = page.elements.last(where: { !$0.isContinuation }) {
                             #expect(last.element.type != .character && last.element.type != .parenthetical)
                         }
-                        if mode.removesPageTopSpacing { #expect(page.elements.first?.layout.before == 0) }
+                        if mode.removesPageTopSpacing {
+                            let first = try #require(page.elements.first)
+                            #expect(first.layout.before == (mode.continuationInHeader && first.isContinuation && first.blockHeight == 0 ? -13 : 0))
+                        }
                     }
                     let pdf = try #require(PDFDocument(data: candidate.makePrintPDF()))
                     #expect(pdf.pageCount == candidate.printedPages.count + 1)
@@ -123,7 +131,7 @@ struct LineLayoutCalibrationTests {
     }
 
     @Test func existingLocksAndOtherFontSizesRetainLegacyLayout() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment, .headerContinuationExperiment] {
             for locked in [true, false] {
                 try compare("Dialogue-heavy", mode: mode, locked: locked, fontSize: locked ? nil : 14) { legacy, candidate, _ in
                     #expect(candidate.effectiveLineLayout == .legacy)
@@ -135,9 +143,9 @@ struct LineLayoutCalibrationTests {
         }
     }
 
-    @Test(arguments: [0, 1, 2]) func nativeEditorMatchesCandidatePrintLinesAtEveryZoom(sample: Int) throws {
+    @Test(arguments: [0, 1, 2, 3]) func nativeEditorMatchesCandidatePrintLinesAtEveryZoom(sample: Int) throws {
         let synthetic = sample == 2
-        try compare("Dialogue-heavy", mode: sample == 0 ? .footerContinuationExperiment : .sentenceBoundaryExperiment,
+        try compare("Dialogue-heavy", mode: sample == 0 ? .footerContinuationExperiment : sample == 3 ? .headerContinuationExperiment : .sentenceBoundaryExperiment,
                     dialogueText: synthetic ? String(repeating: "We must wait beside the door. ", count: 12) : nil) { _, candidate, directory in
             if synthetic {
                 let suite = "SentenceFooterComparison.\(UUID())"
@@ -181,8 +189,8 @@ struct LineLayoutCalibrationTests {
         }
     }
 
-    @Test func interiorBreakTypingSelectionAndUndoPreserveSource() throws {
-        try compare("Dialogue-heavy", mode: .sentenceBoundaryExperiment, editing: true) { _, candidate, _ in
+    @Test(arguments: [ScreenplayLineLayout.sentenceBoundaryExperiment, .headerContinuationExperiment]) func interiorBreakTypingSelectionAndUndoPreserveSource(mode: ScreenplayLineLayout) throws {
+        try compare("Dialogue-heavy", mode: mode, editing: true) { _, candidate, _ in
             let original = candidate.elements
             let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: candidate))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
@@ -270,6 +278,38 @@ struct LineLayoutCalibrationTests {
         #expect(!policy.allows(15))
     }
 
+    @Test(arguments: [false, true]) func headerCueGeometryAndLongNameFallback(longName: Bool) throws {
+        try compare("Dialogue-heavy", mode: .headerContinuationExperiment,
+                    dialogueText: longName ? String(repeating: "We must wait beside the door. ", count: 60) : nil,
+                    speakerText: longName ? String(repeating: "VERY LONG CHARACTER NAME ", count: 4) : nil) { _, candidate, _ in
+            let writing = ScreenplayWritingProjection(elements: candidate.elements, casing: candidate.screenplayCasing)
+            let plan = try #require(PrintedWritingLayout(print: candidate.printedLayout, writing: writing,
+                typography: candidate.writingTypography, lineLayout: candidate.effectiveLineLayout))
+            var checked = 0
+            for (index, page) in candidate.printedPages.enumerated() {
+                guard let cue = page.elements.first, cue.isContinuation, cue.text.hasSuffix("(CONT'D)") else { continue }
+                checked += 1
+                let base = CGFloat(index) * PrintedWritingLayout.stride
+                let marker = try #require(plan.marks.first { $0.text == cue.text && abs($0.rect.minY - (base + 72 + cue.layout.before)) < 0.01 })
+                if longName {
+                    #expect(cue.textHeight > 12)
+                    #expect(cue.layout.before == 0)
+                    #expect(cue.blockHeight == cue.textHeight)
+                    #expect(marker.rect.minY == base + 72)
+                } else {
+                    #expect(cue.textHeight == 12)
+                    #expect(cue.layout.before == -13 && cue.layout.after == 1)
+                    #expect(cue.blockHeight == 0)
+                    #expect(marker.rect.minY == base + 59)
+                }
+                let body = try #require(page.elements.first { !$0.isContinuation }?.sourceSpan)
+                let firstLine = try #require(plan.lines[writing.displayRange(body.documentRange).location])
+                #expect(firstLine.y == base + cue.blockHeight)
+            }
+            #expect(checked > 0)
+        }
+    }
+
     @Test func sentencePreferenceUsesOnlyEligibleNativeBoundaries() {
         let text = "She waits by the door. He stays beside the window. They leave together."
         let source = text as NSString
@@ -304,7 +344,7 @@ struct LineLayoutCalibrationTests {
         for i in 1..<10 {
             #expect(abs(layout.location(forGlyphAt: i).x - layout.location(forGlyphAt: i - 1).x - 7) < 0.001)
         }
-        for mode: ScreenplayLineLayout in [.sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment] {
+        for mode: ScreenplayLineLayout in [.sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment, .headerContinuationExperiment] {
             try compare("Dialogue-heavy", mode: mode, fontFamily: "Helvetica") { legacy, candidate, _ in
                 #expect(candidate.effectiveLineLayout == .legacy)
                 #expect(candidate.printedPages.count == legacy.printedPages.count)
@@ -312,7 +352,7 @@ struct LineLayoutCalibrationTests {
         }
     }
 
-    @Test(arguments: [ScreenplayLineLayout.twelvePointExperiment, .sentenceBoundaryExperiment]) func candidateCannotCreateProductionLocks(mode: ScreenplayLineLayout) throws {
+    @Test(arguments: [ScreenplayLineLayout.twelvePointExperiment, .sentenceBoundaryExperiment, .headerContinuationExperiment]) func candidateCannotCreateProductionLocks(mode: ScreenplayLineLayout) throws {
         try compare("Dialogue-heavy", mode: mode) { _, candidate, _ in
             let original = candidate.document
             candidate.lockProductionPages()

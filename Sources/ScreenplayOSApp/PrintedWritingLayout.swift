@@ -33,7 +33,7 @@ struct PrintedWritingLayout {
                 if item.isContinuation {
                     marks.append(Mark(text: item.text, rect: NSRect(x: item.layout.x, y: y + 72, width: item.layout.width, height: item.textHeight + 4), attributes: attrs))
                 } else if let span = item.sourceSpan {
-                    if lineLayout == .sentenceBoundaryExperiment, item.element.type == .dialogue,
+                    if lineLayout.splitsAtSentenceBoundary, item.element.type == .dialogue,
                        !seen.insert(span.elementID).inserted { splitDialogue.insert(span.elementID) }
                     let range = writing.displayRange(span.documentRange)
                     guard NSMaxRange(range) <= (writing.text as NSString).length,
@@ -68,7 +68,7 @@ struct PrintedWritingLayout {
         }
         cache?.entries = nextMeasurements
         self.lines = lines; self.marks = marks; labels = projection.pages.map(\.label)
-        if lineLayout == .sentenceBoundaryExperiment, !splitDialogue.isEmpty {
+        if lineLayout.splitsAtSentenceBoundary, !splitDialogue.isEmpty {
             lineBreaks = NativeLineBreaks(starts: Set(lines.keys), paragraphs: projection.sourceEntries
                 .filter { splitDialogue.contains($0.elementID) }.map { writing.displayRange($0.documentRange) })
         } else { lineBreaks = nil }

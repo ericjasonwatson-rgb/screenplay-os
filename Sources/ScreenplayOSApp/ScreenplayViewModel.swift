@@ -4656,7 +4656,17 @@ final class ScreenplayViewModel: ObservableObject {
 
         func appendCue(_ speaker: String?, source: ScreenplayElement) {
             guard currentItems.isEmpty, let speaker else { return }
-            let cue = atPageTop(continuationMarker("\(speaker) (CONT'D)", type: .character, source: source))
+            var cue = atPageTop(continuationMarker("\(speaker) (CONT'D)", type: .character, source: source))
+            if effectiveLineLayout.continuationInHeader, cue.textHeight <= 12 {
+                // Reference cue baseline is 13pt above the first body baseline.
+                // A generated, single-line marker consumes no body space. Long
+                // names keep the existing body placement rather than clip above it.
+                let spec = cue.layout
+                cue = PaginatedElement(element: cue.element, text: cue.text,
+                    layout: PDFLayoutSpec(x: spec.x, width: spec.width, before: -13,
+                        after: 13 - cue.textHeight, alignment: spec.alignment, weight: spec.weight),
+                    textHeight: cue.textHeight, blockHeight: 0, isContinuation: true)
+            }
             currentItems.append(cue)
             usedHeight += cue.blockHeight
         }
@@ -4906,7 +4916,7 @@ final class ScreenplayViewModel: ObservableObject {
         if effectiveLineLayout == .sentenceAlignedLineExperiment, type == .dialogue {
             end = SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: fittingLineEnds)
         }
-        if effectiveLineLayout == .sentenceBoundaryExperiment, type == .dialogue {
+        if effectiveLineLayout.splitsAtSentenceBoundary, type == .dialogue {
             end = SentenceAlignedSplit.preferredInteriorEnd(in: text, fittingLineEnds: fittingLineEnds)
         }
         let range = NSRange(location: 0, length: end)
