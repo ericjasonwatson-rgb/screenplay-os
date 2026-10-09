@@ -17,7 +17,7 @@ struct SceneScreenplayPreview: NSViewRepresentable {
         scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = false
         scroll.scrollerStyle = .legacy
-        scroll.minMagnification = 0.5
+        scroll.minMagnification = 0.25
         scroll.maxMagnification = 3
         let text = NSTextView(frame: NSRect(x: 0, y: 0, width: 612, height: 792))
         text.isEditable = false

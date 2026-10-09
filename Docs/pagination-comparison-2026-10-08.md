@@ -201,3 +201,16 @@ Both documents then passed another 30 cycles with the geometry check enabled: **
 Visual review of captured script regions covered all three zoom states on both documents. A historical saved Chickamauga fixture still contained title-page placeholders in the script body; a fresh FDX import correctly moves that material to title-page metadata. The historical file and original screenplay were left untouched. This is not a new importer regression. At 100–150 percent zoom with panels open, the viewport shows only part of the fixed-width page. That is a usability follow-up, not evidence of changed screenplay margins. Native view-cache captures do not reliably reproduce all sidebar material/chrome, so this review does not certify the entire visible application interface.
 
 The candidate remains disabled by default. Next: review fit-to-width/zoom and horizontal navigation in narrow writing areas; broader independent Final Draft PDF comparisons remain necessary before claiming general compatibility. No application was installed or published by this review.
+
+
+## Script viewport Fit Width — 2026-10-08
+
+Added **Zoom → Fit Width** to the persistent Script navigation bar. This is ordinary view state, independent of the experimental pagination profiles. The native scroll view recalculates magnification when the window or panels change, uses the existing writing surface's minimum page width, and removes horizontal offset in fit mode. Font size, paragraph width, canonical text, and printed pagination are unchanged. Selecting a percentage returns to fixed zoom. Fit Width is scoped to the Script surface; other modes retain fixed zoom.
+
+Zoom In/Out now continue from the actual fitted scale when leaving fit mode, within the native 25–300 percent range. Scene previews accept that same minimum scale. The picker displays a current percentage even when it is not a preset, avoiding the previous blank label for values such as 75 or 150 percent. None of this view state is added to the document schema; the existing new-document zoom reset exits fit mode.
+
+A native-window regression covers wide/narrow/wide resizing with both panels, exact full-width fit, zero horizontal offset, preserved selection/document/page labels, return to the original fitted scale, keyboard zoom leaving fit mode, fixed 125 percent zoom, and 25 percent scene-preview display. Captured script-region previews confirm full-width visibility in the narrow case and the persistent Fit Width label. As in earlier checks, native view-cache screenshots do not certify sidebar material rendering. Local captures and logs are retained under `work/fit-width-2026-10-08/`.
+
+This change does not enable experimental pagination, install an app, or publish a release.
+
+Validation: final full Debug and Release runs each passed 291 Swift tests in 48 suites, 37 importer checks, and 14 self-tests (342 checks per configuration). This includes the new native fit/selection/keyboard/preview regression. Existing test/toolchain warnings remain; these are not warning-free builds.

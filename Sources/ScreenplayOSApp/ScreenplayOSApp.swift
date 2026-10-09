@@ -196,12 +196,12 @@ struct ScreenplayOSApp: App {
                     Divider()
 
                     Button("Zoom In") {
-                        model.pageZoom = min(1.35, model.pageZoom + 0.05)
+                        model.adjustPageZoom(by: 0.05)
                     }
                     .keyboardShortcut("+", modifiers: [.command])
 
                     Button("Zoom Out") {
-                        model.pageZoom = max(0.8, model.pageZoom - 0.05)
+                        model.adjustPageZoom(by: -0.05)
                     }
                     .keyboardShortcut("-", modifiers: [.command])
 

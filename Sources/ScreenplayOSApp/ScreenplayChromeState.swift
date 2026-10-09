@@ -96,7 +96,7 @@ final class ScreenplayChromeState: ObservableObject {
                 String(model.contextAssistantVisible), String(model.saveURL != nil)])
         case .navigation:
             return .fields([model.sidebarMode.rawValue, String(model.navigationVisible),
-                String(model.focusMode), String(model.pageZoom)])
+                String(model.focusMode), String(model.pageZoom), String(model.fitWritingPageWidth)])
         case .identity:
             return .fields([model.documentDisplayName, model.documentLocation, model.saveProblem,
                 String(model.saveURL != nil), String(model.hasUnsavedChanges)])
@@ -113,7 +113,7 @@ final class ScreenplayChromeState: ObservableObject {
                 projection.pages.indices.map { projection.firstSourceCaret(onPage: $0) != nil })
         case .page:
             let values: [String?] = [String(model.printedPages.count), String(model.focusMode),
-                String(model.pageZoom), String(model.pagesAreLocked), String(model.writingPageLayoutAvailable),
+                String(model.pageZoom), String(model.fitWritingPageWidth), String(model.pagesAreLocked), String(model.writingPageLayoutAvailable),
                 model.errorMessage, selected?.id.uuidString, selected?.type.rawValue,
                 selected?.revisionMark?.label, String(describing: selected?.revisionMark?.color),
                 String(selected.map { model.openNoteCount(for: $0.id) } ?? 0)]
@@ -138,7 +138,7 @@ final class ScreenplayChromeState: ObservableObject {
             model.saveProblem, String(model.hasUnsavedChanges), String(model.saveURL != nil),
             String(!model.recoveryCopies.isEmpty), model.sourceNavigationProblem,
             String(model.canUndo), String(model.canRedo), model.sidebarMode.rawValue,
-            String(model.focusMode), String(model.darkPageMode), String(model.pageZoom),
+            String(model.focusMode), String(model.darkPageMode), String(model.pageZoom), String(model.fitWritingPageWidth),
             String(model.pagesAreLocked), String(model.writingPageLayoutAvailable),
             model.errorMessage, model.selectedElementPosition, model.currentPrintedPageStatus,
             model.revisionStatusText, model.currentSceneTitle, selected?.id.uuidString ?? "",

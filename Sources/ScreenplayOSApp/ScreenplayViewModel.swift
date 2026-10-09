@@ -104,7 +104,14 @@ final class ScreenplayViewModel: ObservableObject {
     let scriptViewport = ScriptViewportState()
     var requestedPrintedPageLabel: String?
     @Published var writingPageLayoutAvailable = true
-    @Published var pageZoom = 1.0
+    // Native view state only; never written into the screenplay.
+    var fittedWritingPageZoom = 1.0
+    func adjustPageZoom(by amount: Double) {
+        let current = fitWritingPageWidth && workflowMode == .writing ? fittedWritingPageZoom : pageZoom
+        pageZoom = min(3, max(0.25, current + amount))
+    }
+    @Published var fitWritingPageWidth = false
+    @Published var pageZoom = 1.0 { didSet { fitWritingPageWidth = false } }
     @Published var navigationVisible = false
     @Published var contextAssistantVisible = false
     @Published var commandPaletteVisible = false

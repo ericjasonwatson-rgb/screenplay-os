@@ -7,6 +7,84 @@ import Testing
 @Suite("Native editor rendering", .serialized)
 @MainActor
 struct NativeEditorTests {
+    @Test func fitWidthTracksPanelsWithoutChangingScriptOrSelection() async throws {
+        _ = NSApplication.shared
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let suite = "FitWidth.\(UUID())", prefs = try #require(UserDefaults(suiteName: suite))
+        defer { try? FileManager.default.removeItem(at: folder); prefs.removePersistentDomain(forName: suite) }
+        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+        model.newDocument()
+        model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
+                                 with: "INT. ROOM - DAY\n" + String(repeating: "A writer waits beside the window. ", count: 25))
+        let original = model.document
+        let labels = model.printedPages.map(\.label)
+        let host = NSHostingView(rootView: ContentView(model: model))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = host; window.orderFront(nil)
+        defer { window.close() }
+        func find(_ view: NSView) -> WritingTextView? {
+            if let text = view as? WritingTextView { return text }
+            return view.subviews.lazy.compactMap { find($0) }.first
+        }
+        func settle() async throws {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(nanoseconds: 100_000_000)
+            host.layoutSubtreeIfNeeded()
+        }
+        try await settle()
+        let text = try #require(find(host)), scroll = try #require(text.enclosingScrollView)
+        let selection = NSRange(location: 20, length: 6)
+        text.setSelectedRange(selection)
+        model.fitWritingPageWidth = true
+        var zooms: [CGFloat] = []
+        for narrow in [false, true, false] {
+            model.navigationVisible = narrow; model.contextAssistantVisible = narrow
+            window.setContentSize(narrow ? NSSize(width: 1000, height: 700) : NSSize(width: 1440, height: 900))
+            try await settle()
+            zooms.append(scroll.magnification)
+            #expect(abs(text.frame.width * scroll.magnification - scroll.contentSize.width) < 1)
+            #expect(abs(scroll.documentVisibleRect.minX) < 1)
+            #expect(text.selectedRange() == selection)
+            #expect(model.document == original)
+            #expect(model.printedPages.map(\.label) == labels)
+            #expect(text.pagePlan != nil)
+            if let directory = ProcessInfo.processInfo.environment["SCREENPLAYOS_FIT_CAPTURE_DIR"],
+               let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                try bitmap.representation(using: .png, properties: [:])?.write(
+                    to: URL(fileURLWithPath: directory).appendingPathComponent(narrow ? "fit-narrow.png" : "fit-wide.png"))
+            }
+        }
+        #expect(zooms[1] < zooms[0])
+        #expect(abs(zooms[2] - zooms[0]) < 0.01)
+        let fitted = scroll.magnification
+        model.adjustPageZoom(by: -0.05)
+        try await settle()
+        #expect(!model.fitWritingPageWidth)
+        #expect(abs(scroll.magnification - (fitted - 0.05)) < 0.001)
+        model.fitWritingPageWidth = true
+        try await settle()
+        model.pageZoom = 1.25
+        try await settle()
+        #expect(!model.fitWritingPageWidth)
+        #expect(abs(scroll.magnification - 1.25) < 0.001)
+        #expect(text.selectedRange() == selection)
+        #expect(model.document == original)
+        // A fixed scale reached from Fit Width also works in the scene preview.
+        model.pageZoom = 0.25
+        let preview = NSHostingView(rootView: SceneScreenplayPreview(model: model))
+        window.contentView = preview
+        preview.layoutSubtreeIfNeeded()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        func findScroll(_ view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView { return scroll }
+            return view.subviews.lazy.compactMap { findScroll($0) }.first
+        }
+        #expect(abs(try #require(findScroll(preview)).magnification - 0.25) < 0.001)
+        #expect(model.document == original)
+    }
+
     @Test func nativeTypingSelectionFormattingAndUndoRemainConsistent() throws {
         _ = NSApplication.shared
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

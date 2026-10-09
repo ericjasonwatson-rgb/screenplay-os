@@ -2852,7 +2852,7 @@ private struct ScreenplayPageView: View {
                         .frame(width: 160)
                     Divider()
                 }
-                ScriptPageWell(width: 760 * model.pageZoom, verticalInset: 2) {
+                ScriptPageWell(width: model.fitWritingPageWidth ? 10_000 : 760 * model.pageZoom, verticalInset: 2) {
                     ContinuousScreenplayEditor(model: model)
                 }
             }

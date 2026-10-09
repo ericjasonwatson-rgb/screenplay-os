@@ -14,7 +14,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
         scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = false
         scroll.scrollerStyle = .legacy
-        scroll.minMagnification = 0.5; scroll.maxMagnification = 3
+        scroll.minMagnification = 0.25; scroll.maxMagnification = 3
         scroll.allowsMagnification = false
         let view = WritingTextView(frame: NSRect(x: 0, y: 0, width: 612, height: 792))
         view.isRichText = false
@@ -34,6 +34,9 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             DispatchQueue.main.async { focusModel?.setScriptEditorFocused(focused) }
         }
         scroll.documentView = view
+        scroll.zoomChanged = { [weak focusModel] zoom in
+            focusModel?.fittedWritingPageZoom = Double(zoom)
+        }
         scroll.viewportChanged = { [weak coordinator = context.coordinator] in
             coordinator?.updateVisiblePage()
         }
@@ -99,7 +102,10 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             }
             defer { if traceTyping { renderPhases = phases } }
             let scale: CGFloat = 1
-            (view.enclosingScrollView as? WritingScrollView)?.pageZoom = CGFloat(model.pageZoom)
+            if let scroll = view.enclosingScrollView as? WritingScrollView {
+                scroll.fitsPageWidth = model.fitWritingPageWidth
+                scroll.pageZoom = CGFloat(model.pageZoom)
+            }
             let oldSelection = writingProjection.sourceRange(view.selectedRange())
             if projectedElements != model.elements {
                 writingProjection = ScreenplayWritingProjection(elements: model.elements, casing: model.screenplayCasing)
@@ -117,7 +123,7 @@ struct ContinuousScreenplayEditor: NSViewRepresentable {
             checkpoint() // Attributed paragraph update.
             nativeEditRange = nil
             view.displayScale = scale
-            view.layoutPage(in: (view.enclosingScrollView?.contentSize.width ?? 0) / CGFloat(model.pageZoom))
+            view.layoutPage(in: (view.enclosingScrollView?.contentSize.width ?? 0) / (view.enclosingScrollView?.magnification ?? 1))
             view.backgroundColor = StudioAppearance.paper(model.darkPageMode)
             view.enclosingScrollView?.backgroundColor = StudioAppearance.paper(model.darkPageMode)
             view.enclosingScrollView?.verticalScroller?.knobStyle = model.darkPageMode ? .light : .dark
@@ -278,20 +284,30 @@ private final class WritingScrollView: NSScrollView {
         viewportChanged?()
     }
 
+    var zoomChanged: ((CGFloat) -> Void)?
+    var fitsPageWidth = false { didSet { applyZoom() } }
     var pageZoom: CGFloat = 1 { didSet { applyZoom() } }
     private var applyingZoom = false
     override func tile() {
         super.tile()
         applyZoom()
-        (documentView as? WritingTextView)?.layoutPage(in: contentSize.width / pageZoom)
+        (documentView as? WritingTextView)?.layoutPage(in: contentSize.width / magnification)
     }
     private func applyZoom() {
         guard !applyingZoom, documentView != nil else { return }
         applyingZoom = true
         defer { applyingZoom = false }
-        if abs(magnification - pageZoom) > 0.0001 {
+        guard contentSize.width > 0 else { return }
+        let zoom = fitsPageWidth ? min(maxMagnification, max(minMagnification, contentSize.width / 576)) : pageZoom
+        if abs(magnification - zoom) > 0.0001 {
             let visible = documentVisibleRect
-            setMagnification(pageZoom, centeredAt: NSPoint(x: visible.midX, y: visible.midY))
+            setMagnification(zoom, centeredAt: NSPoint(x: visible.midX, y: visible.midY))
+        }
+        zoomChanged?(magnification)
+        if fitsPageWidth {
+            (documentView as? WritingTextView)?.layoutPage(in: contentSize.width / magnification)
+            contentView.scroll(to: NSPoint(x: 0, y: contentView.bounds.minY))
+            reflectScrolledClipView(contentView)
         }
     }
 }

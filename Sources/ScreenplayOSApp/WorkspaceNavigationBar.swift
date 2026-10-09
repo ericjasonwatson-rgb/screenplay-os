@@ -30,9 +30,9 @@ struct WorkspaceNavigationBar: View {
             .frame(width: 206)
             .help("Choose what appears in the document sidebar. Mode changes the main work surface.")
             Spacer(minLength: 0)
-            PageZoomControl(percent: Binding(get: { Int((model.pageZoom * 100).rounded()) },
-                set: { model.pageZoom = Double($0) / 100 }),
-                percentages: Array(stride(from: 80, through: 135, by: 5)), offersFitWidth: false)
+            PageZoomControl(percent: Binding(get: { model.fitWritingPageWidth && model.workflowMode == .writing ? 0 : Int((model.pageZoom * 100).rounded()) },
+                set: { if $0 == 0 { model.fitWritingPageWidth = true } else { model.pageZoom = Double($0) / 100 } }),
+                percentages: Array(stride(from: 80, through: 135, by: 5)), offersFitWidth: model.workflowMode == .writing)
         }
         .pickerStyle(.menu)
         .controlSize(.small)
@@ -84,6 +84,7 @@ struct PageZoomControl: View {
     var body: some View {
         Picker("Zoom", selection: $percent) {
             if offersFitWidth { Text("Fit Width").tag(0) }
+            if percent != 0 && !percentages.contains(percent) { Text("\(percent)%").tag(percent) }
             ForEach(percentages, id: \.self) { value in Text("\(value)%").tag(value) }
         }
         .pickerStyle(.menu).frame(width: 135)
