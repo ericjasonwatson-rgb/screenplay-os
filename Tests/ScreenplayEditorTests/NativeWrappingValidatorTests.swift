@@ -5,6 +5,26 @@ import Testing
 @Suite("Retained natural wrapping")
 @MainActor
 struct NativeWrappingValidatorTests {
+    @Test func unchangedSuffixPolicyRebasesAcrossInsertionAndDeletion() {
+        let old = NativeLineBreaks(starts: [0, 4, 20, 24, 40, 44], paragraphs: [
+            NSRange(location: 0, length: 10), NSRange(location: 20, length: 10),
+            NSRange(location: 40, length: 10)])
+        let inserted = NativeLineBreaks(starts: [0, 4, 23, 27, 43, 47], paragraphs: [
+            NSRange(location: 0, length: 13), NSRange(location: 23, length: 10),
+            NSRange(location: 43, length: 10)])
+        let shifted = old.outsideEdit(NSRange(location: 0, length: 10), shiftingSuffixBy: 3)
+        let unaffected = inserted.outsideEdit(NSRange(location: 0, length: 13))
+        #expect(NativeLineBreaks.firstChange(from: shifted, to: unaffected) == nil)
+        #expect(inserted.outsideEdit(NSRange(location: 0, length: 13), shiftingSuffixBy: -3)
+            == old.outsideEdit(NSRange(location: 0, length: 10)))
+        let rewrapped = NativeLineBreaks(starts: [23, 28, 43, 47], paragraphs: unaffected.paragraphs)
+        #expect(NativeLineBreaks.firstChange(from: shifted, to: rewrapped) == 23)
+        // The unchanged prefix survives an edit in the middle of the document.
+        let middle = old.outsideEdit(NSRange(location: 20, length: 10), shiftingSuffixBy: -5)
+        #expect(middle.allows(4) && !middle.allows(5))
+        #expect(middle.paragraphs == [NSRange(location: 0, length: 10), NSRange(location: 35, length: 10)])
+    }
+
     @Test func changingBreakPoliciesMatchFreshLayoutAcrossEdits() {
         let source = NSTextStorage(string: String(repeating: "One two three four five six seven eight nine ten.\n", count: 12),
                                    attributes: [.font: NSFont(name: "Courier", size: 12)!])

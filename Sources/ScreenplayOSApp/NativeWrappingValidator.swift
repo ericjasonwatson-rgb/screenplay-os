@@ -23,7 +23,8 @@ final class NativeWrappingValidator: NSObject, @preconcurrency NSLayoutManagerDe
 
     func update(from source: NSTextStorage, changedRange: NSRange?, container sourceContainer: NSTextContainer,
                 manager sourceManager: NSLayoutManager, lineBreaks: NativeLineBreaks? = nil) {
-        let changedBreakStart = NativeLineBreaks.firstChange(from: self.lineBreaks, to: lineBreaks)
+        let oldBreaks = self.lineBreaks
+        let changedBreakStart = NativeLineBreaks.firstChange(from: oldBreaks, to: lineBreaks)
         self.lineBreaks = lineBreaks
         let geometryChanged = container.containerSize != sourceContainer.containerSize ||
             container.lineFragmentPadding != sourceContainer.lineFragmentPadding ||
@@ -55,7 +56,19 @@ final class NativeWrappingValidator: NSObject, @preconcurrency NSLayoutManagerDe
                 } else { cachedStarts = nil; dirtyParagraphs = nil }
                 storage.replaceCharacters(in: oldRange,
                     with: source.attributedSubstring(from: range))
-                if let changedBreakStart { invalidateBreaks(from: min(changedBreakStart, newParagraphs.location)) }
+                if oldParagraphs.location == newParagraphs.location,
+                   NSMaxRange(oldParagraphs) + delta == NSMaxRange(newParagraphs) {
+                    // A text edit shifts downstream offsets even when their wrap
+                    // opportunities are identical. Compare after applying that shift;
+                    // the edited paragraphs already became dirty above.
+                    let unaffectedOld = oldBreaks?.outsideEdit(oldParagraphs, shiftingSuffixBy: delta)
+                    let unaffectedNew = lineBreaks?.outsideEdit(newParagraphs)
+                    if let start = NativeLineBreaks.firstChange(from: unaffectedOld, to: unaffectedNew) {
+                        invalidateBreaks(from: start)
+                    }
+                } else if let changedBreakStart {
+                    invalidateBreaks(from: min(changedBreakStart, newParagraphs.location))
+                }
                 return
             }
         } else if initialized && storage.isEqual(to: source) {

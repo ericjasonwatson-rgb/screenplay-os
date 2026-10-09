@@ -169,3 +169,22 @@ Each run used settled navigation, 15 edits, hidden navigator/context, and the sa
 The candidate remains disabled by default. Correctness checks passed, but beginning/middle editing is still slower than legacy. Next investigate rebasing unchanged downstream break offsets across edits so offset shifts alone do not invalidate the suffix, then repeat the same workloads. This change does not alter PDF pagination, canonical text, file format, locks, installation, or distribution.
 
 Validation: the isolated snapshot passed full Debug and Release suites: 288 Swift tests across 47 suites, 37 importer checks, and 14 self-tests (339 checks per configuration). The Debug suite additionally enabled the 30-cycle candidate UI stress workload. Existing calibration tests cover the exact native line geometry and cross-page editing; private-pasteboard copying was not re-enabled for these runs. The six long-script Release benchmark runs also passed save/reopen assertions. Source changes were transferred only into the five owned source/test files, excluding concurrent release/distribution work.
+
+
+## Rebase unchanged dialogue offsets after edits — 2026-10-08
+
+The retained wrapping validator now compares unaffected dialogue-break policies in the new text coordinate space. It removes edited paragraphs from that comparison (TextKit already remeasures them) and shifts suffix offsets by the UTF-16 length delta. If downstream line breaks truly change, suffix invalidation remains in place. Changes without a usable paragraph mapping keep the conservative path. Tests explicitly cover insertion/deletion rebasing, unchanged prefixes, and a genuine downstream wrap change; the existing retained-versus-fresh layout stress test also exercises repeated edits, policy transitions, formatting, resizing, and empty text.
+
+The same 2,004-element workload improved again: middle-position Debug median **85.6 ms**, versus 144.8 ms in the previous optimization. Sequential Release results for 15 edits per position were:
+
+| Typing position | Legacy median | Candidate median | Candidate maximum |
+| --- | ---: | ---: | ---: |
+| Beginning | 54.2 ms | 57.8 ms | 71.0 ms |
+| Middle | 55.8 ms | 63.7 ms | 85.5 ms |
+| End | 58.6 ms | 59.8 ms | 70.5 ms |
+
+The earlier candidate Release medians were 159.7/112.3/57.1 ms. These repeated single-Mac measurements show that most of the beginning/middle regression is removed; they do not prove universal latency or exact performance parity. The setup remains settled navigation, 1440×900 host, hidden navigator/context, and the same fixture hash. Raw samples are in `header-rebased-performance.json` and local logs in `work/pagination-calibration-2026-10-08/header-rebased/`.
+
+The candidate remains initializer-only and disabled by default. No PDF geometry, source text, storage schema, page locks, installed application, or release assets changed. Next: broader real-document/manual review before deciding whether to expose this layout to normal users.
+
+Validation: isolated full Debug and Release suites each passed 289 Swift tests in 47 suites, 37 importer checks, and 14 self-tests (340 checks per configuration). Debug included the 30-cycle candidate native UI stress workload. All six Release typing benchmarks passed source projection and save/reopen assertions. The isolated source excludes the separate distribution changes; the two modified production files and regression test were byte-compared with the canonical checkout.

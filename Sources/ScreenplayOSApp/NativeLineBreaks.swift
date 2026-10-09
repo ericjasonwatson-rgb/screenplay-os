@@ -23,6 +23,23 @@ struct NativeLineBreaks: Equatable {
         return low == 0 || !NSLocationInRange(offset, paragraphs[low - 1]) || starts.contains(offset)
     }
 
+    /// Compare unaffected paragraphs in the new document's coordinate space.
+    /// The edited paragraphs are remeasured by TextKit independently of policy.
+    func outsideEdit(_ paragraphsChanged: NSRange, shiftingSuffixBy delta: Int = 0) -> Self {
+        let end = NSMaxRange(paragraphsChanged)
+        let ranges = paragraphs.compactMap { range -> NSRange? in
+            if NSMaxRange(range) <= paragraphsChanged.location { return range }
+            if range.location >= end { return NSRange(location: range.location + delta, length: range.length) }
+            return nil
+        }
+        let offsets = Set(starts.compactMap { offset -> Int? in
+            if offset < paragraphsChanged.location { return offset }
+            if offset >= end { return offset + delta }
+            return nil
+        })
+        return Self(starts: offsets, paragraphs: ranges)
+    }
+
     /// Conservative earliest affected paragraph, in either old or new coordinates.
     /// Offsets before this point retain exactly the same break opportunities.
     static func firstChange(from old: Self?, to new: Self?) -> Int? {
