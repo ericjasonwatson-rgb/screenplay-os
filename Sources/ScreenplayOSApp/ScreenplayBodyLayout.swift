@@ -5,11 +5,11 @@ import ScreenplayDomain
 /// Page splitting and continuation placement remain owned by the print paginator.
 // Internal calibration only: no preference, persisted field, or user-facing conversion.
 enum ScreenplayLineLayout: Hashable {
-    case legacy, twelvePointExperiment, twelvePointFlowExperiment, twelvePointPageTopExperiment, sevenPointGridExperiment, footerContinuationExperiment
+    case legacy, twelvePointExperiment, twelvePointFlowExperiment, twelvePointPageTopExperiment, sevenPointGridExperiment, footerContinuationExperiment, sentenceAlignedLineExperiment
     var splitsSpeechAfterCue: Bool { self == .twelvePointFlowExperiment || removesPageTopSpacing }
     var removesPageTopSpacing: Bool { self == .twelvePointPageTopExperiment || usesCharacterGrid }
-    var usesCharacterGrid: Bool { self == .sevenPointGridExperiment || self == .footerContinuationExperiment }
-    var continuationInFooter: Bool { self == .footerContinuationExperiment }
+    var usesCharacterGrid: Bool { self == .sevenPointGridExperiment || continuationInFooter }
+    var continuationInFooter: Bool { self == .footerContinuationExperiment || self == .sentenceAlignedLineExperiment }
     @MainActor private static let courierGridAdjustment: CGFloat? = {
         guard let font = NSFont(name: "Courier", size: 12) else { return nil }
         // Use actual installed font metrics: its advance is not exactly 7.2pt.

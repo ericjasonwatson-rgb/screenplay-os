@@ -1,0 +1,29 @@
+{
+  "reference_sha256": "a21456a552c24085405ddeadf7cfaff1b8ec00dd8dded35bac8976baff44f67a",
+  "normalization": "Exclude candidate title page, standalone page numbers, MORE and CONT-D cue lines (straight or curly apostrophe); remove whitespace.",
+  "comparisons": [
+    {
+      "mode": "footerContinuationExperiment",
+      "candidate_sha256": "4ab2b31728c1943920429f4bb71d5c7c2c2797c03140252877a262d47fd89879",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "pages_with_equal_text": [
+        1
+      ]
+    },
+    {
+      "mode": "sentenceAlignedLineExperiment",
+      "candidate_sha256": "20f82c494f8ace324b3c8dcc126c5b3b0538cb88a958baabdb36aec740694a05",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "pages_with_equal_text": [
+        1
+      ]
+    }
+  ],
+  "changed_pages_against_footer": {
+    "Action-heavy": [],
+    "Dialogue-heavy": [],
+    "Defenders": []
+  }
+}

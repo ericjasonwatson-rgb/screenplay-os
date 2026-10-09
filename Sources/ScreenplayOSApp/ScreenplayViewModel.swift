@@ -4897,9 +4897,14 @@ final class ScreenplayViewModel: ObservableObject {
         manager.addTextContainer(container)
         manager.ensureLayout(for: container)
         var end = 0
+        var fittingLineEnds: [Int] = []
         manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { rect, _, _, glyphs, stop in
             guard ceil(rect.maxY) <= height else { stop.pointee = true; return }
             end = NSMaxRange(manager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil))
+            fittingLineEnds.append(end)
+        }
+        if effectiveLineLayout == .sentenceAlignedLineExperiment, type == .dialogue {
+            end = SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: fittingLineEnds)
         }
         let range = NSRange(location: 0, length: end)
         guard let boundary = Range(range, in: text) else { return "" }

@@ -8,11 +8,16 @@ import ScreenplayFDX
 
 @Suite("Line layout calibration") @MainActor
 struct LineLayoutCalibrationTests {
-    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
+    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, dialogueText: String? = nil, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let path = name == "Defenders" ? "Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx" : "Docs/AuditEvidence/pagination-2026-10-08/\(name).fdx"
         let data = try Data(contentsOf: root.appendingPathComponent(path))
         var document = try FDXImporter().importData(data, title: name).document
+        if let dialogueText {
+            for index in document.screenplay.elements.indices where document.screenplay.elements[index].type == .dialogue {
+                document.screenplay.elements[index].text = dialogueText
+            }
+        }
         if locked {
             document.screenplay.pageLock = ProductionPageLock(text: document.screenplay.elements.map(\.text).joined(separator: "\n"), pageStarts: [0])
         }
@@ -58,7 +63,7 @@ struct LineLayoutCalibrationTests {
 
 
     @Test func speechAndPageTopTrialsPreserveAllTextAndFitPages() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment] {
             for name in ["Action-heavy", "Dialogue-heavy", "Defenders"] {
                 try compare(name, mode: mode) { legacy, candidate, _ in
                     @MainActor func fragments(_ model: ScreenplayViewModel) -> [UUID: String] {
@@ -116,7 +121,7 @@ struct LineLayoutCalibrationTests {
     }
 
     @Test func existingLocksAndOtherFontSizesRetainLegacyLayout() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment] {
             for locked in [true, false] {
                 try compare("Dialogue-heavy", mode: mode, locked: locked, fontSize: locked ? nil : 14) { legacy, candidate, _ in
                     #expect(candidate.effectiveLineLayout == .legacy)
@@ -128,8 +133,19 @@ struct LineLayoutCalibrationTests {
         }
     }
 
-    @Test func nativeEditorMatchesCandidatePrintLinesAtEveryZoom() throws {
-        try compare("Dialogue-heavy", mode: .footerContinuationExperiment) { _, candidate, _ in
+    @Test(arguments: [false, true]) func nativeEditorMatchesCandidatePrintLinesAtEveryZoom(synthetic: Bool) throws {
+        try compare("Dialogue-heavy", mode: synthetic ? .sentenceAlignedLineExperiment : .footerContinuationExperiment,
+                    dialogueText: synthetic ? String(repeating: "We must wait beside the door. ", count: 12) : nil) { _, candidate, directory in
+            if synthetic {
+                let suite = "SentenceFooterComparison.\(UUID())"
+                let prefs = try #require(UserDefaults(suiteName: suite))
+                defer { prefs.removePersistentDomain(forName: suite) }
+                let footer = ScreenplayViewModel(lineLayoutExperiment: .footerContinuationExperiment, loadInitialDocument: false,
+                                                 autosaveDirectory: directory, preferences: prefs)
+                footer.loadOpenScreenplay(at: directory.appendingPathComponent("fixture.json"))
+                #expect(candidate.printedPages.map { $0.elements.map(\.text) } != footer.printedPages.map { $0.elements.map(\.text) })
+            }
+            let original = candidate.document
             let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: candidate))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false; window.contentView = host
@@ -153,8 +169,36 @@ struct LineLayoutCalibrationTests {
                     #expect(abs(y - line.y) < 0.01)
                 }
                 #expect(plan.labels == candidate.printedPages.map(\.label))
+                for start in plan.lines.keys {
+                    editor.setSelectedRange(NSRange(location: start, length: 0))
+                    #expect(editor.selectedRange().location == start)
+                }
+                #expect(candidate.document == original)
             }
         }
+    }
+
+    @Test func sentencePreferenceUsesOnlyEligibleNativeBoundaries() {
+        let text = "She waits by the door. He stays beside the window. They leave together."
+        let source = text as NSString
+        let first = source.range(of: "He stays").location
+        let second = source.range(of: "They leave").location
+        #expect(SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: [5, first, second, second + 5]) == second)
+        // A sentence ending inside a line cannot become a fabricated line start.
+        #expect(SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: [5, first + 3]) == first + 3)
+        // Do not backtrack to a one-line speech fragment.
+        #expect(SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: [first, first + 5]) == first + 5)
+        #expect(SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: []) == 0)
+    }
+
+    @Test func sentencePreferencePreservesUnicodeAndWhitespace() {
+        let text = "She sees 👩🏽‍🚀 by the door.  He waits for café patrons. They leave."
+        let source = text as NSString
+        let boundary = source.range(of: "He waits").location
+        let end = SentenceAlignedSplit.preferredEnd(in: text, fittingLineEnds: [4, boundary, boundary + 5])
+        #expect(end == boundary)
+        #expect(source.substring(to: end) + source.substring(from: end) == text)
+        #expect(source.substring(from: end).hasPrefix("He waits"))
     }
 
     @Test func characterGridMeasuresSevenPointsAndRejectsOtherFonts() throws {
@@ -168,7 +212,7 @@ struct LineLayoutCalibrationTests {
         for i in 1..<10 {
             #expect(abs(layout.location(forGlyphAt: i).x - layout.location(forGlyphAt: i - 1).x - 7) < 0.001)
         }
-        for mode: ScreenplayLineLayout in [.sevenPointGridExperiment, .footerContinuationExperiment] {
+        for mode: ScreenplayLineLayout in [.sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment] {
             try compare("Dialogue-heavy", mode: mode, fontFamily: "Helvetica") { legacy, candidate, _ in
                 #expect(candidate.effectiveLineLayout == .legacy)
                 #expect(candidate.printedPages.count == legacy.printedPages.count)
