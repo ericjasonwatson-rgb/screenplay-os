@@ -176,7 +176,9 @@ final class ScreenplayViewModel: ObservableObject {
     private let lineLayoutExperiment: ScreenplayLineLayout
     var effectiveLineLayout: ScreenplayLineLayout {
         // Existing locks and arbitrary typography must never be repaginated by this experiment.
-        pagesAreLocked || writingTypography.fontSize != 12 ? .legacy : lineLayoutExperiment
+        if pagesAreLocked || writingTypography.fontSize != 12 { return .legacy }
+        if lineLayoutExperiment.usesCharacterGrid && writingTypography.fontFamily != "Courier" { return .legacy }
+        return lineLayoutExperiment
     }
 
     init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil) {
@@ -4531,7 +4533,7 @@ final class ScreenplayViewModel: ObservableObject {
             for item in page.elements {
                 let spec = item.layout
                 y -= spec.before + item.textHeight
-                let rect = CGRect(x: spec.x, y: y, width: spec.width, height: item.textHeight + 4)
+                let rect = CGRect(x: spec.x, y: y, width: spec.width, height: item.textHeight + (effectiveLineLayout.continuationInFooter ? 0 : 4))
                 withPDFGraphicsContext(context) {
                     if let attributed = item.attributed { attributed.draw(in: rect) }
                     else { item.text.draw(in: rect, withAttributes: scriptPDFAttributes(type: item.element.type, alignment: spec.alignment, weight: spec.weight)) }
@@ -4706,7 +4708,7 @@ final class ScreenplayViewModel: ObservableObject {
             let earlierDialogue = hasEarlierDialogue(in: visibleElements, before: index)
             let reserveMore = speaker != nil && dialogueContinues(in: visibleElements, after: index)
             let moreHeight = continuationMarker("(MORE)", type: .parenthetical, source: element).blockHeight
-            let heightLimit = scriptContentHeight - (reserveMore ? moreHeight : 0)
+            let heightLimit = scriptContentHeight - (reserveMore && !effectiveLineLayout.continuationInFooter ? moreHeight : 0)
             if earlierDialogue && isSpeech { appendCue(speaker, source: element) }
 
             var item = atPageTop(paginatedElement(for: element))
@@ -4737,7 +4739,7 @@ final class ScreenplayViewModel: ObservableObject {
                     let available = scriptContentHeight - usedHeight - before - item.layout.after
                     let remainingAttributes = item.attributed?.attributedSubstring(from: NSRange(location: consumedUTF16, length: (remaining as NSString).length))
                     let willContinue = pdfHeight(for: remaining, width: item.layout.width, type: element.type, attributed: remainingAttributes) > available
-                    let markerHeight = speaker != nil && (willContinue || reserveMore) ? more.blockHeight : 0
+                    let markerHeight = speaker != nil && (willContinue || reserveMore) && !effectiveLineLayout.continuationInFooter ? more.blockHeight : 0
                     let prefix = fittingPrefix(of: remaining, width: item.layout.width,
                                                type: element.type, height: available - markerHeight, attributed: remainingAttributes)
                     if prefix.isEmpty {
@@ -4872,7 +4874,7 @@ final class ScreenplayViewModel: ObservableObject {
            speech.element.type == .dialogue {
             // Keep the cue/parenthetical with at least two spoken lines and room
             // for MORE. Let the remaining speech use the normal continuation path.
-            return items.dropLast().map(\.blockHeight).reduce(0, +) + min(speech.blockHeight, 36)
+            return items.dropLast().map(\.blockHeight).reduce(0, +) + min(speech.blockHeight, effectiveLineLayout.continuationInFooter ? 24 : 36)
         }
         if total > scriptContentHeight, items.count > 1 {
             return items.dropLast().map(\.blockHeight).reduce(0, +) + min(items.last!.blockHeight, 48)
@@ -4971,6 +4973,7 @@ final class ScreenplayViewModel: ObservableObject {
         var attributes = pdfAttributes(alignment: alignment, weight: weight, size: 12)
         attributes[.font] = PackageTypography.font(writingTypography)
         attributes[.paragraphStyle] = ScreenplayBodyLayout.textStyle(alignment: alignment, lineLayout: effectiveLineLayout)
+        if let spacing = effectiveLineLayout.characterSpacing { attributes[.kern] = spacing }
         return attributes
     }
 

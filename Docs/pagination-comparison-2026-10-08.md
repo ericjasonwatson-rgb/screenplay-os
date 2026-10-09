@@ -91,3 +91,20 @@ A remaining measurable variable is horizontal placement. In the reference first 
 Next: test horizontal advance and sentence-boundary behavior against rendered references, including richer typography, before deciding on a document-level compatibility option. Do not expose or persist these experiments as production layout yet.
 
 Validation completed: full Debug and Release runs each passed 281 Swift tests, 37 importer checks, and 14 self-tests (332 checks per configuration). Build/test logs are retained with the local calibration artifacts. No signing, installation, or release publication was performed.
+
+
+## Character grid and continuation-footer trials — 2026-10-08
+
+`sevenPointGridExperiment` adds a measured 7pt character advance to the previous page-top/flow candidate. It is limited to the document's 12pt Courier setting; other font families, sizes, and existing locks use legacy layout. Kerning is calculated from the installed Courier font's actual advance rather than assuming it is exactly 7.2pt. The same attributes reach pagination, PDF drawing, native text storage, and the printed editor plan. A native glyph-position test checks the advance to within 0.001pt.
+
+The reference's first dialogue page now has identical trimmed lines, but matching wrapping alone did not change the full-page boundary comparison. On reference page two, Final Draft's last body baseline is 717pt from the top and MORE is at 728pt, below the body region. ScreenplayOS previously reserved one body line for MORE.
+
+`footerContinuationExperiment` adds a separate trial: keep the full 648pt body area for source text and permit a generated MORE marker in the following 12pt footer area. The checks distinguish body height from footer height and still pair MORE with the next continued cue. This variant also removes the PDF renderer's extra 4pt drawing-rectangle height; measured body baselines on the first dialogue page then match the reference exactly (starting at 81pt), as do its line breaks. Visual review covered the following two continuation pages and found no clipping or overlapping text.
+
+Both new variants retain the measured 18/20/15 page counts. `grid-footer-comparison.json` records hashes, full text equality after excluding generated markers/whitespace, first-page line equality, and the baseline comparison. The remaining nineteen page boundaries still differ. In the inspected split speech, Final Draft stops after the sentence ending “train arrives.” whereas the candidate continues with the remaining words that fit on that line.
+
+The remaining sentence-boundary rule must be coordinated with native text layout. `fittingPrefix` currently uses the original paragraph's natural line boundaries so the editable view and print fragments align. Cutting arbitrarily at punctuation can produce fragment starts the native editor does not lay out as line starts; a matching page count or PDF-only fix would not be sufficient. This trial does not introduce sentence-aware splitting.
+
+Tests additionally verify PDF text character coverage on every generated page in all trial variants, source order through exact fragment concatenation, native line positions at three zooms, and non-Courier fallback. PDFKit sometimes spatially reorders right-aligned transitions and page numbers, so its coverage test compares normalized character multiplicities per page; ordered text equality is separately checked through pypdf against the dialogue reference. No proprietary font is bundled or copied. No compatibility setting, migration, app installation, or release publication is included.
+
+Validation: full Debug and Release each passed 282 Swift tests, 37 importer checks, and 14 self-tests (333 checks per configuration). Logs and generated PDFs remain in the local calibration work directory.

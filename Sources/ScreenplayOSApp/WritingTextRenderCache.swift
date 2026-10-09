@@ -23,6 +23,7 @@ final class WritingTextRenderCache {
                 .foregroundColor: StudioAppearance.ink(dark),
                 .paragraphStyle: ScreenplayBodyLayout.editorStyle(for: element.type, scale: 1, lineLayout: lineLayout)
             ]
+            if let spacing = lineLayout.characterSpacing { attributes[.kern] = spacing }
             if let mark = element.revisionMark {
                 attributes[.backgroundColor] = mark.color.nsColor.withAlphaComponent(0.15)
             }

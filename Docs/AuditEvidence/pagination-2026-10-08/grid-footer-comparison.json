@@ -1,0 +1,30 @@
+{
+  "reference_sha256": "a21456a552c24085405ddeadf7cfaff1b8ec00dd8dded35bac8976baff44f67a",
+  "normalization": "Exclude candidate title page; remove standalone page numbers, MORE and CONT-D cue lines; trim lines for wrapping comparison and remove whitespace for text comparison.",
+  "comparisons": [
+    {
+      "mode": "sevenPointGridExperiment",
+      "candidate_sha256": "2cb483149370714514cae30f3b0a6e978f97b7241d5eaac983c05d0e1d98a730",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "first_page_lines_equal": true,
+      "pages_with_equal_text": [
+        1
+      ],
+      "first_page_body_baselines_equal": false,
+      "first_body_baseline_from_top": 77.0
+    },
+    {
+      "mode": "footerContinuationExperiment",
+      "candidate_sha256": "5e1c616a2fe6fc3c33959b76cf87d0bcf5655d14f319fd91e36e7131fec16bee",
+      "script_pages": 20,
+      "full_text_equal": true,
+      "first_page_lines_equal": true,
+      "pages_with_equal_text": [
+        1
+      ],
+      "first_page_body_baselines_equal": true,
+      "first_body_baseline_from_top": 81.0
+    }
+  ]
+}

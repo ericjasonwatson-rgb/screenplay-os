@@ -8,7 +8,7 @@ import ScreenplayFDX
 
 @Suite("Line layout calibration") @MainActor
 struct LineLayoutCalibrationTests {
-    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
+    private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let path = name == "Defenders" ? "Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx" : "Docs/AuditEvidence/pagination-2026-10-08/\(name).fdx"
         let data = try Data(contentsOf: root.appendingPathComponent(path))
@@ -16,7 +16,7 @@ struct LineLayoutCalibrationTests {
         if locked {
             document.screenplay.pageLock = ProductionPageLock(text: document.screenplay.elements.map(\.text).joined(separator: "\n"), pageStarts: [0])
         }
-        if let fontSize { document.typography = try DocumentTypography(fontSize: fontSize) }
+        if fontSize != nil || fontFamily != nil { document.typography = try DocumentTypography(fontFamily: fontFamily ?? "Courier", fontSize: fontSize ?? 12) }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -58,7 +58,7 @@ struct LineLayoutCalibrationTests {
 
 
     @Test func speechAndPageTopTrialsPreserveAllTextAndFitPages() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment] {
             for name in ["Action-heavy", "Dialogue-heavy", "Defenders"] {
                 try compare(name, mode: mode) { legacy, candidate, _ in
                     @MainActor func fragments(_ model: ScreenplayViewModel) -> [UUID: String] {
@@ -71,7 +71,7 @@ struct LineLayoutCalibrationTests {
                     #expect(fragments(candidate) == fragments(legacy))
                     #expect(candidate.printedLayout.unmappedElementIDs.isEmpty)
                     let expected = name == "Action-heavy" ? 18 : name == "Defenders" ? 15 : mode.removesPageTopSpacing ? 20 : 21
-                    #expect(candidate.printedPages.count == expected)
+                    if !mode.usesCharacterGrid { #expect(candidate.printedPages.count == expected) }
                     for (index, page) in candidate.printedPages.enumerated() {
                         if page.elements.last?.text == "(MORE)" {
                             #expect(index + 1 < candidate.printedPages.count)
@@ -79,7 +79,9 @@ struct LineLayoutCalibrationTests {
                                 #expect(candidate.printedPages[index + 1].elements.first?.text.hasSuffix("(CONT'D)") == true)
                             }
                         }
-                        #expect(page.elements.map(\.blockHeight).reduce(0, +) <= 648.01)
+                        let body = page.elements.filter { !(mode.continuationInFooter && $0.isContinuation && $0.text == "(MORE)") }
+                        #expect(body.map(\.blockHeight).reduce(0, +) <= 648.01)
+                        #expect(page.elements.map(\.blockHeight).reduce(0, +) <= (mode.continuationInFooter ? 660.01 : 648.01))
                         if let last = page.elements.last(where: { !$0.isContinuation }) {
                             #expect(last.element.type != .character && last.element.type != .parenthetical)
                         }
@@ -87,6 +89,23 @@ struct LineLayoutCalibrationTests {
                     }
                     let pdf = try #require(PDFDocument(data: candidate.makePrintPDF()))
                     #expect(pdf.pageCount == candidate.printedPages.count + 1)
+                    func compact(_ text: String) -> String {
+                        text.components(separatedBy: .whitespacesAndNewlines).joined().precomposedStringWithCanonicalMapping
+                    }
+                    for (i, page) in candidate.printedPages.enumerated() {
+                        let extracted = try #require(pdf.page(at: i + 1)?.string)
+                        let header = "\(page.label)."
+                        var lines = extracted.components(separatedBy: .newlines)
+                        let headerIndex = try #require(lines.firstIndex { $0.trimmingCharacters(in: .whitespaces) == header })
+                        lines.remove(at: headerIndex)
+                        // PDFKit sorts text spatially, sometimes moving a right-aligned
+                        // transition or page number. Check glyph coverage here; source
+                        // order is checked above and in the external PDF comparison.
+                        func counts(_ text: String) -> [Character: Int] {
+                            compact(text).reduce(into: [:]) { $0[$1, default: 0] += 1 }
+                        }
+                        #expect(counts(lines.joined()) == counts(page.elements.map(\.text).joined()))
+                    }
                     print("FLOW \(name) \(mode): \(candidate.printedPages.count)")
                     if let output = ProcessInfo.processInfo.environment["SCREENPLAYOS_CALIBRATION_OUTPUT"] {
                         try candidate.makePrintPDF().write(to: URL(fileURLWithPath: output).appendingPathComponent("\(name)-\(mode).pdf"))
@@ -97,7 +116,7 @@ struct LineLayoutCalibrationTests {
     }
 
     @Test func existingLocksAndOtherFontSizesRetainLegacyLayout() throws {
-        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment] {
+        for mode: ScreenplayLineLayout in [.twelvePointExperiment, .twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment] {
             for locked in [true, false] {
                 try compare("Dialogue-heavy", mode: mode, locked: locked, fontSize: locked ? nil : 14) { legacy, candidate, _ in
                     #expect(candidate.effectiveLineLayout == .legacy)
@@ -110,7 +129,7 @@ struct LineLayoutCalibrationTests {
     }
 
     @Test func nativeEditorMatchesCandidatePrintLinesAtEveryZoom() throws {
-        try compare("Dialogue-heavy", mode: .twelvePointPageTopExperiment) { _, candidate, _ in
+        try compare("Dialogue-heavy", mode: .footerContinuationExperiment) { _, candidate, _ in
             let host = NSHostingView(rootView: ContinuousScreenplayEditor(model: candidate))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false; window.contentView = host
@@ -134,6 +153,25 @@ struct LineLayoutCalibrationTests {
                     #expect(abs(y - line.y) < 0.01)
                 }
                 #expect(plan.labels == candidate.printedPages.map(\.label))
+            }
+        }
+    }
+
+    @Test func characterGridMeasuresSevenPointsAndRejectsOtherFonts() throws {
+        let elements = [ScreenplayElement(type: .dialogue, text: "ABCDEFGHIJ")]
+        let storage = NSTextStorage(); let cache = WritingTextRenderCache()
+        _ = cache.update(storage, elements: elements, projection: ScreenplayWritingProjection(elements: elements),
+            typography: try DocumentTypography(), dark: false, selectedID: nil, nativeEdit: nil, lineLayout: .sevenPointGridExperiment)
+        let layout = NSLayoutManager(); storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 432, height: 1000))
+        container.lineFragmentPadding = 0; layout.addTextContainer(container); layout.ensureLayout(for: container)
+        for i in 1..<10 {
+            #expect(abs(layout.location(forGlyphAt: i).x - layout.location(forGlyphAt: i - 1).x - 7) < 0.001)
+        }
+        for mode: ScreenplayLineLayout in [.sevenPointGridExperiment, .footerContinuationExperiment] {
+            try compare("Dialogue-heavy", mode: mode, fontFamily: "Helvetica") { legacy, candidate, _ in
+                #expect(candidate.effectiveLineLayout == .legacy)
+                #expect(candidate.printedPages.count == legacy.printedPages.count)
             }
         }
     }

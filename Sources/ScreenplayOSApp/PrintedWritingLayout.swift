@@ -25,8 +25,9 @@ struct PrintedWritingLayout {
             var y = CGFloat(pageIndex) * Self.stride
             for item in page.elements {
                 y += item.layout.before
-                let attrs: [NSAttributedString.Key: Any] = [.font: PackageTypography.font(typography),
+                var attrs: [NSAttributedString.Key: Any] = [.font: PackageTypography.font(typography),
                     .paragraphStyle: ScreenplayBodyLayout.textStyle(alignment: item.layout.alignment, lineLayout: lineLayout)]
+                if let spacing = lineLayout.characterSpacing { attrs[.kern] = spacing }
                 if item.isContinuation {
                     marks.append(Mark(text: item.text, rect: NSRect(x: item.layout.x, y: y + 72, width: item.layout.width, height: item.textHeight + 4), attributes: attrs))
                 } else if let span = item.sourceSpan {
