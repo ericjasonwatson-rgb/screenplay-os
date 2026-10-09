@@ -44,9 +44,14 @@ private struct AboutScreenplayOSView: View {
                 .accessibilityLabel("screenplayOS — Concept to Screen")
             Text("ScreenplayOS")
                 .font(.headline)
-            Text("Development build \(Bundle.main.object(forInfoDictionaryKey: "ScreenplayOSRevision") as? String ?? "local")")
+            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Local") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "development"))")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            if let revision = Bundle.main.object(forInfoDictionaryKey: "ScreenplayOSRevision") as? String {
+                Text("Source \(revision)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

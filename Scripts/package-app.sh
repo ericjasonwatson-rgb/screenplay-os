@@ -4,9 +4,14 @@ cd "$(dirname "$0")/.."
 export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$CLANG_MODULE_CACHE_PATH"
 mkdir -p "$CLANG_MODULE_CACHE_PATH" "$PWD/.build/swift-cache"
+scratch_path="${SCREENPLAYOS_SCRATCH_PATH:-$PWD/.build}"
 configuration="${SCREENPLAYOS_BUILD_CONFIGURATION:-release}"
-# Default to Apple Silicon; pass x86_64 explicitly for a separate Intel build.
+# Default to Apple Silicon; use universal for Apple Silicon plus Intel.
 architecture="${SCREENPLAYOS_BUILD_ARCH:-arm64}"
+case "$architecture" in
+    arm64|x86_64|universal) ;;
+    *) echo "Unsupported architecture: $architecture" >&2; exit 1 ;;
+esac
 identity="${SCREENPLAYOS_SIGNING_IDENTITY:--}"
 notary_profile="${SCREENPLAYOS_NOTARY_PROFILE:-}"
 if [[ -n "$notary_profile" && "$identity" == "-" ]]; then
@@ -15,7 +20,7 @@ if [[ -n "$notary_profile" && "$identity" == "-" ]]; then
 fi
 # A build must be traceable to the exact source it contains. Refuse uncommitted
 # source unless explicitly allowed, and mark such builds "-dirty" in the bundle.
-source_changes="$(git status --porcelain -- Package.swift Sources Scripts)"
+source_changes="$(git status --porcelain --untracked-files=all)"
 export SCREENPLAYOS_SOURCE_DIRTY=0
 if [[ -n "$source_changes" ]]; then
     if [[ "$identity" != "-" || "${SCREENPLAYOS_ALLOW_DIRTY:-0}" != "1" ]]; then
@@ -31,13 +36,25 @@ if [[ "$identity" != "-" && ( -z "${SCREENPLAYOS_APP_VERSION:-}" || -z "${SCREEN
     echo "Signed builds require SCREENPLAYOS_APP_VERSION and SCREENPLAYOS_BUILD_NUMBER." >&2
     exit 1
 fi
-swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
-binary_dir="$(swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
 app_destination="${1:-$PWD/../ScreenplayOS.app}"
 build_stage="$(mktemp -d)"
 trap 'rm -rf "$build_stage"' EXIT
+if [[ "$architecture" == "universal" ]]; then
+    binaries=()
+    for arch in arm64 x86_64; do
+        swift build --arch "$arch" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
+        binary_dir="$(swift build --arch "$arch" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
+        binaries+=("$binary_dir/ScreenplayOS")
+    done
+    binary_source="$build_stage/ScreenplayOS-universal"
+    lipo -create "${binaries[@]}" -output "$binary_source"
+else
+    swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
+    binary_dir="$(swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
+    binary_source="$binary_dir/ScreenplayOS"
+fi
 staged_app="$build_stage/ScreenplayOS.app"
-python3 - "$binary_dir/ScreenplayOS" "$staged_app" "$configuration" <<'PY'
+python3 - "$binary_source" "$staged_app" "$configuration" <<'PY'
 import os, pathlib, plistlib, re, shutil, subprocess, sys
 source, app = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 version = os.environ.get('SCREENPLAYOS_APP_VERSION', '0.1')
@@ -60,7 +77,7 @@ if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
     revision += '-dirty'
 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
     'CFBundleExecutable': 'ScreenplayOS',
-    'CFBundleIdentifier': 'dev.screenplayos.prototype',
+    'CFBundleIdentifier': 'com.screenplayos.app',
     'CFBundleName': 'ScreenplayOS',
     'CFBundleIconFile': 'ScreenplayOS.icns',
     'CFBundlePackageType': 'APPL',
@@ -119,7 +136,9 @@ xattr -cr "$app_destination"
 codesign --verify --deep --strict --verbose=2 "$app_destination"
 # Only numbered review artifacts in this checkout's outputs are eligible.
 # Keep the newest archive as a usable download/rollback copy.
-if ! python3 Scripts/cleanup-build-artifacts.py "$app_destination" --apply; then
-    echo "Warning: review-artifact cleanup failed; the verified app is ready." >&2
+if [[ "${SCREENPLAYOS_SKIP_REVIEW_CLEANUP:-0}" != "1" ]]; then
+    if ! python3 Scripts/cleanup-build-artifacts.py "$app_destination" --apply; then
+        echo "Warning: review-artifact cleanup failed; the verified app is ready." >&2
+    fi
 fi
 echo "$app_destination"

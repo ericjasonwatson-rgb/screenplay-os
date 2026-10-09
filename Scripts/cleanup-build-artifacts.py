@@ -32,7 +32,7 @@ def main():
     subprocess.run(["codesign", "--verify", "--deep", "--strict", str(args.app)], check=True)
     with (args.app / "Contents/Info.plist").open("rb") as stream:
         info = plistlib.load(stream)
-    if info.get("CFBundleIdentifier") != "dev.screenplayos.prototype":
+    if info.get("CFBundleIdentifier") != "com.screenplayos.app":
         parser.error("Not a ScreenplayOS app")
     build = int(info["CFBundleVersion"])
     directory = pathlib.Path(__file__).resolve().parents[2]

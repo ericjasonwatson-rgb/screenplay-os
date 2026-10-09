@@ -182,6 +182,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil) {
+        LegacyPreferences.copyOnProductionLaunch(to: preferences)
         self.lineLayoutExperiment = lineLayoutExperiment
         self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
         self.preferences = preferences

@@ -249,7 +249,7 @@ The window starts within the display bounds and supports a smaller minimum size.
 
 Use **ScreenplayOS.app** beside this project folder. The separate Review apps were temporary test harnesses and are retired. ScreenplayOS opens recent native documents and saves new drafts to Downloads; the old review fixtures remain in the workspace's work/live-review/scripts folder.
 
-Run `./Scripts/package-app.sh` from the project to rebuild this same app. The bundle records its source commit in ScreenplayOSRevision. This is a local development build, not a signed distribution release.
+Run `./Scripts/package-app.sh` from the project to rebuild this same app. The bundle records its source commit in ScreenplayOSRevision. This is a local development build, not a signed distribution release. For the direct-download DMG, website, and signed release procedure, see [Docs/direct-distribution.md](Docs/direct-distribution.md).
 
 Shot and board source links follow merged or replaced paragraphs alongside script notes. Remapped links become paragraph-level links because previous text offsets may no longer be accurate. If a source is deleted outright, its production item and original reference remain preserved; Go to Source uses another surviving reference or explains that the source is missing without selecting a nonexistent paragraph. Undo restores the source and production links together.
 
