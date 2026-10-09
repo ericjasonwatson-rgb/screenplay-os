@@ -344,7 +344,8 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
     private let wrappingValidator = NativeWrappingValidator()
     func setPagePlan(_ plan: PrintedWritingLayout?, invalidatedFrom: Int? = nil, updatedRange: NSRange? = nil) {
         if let id = plan?.id, attemptedPlanID == id, updatedRange == nil { return }
-        let breaksChanged = lineBreaks != plan?.lineBreaks
+        let changedBreakStart = NativeLineBreaks.firstChange(from: lineBreaks, to: plan?.lineBreaks)
+        let breaksChanged = changedBreakStart != nil
         if let storage = textStorage, let container = textContainer, let manager = layoutManager {
             wrappingValidator.update(from: storage, changedRange: updatedRange, container: container, manager: manager, lineBreaks: plan?.lineBreaks)
         }
@@ -352,10 +353,11 @@ final class WritingTextView: NSTextView, NSLayoutManagerDelegate {
         lineBreaks = plan?.lineBreaks
         attemptedPlanID = plan?.id
         var start = 0
-        if !breaksChanged, let previous = pagePlan, let plan, let invalidatedFrom {
+        if let previous = pagePlan, let plan, let invalidatedFrom {
             let changedLines = previous.lines.keys.filter { previous.lines[$0] != plan.lines[$0] }
                 + plan.lines.keys.filter { previous.lines[$0] == nil }
             start = min(invalidatedFrom, changedLines.min() ?? invalidatedFrom)
+            if let changedBreakStart { start = min(start, changedBreakStart) }
         }
         start = min(max(0, start), (string as NSString).length)
         let invalidated = NSRange(location: start, length: (string as NSString).length - start)

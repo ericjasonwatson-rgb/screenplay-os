@@ -5,6 +5,56 @@ import Testing
 @Suite("Retained natural wrapping")
 @MainActor
 struct NativeWrappingValidatorTests {
+    @Test func changingBreakPoliciesMatchFreshLayoutAcrossEdits() {
+        let source = NSTextStorage(string: String(repeating: "One two three four five six seven eight nine ten.\n", count: 12),
+                                   attributes: [.font: NSFont(name: "Courier", size: 12)!])
+        let manager = NSLayoutManager(), container = NSTextContainer(size: NSSize(width: 180, height: CGFloat.greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        source.addLayoutManager(manager); manager.addTextContainer(container)
+        let retained = NativeWrappingValidator()
+        func policy(_ variant: Int) -> NativeLineBreaks? {
+            if variant == 0 { return nil }
+            let text = source.string as NSString
+            var ranges: [NSRange] = [], starts = Set<Int>()
+            var offset = 0, index = 0
+            while offset < text.length {
+                let range = text.paragraphRange(for: NSRange(location: offset, length: 0))
+                if index % 3 == variant % 3 {
+                    ranges.append(range); starts.insert(offset)
+                    for point in offset..<NSMaxRange(range) where text.character(at: point) == 32 {
+                        starts.insert(point + 1)
+                    }
+                    // Change allowed word breaks without changing paragraph ranges.
+                    if variant > 3 { starts.remove(offset + 8) }
+                }
+                offset = NSMaxRange(range); index += 1
+            }
+            return NativeLineBreaks(starts: starts, paragraphs: ranges)
+        }
+        func check(_ changed: NSRange?, _ variant: Int) {
+            let breaks = policy(variant)
+            retained.update(from: source, changedRange: changed, container: container, manager: manager, lineBreaks: breaks)
+            let fresh = NativeWrappingValidator()
+            fresh.update(from: source, changedRange: nil, container: container, manager: manager, lineBreaks: breaks)
+            #expect(retained.lineStarts() == fresh.lineStarts())
+        }
+        for variant in [0, 1, 4, 2, 0, 3] { check(nil, variant) }
+        for iteration in 0..<30 {
+            let offset = iteration % 2 == 0 ? 0 : source.length / 2
+            let addition = iteration % 3 == 0 ? "New paragraph.\n" : "café "
+            source.replaceCharacters(in: NSRange(location: offset, length: 0), with: addition)
+            check(NSRange(location: offset, length: (addition as NSString).length), iteration % 5)
+            source.replaceCharacters(in: NSRange(location: offset, length: (addition as NSString).length), with: "")
+            check(NSRange(location: offset, length: 0), (iteration + 1) % 5)
+        }
+        container.containerSize.width = 240
+        check(nil, 2)
+        source.addAttribute(.font, value: NSFont(name: "Courier-Bold", size: 12)!, range: NSRange(location: 0, length: 80))
+        check(NSRange(location: 0, length: 80), 4)
+        source.setAttributedString(NSAttributedString(string: ""))
+        check(NSRange(location: 0, length: 0), 0)
+    }
+
     @Test func incrementalWrappingMatchesIndependentLayoutThroughEditsAndGeometryChanges() {
         let source = NSTextStorage(string: String(repeating: "A café 👩🏽‍🚀 waits by the road. ", count: 30) + "\nLast paragraph.\n",
                                    attributes: [.font: NSFont(name: "Courier", size: 12)!])

@@ -148,3 +148,24 @@ Rendered inspection covered candidate script pages three and four, including a h
 Existing-lock, non-Courier/non-12pt fallback, and rejection of new experimental production locks also cover this profile. This trial does not change the default layout or saved document format, and does not install or publish an app. Next: stress the candidate with varied real-script structure, rich text, and long-document editing latency before deciding whether to expose a compatibility setting. The remaining one-point footer-marker offset is separately measured and does not affect the matched body pagination.
 
 Validation: full Debug and Release each passed 287 Swift tests, 37 importer checks, and 14 self-tests (338 checks), with private-pasteboard copying enabled. Separate release/packaging work appeared in the shared checkout during validation. An isolated snapshot of commit `589d13f` plus only the six pagination files was therefore compiled independently and passed the full 338-check Debug suite as well. The pagination commit excludes that concurrent work, including its separate initialization change in ScreenplayViewModel. Logs and rendered artifacts are retained in the local `header-continuation/` calibration directory.
+
+
+## Candidate editing stress and incremental wrapping — 2026-10-08
+
+The internal candidate passed the existing 30-cycle native UI stress workload on the Defenders fixture: window resizing, 75/100/150 percent zoom, navigator/context visibility, Unicode edits, bold formatting, Undo/Redo, page navigation, save/reopen, PDF export, and unchanged original fixture bytes. `SCREENPLAYOS_STRESS_LAYOUT=header` now selects the candidate only inside the benchmark/stress tests, including reopened models; an assertion prevents silent fallback from being counted as candidate coverage. Omitted selection preserves legacy tests; unknown values fail.
+
+Long-script profiling found a regression in page-plan installation. Every changed dialogue-break policy previously discarded all retained wrapping and invalidated the entire displayed layout. Policies now retain only relevant split-dialogue starts, use binary search for paragraph membership, and identify the earliest potentially changed paragraph. The validator keeps the unaffected prefix and rebuilds the affected suffix; the editor also limits invalidation to the earliest changed text, coordinates, or break policy. A regression test compares retained and fresh layouts through policy-only changes, insertions/deletions, paragraph splits, Unicode, bold text, resizing, and empty content. Ordinary unsplit wrapping and the default profile remain unchanged.
+
+On the same disposable 2,004-element fixture, 15 middle-position Debug edits had median latency of **256.7 ms before and 144.8 ms after** (44 percent lower). Current legacy was 74.1 ms. Sequential Release measurements of the final code were:
+
+| Typing position | Legacy median | Candidate median | Candidate maximum |
+| --- | ---: | ---: | ---: |
+| Beginning | 49.9 ms | 159.7 ms | 167.7 ms |
+| Middle | 52.0 ms | 112.3 ms | 123.5 ms |
+| End | 55.8 ms | 57.1 ms | 65.6 ms |
+
+Each run used settled navigation, 15 edits, hidden navigator/context, and the same 1440×900 native host. Legacy paginates this fixture to 132 script pages; the candidate to 99. Timing includes insertion, layout, and deferred display. These are single-Mac observations, not hardware-independent guarantees or a Release before/after comparison. Raw samples and the fixture hash are in `header-stress-performance.json`; local logs are under `work/pagination-calibration-2026-10-08/header-stress/`.
+
+The candidate remains disabled by default. Correctness checks passed, but beginning/middle editing is still slower than legacy. Next investigate rebasing unchanged downstream break offsets across edits so offset shifts alone do not invalidate the suffix, then repeat the same workloads. This change does not alter PDF pagination, canonical text, file format, locks, installation, or distribution.
+
+Validation: the isolated snapshot passed full Debug and Release suites: 288 Swift tests across 47 suites, 37 importer checks, and 14 self-tests (339 checks per configuration). The Debug suite additionally enabled the 30-cycle candidate UI stress workload. Existing calibration tests cover the exact native line geometry and cross-page editing; private-pasteboard copying was not re-enabled for these runs. The six long-script Release benchmark runs also passed save/reopen assertions. Source changes were transferred only into the five owned source/test files, excluding concurrent release/distribution work.

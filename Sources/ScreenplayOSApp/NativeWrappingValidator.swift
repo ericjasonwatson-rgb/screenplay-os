@@ -23,11 +23,8 @@ final class NativeWrappingValidator: NSObject, @preconcurrency NSLayoutManagerDe
 
     func update(from source: NSTextStorage, changedRange: NSRange?, container sourceContainer: NSTextContainer,
                 manager sourceManager: NSLayoutManager, lineBreaks: NativeLineBreaks? = nil) {
-        if self.lineBreaks != lineBreaks {
-            self.lineBreaks = lineBreaks
-            cachedStarts = nil; dirtyParagraphs = nil
-            manager.invalidateLayout(forCharacterRange: NSRange(location: 0, length: storage.length), actualCharacterRange: nil)
-        }
+        let changedBreakStart = NativeLineBreaks.firstChange(from: self.lineBreaks, to: lineBreaks)
+        self.lineBreaks = lineBreaks
         let geometryChanged = container.containerSize != sourceContainer.containerSize ||
             container.lineFragmentPadding != sourceContainer.lineFragmentPadding ||
             manager.usesFontLeading != sourceManager.usesFontLeading ||
@@ -58,14 +55,26 @@ final class NativeWrappingValidator: NSObject, @preconcurrency NSLayoutManagerDe
                 } else { cachedStarts = nil; dirtyParagraphs = nil }
                 storage.replaceCharacters(in: oldRange,
                     with: source.attributedSubstring(from: range))
+                if let changedBreakStart { invalidateBreaks(from: min(changedBreakStart, newParagraphs.location)) }
                 return
             }
         } else if initialized && storage.isEqual(to: source) {
+            if let changedBreakStart { invalidateBreaks(from: changedBreakStart) }
             return
         }
         cachedStarts = nil; dirtyParagraphs = nil
         storage.setAttributedString(source)
         initialized = true
+    }
+
+    private func invalidateBreaks(from offset: Int) {
+        let start = min(max(0, min(offset, dirtyParagraphs?.location ?? offset)), storage.length)
+        let range = NSRange(location: start, length: storage.length - start)
+        if let cachedStarts {
+            self.cachedStarts = Set(cachedStarts.filter { $0 < start })
+            dirtyParagraphs = range
+        }
+        manager.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
     }
 
     func layoutManager(_ manager: NSLayoutManager, shouldBreakLineByWordBeforeCharacterAt index: Int) -> Bool {

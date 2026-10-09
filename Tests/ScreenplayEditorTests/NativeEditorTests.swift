@@ -221,6 +221,18 @@ struct NativeEditorTests {
     }
 
     /// Opt-in profiling through the same test target in Debug and Release.
+    /// Test-process-only selection; never a saved application preference.
+    private func stressLineLayout() throws -> ScreenplayLineLayout {
+        let value = ProcessInfo.processInfo.environment["SCREENPLAYOS_STRESS_LAYOUT"] ?? "legacy"
+        switch value {
+        case "legacy": return .legacy
+        case "header": return .headerContinuationExperiment
+        default:
+            throw NSError(domain: "ScreenplayOSStress", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Unknown stress layout: \(value)"])
+        }
+    }
+
     /// Timing is recorded, never used as a flaky pass/fail threshold.
     @Test func longScriptTypingBenchmarkWhenRequested() async throws {
         guard let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_FIXTURE"] else { return }
@@ -235,8 +247,9 @@ struct NativeEditorTests {
         }
         let url = folder.appendingPathComponent("script.json")
         try FileManager.default.copyItem(at: URL(fileURLWithPath: path), to: url)
-        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+        let model = ScreenplayViewModel(lineLayoutExperiment: try stressLineLayout(), loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
         model.loadOpenScreenplay(at: url)
+        #expect(model.effectiveLineLayout == (try stressLineLayout()))
         _ = try #require(model.document, "Benchmark fixture failed to load: \(model.errorMessage ?? "unknown error")")
         #expect(!model.elements.isEmpty)
         model.navigationVisible = ProcessInfo.processInfo.environment["SCREENPLAYOS_BENCHMARK_NAVIGATOR"] == "1"
@@ -316,7 +329,7 @@ struct NativeEditorTests {
         }
         #expect(model.prepareToClose())
         let savedURL = try #require(model.saveURL)
-        let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+        let reopened = ScreenplayViewModel(lineLayoutExperiment: try stressLineLayout(), loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
         reopened.loadOpenScreenplay(at: savedURL)
         _ = try #require(reopened.document)
         #expect(reopened.elements == model.elements)
@@ -339,8 +352,9 @@ struct NativeEditorTests {
         let originalBytes = try Data(contentsOf: URL(fileURLWithPath: path))
         let url = folder.appendingPathComponent("stress.json")
         try originalBytes.write(to: url)
-        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+        let model = ScreenplayViewModel(lineLayoutExperiment: try stressLineLayout(), loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
         model.loadOpenScreenplay(at: url)
+        #expect(model.effectiveLineLayout == (try stressLineLayout()))
         _ = try #require(model.document)
         let host = NSHostingView(rootView: ContentView(model: model).environment(\.colorScheme, .dark))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
@@ -409,7 +423,7 @@ struct NativeEditorTests {
                     to: URL(fileURLWithPath: capturePath).appendingPathComponent("layout-\(cycle).png"))
             }
             #expect(model.prepareToClose())
-            let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
+            let reopened = ScreenplayViewModel(lineLayoutExperiment: try stressLineLayout(), loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
             reopened.loadOpenScreenplay(at: try #require(model.saveURL))
             #expect(reopened.elements == model.elements)
             #expect(reopened.writingTypography == model.writingTypography)
