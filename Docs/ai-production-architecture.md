@@ -94,3 +94,41 @@ in the preserved brief; passing mocks cannot prove NLE or provider interoperabil
 
 These are tracked gaps, not permissions to send additional content or ship unsafe
 new capabilities. Automated work uses mocks/fixtures and never credentials.
+
+## AI-0 interface increment — 2026-10-10
+
+The baseline table above is retained as the before-state. Provider abstraction is
+now **Implemented (bounded)** in AIProviderCapabilities.swift: TextAssist,
+ImageGeneration, VideoGeneration and VoiceGeneration are separate Sendable
+service protocols. DialogueTextAdapter binds the existing transport to either
+OpenAI or Anthropic; BoardImageAPI conforms to ImageGeneration. DialogueConnection
+accepts an adapter factory and BoardImageAssistant accepts an image provider.
+Existing live request serialization, Keychain operations, response/error handling,
+selected model storage, cancellation tokens and adoption checks are unchanged.
+
+MockProvider implements all four interfaces without network, Keychain, disk access,
+clock or random identity. Its explicit byte fixtures test service routing, not
+media decoding. Missing video/voice fixtures fail; no fake file is advertised as
+playable footage. Mocks are injectable and absent from the production provider
+picker. Async video polling/resumption belongs to AI-1/AI-4, not these interfaces.
+MusicGeneration remains deferred. No schema or canonical document changes occur.
+
+Metadata reports implemented adapter limits only: current image output is one
+1536x1024 PNG without reference-image input; text remains the existing three-line
+assist. Price is unknown (nil), not zero; future per-model duration/aspect/reference
+constraints must come from verified adapters. The media request is an ephemeral
+mock boundary, not the future serialized job format.
+
+The image model remains an editable, persisted field. Official documentation now
+lists gpt-image-2.5-flare; documentation does not prove a user's account access or
+successful generation. This phase does not replace the user's saved selection or
+claim model discovery for image capabilities.
+
+Official contracts opened on 2026-10-10 (no authenticated/provider generation calls):
+- https://developers.openai.com/api/docs/guides/text
+- https://developers.openai.com/api/reference/resources/models/methods/list
+- https://developers.openai.com/api/reference/go/resources/images/methods/generate
+- https://platform.claude.com/docs/en/api/messages/create
+- https://platform.claude.com/docs/en/api/models/list
+
+See ai-0-validation.md for exact test counts, performance and remaining gates.

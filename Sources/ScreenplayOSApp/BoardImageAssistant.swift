@@ -4,7 +4,7 @@ import ScreenplayDomain
 import CryptoKit
 import ImageIO
 
-struct BoardImageAPI {
+struct BoardImageAPI: Sendable {
     static func request(key: String, model: String, prompt: String) throws -> URLRequest {
         guard !key.isEmpty, !model.isEmpty, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               prompt.count <= 12000 else { throw DialogueServiceError(message: "Enter an image model and a prompt of up to 12,000 characters.") }
@@ -118,6 +118,7 @@ struct BoardGenerationSnapshot: Identifiable {
 struct BoardImageAssistant: View {
     @ObservedObject var model: ScreenplayViewModel
     let snapshot: BoardGenerationSnapshot
+    var imageProvider: any ImageGeneration = BoardImageAPI()
     @Environment(\.dismiss) private var dismiss
     @State private var prompt = ""
     // Remember the writer's model choice; the default has not been verified against a live account.
@@ -168,7 +169,7 @@ struct BoardImageAssistant: View {
                 guard let key = try ProviderKeychain().read(.openai), !key.isEmpty else {
                     throw DialogueServiceError(message: "Connect OpenAI through the AI menu first, then reopen this panel.")
                 }
-                let data = try await BoardImageAPI().generate(key: key, model: sentModel, prompt: sentPrompt)
+                let data = try await imageProvider.generate(key: key, model: sentModel, prompt: sentPrompt)
                 guard generation == token, !Task.isCancelled else { return }
                 result = data; resultPrompt = sentPrompt; resultModel = sentModel
                 status = "Review the image. Your project has not changed."

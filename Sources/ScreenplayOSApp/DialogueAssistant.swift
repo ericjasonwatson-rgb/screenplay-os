@@ -44,7 +44,10 @@ struct DialogueSnapshot {
     private var generation = UUID()
     let keys = ProviderKeychain()
     let defaults: UserDefaults
-    init(defaults: UserDefaults = .standard) {
+    let adapter: (DialogueProvider) -> any TextAssist
+    init(defaults: UserDefaults = .standard,
+         adapter: @escaping (DialogueProvider) -> any TextAssist = { DialogueTextAdapter(provider: $0) }) {
+        self.adapter = adapter
         self.defaults = defaults
         let selected = DialogueProvider(rawValue: defaults.string(forKey: "dialogue.provider") ?? "") ?? .openai
         provider = selected
@@ -68,7 +71,7 @@ struct DialogueSnapshot {
                 guard let credential = entered.isEmpty ? try keys.read(provider) : entered, !credential.isEmpty else {
                     throw DialogueServiceError(message: "Paste an API key to load your available models.")
                 }
-                let found = try await DialogueAPI().models(provider: provider, key: credential)
+                let found = try await adapter(provider).models(key: credential)
                 guard generation == token, !Task.isCancelled else { return }
                 models = found
                 status = "Choose a text-generation model, then Test & Connect. Other model types may appear in your account list."
@@ -86,7 +89,7 @@ struct DialogueSnapshot {
                     throw DialogueServiceError(message: "Paste your provider API key first. Do not paste it into chat.")
                 }
                 let prompt = context.map { "Writer direction: \(direction.prefix(1000))\n\($0)" } ?? "Connection test: provide three brief greetings for an imaginary character. No screenplay is supplied."
-                let result = try await DialogueAPI().suggest(provider: provider, key: credential, model: model, prompt: prompt)
+                let result = try await adapter(provider).suggest(key: credential, model: model, prompt: prompt)
                 guard !Task.isCancelled, generation == token else { return }
                 if context == nil {
                     try keys.save(credential, provider: provider)
