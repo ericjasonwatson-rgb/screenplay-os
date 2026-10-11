@@ -15,6 +15,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var generationConsentPreview: GenerationConsentPreview?
     @Published var generationActivityStatus: String?
     @Published var generationCostLedger: GenerationCostLedger?
+    @Published var licenseStatusText = "Commerce enforcement is off. Pro features are available without limits."
     @Published var continuityBiblePresented = false
     @Published private(set) var continuityBible: ContinuityBibleLedger?
     @Published private(set) var continuityBibleStatus: String?
@@ -219,6 +220,15 @@ final class ScreenplayViewModel: ObservableObject {
     ]
 
     private let lineLayoutExperiment: ScreenplayLineLayout
+    var entitlements: Entitlements { Entitlements(tier: .free, defaults: preferences) }
+    @discardableResult
+    func requireEntitlement(_ feature: CommerceFeature) -> Bool {
+        guard entitlements.allows(feature) else {
+            errorMessage = "This feature requires \(feature.minimumTier.rawValue.capitalized). Your scripts and core file tools remain available."
+            return false
+        }
+        return true
+    }
     var effectiveLineLayout: ScreenplayLineLayout {
         // Existing locks and arbitrary typography must never be repaginated by this experiment.
         if pagesAreLocked || writingTypography.fontSize != 12 { return .legacy }
@@ -688,6 +698,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func prepareOfflineDialogueRequest() {
+        guard requireEntitlement(.aiGeneration) else { return }
         guard let snapshot = DialogueSnapshot.capture(self), let document else {
             errorMessage = "Select a dialogue paragraph before creating an offline AI request."
             return
@@ -761,6 +772,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func showGenerationCostLedger() {
+        guard requireEntitlement(.costLedger) else { return }
         guard let document else { errorMessage = "Open a screenplay before viewing AI costs."; return }
         Task {
             do {
@@ -770,6 +782,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func showGenerationCostCSVExportPanel() {
+        guard requireEntitlement(.costLedger) else { return }
         guard let document else { errorMessage = "Open a screenplay before exporting AI costs."; return }
         Task {
             do {
@@ -787,6 +800,31 @@ final class ScreenplayViewModel: ObservableObject {
                 }
             } catch { errorMessage = "Could not export AI cost ledger: \(error.localizedDescription)" }
         }
+    }
+
+    func showLicenseImportPanel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.title = "Enter ScreenplayOS License"
+        panel.prompt = "Enter License"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let file = try decoder.decode(SignedLicenseFile.self, from: Data(contentsOf: url))
+            // Public half of a placeholder key. Enforcement cannot be enabled until
+            // release engineering replaces this with the production public key.
+            let placeholder = Data(base64Encoded: "PUAXw+hDiVqStwqnTRt+vJyYLM8uxJaMwM1V8Sr0Zgw=")!
+            switch LicenseVerifier(publicKey: placeholder).verify(file, now: Date()) {
+            case let .valid(payload): licenseStatusText = "Valid \(payload.tier.rawValue.capitalized) license · \(payload.seatCount) seat\(payload.seatCount == 1 ? "" : "s")"
+            case let .grace(payload, until): licenseStatusText = "\(payload.tier.rawValue.capitalized) license in offline grace through \(until.formatted(date: .abbreviated, time: .omitted))"
+            case .expired: licenseStatusText = "License expired. Core writing, save, recovery, PDF, and FDX remain available."
+            case .invalid: licenseStatusText = "This license could not be verified."
+            }
+        } catch { licenseStatusText = "This license file is invalid: \(error.localizedDescription)" }
+        sidebarMode = .activity
+        revealSidebar()
     }
 
     var outlineBeats: [OutlineBeat] {
@@ -1264,12 +1302,14 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func presentContinuityBible() {
+        guard requireEntitlement(.continuityBible) else { return }
         guard document != nil else { errorMessage = "Open a screenplay first."; return }
         if continuityBible == nil { loadContinuityBible() }
         continuityBiblePresented = true
     }
 
     func scanContinuityBible() {
+        guard requireEntitlement(.continuityBible) else { return }
         guard let screenplay = document?.screenplay else { return }
         var ledger = continuityBible ?? ContinuityBibleLedger(projectID: screenplay.id)
         let extracted = ContinuityExtractor.proposals(from: screenplay)
@@ -1848,6 +1888,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func showProductionExportPanel() {
+        guard requireEntitlement(.editHandoff) else { return }
         if selectedProductionExportKind == .premiereEDL || selectedProductionExportKind == .finalCutXML {
             do { _ = try editInterchangeText(for: selectedProductionExportKind) }
             catch { errorMessage = error.localizedDescription; return }
@@ -7167,10 +7208,12 @@ extension ScreenplayViewModel {
 
 extension ScreenplayViewModel {
     func presentBoardGenerator(for shot: Shot) {
+        guard requireEntitlement(.aiGeneration) else { return }
         boardGenerationSnapshot = BoardGenerationSnapshot(model: self, shot: shot)
     }
     @discardableResult
     func adoptBoardImage(_ version: BoardImageVersion, snapshot: BoardGenerationSnapshot) -> Bool {
+        guard requireEntitlement(.takes) else { return false }
         guard snapshot.isCurrent(self), version.fileURL.isFileURL else { return false }
         rememberUndoState()
         if let index = document?.boardFrames.firstIndex(where: { $0.id == snapshot.targetBoardID }) {
@@ -7190,6 +7233,7 @@ extension ScreenplayViewModel {
         return true
     }
     func selectBoardImage(_ id: UUID, for frameID: UUID) {
+        guard requireEntitlement(.takes) else { return }
         guard let index = document?.boardFrames.firstIndex(where: { $0.id == frameID }),
               document?.boardFrames[index].imageVersions.contains(where: { $0.id == id }) == true else { return }
         rememberUndoState()
@@ -7218,6 +7262,7 @@ extension ScreenplayViewModel {
     }
 
     func importBoardImageTake(_ data: Data, for frameID: UUID, importedAt: Date = Date()) throws {
+        guard requireEntitlement(.takes) else { return }
         guard let documentURL = saveURL,
               let index = document?.boardFrames.firstIndex(where: { $0.id == frameID }),
               BoardImageAPI.validPNG(data) else { throw CocoaError(.fileReadCorruptFile) }

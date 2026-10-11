@@ -1,0 +1,10 @@
+{
+  "currency": "USD",
+  "proMonthlyCents": 1200,
+  "proAnnualCents": 9900,
+  "foundingAnnualCents": 6900,
+  "studioMinimumSeats": 3,
+  "studioMonthlyPerSeatCents": null,
+  "studioAnnualPerSeatCents": null,
+  "perpetualEligibilityPaidMonths": 12
+}

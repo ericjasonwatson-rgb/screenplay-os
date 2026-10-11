@@ -232,6 +232,11 @@ struct ScreenplayOSApp: App {
                     .disabled(model.packageSheetOpen || model.selectedElement?.type != .dialogue)
                 Button("Export AI Activity…") { model.showGenerationActivityExportPanel() }
                     .disabled(model.packageSheetOpen || model.document == nil)
+                Button("AI Cost Ledger…") { model.showGenerationCostLedger() }
+                    .disabled(model.packageSheetOpen || model.document == nil)
+                Divider()
+                Button("Enter License…") { model.showLicenseImportPanel() }
+                    .disabled(model.packageSheetOpen)
             }
             CommandMenu("Screenplay") {
                 Group {

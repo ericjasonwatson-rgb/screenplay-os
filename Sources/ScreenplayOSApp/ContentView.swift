@@ -517,6 +517,9 @@ private struct ActivitySections: View {
             Button("Export AI Activity…") { model.showGenerationActivityExportPanel() }
             Button("AI Cost Ledger…") { model.showGenerationCostLedger() }
             Button("Export AI Costs (CSV)…") { model.showGenerationCostCSVExportPanel() }
+            Divider()
+            Button("Enter License…") { model.showLicenseImportPanel() }
+            Text(model.licenseStatusText).font(.caption).foregroundStyle(.secondary)
             if let status = model.generationActivityStatus {
                 Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }

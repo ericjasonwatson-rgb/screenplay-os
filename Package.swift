@@ -10,14 +10,15 @@ let package = Package(
         .library(name: "ScreenplayDomain", targets: ["ScreenplayDomain"]),
         .library(name: "ScreenplayFDX", targets: ["ScreenplayFDX"]),
         .executable(name: "ScreenplayOS", targets: ["ScreenplayOSApp"]),
-        .executable(name: "screenplay-inspect", targets: ["screenplay-inspect"])
+        .executable(name: "screenplay-inspect", targets: ["screenplay-inspect"]),
+        .executable(name: "screenplay-license-tool", targets: ["screenplay-license-tool"])
     ],
     targets: [
         .testTarget(
             name: "ScreenplayEditorTests",
             dependencies: ["ScreenplayOSApp", "ScreenplayDomain", "ScreenplayFDX"]
         ),
-        .target(name: "ScreenplayDomain"),
+        .target(name: "ScreenplayDomain", resources: [.copy("Resources/pricing.json")]),
         .target(
             name: "ScreenplayFDX",
             dependencies: ["ScreenplayDomain"]
@@ -39,6 +40,7 @@ let package = Package(
             name: "screenplay-self-test",
             dependencies: ["ScreenplayDomain", "ScreenplayFDX"],
             path: "Tests/ScreenplaySelfTest"
-        )
+        ),
+        .executableTarget(name: "screenplay-license-tool", dependencies: ["ScreenplayDomain"], path: "Scripts/LicenseTool")
     ]
 )

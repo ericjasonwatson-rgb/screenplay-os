@@ -91,6 +91,7 @@ extension ScreenplayViewModel {
     }
 
     func showImportAudioClipPanel(lane: EditAudioLane) {
+        guard requireEntitlement(.animaticAudio) else { return }
         guard saveURL != nil else {
             editAudioStatus = "Save the screenplay before importing audio."
             return
@@ -107,6 +108,7 @@ extension ScreenplayViewModel {
     }
 
     func importAudioClip(_ source: URL, lane: EditAudioLane, start: Double) throws {
+        guard requireEntitlement(.animaticAudio) else { return }
         guard let documentURL = saveURL, var ledger = editAudioLedger,
               ledger.projectID == document?.screenplay.id else { throw EditAudioError.projectMismatch }
         let stored = try EditAudioWorkflow.storedMediaURL(source: source, beside: documentURL)
@@ -123,6 +125,7 @@ extension ScreenplayViewModel {
     }
 
     func removeAudioClip(_ id: UUID) {
+        guard requireEntitlement(.animaticAudio) else { return }
         guard var ledger = editAudioLedger else { return }
         ledger.clips.removeAll { $0.id == id }
         do {

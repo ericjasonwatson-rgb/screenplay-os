@@ -8,3 +8,5 @@ __pycache__/
 *.pyc
 dist/
 Website/downloads/
+Scripts/.license-*.key
+Config/production-license-private-key*
