@@ -4,6 +4,11 @@ import CryptoKit
 /// Deterministic identity and scene-reference stage for native destination construction.
 /// It consumes an authenticated preflight and performs no I/O.
 struct NativeLegacyIdentityPlan: Equatable {
+    struct SourceIdentity: Equatable {
+        let id: UUID
+        let path: String
+    }
+
     struct Reference: Equatable {
         let sourcePath: String
         let targetSceneID: UUID
@@ -13,6 +18,7 @@ struct NativeLegacyIdentityPlan: Equatable {
     let aliases: [String: UUID]
     let references: [Reference]
     let shotAddendumIDs: [UUID: UUID]
+    let sourceIdentities: [SourceIdentity]
     let revisionID: UUID
     let createdAt: String
 
@@ -57,7 +63,8 @@ struct NativeLegacyIdentityPlan: Equatable {
             }
         }
 
-        let existing = try knownIdentities(in: root)
+        let sourceIdentities = try knownIdentities(in: root)
+        let existing = Set(sourceIdentities.map(\.id))
         guard existing.isDisjoint(with: allocated) else { throw Failure.identityCollision }
         var references: [Reference] = []
         try collectSceneReferences(root, path: "", aliases: aliases, into: &references)
@@ -80,7 +87,8 @@ struct NativeLegacyIdentityPlan: Equatable {
         )
         guard !existing.contains(revision), allocated.insert(revision).inserted else { throw Failure.identityCollision }
         return Self(sceneMap: sceneMap, aliases: aliases, references: references,
-                    shotAddendumIDs: shotAddendumIDs, revisionID: revision, createdAt: createdAt)
+                    shotAddendumIDs: shotAddendumIDs, sourceIdentities: sourceIdentities,
+                    revisionID: revision, createdAt: createdAt)
     }
 
     private static func collectSceneReferences(
@@ -111,8 +119,9 @@ struct NativeLegacyIdentityPlan: Equatable {
         }
     }
 
-    private static func knownIdentities(in value: Any) throws -> Set<UUID> {
+    private static func knownIdentities(in value: Any) throws -> [SourceIdentity] {
         var identities = Set<UUID>()
+        var records: [SourceIdentity] = []
         func visit(_ node: Any, path: String) throws {
             if let values = node as? [Any] {
                 for (index, value) in values.enumerated() { try visit(value, path: pointer(path, String(index))) }
@@ -122,11 +131,12 @@ struct NativeLegacyIdentityPlan: Equatable {
             let historicalLock = path.contains("/production_page_lock/") || path.contains("/page_lock/")
             if !historicalLock, let raw = object["id"] as? String, let id = UUID(uuidString: raw) {
                 guard identities.insert(id).inserted else { throw Failure.identityCollision }
+                records.append(SourceIdentity(id: id, path: path.isEmpty ? "/" : path))
             }
             for (key, child) in object { try visit(child, path: pointer(path, key)) }
         }
         try visit(value, path: "")
-        return identities
+        return records.sorted { $0.path < $1.path }
     }
 
     private static func pointer(_ base: String, _ component: String) -> String {

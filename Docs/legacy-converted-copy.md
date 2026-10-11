@@ -55,3 +55,10 @@ The first native replacement stage is implemented and covered by four focused Sw
 This stage is deliberately not connected to **Save Converted Copy…** yet. It authenticates the source and attachment inputs for a later native staged writer; it does not build destination payloads, provide independent disk readback, publish a package, or remove the current Python dependency. Switching the command before those stages reach parity would weaken the existing safety guarantees.
 
 Native destination planning now also assigns deterministic scene, shot-addendum, and project-revision UUIDv5 identities using the same namespace and role strings as the Python candidate. It inventories legacy scene aliases and maps known scene references to one target identity, while duplicate aliases, unresolved references, identity collisions, and invalid revision timestamps fail closed. Three focused Swift tests verify Python-compatible UUID output, shared reference targets, rename/reorder stability, deterministic regeneration, and blocker behavior. Payload splitting and the project inventory are still pending.
+
+The native follow-up now constructs the complete in-memory payload split and
+project revision inventory. It preserves the semantic legacy archive, translates
+scene references through one checked map, includes authenticated board attachments,
+and commits byte counts and SHA-256 values before any future write. It still performs
+no filesystem mutation. Native staging, publication, and independent readback are
+the next required layer before the Python writer can be removed.

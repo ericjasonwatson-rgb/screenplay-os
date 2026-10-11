@@ -141,3 +141,21 @@ construction. Three focused Swift tests cover parity, deterministic regeneration
 rename/reorder stability, and blockers. This is still an in-memory plan: payload
 translation, schema-equivalent validation, inventories, staged writes, and readback
 remain before the native writer can replace Python.
+
+## Native payload and inventory stage — 2026-10-11
+
+`NativeLegacyPayloadPlan` now splits the authenticated legacy tree into the same
+screenplay, note, shot, film, extension, and media responsibilities used by the
+experimental destination profile. Scene links use the single identity map; scene
+headings receive permanent scene identities; notes and shot references are renamed
+only after collision checks; shots are grouped into deterministic scene addenda;
+and the exact semantic legacy tree remains in the immutable migration extension.
+Every generated JSON payload and authenticated board attachment is serialized in
+memory, hashed, sized, and committed to `project.json` together with deterministic
+object revisions. Rebuilding from the same preflight, identity plan, and timestamp
+produces identical bytes.
+
+This remains an in-memory plan and does not authorize package writes. A native
+staged writer, directory durability, exclusive publication, independent disk
+readback, Python-parity fixtures, and menu integration still remain. The existing
+Python bridge stays active until those gates pass.
