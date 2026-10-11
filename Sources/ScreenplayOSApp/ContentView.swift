@@ -85,8 +85,17 @@ struct ContentView: View {
         .sheet(item: $model.packagePreview) { preview in
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
         }
+        .sheet(item: $model.convertedCopyReceipt) { receipt in
+            LegacyConvertedCopyReportView(receipt: receipt) { model.convertedCopyReceipt = nil }
+        }
         .safeAreaInset(edge: .bottom) {
-            if let status = model.portableExportStatus {
+            if let status = model.convertedCopyStatus {
+                HStack {
+                    if model.convertedCopyInProgress { ProgressView().controlSize(.small) }
+                    Text(status).font(.caption).textSelection(.enabled)
+                    Spacer()
+                }.padding(8).background(.regularMaterial)
+            } else if let status = model.portableExportStatus {
                 HStack {
                     if model.portableExportInProgress { ProgressView().controlSize(.small) }
                     Text(status).font(.caption).textSelection(.enabled)

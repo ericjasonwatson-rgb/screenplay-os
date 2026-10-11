@@ -103,6 +103,9 @@ struct ScreenplayOSApp: App {
                     }
                     .keyboardShortcut("s", modifiers: [.command, .shift])
 
+                    Button("Save Converted Copy…", action: model.showConvertedCopyPanel)
+                        .disabled(model.document == nil || model.convertedCopyInProgress)
+
                     Button("Export PDF...") {
                         model.showExportPDFPanel()
                     }

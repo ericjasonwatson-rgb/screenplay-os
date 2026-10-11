@@ -102,3 +102,14 @@ missing, changed, unsafe, or unreferenced attachment fails readback. The native 
 also renders these verified boards and selected takes in its isolated read-only
 package preview. This remains an experimental new-destination copy; the app does
 not edit this rich package.
+
+## Explicit converted-copy command — 2026-10-11
+
+The macOS File menu now provides **Save Converted Copy…** for a saved and unchanged
+legacy JSON document. It requires a new destination, runs the existing fail-closed
+writer away from the main thread, independently verifies the package with the Swift
+reader, leaves the current document active, and presents a concrete conversion
+receipt. The signed bundle carries the reviewed scripts and schemas. It currently
+depends on a separately installed Python 3 plus `jsonschema`; absence is reported
+without creating the destination. Replace this bridge with a native bundled converter
+before calling the workflow generally available or dependable on ordinary Macs.

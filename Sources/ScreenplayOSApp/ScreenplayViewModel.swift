@@ -19,6 +19,9 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var takeSidecarProblem: String?
     @Published var portableExportInProgress = false
     @Published var portableExportStatus: String?
+    @Published var convertedCopyInProgress = false
+    @Published var convertedCopyStatus: String?
+    @Published var convertedCopyReceipt: LegacyConvertedCopyReceipt?
     lazy var chromeState = ScreenplayChromeState(model: self)
     @Published private(set) var document: OpenScreenplayDocument? {
         didSet {
@@ -1744,6 +1747,43 @@ final class ScreenplayViewModel: ObservableObject {
 
         if panel.runModal() == .OK, let url = panel.url {
             if let data { writePrintPDF(data, to: url) } else { exportPDF(to: url) }
+        }
+    }
+
+    func showConvertedCopyPanel() {
+        guard packageEditor == nil, packagePreview == nil, !convertedCopyInProgress,
+              let source = saveURL, source.pathExtension.lowercased() == "json", !hasUnsavedChanges else {
+            errorMessage = "Save the current screenplay before creating a converted copy."
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "screenplay") ?? .package]
+        panel.canCreateDirectories = true
+        panel.title = "Save Experimental Converted Copy"
+        panel.prompt = "Create Copy"
+        panel.message = "Creates a new read-only .screenplay package. The current JSON screenplay remains open and unchanged. Existing destinations are never replaced."
+        panel.nameFieldStringValue = source.deletingPathExtension().lastPathComponent + ".screenplay"
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        convertedCopyInProgress = true
+        convertedCopyStatus = "Creating and verifying converted copy…"
+        Task { @MainActor in
+            let result = await Task.detached(priority: .userInitiated) { () -> Result<LegacyConvertedCopyReceipt, Error> in
+                do {
+                    let service = LegacyConvertedCopyService()
+                    guard service.isAvailable else { throw LegacyConvertedCopyService.Failure.unavailable }
+                    return .success(try service.convert(source: source, destination: destination))
+                }
+                catch { return .failure(error) }
+            }.value
+            convertedCopyInProgress = false
+            switch result {
+            case let .success(receipt):
+                convertedCopyStatus = nil
+                convertedCopyReceipt = receipt
+            case let .failure(error):
+                convertedCopyStatus = nil
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

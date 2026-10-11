@@ -72,6 +72,18 @@ resources.mkdir(parents=True, exist_ok=True)
 branding = pathlib.Path('Sources/ScreenplayOSApp/Resources')
 shutil.copy2(branding / 'ScreenplayOSLogo.png', resources / 'ScreenplayOSLogo.png')
 shutil.copy2(branding / 'ScreenplayOS.icns', resources / 'ScreenplayOS.icns')
+# The experimental converted-copy command is an explicit bridge to the vetted
+# Python writer. Keep its scripts and schemas inside the signed bundle; the app
+# still checks for a compatible local Python runtime before offering success.
+converter = resources / 'LegacyConverter'
+for name in ['convert-legacy-copy.py', 'legacy_copy.py', 'legacy_destination.py', 'legacy_media.py', 'inspect-legacy.py']:
+    target = converter / 'Scripts' / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(pathlib.Path('Scripts') / name, target)
+for name in ['open-screenplay-1.0.schema.json', 'drafts/legacy-destination-0.1.schema.json']:
+    target = converter / 'Specs' / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(pathlib.Path('Specs') / name, target)
 revision = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text=True).strip()
 if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
     revision += '-dirty'
