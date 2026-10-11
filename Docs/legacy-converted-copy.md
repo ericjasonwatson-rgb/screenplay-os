@@ -1,6 +1,6 @@
 # Experimental converted-copy writer
 
-**Status:** Implemented for macOS, new destinations only. Uses the unreleased legacy destination profile. The native app cannot yet edit these packages; its current Save workflow is unchanged.
+**Status:** Implemented for macOS, new destinations only. Uses the unreleased legacy destination profile. The native app can inspect verified screenplay and board content read-only, but cannot edit these packages; its current Save workflow is unchanged.
 
 From the repository, with the dependency in `Scripts/requirements-inspector.txt` available:
 
@@ -34,12 +34,14 @@ After abrupt process termination, there may be no diagnostic output. Inspect the
 
 ## Evidence and limitations
 
-37 focused tests pass, including ten writer tests. Tests cover successful conversion and disk-only readback, byte-exact source archival, existing destinations, a competing destination created immediately before publication, failures at ten checkpoints, partial writes, directory-sync failures before and after publication, outside source edits, corrupt/missing/unsafe files, CLI behavior, and subprocess termination during staging and before/after publication. Input bytes and modification times remain unchanged except in tests that deliberately simulate an external source edit.
+41 focused Python tests pass, including writer and packaged-media tests. Tests cover successful conversion and disk-only readback, byte-exact source archival, existing destinations, a competing destination created immediately before publication, failures at ten checkpoints, partial writes, directory-sync failures before and after publication, outside source edits, corrupt/missing/unsafe files, CLI behavior, subprocess termination during staging and before/after publication, and board-image relocation and corruption. Input bytes and modification times remain unchanged except in tests that deliberately simulate an external source edit.
 
 This verifies process interruption and injected I/O failures on the current development filesystem. It is not physical power-loss testing, a guarantee for every filesystem/device, or protection against a hostile process swapping ancestor directories. Source rereads detect changes over those intervals; they are not a file lock and cannot prevent later edits. The writer currently supports macOS only and does not overwrite existing packages.
 
 Production locks, legacy offsets, unknown/service fields, and historical metadata retain the destination profile's existing limits. The immutable source archive preserves them, but does not make lock-aware editing or print output conformant. Legacy board PNG versions now receive a validated `film/media.json` registry and content-addressed attachments when every referenced image is present and hash-valid. Missing or unsafe board media blocks the copy rather than producing a falsely complete archive. Other media, revision retention/merge, signing, and format release remain unimplemented.
 
-## Next application step
+## Native read-only preview
 
-Add a read-only package-opening path to the Mac app, with clear experimental-format and unsupported-feature status. Establish correct rendering, reference recovery, and save/close behavior before allowing edits or switching the app's default format. Keep converted-copy output separate from the user's active legacy document until that work is validated.
+The Mac app now opens a verified converted package in a separate read-only preview. It displays exact screenplay paragraph text, scene navigation, board order and duration, every packaged take, the selected take, and its model label. It rechecks the revision inventory, package membership, project identity, board/version identity and order, selection, metadata, hashes, byte counts, PNG dimensions, and attachment references before displaying anything. Closing the preview restores the unchanged editable document underneath; Save and autosave do not target the preview.
+
+The next application step is an explicit **Save Converted Copy…** command with a user-selected new destination and a conversion report. It must retain the active legacy document and must not enable editing of the converted package. Editable package adoption remains blocked on recovery, fidelity, and feature-completeness work.

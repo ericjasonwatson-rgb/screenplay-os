@@ -83,7 +83,7 @@ The executable destination profile and scene/reference transformations are now i
 
 ## Converted-copy writer follow-up — 2026-09-12
 
-A separate experimental macOS writer now creates only new destinations, retains exact source bytes, performs exclusive publication, and verifies staged/published output. See `legacy-converted-copy.md` for failure/recovery behavior and 37 focused tests. The app still cannot edit the new package format; existing save behavior and the remaining conformance gates are unchanged.
+A separate experimental macOS writer now creates only new destinations, retains exact source bytes, performs exclusive publication, and verifies staged/published output. See `legacy-converted-copy.md` for failure/recovery behavior and 41 focused Python tests. The app can inspect verified screenplay and board content through a separate read-only preview, but still cannot edit the new package format; existing save behavior and the remaining conformance gates are unchanged.
 
 ## Board-media planning gate — 2026-10-11
 
@@ -98,5 +98,7 @@ deduplicated in the plan. It does not write packages or change user media.
 The staged converted-copy writer now consumes this plan, writes `film/media.json`
 and content-addressed board PNGs, adds every byte to the project revision inventory,
 and independently verifies the relocated package against its board records. A
-missing, changed, unsafe, or unreferenced attachment fails readback. This remains
-an experimental new-destination copy; the app does not edit this rich package.
+missing, changed, unsafe, or unreferenced attachment fails readback. The native app
+also renders these verified boards and selected takes in its isolated read-only
+package preview. This remains an experimental new-destination copy; the app does
+not edit this rich package.
