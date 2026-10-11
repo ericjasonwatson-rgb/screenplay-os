@@ -33,7 +33,10 @@ document remains authoritative and older compatible files keep working. Users
 can place exactly two takes in a larger side-by-side comparison and adopt either
 one without making comparison state part of the document. Comparison clears
 when its board or project is replaced. A projection error is shown without
-mutating the screenplay. Media playback and canonical package persistence remain
+mutating the screenplay. The selected still take is the sole image rendered by
+the central Boardomatic viewer and the Edit viewer while their existing timing
+engines advance; changing the selected take updates both without a parallel media
+selection. Moving-image/audio playback and canonical package persistence remain
 future work.
 
 ## Deferred

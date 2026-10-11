@@ -1059,6 +1059,12 @@ final class ScreenplayViewModel: ObservableObject {
         selectedBoardFrame ?? boardFramesForSelectedScene.first
     }
 
+    var activeBoardTake: Take? {
+        guard let frame = activeBoardFrame,
+              let takes = try? BoardTakeMigration.project([frame]) else { return nil }
+        return takes.first(where: { $0.status == .selected })
+    }
+
     var contextAssistantStarterPrompts: [String] {
         [
             "Find continuity questions",

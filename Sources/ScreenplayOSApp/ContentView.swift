@@ -2097,6 +2097,11 @@ private struct BoardWorkbenchPane: View {
 
                 BoardomaticBar(model: model)
 
+                BoardomaticViewer(model: model)
+                    .frame(minHeight: 180, idealHeight: 240, maxHeight: 320)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
+
                 ScrollView(.horizontal) {
                     LazyHStack(alignment: .top, spacing: 12) {
                         if model.boardFramesForSelectedScene.isEmpty {
@@ -2127,6 +2132,69 @@ private struct BoardWorkbenchPane: View {
                 .fill(ScreenplayOSTokens.Palette.separator)
                 .frame(width: ScreenplayOSTokens.Spacing.hairline)
         }
+    }
+}
+
+private struct BoardomaticViewer: View {
+    @ObservedObject var model: ScreenplayViewModel
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(Color.black.opacity(0.88))
+            if let version = model.activeBoardFrame?.selectedImage {
+                BoardImageView(version: version)
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "play.rectangle")
+                        .font(.system(size: 34))
+                    Text(model.activeBoardFrame == nil ? "Select a board" : "This board has no selected image")
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+        .overlay(alignment: .topLeading) {
+            Text("BOARDOMATIC")
+                .font(.caption2.monospaced().weight(.semibold))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.68))
+                .foregroundStyle(.white.opacity(0.82))
+                .padding(8)
+        }
+        .overlay(alignment: .topTrailing) {
+            if let take = model.activeBoardTake {
+                Text("TAKE \(take.order + 1)  ·  \(take.provenance.modelID ?? "LOCAL")")
+                    .font(.caption2.monospaced().weight(.semibold))
+                    .lineLimit(1)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.68))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .padding(8)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Text(model.boardomaticPlayheadText)
+                .font(.caption.monospacedDigit())
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.68))
+                .foregroundStyle(.white.opacity(0.88))
+                .padding(8)
+        }
+        .clipped()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(boardomaticAccessibilityLabel)
+    }
+
+    private var boardomaticAccessibilityLabel: String {
+        guard let frame = model.activeBoardFrame else { return "Boardomatic viewer, no board selected" }
+        if let take = model.activeBoardTake {
+            return "Boardomatic viewer, \(frame.label), Take \(take.order + 1), \(model.boardomaticPlayheadText)"
+        }
+        return "Boardomatic viewer, \(frame.label), no selected image, \(model.boardomaticPlayheadText)"
     }
 }
 
@@ -2523,6 +2591,17 @@ private struct EditWorkbenchPane: View {
             .overlay {
                 if let version = model.activeBoardFrame?.selectedImage {
                     BoardImageView(version: version).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.black)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if let take = model.activeBoardTake {
+                    Text("TAKE \(take.order + 1)")
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(.black.opacity(0.68))
+                        .foregroundStyle(.white.opacity(0.88))
+                        .padding(20)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
