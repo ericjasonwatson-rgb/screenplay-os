@@ -19,7 +19,7 @@ struct ScreenplayOSApp: App {
 
     private var scriptCommandsDisabled: Bool {
         !model.scriptEditorFocused || model.titlePagePresented ||
-        model.dialogueAssistantPresented || model.boardGenerationSnapshot != nil
+        model.dialogueAssistantPresented || model.boardGenerationSnapshot != nil || model.generationConsentPreview != nil
     }
 
     var body: some Scene {
@@ -224,6 +224,11 @@ struct ScreenplayOSApp: App {
                     .disabled(model.packageSheetOpen)
                 Button("Suggest dialogue line…") { model.dialogueAssistantPresented = true }
                     .disabled(model.packageSheetOpen || model.selectedElement?.type != .dialogue)
+                Divider()
+                Button("Preview Offline AI Request…") { model.prepareOfflineDialogueRequest() }
+                    .disabled(model.packageSheetOpen || model.selectedElement?.type != .dialogue)
+                Button("Export AI Activity…") { model.showGenerationActivityExportPanel() }
+                    .disabled(model.packageSheetOpen || model.document == nil)
             }
             CommandMenu("Screenplay") {
                 Group {

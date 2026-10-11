@@ -3,7 +3,7 @@ import Foundation
 /// Complete user-review boundary for one generation request. The app must render
 /// every field before Send; approval is valid only while this value still matches
 /// the durable job.
-public struct GenerationConsentPreview: Codable, Equatable, Sendable {
+public struct GenerationConsentPreview: Codable, Equatable, Identifiable, Sendable {
     public let jobID: UUID
     public let projectID: UUID
     public let capability: GenerationCapability
@@ -13,6 +13,7 @@ public struct GenerationConsentPreview: Codable, Equatable, Sendable {
     public let request: GenerationRequestSnapshot
     public let requestSHA256: String
     public let estimatedCost: GenerationCost?
+    public var id: UUID { jobID }
 
     public init(job: GenerationJobRecord) {
         jobID = job.id

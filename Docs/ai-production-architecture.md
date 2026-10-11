@@ -148,6 +148,10 @@ part of legacy screenplay JSON or the draft open-package schema, and no app path
 installs it yet. An actor-isolated controller now persists legal transitions and
 blocks ambiguous queued/running jobs after relaunch until explicit recovery review.
 Exact consent snapshots now bind approval to the frozen request, and submitted jobs
-can be exported as credential-free local activity JSON. No queue runner, consent UI,
-Take migration or live provider send is claimed. See
+can be exported as credential-free local activity JSON. No queue runner, Take
+migration or live provider send is claimed. See
 ai-1-generation-job-foundation.md for evidence and the next bounded increment.
+
+The macOS proof path now renders that exact consent snapshot, runs only the offline
+deterministic text fixture, and exposes explicit Activity JSON export. Existing live
+provider assistants are not yet routed through the durable controller.

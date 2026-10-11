@@ -72,7 +72,19 @@ provider task IDs. Export is an explicit local write with owner-only permissions
 Consent/activity validation passed in Debug and Release: 306 Swift tests in 52
 suites, 37 importer checks and 14 self-tests in each configuration.
 
+## macOS boundary increment
+
+The macOS app now exposes a read-only consent sheet and Activity JSON export. A
+selected dialogue line can exercise the complete job path through the deterministic
+offline fixture: prepare, exact preview, explicit Send, submission, completion and
+local activity. The sidecar is project-ID-bound in Application Support. This proof
+path does not adopt generated text and does not replace the existing live-provider
+assistants.
+
+The macOS boundary passed Debug and Release validation: 307 Swift tests in 53
+suites, 37 importer checks and 14 self-tests in each configuration.
+
 ## Next increment
 
-Expose these domain boundaries through a read-only consent UI and Activity export
-command, still using deterministic providers before any live adapter is connected.
+Add a deterministic result candidate tied to the target and revision, with explicit
+undoable adoption, before routing live providers through the durable job controller.

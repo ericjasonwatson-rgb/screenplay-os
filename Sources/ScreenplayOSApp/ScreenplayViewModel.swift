@@ -11,6 +11,8 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var showEditScript = false
     @Published var boardGenerationSnapshot: BoardGenerationSnapshot?
     @Published var dialogueAssistantPresented = false
+    @Published var generationConsentPreview: GenerationConsentPreview?
+    @Published var generationActivityStatus: String?
     @Published var portableExportInProgress = false
     @Published var portableExportStatus: String?
     lazy var chromeState = ScreenplayChromeState(model: self)
@@ -22,6 +24,11 @@ final class ScreenplayViewModel: ObservableObject {
             planningEstimateCache = nil
             editTimelineCache = nil
             if oldValue?.screenplay.elements != document?.screenplay.elements { writingSourceCache = nil }
+            if oldValue?.screenplay.id != document?.screenplay.id {
+                generationController = nil
+                generationConsentPreview = nil
+                generationActivityStatus = nil
+            }
             if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.outline.first?.template != document?.outline.first?.template,
                let name = document?.outline.first?.template,
                let kind = OutlineTemplateKind.allCases.first(where: { $0.displayName == name }) {
@@ -32,6 +39,7 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
     private var writingSourceCache: (text: String, ranges: [NSRange])?
+    private var generationController: GenerationJobController?
     private var sceneBreakdownCache: [SceneBreakdown]?
     private var planningEstimateCache: [String: SceneDurationEstimate]?
     private var sceneEstimateSourceCache = SceneDurationEstimateCache()
@@ -630,6 +638,83 @@ final class ScreenplayViewModel: ObservableObject {
 
     var activityEvents: [ActivityEvent] {
         (document?.activity ?? []).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    func prepareOfflineDialogueRequest() {
+        guard let snapshot = DialogueSnapshot.capture(self), let document else {
+            errorMessage = "Select a dialogue paragraph before creating an offline AI request."
+            return
+        }
+        let projectID = document.screenplay.id
+        let prompt = "Suggest three concise dialogue alternatives. Preserve character intent and do not rewrite the scene.\n\n" + snapshot.context
+        let target = GenerationTarget(kind: .dialogueLine, id: snapshot.targetID,
+                                      sourceRevision: OfflineGenerationWorkflow.sourceRevision(snapshot))
+        Task {
+            do {
+                let controller = try generationController ?? GenerationJobController(
+                    projectID: projectID, storageURL: OfflineGenerationWorkflow.storageURL(projectID: projectID))
+                generationController = controller
+                let request = GenerationRequestSnapshot(prompt: prompt, parameters: ["candidate_count": "3"])
+                let now = Date()
+                let job = GenerationJobRecord(id: UUID(), projectID: projectID, capability: .text,
+                    providerID: "mock", modelID: "mock-fixture-v1", target: target, request: request,
+                    requestSHA256: try request.sha256(), createdAt: now, updatedAt: now,
+                    estimatedCost: GenerationCost(currency: "USD", amountMicros: 0))
+                try await controller.add(job)
+                try await controller.requestConsent(for: job.id, at: Date())
+                generationConsentPreview = try await controller.consentPreview(for: job.id)
+            } catch { errorMessage = "Could not prepare the offline AI request: \(error.localizedDescription)" }
+        }
+    }
+
+    func approveOfflineDialogueRequest(_ preview: GenerationConsentPreview) {
+        guard let controller = generationController else { return }
+        Task {
+            do {
+                try await controller.grantConsent(for: preview.jobID, matching: preview, at: Date())
+                try await controller.markSubmitted(jobID: preview.jobID, at: Date())
+                let provider = MockProvider(image: Data())
+                let lines = try await provider.suggest(key: "", model: preview.modelID, prompt: preview.request.prompt)
+                try await controller.markSucceeded(jobID: preview.jobID, at: Date(), actualCost: .init(currency: "USD", amountMicros: 0))
+                generationConsentPreview = nil
+                generationActivityStatus = "Offline request completed: \(lines.joined(separator: " / "))"
+                sidebarMode = .activity
+                revealSidebar()
+            } catch { errorMessage = "The offline AI request failed: \(error.localizedDescription)" }
+        }
+    }
+
+    func cancelOfflineDialogueRequest(_ preview: GenerationConsentPreview) {
+        guard let controller = generationController else { generationConsentPreview = nil; return }
+        Task {
+            do { try await controller.cancel(jobID: preview.jobID, at: Date()) }
+            catch { errorMessage = "Could not cancel the offline AI request: \(error.localizedDescription)" }
+            generationConsentPreview = nil
+        }
+    }
+
+    func showGenerationActivityExportPanel() {
+        guard let document else { errorMessage = "Open a screenplay before exporting AI activity."; return }
+        let projectID = document.screenplay.id
+        Task {
+            do {
+                let controller = try generationController ?? GenerationJobController(
+                    projectID: projectID, storageURL: OfflineGenerationWorkflow.storageURL(projectID: projectID))
+                generationController = controller
+                let activity = try await controller.activityExport(generatedAt: Date())
+                guard !activity.entries.isEmpty else { errorMessage = "No submitted AI jobs are available to export."; return }
+                let panel = NSSavePanel()
+                panel.allowedContentTypes = [.json]
+                panel.canCreateDirectories = true
+                panel.title = "Export AI Activity"
+                panel.prompt = "Export"
+                panel.nameFieldStringValue = "\(title.replacingOccurrences(of: "/", with: "-"))-AI-Activity.json"
+                if panel.runModal() == .OK, let url = panel.url {
+                    try activity.write(to: url)
+                    generationActivityStatus = "Exported \(activity.entries.count) submitted AI job\(activity.entries.count == 1 ? "" : "s")."
+                }
+            } catch { errorMessage = "Could not export AI activity: \(error.localizedDescription)" }
+        }
     }
 
     var outlineBeats: [OutlineBeat] {

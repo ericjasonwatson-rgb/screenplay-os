@@ -75,6 +75,11 @@ struct ContentView: View {
         )
         .sheet(item: $model.boardGenerationSnapshot) { snapshot in BoardImageAssistant(model: model, snapshot: snapshot) }
         .sheet(isPresented: $model.dialogueAssistantPresented) { DialogueAssistantView(model: model) }
+        .sheet(item: $model.generationConsentPreview) { preview in
+            GenerationConsentSheet(preview: preview,
+                send: { model.approveOfflineDialogueRequest(preview) },
+                cancel: { model.cancelOfflineDialogueRequest(preview) })
+        }
         .sheet(isPresented: $model.titlePagePresented) { ScreenplayTitlePageEditor(model: model) }
         .sheet(item: $model.packagePreview) { preview in
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
@@ -488,11 +493,19 @@ private struct ActivitySections: View {
             Text("\(model.activityEvents.count) events")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Button("Preview Offline AI Request…") { model.prepareOfflineDialogueRequest() }
+                .disabled(model.selectedElement?.type != .dialogue)
+            Button("Export AI Activity…") { model.showGenerationActivityExportPanel() }
+            if let status = model.generationActivityStatus {
+                Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
         }
 
         if model.activityEvents.isEmpty {
             Section("Events") {
-                Text("No activity yet.")
+                Text(model.generationActivityStatus == nil
+                    ? "No authored-project activity yet."
+                    : "AI job history is stored in the separate exportable ledger.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
