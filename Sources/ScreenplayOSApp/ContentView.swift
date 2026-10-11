@@ -2410,6 +2410,13 @@ private struct TakeStrip: View {
             HStack {
                 Text("Takes")
                     .font(.caption.weight(.semibold))
+                Button("Import image…") { model.showImportBoardImageTakePanel(for: frame.id) }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .disabled(model.saveURL == nil)
+                    .help(model.saveURL == nil
+                          ? "Save the screenplay before importing media."
+                          : "Add a PNG as another Take without replacing existing media.")
                 Spacer()
                 if model.comparedBoardTakes.isEmpty {
                     Button("Compare two") { model.beginBoardTakeComparison() }

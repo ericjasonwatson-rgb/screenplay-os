@@ -321,6 +321,7 @@ public enum BoardTakeMigration {
                     throw BoardTakeMigrationError.invalidMedia
                 }
                 let generated = image.generationJobID != nil
+                let imported = !generated && image.importedAt != nil
                 result.append(Take(
                     id: image.id, shotID: board.shotID, boardFrameID: board.id, order: order,
                     kind: generated ? .generatedImage : .boardStill,
@@ -329,11 +330,12 @@ public enum BoardTakeMigration {
                     status: image.id == board.selectedImageID ? .selected : .candidate,
                     note: board.notes,
                     provenance: .init(
-                        source: generated ? .generationJob : .legacyBoardImage,
+                        source: generated ? .generationJob : (imported ? .localImport : .legacyBoardImage),
                         generationJobID: image.generationJobID, providerID: image.providerID,
                         modelID: image.model, prompt: image.prompt,
                         promptSHA256: generated ? sha256(image.prompt) : nil,
-                        generatedAt: image.generatedAt, estimatedCost: image.estimatedCost,
+                        generatedAt: image.generatedAt ?? image.importedAt,
+                        estimatedCost: image.estimatedCost,
                         actualCost: image.actualCost
                     )
                 ))
@@ -362,7 +364,8 @@ public enum BoardTakeMigration {
                                   prompt: $0.provenance.prompt ?? "", model: $0.provenance.modelID ?? "",
                                   providerID: $0.provenance.providerID,
                                   generationJobID: $0.provenance.generationJobID,
-                                  generatedAt: $0.provenance.generatedAt,
+                                  generatedAt: $0.provenance.source == .generationJob ? $0.provenance.generatedAt : nil,
+                                  importedAt: $0.provenance.source == .localImport ? $0.provenance.generatedAt : nil,
                                   estimatedCost: $0.provenance.estimatedCost,
                                   actualCost: $0.provenance.actualCost)
             }

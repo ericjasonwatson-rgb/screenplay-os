@@ -161,6 +161,28 @@ struct TakeMigrationTests {
         ).validated().takes == takes)
     }
 
+    @Test func importedBoardBecomesLocalTakeAndNeverReplacesExistingMedia() throws {
+        var board = fixture()
+        let existing = board.imageVersions
+        let importedAt = Date(timeIntervalSince1970: 1_700_100_000)
+        let imported = BoardImageVersion(
+            fileURL: URL(string: "Board%20Images/imported.png")!,
+            sha256: String(repeating: "e", count: 64), prompt: "", model: "Imported image",
+            importedAt: importedAt
+        )
+        board.imageVersions.append(imported)
+        board.selectedImageID = imported.id
+
+        let takes = try BoardTakeMigration.project([board])
+        #expect(takes.count == existing.count + 1)
+        #expect(existing.allSatisfy { old in takes.contains { $0.id == old.id } })
+        let importedTake = try #require(takes.first { $0.id == imported.id })
+        #expect(importedTake.provenance.source == .localImport)
+        #expect(importedTake.provenance.generatedAt == importedAt)
+        #expect(importedTake.status == .selected)
+        #expect(try BoardTakeMigration.applyingImageTakes(takes, to: [board]) == [board])
+    }
+
     @Test func corruptLegacySelectionAndDuplicateIDsFailClosed() throws {
         var missing = fixture()
         missing.selectedImageID = UUID()

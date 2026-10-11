@@ -919,15 +919,18 @@ public struct BoardImageVersion: Codable, Equatable, Identifiable, Sendable {
     public var providerID: String?
     public var generationJobID: UUID?
     public var generatedAt: Date?
+    public var importedAt: Date?
     public var estimatedCost: GenerationCost?
     public var actualCost: GenerationCost?
     public init(
         id: UUID = UUID(), fileURL: URL, sha256: String, prompt: String, model: String,
         providerID: String? = nil, generationJobID: UUID? = nil, generatedAt: Date? = nil,
+        importedAt: Date? = nil,
         estimatedCost: GenerationCost? = nil, actualCost: GenerationCost? = nil
     ) {
         self.id = id; self.fileURL = fileURL; self.sha256 = sha256; self.prompt = prompt; self.model = model
         self.providerID = providerID; self.generationJobID = generationJobID; self.generatedAt = generatedAt
+        self.importedAt = importedAt
         self.estimatedCost = estimatedCost; self.actualCost = actualCost
     }
 
@@ -937,6 +940,7 @@ public struct BoardImageVersion: Codable, Equatable, Identifiable, Sendable {
         case providerID = "provider_id"
         case generationJobID = "generation_job_id"
         case generatedAt = "generated_at"
+        case importedAt = "imported_at"
         case estimatedCost = "estimated_cost"
         case actualCost = "actual_cost"
     }

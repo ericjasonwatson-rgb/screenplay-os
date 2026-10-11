@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CryptoKit
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -7148,5 +7149,43 @@ extension ScreenplayViewModel {
         rememberUndoState()
         document?.boardFrames[index].selectedImageID = id
         document?.project.metadata.modifiedAt = Date(); autosave()
+    }
+
+    func showImportBoardImageTakePanel(for frameID: UUID) {
+        let panel = NSOpenPanel()
+        panel.title = "Import Image Take"
+        panel.message = "Choose a PNG image to add as another Take. Existing Takes and files are retained."
+        panel.allowedContentTypes = [.png]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+            guard values.isRegularFile == true, values.isSymbolicLink != true,
+                  let size = values.fileSize, size <= 30_000_000 else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            try importBoardImageTake(Data(contentsOf: url), for: frameID)
+        } catch {
+            generationActivityStatus = "Could not import the image Take. Choose a valid PNG under 30 MB."
+        }
+    }
+
+    func importBoardImageTake(_ data: Data, for frameID: UUID, importedAt: Date = Date()) throws {
+        guard let documentURL = saveURL,
+              let index = document?.boardFrames.firstIndex(where: { $0.id == frameID }),
+              BoardImageAPI.validPNG(data) else { throw CocoaError(.fileReadCorruptFile) }
+        let storedURL = try BoardImageStorage.store(data, beside: documentURL)
+        let version = BoardImageVersion(
+            fileURL: storedURL,
+            sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
+            prompt: "", model: "Imported image", importedAt: importedAt
+        )
+        rememberUndoState()
+        document?.boardFrames[index].imageVersions.append(version)
+        document?.boardFrames[index].selectedImageID = version.id
+        document?.project.metadata.modifiedAt = Date()
+        autosave()
+        generationActivityStatus = "Imported an image Take and selected it for this shot."
     }
 }
