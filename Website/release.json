@@ -1,7 +1,7 @@
 {
-  "version": "0.1.4",
-  "build": 27,
-  "releaseDate": "2026-10-08",
-  "published": true,
-  "downloadUrl": "https://screenplayos.com/downloads/ScreenplayOS-0.1.4.dmg"
+  "version": "0.1.5",
+  "build": 28,
+  "releaseDate": "2026-10-11",
+  "published": false,
+  "downloadUrl": "https://screenplayos.com/downloads/ScreenplayOS-0.1.5.dmg"
 }

@@ -148,8 +148,9 @@ def main():
         notes.write_text(f"# ScreenplayOS {version} ({build})\n\n{status}. Built from `{git('rev-parse', 'HEAD')}`"
                          f"{' with uncommitted changes' if dirty else ''}.\n\n"
                          "ScreenplayOS is a local macOS writing and filmmaking workspace with Outline, Script, Shot, Boards, and Edit views. "
-                         "This candidate adds the permanent app identity and a direct-download release package. "
-                         "Existing screenplay files stay in their current locations.\n\n"
+                         "This candidate renames the native JSON format to ScreenplayOS document. "
+                         "New documents use .screenplayos.json; existing .open-screenplay.json files remain at their current paths and continue to open and save in place. "
+                         "Documents saved by 0.1.5 or later require ScreenplayOS 0.1.5 or later.\n\n"
                          "Requires macOS 13 or later. Check the manifest for included processor architectures. "
                          "Back up active work before testing a new build.\n")
         artifacts = {p.name: {"sha256": digest(p), "bytes": p.stat().st_size} for p in (dmg, archive, notes)}

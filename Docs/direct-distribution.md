@@ -1,6 +1,6 @@
 # Direct macOS distribution
 
-ScreenplayOS is a Swift Package that `Scripts/package-app.sh` wraps as a Mac app. `Website/release.json` is the single release configuration: version, build, release date, publication state, and direct DMG URL. The site reads that file at page load. Version `0.1.4` build `27` is marked **published** in that configuration, and its signed DMG is hosted at the configured `/downloads/` URL. The product is still presented as an early-access beta.
+ScreenplayOS is a Swift Package that `Scripts/package-app.sh` wraps as a Mac app. `Website/release.json` is the single release configuration: version, build, release date, publication state, and direct DMG URL. The site reads that file at page load. Version `0.1.5` build `28` is staged as **unpublished** in that configuration. The currently public download remains 0.1.4 build 27 until the new signed DMG is reviewed and explicitly published. The product is still presented as an early-access beta.
 
 ## Local unsigned review
 
