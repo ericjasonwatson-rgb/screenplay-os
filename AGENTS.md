@@ -14,7 +14,7 @@ The edit-aware principle holds: every generation lands in a timed shot slot, not
 The free core holds: writing, outlining, shots, boards from local files, and export work offline with no account.
 
 
-Governing phase order: preserve and complete Phase A timing/interchange, then AI-0 through AI-6 in Docs/ai-native-production-direction.md. This supersedes the older audio/takes/handoff phase order. Stop after AI-0 until the owner supplies the production lessons; do not select new providers from assumptions. Docs/storykit-architecture-proposal.md remains ON HOLD.
+Governing phase order: preserve and complete Phase A timing/interchange, then AI-0 through AI-6 in Docs/ai-native-production-direction.md. This supersedes the older audio/takes/handoff phase order. The owner supplied the production lessons on 2026-10-10; use Docs/ai-provider-selection-2026-10-10.md for the provisional provider order and selection criteria. Docs/storykit-architecture-proposal.md remains ON HOLD.
 
 Before modifying UI, application architecture, persistence, or platform support, read:
 

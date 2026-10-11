@@ -9,16 +9,21 @@ future generation capabilities ship. Baseline inspected: `9199ee0`.
 Stabilization requires Debug and Release `Scripts/test.sh` and verified remote
 main plus `v0.1.3-build26-source`. Retain Phase A: FDX export, honest duration
 ranges, a lock-preserving line-pitch decision, and separate target durations.
-FDX export and legacy targets exist; experimental pagination stays disabled.
+FDX export and legacy targets exist. The line-pitch decision retains legacy as
+production and keeps experimental pagination disabled pending two independent
+rendered comparisons. Full Phase A acceptance is still open.
 See phase-a-fdx-export.md, phase-a-duration-targets.md and
 pagination-comparison-2026-10-08.md. Do not infer full Phase A acceptance from
 passing tests. The architecture/interface preparation of AI-0 does not authorize
 advancing production generation ahead of these gates.
 
-After AI-0, STOP for the owner's 1776 production lessons: actual image/video/voice/
-music/upscaling/lip-sync tools; time and cost sinks; client approval path; and
-performer/voice/likeness/disclosure requirements. None were supplied. Existing
-OpenAI/Anthropic support is preserved, not a choice of new production providers.
+The owner supplied the production lessons on 2026-10-10. The expensive failure
+mode was generation that created extensive downstream re-editing. Review happened
+through team screenings and feedback. The product therefore optimizes for directed,
+revision-aware generation from script through shots, boards, boardomatic and edit,
+not for a large catalog of disconnected generation buttons. Voice performers,
+performance capture and historical-character likeness were specific to the prior
+show and do not set the first adapter order. See ai-provider-selection-2026-10-10.md.
 Storykit remains ON HOLD. No storage migration is authorized by this inventory.
 
 ## Evidence inventory

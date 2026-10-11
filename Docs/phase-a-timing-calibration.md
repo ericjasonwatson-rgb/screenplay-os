@@ -55,8 +55,8 @@ release publication or signing changes occurred.
 ## Remaining
 
 Beat/scene targets and safe migration, two additional Final Draft layout
-comparisons, a proposed lock-preserving line-pitch decision, and full Phase A
-acceptance remain. Audio/takes/NLE round trip are later phases.
+comparisons, and full Phase A acceptance remain. The lock-preserving line-pitch
+decision is recorded below. Audio/takes/NLE round trip are later phases.
 
 ## Paired benchmark results
 
@@ -72,3 +72,26 @@ The small differences do not establish a meaningful speed change in a single
 paired run. No material regression was observed; typing latency still merits
 separate work. Tests passed after the CSV consistency fix as well as the timing
 model changes.
+
+## Lock-preserving line-pitch decision — 2026-10-10
+
+Retain legacy layout as the only production layout. Do not expose, persist or use
+the header-continuation candidate to create production page locks yet. Existing
+documents and locks continue to reopen with their current geometry and labels.
+
+The candidate is the leading compatibility profile: it matches the 18/20/15 page
+counts across the action, dialogue and Defenders samples, and its generated
+dialogue fixture matches all 20 corresponding Final Draft body-text boundaries and
+baseline coordinates. It also passed the recorded real-document stress, source
+projection, save/reopen, PDF and typing checks. That evidence is sufficient to keep
+developing the profile, but not to call it general Final Draft compatibility. Only
+the synthetic dialogue document has a complete page-by-page rendered reference;
+the Defenders evidence is a page-count comparison, and the Chickamauga review did
+not include a corresponding Final Draft PDF boundary comparison.
+
+Before exposure, add two independent, rights-cleared Final Draft PDF/FDX pairs with
+mixed action, dialogue, transitions, rich text and long continuations. Compare exact
+page boundaries, line wrapping, baselines, continuation placement and total text.
+Then define an explicit document-level conversion with a page-change preview.
+Never change an existing or locked document implicitly. The candidate remains
+initializer-only and disabled by default until those checks pass.
