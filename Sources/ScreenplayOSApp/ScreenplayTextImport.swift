@@ -62,7 +62,7 @@ enum ScreenplayTextImport {
         return result
     }
 
-    static func document(_ extraction: Extraction, title: String, detectStructure: Bool) -> OpenScreenplayDocument {
+    static func document(_ extraction: Extraction, title: String, detectStructure: Bool) -> ScreenplayOSDocument {
         var elements: [ScreenplayElement] = []
         for (pageIndex, page) in extraction.pages.enumerated() {
             if pageIndex > 0 { elements.append(ScreenplayElement(type: .pageBreak, text: "")) }
@@ -93,6 +93,6 @@ enum ScreenplayTextImport {
             }
         }
         let script = Screenplay(metadata: ScreenplayMetadata(title: title), elements: elements)
-        return OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: title, author: ""), screenplayID: script.id), screenplay: script)
+        return ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: title, author: ""), screenplayID: script.id), screenplay: script)
     }
 }

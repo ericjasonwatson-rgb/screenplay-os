@@ -105,7 +105,7 @@ struct ChromeObservationTests {
             await settle()
             #expect(chrome.snapshot == before)
             #expect(model.writingText == original + " More.")
-            let saved = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self,
+            let saved = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self,
                 from: Data(contentsOf: #require(model.saveURL)))
             #expect(saved.screenplay.elements == model.elements)
             model.undo()
@@ -150,7 +150,7 @@ struct ChromeObservationTests {
             let url = try #require(model.saveURL)
             var outside = try #require(model.document)
             outside.screenplay.elements[1].text = "External change."
-            let data = try JSONEncoder.openScreenplayEncoder().encode(outside)
+            let data = try JSONEncoder.screenplayOSEncoder().encode(outside)
             try data.write(to: url, options: .atomic)
             model.replaceWritingText(in: NSRange(location: (model.writingText as NSString).length, length: 0), with: " Local.")
             await settle()

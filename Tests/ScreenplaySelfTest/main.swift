@@ -19,7 +19,7 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
     }
 }
 
-func testOpenScreenplayDocumentEncodesStableTopLevelContract() throws {
+func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
     let screenplay = Screenplay(
         id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
         metadata: ScreenplayMetadata(title: "Defenders of Cat Island"),
@@ -112,7 +112,7 @@ func testOpenScreenplayDocumentEncodesStableTopLevelContract() throws {
         body: "Check visual continuity.",
         createdAt: Date(timeIntervalSince1970: 0)
     )
-    let document = OpenScreenplayDocument(
+    let document = ScreenplayOSDocument(
         project: project,
         screenplay: screenplay,
         productionContext: ProductionContext(),
@@ -125,7 +125,7 @@ func testOpenScreenplayDocumentEncodesStableTopLevelContract() throws {
         boardFrames: [frame]
     )
 
-    let data = try JSONEncoder.openScreenplayEncoder().encode(document)
+    let data = try JSONEncoder.screenplayOSEncoder().encode(document)
     let json = String(decoding: data, as: UTF8.self)
 
     try expect(json.contains("\"format\" : \"open-screenplay\""), "Missing open-screenplay format marker.")
@@ -195,10 +195,10 @@ func testProductionContextEncodesReviewableEntities() throws {
         sourceElementIDs: [UUID(uuidString: "55555555-5555-5555-5555-555555555555")!]
     )
     let context = ProductionContext(contextEnabled: true, entities: [entity])
-    let document = OpenScreenplayDocument(project: project, screenplay: screenplay, productionContext: context)
+    let document = ScreenplayOSDocument(project: project, screenplay: screenplay, productionContext: context)
 
-    let data = try JSONEncoder.openScreenplayEncoder().encode(document)
-    let decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+    let data = try JSONEncoder.screenplayOSEncoder().encode(document)
+    let decoded = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
 
     try expect(decoded.productionContext.contextEnabled, "Production context enabled state was not preserved.")
     try expect(decoded.productionContext.entities.first?.kind == .location, "Production entity kind was not preserved.")
@@ -214,7 +214,7 @@ func testAISettingsDecodeOlderThreeModeFiles() throws {
     }
     """
 
-    let settings = try JSONDecoder.openScreenplayDecoder().decode(AISettings.self, from: Data(json.utf8))
+    let settings = try JSONDecoder.screenplayOSDecoder().decode(AISettings.self, from: Data(json.utf8))
 
     try expect(settings.writingEnabled, "Older Writing AI setting was not preserved.")
     try expect(settings.outlineEnabled == false, "Older files should default Outline AI off.")
@@ -234,7 +234,7 @@ func testAISettingsDecodeLegacyPostModeFiles() throws {
     }
     """
 
-    let settings = try JSONDecoder.openScreenplayDecoder().decode(AISettings.self, from: Data(json.utf8))
+    let settings = try JSONDecoder.screenplayOSDecoder().decode(AISettings.self, from: Data(json.utf8))
 
     try expect(settings.editEnabled, "Legacy Post AI setting should migrate to Edit AI.")
 }
@@ -260,7 +260,7 @@ func testSceneSpineIDsAreAssignedAndStable() throws {
         screenplayID: screenplay.id
     )
 
-    let document = OpenScreenplayDocument(project: project, screenplay: screenplay)
+    let document = ScreenplayOSDocument(project: project, screenplay: screenplay)
     let sceneIDs = document.screenplay.elements
         .filter { $0.type == .sceneHeading }
         .compactMap(\.spineID)
@@ -294,7 +294,7 @@ func testEditorialSpineSeedsFromSceneSpineIDs() throws {
         screenplayID: screenplay.id
     )
 
-    let document = OpenScreenplayDocument(project: project, screenplay: screenplay)
+    let document = ScreenplayOSDocument(project: project, screenplay: screenplay)
     let sequence = try expectValue(document.editorialSpine.sequences.first, "Editorial spine did not create a sequence.")
     let beats = sequence.beats
 
@@ -512,7 +512,7 @@ func testImportsDefendersFixture() throws {
 }
 
 let tests: [(String, () throws -> Void)] = [
-    ("Open Screenplay JSON contract", testOpenScreenplayDocumentEncodesStableTopLevelContract),
+    ("Open Screenplay JSON contract", testScreenplayOSDocumentEncodesStableTopLevelContract),
     ("Production context contract", testProductionContextEncodesReviewableEntities),
     ("AI settings backward compatibility", testAISettingsDecodeOlderThreeModeFiles),
     ("Legacy Post AI compatibility", testAISettingsDecodeLegacyPostModeFiles),

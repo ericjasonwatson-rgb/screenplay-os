@@ -36,7 +36,7 @@ struct NativeLegacyConversionPlan {
     let sourceURL: URL
     let sourceBytes: Data
     let sourceSHA256: String
-    let document: OpenScreenplayDocument
+    let document: ScreenplayOSDocument
     let media: [BoardMedia]
     /// Content-addressed relative package path to the one authenticated payload.
     let attachments: [String: Attachment]
@@ -90,8 +90,8 @@ struct NativeLegacyConversionPlan {
         do { _ = try PreservedJSON(source) }
         catch { throw Failure.malformedSource }
 
-        let decoded: OpenScreenplayDocument
-        do { decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: source) }
+        let decoded: ScreenplayOSDocument
+        do { decoded = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: source) }
         catch { throw Failure.malformedSource }
         let dropped = LegacyRoundTrip.droppedPaths(original: source, document: decoded)
         guard dropped.isEmpty else { throw Failure.sourceWouldLoseFields(dropped) }

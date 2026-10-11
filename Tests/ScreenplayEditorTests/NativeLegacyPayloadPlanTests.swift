@@ -28,12 +28,12 @@ struct NativeLegacyPayloadPlanTests {
                                linkedSceneSpineIDs: [alias])
         let note = ScriptNote(id: UUID(uuidString: "00000000-0000-4000-8000-000000000022")!,
                               screenplayElementID: actionID, sceneSpineID: alias, body: "Keep the hum")
-        let document = OpenScreenplayDocument(
+        let document = ScreenplayOSDocument(
             project: Project(id: projectID, metadata: .init(title: "Payload", author: "Writer"), screenplayID: screenplayID),
             screenplay: screenplay, outline: [beat], scriptNotes: [note], shots: [shot]
         )
         let source = root.appendingPathComponent("Source.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: source)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: source)
         return (root, source, headingID, alias)
     }
 

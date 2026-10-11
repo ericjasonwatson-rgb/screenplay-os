@@ -36,8 +36,8 @@ struct DocumentSafetyTests {
             fixture.shots[0].sourceRefs = refs
             fixture.boardFrames[0].sourceRefs = refs
             let url = directory.appendingPathComponent("ranges.json")
-            try JSONEncoder.openScreenplayEncoder().encode(fixture).write(to: url)
-            model.loadOpenScreenplay(at: url)
+            try JSONEncoder.screenplayOSEncoder().encode(fixture).write(to: url)
+            model.loadScreenplayOSDocument(at: url)
             model.navigateToShotSource(model.shots[0])
             #expect(model.selectedElementID == second.id)
             model.navigateToBoardSource(model.boardFrames[0])
@@ -75,7 +75,7 @@ struct DocumentSafetyTests {
             #expect(model.shots == shots && model.boardFrames == boards)
             model.redo()
             #expect(model.shots == mergedShots && model.boardFrames == mergedBoards)
-            model.loadOpenScreenplay(at: try #require(model.saveURL))
+            model.loadScreenplayOSDocument(at: try #require(model.saveURL))
             #expect(model.shots == mergedShots && model.boardFrames == mergedBoards)
         }
     }
@@ -205,7 +205,7 @@ struct DocumentSafetyTests {
             model.redo()
             #expect(model.scriptNotes.allSatisfy { $0.screenplayElementID == first.id })
             let saved = try #require(model.saveURL)
-            model.loadOpenScreenplay(at: saved)
+            model.loadScreenplayOSDocument(at: saved)
             #expect(model.scriptNotes.allSatisfy { $0.screenplayElementID == first.id })
             model.navigateToScriptNote(try #require(model.scriptNotes.first))
             #expect(model.selectedElementID == first.id)
@@ -283,7 +283,7 @@ struct DocumentSafetyTests {
             let url = try #require(model.saveURL)
             var outside = try #require(model.document)
             outside.screenplay.elements[0].text = "OUTSIDE EDIT"
-            let externalData = try JSONEncoder.openScreenplayEncoder().encode(outside)
+            let externalData = try JSONEncoder.screenplayOSEncoder().encode(outside)
             try externalData.write(to: url, options: .atomic)
             let element = try #require(model.elements.first)
             model.binding(for: element).wrappedValue = "LOCAL EDIT"
@@ -294,10 +294,10 @@ struct DocumentSafetyTests {
             let draft = model.document
             model.newDocument()
             #expect(model.document == draft)
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.document == draft)
             let recovery = try #require(model.recoveryCopies.first)
-            let record = try JSONDecoder.openScreenplayDecoder().decode(RecoveryRecord.self, from: Data(contentsOf: recovery.url))
+            let record = try JSONDecoder.screenplayOSDecoder().decode(RecoveryRecord.self, from: Data(contentsOf: recovery.url))
             #expect(record.document.screenplay.elements.first?.text == "LOCAL EDIT")
             let copyURL = directory.appendingPathComponent("saved-copy.json")
             #expect(model.saveSeparateCopy(to: copyURL))
@@ -306,7 +306,7 @@ struct DocumentSafetyTests {
             #expect(model.recoveryCopies.isEmpty)
             #expect(!FileManager.default.fileExists(atPath: recovery.url.path))
             #expect(try Data(contentsOf: url) == externalData)
-            let copy = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: Data(contentsOf: copyURL))
+            let copy = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: Data(contentsOf: copyURL))
             #expect(copy.screenplay.elements.first?.text == "LOCAL EDIT")
         }
     }
@@ -581,7 +581,7 @@ struct DocumentSafetyTests {
             model.newDocument()
             model.createSnapshot()
             #expect(!model.snapshots.contains { $0.url.standardizedFileURL == legacy.standardizedFileURL })
-            model.loadOpenScreenplay(at: firstURL)
+            model.loadScreenplayOSDocument(at: firstURL)
             #expect(model.snapshots.contains { $0.url.standardizedFileURL == legacy.standardizedFileURL })
         }
     }
@@ -697,7 +697,7 @@ struct DocumentSafetyTests {
             #expect(model.screenplayPages.flatMap(\.elements).contains { $0.element.id == selected })
             let url = try #require(model.saveURL)
             let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
-            reopened.loadOpenScreenplay(at: url)
+            reopened.loadScreenplayOSDocument(at: url)
             #expect(reopened.elements.map(\.id) == model.elements.map(\.id))
             let blank = try #require(reopened.elements.first { $0.id == selected })
             reopened.binding(for: blank).wrappedValue = "The door opens."
@@ -753,14 +753,14 @@ struct DocumentSafetyTests {
             #expect(model.errorMessage?.hasPrefix("Could not save screenplay:") == true)
             model.newDocument()
             #expect(model.document == edited)
-            model.loadOpenScreenplay(at: otherURL)
+            model.loadScreenplayOSDocument(at: otherURL)
             #expect(model.document == edited)
             // Restore the expected original version before retrying a normal save.
             try FileManager.default.removeItem(at: originalURL)
             try originalData.write(to: originalURL)
             model.save()
             let reopened = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
-            reopened.loadOpenScreenplay(at: originalURL)
+            reopened.loadScreenplayOSDocument(at: originalURL)
             #expect(reopened.elements.first?.text == "INT. KEEP THESE EDITS - DAY")
         }
     }

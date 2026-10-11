@@ -68,11 +68,11 @@ struct ScenePlanningTimelineTests {
             .init(type: .sceneHeading, text: "EXT. SECOND - NIGHT", spineID: "S002"),
             .init(type: .dialogue, text: Array(repeating: "word", count: 360).joined(separator: " ")),
             .init(type: .sceneHeading, text: "INT. UNTYPED - DAY", spineID: "S003")])
-        let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Timing review", author: ""), screenplayID: script.id), screenplay: script)
+        let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Timing review", author: ""), screenplayID: script.id), screenplay: script)
         let url = folder.appendingPathComponent("review.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
-        model.loadOpenScreenplay(at: url)
+        model.loadScreenplayOSDocument(at: url)
         let before = model.document
         model.showEditEstimates = true
         _ = NSApplication.shared

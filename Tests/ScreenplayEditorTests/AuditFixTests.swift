@@ -77,13 +77,13 @@ struct AuditFixTests {
 
     @Test func currentProjectFormatReportsNoLoss() throws {
         let data = try Data(contentsOf: fixtureURL)
-        let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+        let document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
         #expect(LegacyRoundTrip.droppedPaths(original: data, document: document).isEmpty)
     }
 
     @Test func unknownContentIncludingNullIsNamed() throws {
         let data = try fixtureWithUnknownContent()
-        let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+        let document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
         let dropped = LegacyRoundTrip.droppedPaths(original: data, document: document)
         #expect(dropped.contains("future_feature"))
         #expect(dropped.contains("screenplay.elements[0].custom_tag"))
@@ -98,7 +98,7 @@ struct AuditFixTests {
                 let data = try JSONSerialization.data(withJSONObject: json)
                 let url = directory.appendingPathComponent("Future.json")
                 try data.write(to: url)
-                model.loadOpenScreenplay(at: url)
+                model.loadScreenplayOSDocument(at: url)
                 #expect(model.document != nil)
                 #expect(model.saveURL == nil)
                 let element = try #require(model.elements.first)
@@ -113,7 +113,7 @@ struct AuditFixTests {
 
     @Test func changedArrayLengthCannotHideUnknownFields() throws {
         let data = try fixtureWithUnknownContent()
-        var document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+        var document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
         document.screenplay.elements.removeLast()
         #expect(LegacyRoundTrip.droppedPaths(original: data, document: document).contains("screenplay.elements"))
         document.screenplay.elements.append(.init(type: .action, text: "Added"))
@@ -126,7 +126,7 @@ struct AuditFixTests {
         json["ai_settings"] = ["post_enabled": true]
         json["post_enabled"] = "Unrelated future root field"
         let data = try JSONSerialization.data(withJSONObject: json)
-        let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+        let document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
         let dropped = LegacyRoundTrip.droppedPaths(original: data, document: document)
         #expect(document.aiSettings.editEnabled)
         #expect(!dropped.contains("ai_settings.post_enabled"))
@@ -139,7 +139,7 @@ struct AuditFixTests {
             let data = try fixtureWithUnknownContent()
             let url = directory.appendingPathComponent("Future.open-screenplay.json")
             try data.write(to: url)
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.document != nil)
             #expect(model.saveURL == nil)
             #expect(model.errorMessage?.contains("opened as a copy") == true)
@@ -184,7 +184,7 @@ struct AuditFixTests {
         try FileManager.default.createDirectory(at: new.deletingLastPathComponent(), withIntermediateDirectories: true)
         let image = try BoardImageStorage.store(png, beside: old)
         let screenplay = Screenplay(metadata: .init(title: "Moved"), elements: [])
-        var doc = OpenScreenplayDocument(project: Project(metadata: .init(title: "Moved", author: ""), screenplayID: screenplay.id), screenplay: screenplay)
+        var doc = ScreenplayOSDocument(project: Project(metadata: .init(title: "Moved", author: ""), screenplayID: screenplay.id), screenplay: screenplay)
         var board = BoardFrame(shotID: UUID(), sceneSpineID: "S001", frameNumber: 1, label: "Test")
         let version = BoardImageVersion(fileURL: image, sha256: BoardImageStorage.digest(png), prompt: "Approved", model: "test")
         let missing = BoardImageVersion(fileURL: root.appendingPathComponent("Gone/x.png"), sha256: BoardImageStorage.digest(png), prompt: "Gone", model: "test")
@@ -210,10 +210,10 @@ struct AuditFixTests {
             let elements = (1...filler).map { ScreenplayElement(type: .action, text: "Line \($0).") } + [heading, cue, speech]
             try withModel { model, directory in
                 let script = Screenplay(metadata: ScreenplayMetadata(title: "Keep"), elements: elements)
-                let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Keep", author: ""), screenplayID: script.id), screenplay: script)
+                let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Keep", author: ""), screenplayID: script.id), screenplay: script)
                 let url = directory.appendingPathComponent("keep.json")
-                try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
-                model.loadOpenScreenplay(at: url)
+                try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
+                model.loadScreenplayOSDocument(at: url)
                 let pages = model.printedPages
                 let headingPage = pages.firstIndex { $0.elements.contains { !$0.isContinuation && $0.element.id == heading.id } }
                 let cuePage = pages.firstIndex { $0.elements.contains { !$0.isContinuation && $0.element.id == cue.id } }

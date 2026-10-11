@@ -12,7 +12,7 @@ struct NativeLegacyConversionPlanTests {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    private func fixture() throws -> (root: URL, source: URL, document: OpenScreenplayDocument, image: URL) {
+    private func fixture() throws -> (root: URL, source: URL, document: ScreenplayOSDocument, image: URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let source = root.appendingPathComponent("Source.json")
@@ -21,7 +21,7 @@ struct NativeLegacyConversionPlanTests {
         let image = folder.appendingPathComponent("frame.png")
         try png.write(to: image)
         let screenplay = Screenplay(metadata: .init(title: "Native plan"), elements: [])
-        var document = OpenScreenplayDocument(
+        var document = ScreenplayOSDocument(
             project: Project(metadata: .init(title: "Native plan", author: ""), screenplayID: screenplay.id),
             screenplay: screenplay
         )
@@ -35,7 +35,7 @@ struct NativeLegacyConversionPlanTests {
         board.imageVersions = [first, second]
         board.selectedImageID = second.id
         document.boardFrames = [board]
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: source)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: source)
         return (root, source, document, image)
     }
 
@@ -46,7 +46,7 @@ struct NativeLegacyConversionPlanTests {
         #expect(plan.sourceBytes == original)
         #expect(try Data(contentsOf: item.source) == original)
         #expect(plan.sourceSHA256 == digest(original))
-        let expected = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: original)
+        let expected = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: original)
         #expect(plan.document == expected)
         #expect(plan.media.count == 1)
         #expect(plan.media[0].boardID == item.document.boardFrames[0].id)
@@ -104,21 +104,21 @@ struct NativeLegacyConversionPlanTests {
 
         var document = item.document
         document.boardFrames[0].selectedImageID = UUID()
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: item.source)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: item.source)
         #expect(throws: NativeLegacyConversionPlan.Failure.selectedImageMissing(document.boardFrames[0].id)) {
             try NativeLegacyConversionPlan.prepare(sourceURL: item.source)
         }
 
         document = item.document
         document.boardFrames[0].imageVersions[0].fileURL = URL(string: "https://example.com/frame.png")!
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: item.source)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: item.source)
         #expect(throws: NativeLegacyConversionPlan.Failure.invalidImageURL(document.boardFrames[0].imageVersions[0].id)) {
             try NativeLegacyConversionPlan.prepare(sourceURL: item.source)
         }
 
         document = item.document
         document.boardFrames[0].imageVersions[0].sha256 = String(repeating: "0", count: 64)
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: item.source)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: item.source)
         #expect(throws: NativeLegacyConversionPlan.Failure.imageDigestMismatch(document.boardFrames[0].imageVersions[0].id)) {
             try NativeLegacyConversionPlan.prepare(sourceURL: item.source)
         }
@@ -127,7 +127,7 @@ struct NativeLegacyConversionPlanTests {
         let target = item.root.appendingPathComponent("outside.png")
         try png.write(to: target)
         try FileManager.default.createSymbolicLink(at: item.image, withDestinationURL: target)
-        try JSONEncoder.openScreenplayEncoder().encode(item.document).write(to: item.source)
+        try JSONEncoder.screenplayOSEncoder().encode(item.document).write(to: item.source)
         #expect(throws: NativeLegacyConversionPlan.Failure.imageNotRegular(item.document.boardFrames[0].imageVersions[0].id)) {
             try NativeLegacyConversionPlan.prepare(sourceURL: item.source)
         }

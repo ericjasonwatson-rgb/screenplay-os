@@ -16,7 +16,7 @@ do {
     let document = result.document
 
     if emitJSON {
-        let data = try JSONEncoder.openScreenplayEncoder().encode(document)
+        let data = try JSONEncoder.screenplayOSEncoder().encode(document)
         FileHandle.standardOutput.write(data)
         FileHandle.standardOutput.write(Data("\n".utf8))
     } else {

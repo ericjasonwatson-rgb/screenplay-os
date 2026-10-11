@@ -19,11 +19,11 @@ struct PaginationTests {
             preferences.removePersistentDomain(forName: suite)
         }
         let script = Screenplay(metadata: ScreenplayMetadata(title: "Pagination Review"), elements: elements)
-        let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Pagination Review", author: ""), screenplayID: script.id), screenplay: script)
+        let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Pagination Review", author: ""), screenplayID: script.id), screenplay: script)
         let url = directory.appendingPathComponent("script.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
-        model.loadOpenScreenplay(at: url)
+        model.loadScreenplayOSDocument(at: url)
         try body(model, directory)
     }
 
@@ -65,7 +65,7 @@ struct PaginationTests {
             #expect(model.titlePage == original?.titlePage)
             model.redo()
             let url = try #require(model.saveURL)
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.elements == Array(original!.screenplay.elements.prefix(body.count)))
             #expect(model.titlePage.subtitle.contains("Phone Number"))
         }
@@ -112,7 +112,7 @@ struct PaginationTests {
     @Test func importedScriptKeepsPrintedPaginationThroughEdits() throws {
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Defenders_of_Cat_Island.open-screenplay.json")
-        let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: Data(contentsOf: fixture))
+        let document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: Data(contentsOf: fixture))
         let stressElements = (0..<6).flatMap { _ in document.screenplay.elements.map { source in
             var copy = ScreenplayElement(type: source.type, text: source.text)
             copy.setStyledText(source.styledText)
@@ -264,15 +264,15 @@ struct PaginationTests {
             #expect(model.document?.screenplay.pageLock?.preservesWhitespace == true)
             #expect(model.printedPages.map { $0.elements.map(\.text) } == before)
             let saved = try #require(model.saveURL)
-            model.loadOpenScreenplay(at: saved)
+            model.loadScreenplayOSDocument(at: saved)
             #expect(model.printedPages.map { $0.elements.map(\.text) } == before)
             #expect(model.elements.map(\.text) == source.map(\.text))
             var old = try #require(model.document)
             old.screenplay.pageLock = ProductionPageLock(text: "INT. CAFÉ - DAY\nLast line.", pageStarts: [0])
             let legacyURL = directory.appendingPathComponent("old-lock.json")
-            let bytes = try JSONEncoder.openScreenplayEncoder().encode(old)
+            let bytes = try JSONEncoder.screenplayOSEncoder().encode(old)
             try bytes.write(to: legacyURL)
-            model.loadOpenScreenplay(at: legacyURL)
+            model.loadScreenplayOSDocument(at: legacyURL)
             #expect(!model.printPreservesWhitespace)
             #expect(model.printedPages.flatMap(\.elements).map(\.text) == ["INT. CAFÉ - DAY", "Last line."])
             #expect(model.printedLayout.unmappedElementIDs.isEmpty)
@@ -344,7 +344,7 @@ struct PaginationTests {
             #expect(model.outlineBeats == savedBeats)
             #expect(model.selectedOutlineTemplate == .saveTheCat)
             let url = try #require(model.saveURL)
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.outlineBeats == savedBeats)
         }
     }
@@ -499,14 +499,14 @@ struct PaginationTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let script = Screenplay(metadata: ScreenplayMetadata(title: "Viewport Test"), elements: source)
-        let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Viewport Test", author: ""), screenplayID: script.id), screenplay: script)
+        let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Viewport Test", author: ""), screenplayID: script.id), screenplay: script)
         let file = directory.appendingPathComponent("script.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: file)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: file)
         let suite = "ViewportTests.\(UUID().uuidString)"
         let preferences = try #require(UserDefaults(suiteName: suite))
         defer { preferences.removePersistentDomain(forName: suite) }
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
-        model.loadOpenScreenplay(at: file)
+        model.loadScreenplayOSDocument(at: file)
         do {
             let original = model.document
             let url = try #require(model.saveURL), bytes = try Data(contentsOf: url)
@@ -609,7 +609,7 @@ struct PaginationTests {
         try withDocument([cue, speech]) { model, _ in
             model.lockProductionPages()
             let url = try #require(model.saveURL)
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             let before = model.document, bytes = try Data(contentsOf: url)
             let projection = model.printedLayout
             #expect(projection.unmappedElementIDs.isEmpty)
@@ -641,12 +641,12 @@ struct PaginationTests {
             @MainActor func compareFresh() throws {
                 let warm = model.printedPages
                 let file = directory.appendingPathComponent("fresh-suffix.json")
-                try JSONEncoder.openScreenplayEncoder().encode(try #require(model.document)).write(to: file)
+                try JSONEncoder.screenplayOSEncoder().encode(try #require(model.document)).write(to: file)
                 let suite = "SuffixFresh.\(UUID())"
                 let prefs = try #require(UserDefaults(suiteName: suite))
                 defer { prefs.removePersistentDomain(forName: suite) }
                 let fresh = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
-                fresh.loadOpenScreenplay(at: file)
+                fresh.loadScreenplayOSDocument(at: file)
                 let expected = fresh.printedPages
                 #expect(warm.map(\.label) == expected.map(\.label))
                 #expect(warm.map { $0.elements.map(\.text) } == expected.map { $0.elements.map(\.text) })
@@ -700,12 +700,12 @@ struct PaginationTests {
             @MainActor func compareFresh() throws {
                 let warm = model.printedPages
                 let url = directory.appendingPathComponent("fresh.json")
-                try JSONEncoder.openScreenplayEncoder().encode(try #require(model.document)).write(to: url)
+                try JSONEncoder.screenplayOSEncoder().encode(try #require(model.document)).write(to: url)
                 let suite = "ScenePrefix.\(UUID())"
                 let prefs = try #require(UserDefaults(suiteName: suite))
                 defer { prefs.removePersistentDomain(forName: suite) }
                 let fresh = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
-                fresh.loadOpenScreenplay(at: url)
+                fresh.loadScreenplayOSDocument(at: url)
                 #expect(warm.map(\.label) == fresh.printedPages.map(\.label))
                 #expect(warm.map { $0.elements.map(\.text) } == fresh.printedPages.map { $0.elements.map(\.text) })
                 #expect(warm.map { $0.elements.map(\.blockHeight) } == fresh.printedPages.map { $0.elements.map(\.blockHeight) })
@@ -743,7 +743,7 @@ struct PaginationTests {
             let preferences = try #require(UserDefaults(suiteName: suite))
             defer { preferences.removePersistentDomain(forName: suite) }
             let fresh = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
-            fresh.loadOpenScreenplay(at: try #require(model.saveURL))
+            fresh.loadScreenplayOSDocument(at: try #require(model.saveURL))
             #expect(warm.map(\.label) == fresh.printedPages.map(\.label))
             #expect(warm.map { $0.elements.map(\.text) } == fresh.printedPages.map { $0.elements.map(\.text) })
             #expect(warm.map { $0.elements.map(\.blockHeight) } == fresh.printedPages.map { $0.elements.map(\.blockHeight) })
@@ -862,7 +862,7 @@ struct PaginationTests {
             #expect(model.printedPages.map(\.label) == before.map(\.label))
             #expect(model.printedPages.map { $0.elements.map(\.text) } == before.map { $0.elements.map(\.text) })
             let saved = try #require(model.saveURL)
-            model.loadOpenScreenplay(at: saved)
+            model.loadScreenplayOSDocument(at: saved)
             #expect(model.pagesAreLocked)
             #expect(model.printedPages.map(\.label) == before.map(\.label))
             model.unlockProductionPages()
@@ -894,7 +894,7 @@ struct PaginationTests {
             model.redo()
             model.redo()
             let saved = try #require(model.saveURL)
-            model.loadOpenScreenplay(at: saved)
+            model.loadScreenplayOSDocument(at: saved)
             #expect(model.printedPages[0].elements.isEmpty)
             #expect(model.printedPages[1].elements.first?.element.id == second.id)
             let pdf = try #require(PDFDocument(data: model.makePrintPDF()))

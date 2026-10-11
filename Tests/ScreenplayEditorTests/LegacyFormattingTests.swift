@@ -20,9 +20,9 @@ struct LegacyFormattingTests {
         try await body(model)
         await Task.yield()
     }
-    private func creativeState(_ document: OpenScreenplayDocument?) throws -> Data {
+    private func creativeState(_ document: ScreenplayOSDocument?) throws -> Data {
         let value = try #require(document)
-        var json = try JSONSerialization.jsonObject(with: JSONEncoder.openScreenplayEncoder().encode(value)) as! [String: Any]
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder.screenplayOSEncoder().encode(value)) as! [String: Any]
         var project = json["project"] as! [String: Any]
         var metadata = project["metadata"] as! [String: Any]
         metadata.removeValue(forKey: "modified_at")
@@ -45,13 +45,13 @@ struct LegacyFormattingTests {
             #expect(formatted.typography?.fontSize == 16)
             #expect(model.writingEmphasisActive(\.bold) && model.writingEmphasisActive(\.italic) && model.writingEmphasisActive(\.underline))
             let url = try #require(model.saveURL)
-            let saved = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: Data(contentsOf: url))
+            let saved = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: Data(contentsOf: url))
             #expect(try creativeState(saved) == creativeState(formatted))
             for _ in 0..<4 { model.undo(); await Task.yield() }
             #expect(try creativeState(model.document) == creativeState(original))
             for _ in 0..<4 { model.redo(); await Task.yield() }
             #expect(try creativeState(model.document) == creativeState(formatted))
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(try creativeState(model.document) == creativeState(formatted))
         }
     }

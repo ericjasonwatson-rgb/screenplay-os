@@ -50,10 +50,10 @@ import ScreenplayDomain
             .init(type: .sceneHeading, text: "INT. ROOM - DAY"), .init(type: .character, text: "ALICE"),
             .init(type: .dialogue, text: "Original line."), .init(type: .sceneHeading, text: "EXT. SECRET - DAY"),
             .init(type: .action, text: "PRIVATE OTHER SCENE")])
-        let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Test", author: ""), screenplayID: screenplay.id), screenplay: screenplay)
+        let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Test", author: ""), screenplayID: screenplay.id), screenplay: screenplay)
         let file = directory.appendingPathComponent("test.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: file)
-        model.loadOpenScreenplay(at: file); model.selectElement(id: model.elements[2].id)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: file)
+        model.loadScreenplayOSDocument(at: file); model.selectElement(id: model.elements[2].id)
         let snapshot = try #require(DialogueSnapshot.capture(model))
         #expect(snapshot.context.contains("ALICE"))
         #expect(!snapshot.context.contains("PRIVATE OTHER SCENE"))

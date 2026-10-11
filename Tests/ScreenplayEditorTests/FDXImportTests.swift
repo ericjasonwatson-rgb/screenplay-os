@@ -15,8 +15,8 @@ import ScreenplayFDX
         #expect(result.document.screenplay.elements.map(\.type) == [.sceneHeading, .action, .character, .dialogue, .character, .dialogue])
         #expect(result.document.screenplay.elements.allSatisfy { $0.externalIDs["fdx_paragraph_id"] != nil })
         #expect(result.warnings.contains { $0.contains("simultaneous delivery") })
-        let reopened = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self,
-            from: JSONEncoder.openScreenplayEncoder().encode(result.document))
+        let reopened = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self,
+            from: JSONEncoder.screenplayOSEncoder().encode(result.document))
         #expect(reopened.screenplay.elements == result.document.screenplay.elements)
         #expect(try Data(contentsOf: source) == bytes)
     }
@@ -92,8 +92,8 @@ import ScreenplayFDX
         #expect(element.text == " 😀 éyes end ")
         #expect(element.runs == [.init(start: 3, length: 5, style: .init(bold: true, italic: true, underline: true))])
         #expect(document.formatVersion == "1.1")
-        let reopened = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self,
-            from: JSONEncoder.openScreenplayEncoder().encode(document))
+        let reopened = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self,
+            from: JSONEncoder.screenplayOSEncoder().encode(document))
         #expect(reopened.screenplay.elements == document.screenplay.elements)
     }
 

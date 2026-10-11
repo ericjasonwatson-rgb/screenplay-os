@@ -22,7 +22,7 @@ public enum DurationTarget {
     }
 }
 
-public extension OpenScreenplayDocument {
+public extension ScreenplayOSDocument {
     /// Apply authored intent only. History, save, and UI are owned by the caller.
     @discardableResult mutating func setSceneDurationTarget(headingID: UUID, seconds: Int?) -> Bool {
         guard screenplay.elements.contains(where: { $0.id == headingID && $0.type == .sceneHeading }),

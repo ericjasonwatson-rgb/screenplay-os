@@ -19,14 +19,14 @@ struct SceneSummaryTests {
         let action = ScreenplayElement(type: .action, text: "A key lies on the desk.")
         let second = ScreenplayElement(type: .sceneHeading, text: "EXT. ROAD - NIGHT")
         let script = Screenplay(metadata: ScreenplayMetadata(title: "Summary test"), elements: [heading, action, second])
-        var document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Summary test", author: ""), screenplayID: script.id), screenplay: script)
+        var document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Summary test", author: ""), screenplayID: script.id), screenplay: script)
         let prop = ProductionEntity(kind: .prop, name: "Key", sourceElementIDs: [action.id])
         let note = ProductionNote(title: "Track the key", body: "", sourceElementIDs: [action.id])
         document.productionContext = ProductionContext(entities: [prop], notes: [note])
         let url = folder.appendingPathComponent("script.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)
-        model.loadOpenScreenplay(at: url)
+        model.loadScreenplayOSDocument(at: url)
         let original = model.sceneBreakdowns
         #expect(original.count == 2)
         #expect(original[0].props == ["Key"] && original[0].notes == ["Track the key"])
@@ -64,7 +64,7 @@ struct SceneSummaryTests {
             let page = model.printedPages.first { $0.elements.contains { $0.element.id == summary.elementID } }
             #expect(summary.pageNumber == page?.label)
         }
-        model.loadOpenScreenplay(at: url)
+        model.loadScreenplayOSDocument(at: url)
         #expect(model.sceneBreakdowns.count == 2)
         model.newDocument()
         #expect(!model.sceneBreakdowns.contains { $0.elementID == heading.id })

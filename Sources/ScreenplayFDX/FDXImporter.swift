@@ -22,10 +22,10 @@ public enum FDXImportError: Error, LocalizedError, Equatable {
 }
 
 public struct FDXImportResult: Equatable {
-    public var document: OpenScreenplayDocument
+    public var document: ScreenplayOSDocument
     public var warnings: [String]
 
-    public init(document: OpenScreenplayDocument, warnings: [String] = []) {
+    public init(document: ScreenplayOSDocument, warnings: [String] = []) {
         self.document = document
         self.warnings = warnings
     }
@@ -120,7 +120,7 @@ public final class FDXImporter: NSObject, XMLParserDelegate {
             screenplayID: screenplay.id
         )
 
-        var document = OpenScreenplayDocument(project: project, screenplay: screenplay)
+        var document = ScreenplayOSDocument(project: project, screenplay: screenplay)
         if elements.contains(where: { !($0.runs ?? []).isEmpty }) { document.formatVersion = "1.1" }
         let titleLines = titleParagraphs.map(\.text).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         if !titleLines.isEmpty {

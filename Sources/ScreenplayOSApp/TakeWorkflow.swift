@@ -20,7 +20,7 @@ enum TakeWorkflow {
     }
 
     @discardableResult
-    static func persistProjection(of document: OpenScreenplayDocument, root: URL? = nil) throws -> TakeLedger {
+    static func persistProjection(of document: ScreenplayOSDocument, root: URL? = nil) throws -> TakeLedger {
         let boards = document.boardFrames
         let ledger = TakeLedger(
             projectID: document.screenplay.id,

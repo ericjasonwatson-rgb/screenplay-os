@@ -1,6 +1,6 @@
 import Foundation
 
-public struct OpenScreenplayDocument: Codable, Equatable {
+public struct ScreenplayOSDocument: Codable, Equatable {
     public var format: String
     public var formatVersion: String
     public var project: Project
@@ -1321,7 +1321,7 @@ public struct ShotSourceRef: Codable, Equatable {
 }
 
 public extension JSONEncoder {
-    static func openScreenplayEncoder() -> JSONEncoder {
+    static func screenplayOSEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -1330,7 +1330,7 @@ public extension JSONEncoder {
 }
 
 public extension JSONDecoder {
-    static func openScreenplayDecoder() -> JSONDecoder {
+    static func screenplayOSDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder

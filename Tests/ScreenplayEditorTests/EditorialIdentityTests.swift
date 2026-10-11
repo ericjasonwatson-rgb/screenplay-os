@@ -4,11 +4,11 @@ import ScreenplayDomain
 
 @Suite("Derived edit guide identity")
 struct EditorialIdentityTests {
-    private func fixture() -> OpenScreenplayDocument {
+    private func fixture() -> ScreenplayOSDocument {
         let script = Screenplay(metadata: ScreenplayMetadata(title: "Identity"), elements: [
             ScreenplayElement(type: .sceneHeading, text: "INT. ROOM - DAY", spineID: "S001")
         ])
-        return OpenScreenplayDocument(
+        return ScreenplayOSDocument(
             project: Project(metadata: ProjectMetadata(title: "Identity", author: ""), screenplayID: script.id),
             screenplay: script,
             shots: [Shot(sceneSpineID: "S001", shotNumber: 1, label: "Wide"),
@@ -16,7 +16,7 @@ struct EditorialIdentityTests {
         )
     }
 
-    private func clips(_ document: OpenScreenplayDocument) -> [EditClip] {
+    private func clips(_ document: ScreenplayOSDocument) -> [EditClip] {
         document.editorialSpine.sequences.flatMap { $0.beats.flatMap(\.editClips) }
     }
 
@@ -29,7 +29,7 @@ struct EditorialIdentityTests {
         #expect(clips(document).map(\.id) == [original[1].id, original[0].id])
         #expect(clips(document).last?.label == "Renamed")
         for _ in 0..<3 {
-            document = try JSONDecoder().decode(OpenScreenplayDocument.self, from: JSONEncoder().encode(document))
+            document = try JSONDecoder().decode(ScreenplayOSDocument.self, from: JSONEncoder().encode(document))
             #expect(clips(document).map(\.id) == [original[1].id, original[0].id])
         }
     }
@@ -48,7 +48,7 @@ struct EditorialIdentityTests {
         #expect(updated.map(\.id) == [original[1].id, original[0].id])
         #expect(updated[1].timelineDurationSeconds == 7)
         #expect(updated[1].timelineStartSeconds == 4)
-        let reopened = try JSONDecoder().decode(OpenScreenplayDocument.self, from: JSONEncoder().encode(document))
+        let reopened = try JSONDecoder().decode(ScreenplayOSDocument.self, from: JSONEncoder().encode(document))
         #expect(clips(reopened) == updated)
     }
 

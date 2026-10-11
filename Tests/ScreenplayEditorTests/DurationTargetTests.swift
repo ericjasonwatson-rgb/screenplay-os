@@ -6,13 +6,13 @@ import ScreenplayDomain
 @Suite("Duration target planning")
 @MainActor
 struct DurationTargetTests {
-    private func sample(version: String = "1.0") -> OpenScreenplayDocument {
+    private func sample(version: String = "1.0") -> ScreenplayOSDocument {
         let elements = (1...3).flatMap { number in
             [ScreenplayElement(type: .sceneHeading, text: "INT. SCÈNE \(number) – DAY", spineID: "S00\(number)"),
              ScreenplayElement(type: .dialogue, text: Array(repeating: "word", count: 60 * number).joined(separator: " "))]
         }
         let script = Screenplay(metadata: .init(title: "Two minutes"), elements: elements)
-        return OpenScreenplayDocument(formatVersion: version,
+        return ScreenplayOSDocument(formatVersion: version,
             project: .init(metadata: .init(title: "Two minutes", author: ""), screenplayID: script.id),
             screenplay: script,
             outline: (1...3).map { .init(template: "Test", order: $0, name: "Beat \($0)", purpose: "Plan", linkedSceneSpineIDs: ["S00\($0)"]) })
@@ -25,9 +25,9 @@ struct DurationTargetTests {
         let preferences = try #require(UserDefaults(suiteName: suite))
         defer { try? FileManager.default.removeItem(at: directory); preferences.removePersistentDomain(forName: suite) }
         let url = directory.appendingPathComponent("Plan.json")
-        try JSONEncoder.openScreenplayEncoder().encode(sample()).write(to: url)
+        try JSONEncoder.screenplayOSEncoder().encode(sample()).write(to: url)
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: preferences)
-        model.loadOpenScreenplay(at: url)
+        model.loadScreenplayOSDocument(at: url)
         try body(model, url)
     }
 
@@ -44,16 +44,16 @@ struct DurationTargetTests {
     @Test func legacyVersionsRemainUntargetedAndNewTargetsRoundTrip() throws {
         for version in ["1.0", "1.1", "1.2"] {
             let original = sample(version: version)
-            let oldData = try JSONEncoder.openScreenplayEncoder().encode(original)
+            let oldData = try JSONEncoder.screenplayOSEncoder().encode(original)
             #expect(!String(decoding: oldData, as: UTF8.self).contains("duration_target"))
-            var loaded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: oldData)
+            var loaded = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: oldData)
             #expect(loaded.sceneDurationTargets == nil)
             #expect(loaded.outline.allSatisfy { $0.targetDurationSeconds == nil })
             #expect(LegacyRoundTrip.droppedPaths(original: oldData, document: loaded).isEmpty)
             loaded.outline[0].targetDurationSeconds = 40
             loaded.sceneDurationTargets = [loaded.screenplay.elements[0].id.uuidString: 40]
-            let data = try JSONEncoder.openScreenplayEncoder().encode(loaded)
-            let reopened = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+            let data = try JSONEncoder.screenplayOSEncoder().encode(loaded)
+            let reopened = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
             #expect(reopened == loaded)
             #expect(reopened.formatVersion == version)
             #expect(reopened.screenplay == original.screenplay)
@@ -62,34 +62,34 @@ struct DurationTargetTests {
     }
 
     @Test func invalidSavedTargetsAreRejectedRatherThanClamped() throws {
-        let data = try JSONEncoder.openScreenplayEncoder().encode(sample())
+        let data = try JSONEncoder.screenplayOSEncoder().encode(sample())
         for invalid: Any in [0, -1, 86401, 1.5, "one minute"] {
             var json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
             json["scene_duration_targets"] = [sample().screenplay.elements[0].id.uuidString: invalid]
             let sceneData = try JSONSerialization.data(withJSONObject: json)
-            #expect(throws: (any Error).self) { try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: sceneData) }
+            #expect(throws: (any Error).self) { try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: sceneData) }
             json.removeValue(forKey: "scene_duration_targets")
             var beats = try #require(json["outline"] as? [[String: Any]])
             beats[0]["target_duration_seconds"] = invalid
             json["outline"] = beats
             let beatData = try JSONSerialization.data(withJSONObject: json)
-            #expect(throws: (any Error).self) { try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: beatData) }
+            #expect(throws: (any Error).self) { try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: beatData) }
         }
     }
 
     @Test func sceneTargetKeysAreCanonicalAndAmbiguousKeysAreRejected() throws {
         let original = sample()
         let heading = try #require(UUID(uuidString: "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"))
-        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder.openScreenplayEncoder().encode(original)) as? [String: Any])
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder.screenplayOSEncoder().encode(original)) as? [String: Any])
         json["scene_duration_targets"] = [heading.uuidString.lowercased(): 45]
         let lowercase = try JSONSerialization.data(withJSONObject: json)
-        let loaded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: lowercase)
+        let loaded = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: lowercase)
         #expect(loaded.sceneDurationTargets?[heading.uuidString] == 45)
         // Normalization opens a copy rather than rewriting keys in the external source.
         #expect(!LegacyRoundTrip.droppedPaths(original: lowercase, document: loaded).isEmpty)
         json["scene_duration_targets"] = [heading.uuidString.lowercased(): 45, heading.uuidString: 30]
         let ambiguous = try JSONSerialization.data(withJSONObject: json)
-        #expect(throws: (any Error).self) { try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: ambiguous) }
+        #expect(throws: (any Error).self) { try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: ambiguous) }
         var document = original
         let sceneAccepted = document.setSceneDurationTarget(headingID: document.screenplay.elements[1].id, seconds: 40)
         let beatAccepted = document.setOutlineDurationTarget(beatID: UUID(), seconds: 40)
@@ -111,7 +111,7 @@ struct DurationTargetTests {
             #expect(model.document?.editorialSpine == original.editorialSpine)
             #expect(model.editTimeline.map(\.duration) == edit)
             model.save()
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.saveURL == url)
             #expect(model.beatTargetTotal == 120 && model.sceneTargetTotal == 120)
             #expect(model.outlineBeats.map(\.targetDurationSeconds) == [20, 40, 60])
@@ -224,7 +224,7 @@ struct DurationTargetTests {
             json["future_setting"] = ["number": "9007199254740993"]
             let original = try JSONSerialization.data(withJSONObject: json)
             try original.write(to: url)
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.saveURL == nil)
             #expect(model.setBeatTarget(model.outlineBeats[0].id, seconds: 40))
             #expect(model.setSceneTarget(model.elements[0].id, seconds: 40))

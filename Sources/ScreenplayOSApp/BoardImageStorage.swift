@@ -47,7 +47,7 @@ enum BoardImageStorage {
 
     /// Copies readable image versions that live outside the destination's Board Images
     /// folder beside it. Unreadable versions keep their reference and are counted.
-    static func gathered(_ document: OpenScreenplayDocument, beside url: URL) -> (document: OpenScreenplayDocument, unavailable: Int) {
+    static func gathered(_ document: ScreenplayOSDocument, beside url: URL) -> (document: ScreenplayOSDocument, unavailable: Int) {
         var result = document
         var unavailable = 0
         let directory = url.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(folder).standardizedFileURL
@@ -65,7 +65,7 @@ enum BoardImageStorage {
         }
         return (result, unavailable)
     }
-    static func resolved(_ document: OpenScreenplayDocument, at url: URL) throws -> OpenScreenplayDocument {
+    static func resolved(_ document: ScreenplayOSDocument, at url: URL) throws -> ScreenplayOSDocument {
         var result = document
         for board in result.boardFrames.indices {
             for index in result.boardFrames[board].imageVersions.indices {
@@ -84,7 +84,7 @@ enum BoardImageStorage {
         }
         return result
     }
-    static func portableReferences(_ document: OpenScreenplayDocument, at url: URL) -> OpenScreenplayDocument {
+    static func portableReferences(_ document: ScreenplayOSDocument, at url: URL) -> ScreenplayOSDocument {
         var result = document
         let directory = url.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(folder).standardizedFileURL
         for board in result.boardFrames.indices {
@@ -99,7 +99,7 @@ enum BoardImageStorage {
         }
         return result
     }
-    static func export(_ document: OpenScreenplayDocument, to destination: URL) throws {
+    static func export(_ document: ScreenplayOSDocument, to destination: URL) throws {
         let fm = FileManager.default
         guard !fm.fileExists(atPath: destination.path) else { throw CocoaError(.fileWriteFileExists) }
         let staging = destination.deletingLastPathComponent().appendingPathComponent(".board-export-" + UUID().uuidString)
@@ -114,7 +114,7 @@ enum BoardImageStorage {
                 catch { throw DialogueServiceError(message: "Could not include board \(copy.boardFrames[board].frameNumber), image \(version.id): \(version.fileURL.lastPathComponent). No portable copy was created.") }
             }
         }
-        let encoded = try JSONEncoder.openScreenplayEncoder().encode(portableReferences(copy, at: file))
+        let encoded = try JSONEncoder.screenplayOSEncoder().encode(portableReferences(copy, at: file))
         try encoded.write(to: file, options: .withoutOverwriting)
         try fm.moveItem(at: staging, to: destination)
     }

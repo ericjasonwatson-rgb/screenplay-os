@@ -43,7 +43,7 @@ struct WritingStartupTests {
             prefs.set([folder.appendingPathComponent("missing.json").path, url.path], forKey: "ScreenplayOSRecentDocuments")
             let reopened = ScreenplayViewModel(autosaveDirectory: folder, preferences: prefs)
             #expect(reopened.saveURL == url)
-            #expect(reopened.document == (try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)))
+            #expect(reopened.document == (try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)))
             #expect(try Data(contentsOf: url) == data)
         }
     }

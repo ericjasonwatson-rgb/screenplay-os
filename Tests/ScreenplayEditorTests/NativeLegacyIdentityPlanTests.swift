@@ -12,7 +12,7 @@ struct NativeLegacyIdentityPlanTests {
     private let stamp = "2026-09-12T12:00:00+00:00"
 
     private func downstreamFixture(_ data: Data, source: URL) throws -> NativeLegacyConversionPlan {
-        let document = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+        let document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
         let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         return NativeLegacyConversionPlan(sourceURL: source, sourceBytes: data, sourceSHA256: digest,
                                           document: document, media: [], attachments: [:])
@@ -28,12 +28,12 @@ struct NativeLegacyIdentityPlanTests {
         let beat = OutlineBeat(id: UUID(uuidString: "00000000-0000-4000-8000-000000000021")!,
                                template: "custom", order: 1, name: "Beat", purpose: "",
                                linkedSceneSpineIDs: ["S001"])
-        let document = OpenScreenplayDocument(
+        let document = ScreenplayOSDocument(
             project: Project(id: projectID, metadata: .init(title: "Identity", author: ""), screenplayID: screenplayID),
             screenplay: screenplay, outline: [beat], shots: [shot]
         )
         let source = root.appendingPathComponent("Source.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: source)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: source)
         return (root, source)
     }
 

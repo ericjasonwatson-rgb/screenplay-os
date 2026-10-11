@@ -16,7 +16,7 @@ struct NativeLegacyPackageWriterTests {
         let screenplayID = UUID(uuidString: "00000000-0000-4000-8000-000000000102")!
         let headingID = UUID(uuidString: "00000000-0000-4000-8000-000000000103")!
         let actionID = UUID(uuidString: "00000000-0000-4000-8000-000000000104")!
-        let document = OpenScreenplayDocument(
+        let document = ScreenplayOSDocument(
             project: Project(id: projectID, metadata: .init(title: "Writer", author: "Author"), screenplayID: screenplayID),
             screenplay: Screenplay(id: screenplayID, metadata: .init(title: "Writer"), elements: [
                 ScreenplayElement(id: headingID, type: .sceneHeading, text: "INT. ROOM - DAY", spineID: "S001"),
@@ -26,7 +26,7 @@ struct NativeLegacyPackageWriterTests {
                             order: 1, name: "Opening", purpose: "Begin", linkedSceneSpineIDs: ["S001"])]
         )
         let source = root.appendingPathComponent("Source.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: source)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: source)
         let preflight = try NativeLegacyConversionPlan.prepare(sourceURL: source)
         let identities = try NativeLegacyIdentityPlan.build(from: preflight, createdAt: stamp)
         let payloads = try NativeLegacyPayloadPlan.build(from: preflight, identities: identities)

@@ -2,7 +2,7 @@ import Foundation
 import ScreenplayDomain
 
 struct RecoveryRecord: Codable {
-    let document: OpenScreenplayDocument
+    let document: ScreenplayOSDocument
     let originalURL: URL?
     let savedAt: Date
 }

@@ -37,7 +37,7 @@ import ScreenplayDomain
             model.save()
             let saved = try #require(model.saveURL)
             #expect(saved != source)
-            model.loadOpenScreenplay(at: saved)
+            model.loadScreenplayOSDocument(at: saved)
             #expect(model.elements == imported)
             #expect(try Data(contentsOf: source) == bytes)
         }
@@ -48,10 +48,10 @@ import ScreenplayDomain
             let script = Screenplay(metadata: ScreenplayMetadata(title: "Order"), elements: [
                 ScreenplayElement(type: .sceneHeading, text: "INT. FIRST - DAY", spineID: "S001"),
                 ScreenplayElement(type: .sceneHeading, text: "EXT. SECOND - NIGHT", spineID: "S002")])
-            let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Order", author: ""), screenplayID: script.id), screenplay: script)
+            let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Order", author: ""), screenplayID: script.id), screenplay: script)
             let url = directory.appendingPathComponent("order.json")
-            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
-            model.loadOpenScreenplay(at: url)
+            try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
+            model.loadScreenplayOSDocument(at: url)
             let original = model.elements
             model.moveEditorialBeat(model.editorialBeats[1].id, direction: -1)
             #expect(model.elements == original)
@@ -63,7 +63,7 @@ import ScreenplayDomain
             model.changeWritingTypography(font: "Helvetica", size: 14)
             #expect(model.document?.formatVersion == "1.2")
             model.save()
-            model.loadOpenScreenplay(at: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.elements == original)
             #expect(model.editorialBeats.map(\.sceneSpineID) == ["S002", "S001"])
             var reopened = try #require(model.document)
@@ -84,10 +84,10 @@ import ScreenplayDomain
                 .init(type: .sceneHeading, text: "EXT. EMPTY - DAY", spineID: "S004")])
             let shot = Shot(sceneSpineID: "S002", shotNumber: 1, label: "Board shot")
             let board = BoardFrame(shotID: shot.id, sceneSpineID: "S002", frameNumber: 1, label: "Board")
-            let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Mixed timing", author: ""), screenplayID: script.id), screenplay: script, shots: [shot], boardFrames: [board])
+            let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Mixed timing", author: ""), screenplayID: script.id), screenplay: script, shots: [shot], boardFrames: [board])
             let url = directory.appendingPathComponent("mixed.json")
-            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
-            model.loadOpenScreenplay(at: url)
+            try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
+            model.loadScreenplayOSDocument(at: url)
             model.showEditEstimates = true
             let before = model.document
             #expect(model.editTimeline.map(\.duration) == [75, 4, 150])
@@ -112,7 +112,7 @@ import ScreenplayDomain
             #expect(model.editDuration == 229)
             #expect(model.document == before)
             model.save()
-            model.loadOpenScreenplay(at: try #require(model.saveURL))
+            model.loadScreenplayOSDocument(at: try #require(model.saveURL))
             #expect(model.document?.editorialSpine == before?.editorialSpine)
             #expect(model.editDuration == 229)
         }
@@ -128,10 +128,10 @@ import ScreenplayDomain
             var omitted = BoardFrame(shotID: shots[1].id, sceneSpineID: "S002", frameNumber: 1, label: "Omitted")
             omitted.status = .omitted
             let board = BoardFrame(shotID: shots[1].id, sceneSpineID: "S002", frameNumber: 2, label: "Retained", durationSeconds: 3)
-            let document = OpenScreenplayDocument(project: Project(metadata: .init(title: "Timing", author: ""), screenplayID: script.id), screenplay: script, shots: shots, boardFrames: [omitted, board])
+            let document = ScreenplayOSDocument(project: Project(metadata: .init(title: "Timing", author: ""), screenplayID: script.id), screenplay: script, shots: shots, boardFrames: [omitted, board])
             let url = directory.appendingPathComponent("timing.json")
-            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
-            model.loadOpenScreenplay(at: url)
+            try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
+            model.loadScreenplayOSDocument(at: url)
             let before = model.document
             model.showEditEstimates = false
             #expect(model.editTimeline.map(\.label) == ["Retained"])
@@ -157,10 +157,10 @@ import ScreenplayDomain
                 .init(type: .dialogue, text: Array(repeating: "word", count: 180).joined(separator: " ")),
                 .init(type: .sceneHeading, text: "INT. SECOND - DAY", spineID: "S002"),
                 .init(type: .dialogue, text: Array(repeating: "word", count: 360).joined(separator: " "))])
-            let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Timing edits", author: ""), screenplayID: script.id), screenplay: script)
+            let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Timing edits", author: ""), screenplayID: script.id), screenplay: script)
             let url = directory.appendingPathComponent("timing.json")
-            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
-            model.loadOpenScreenplay(at: url)
+            try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
+            model.loadScreenplayOSDocument(at: url)
             model.showEditEstimates = true
             #expect(model.editDuration == 225)
             let dialogue = model.elements[1]
@@ -183,10 +183,10 @@ import ScreenplayDomain
             let boards = shots.enumerated().map { index, shot in
                 BoardFrame(shotID: shot.id, sceneSpineID: shot.sceneSpineID, frameNumber: index + 1, label: shot.label)
             }
-            let document = OpenScreenplayDocument(project: Project(metadata: ProjectMetadata(title: "Playback", author: ""), screenplayID: script.id), screenplay: script, shots: shots, boardFrames: boards)
+            let document = ScreenplayOSDocument(project: Project(metadata: ProjectMetadata(title: "Playback", author: ""), screenplayID: script.id), screenplay: script, shots: shots, boardFrames: boards)
             let url = directory.appendingPathComponent("play.json")
-            try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
-            model.loadOpenScreenplay(at: url)
+            try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
+            model.loadScreenplayOSDocument(at: url)
             #expect(model.editDuration == 8)
             model.seekEdit(to: 4.1)
             #expect(model.selectedSceneBreakdown?.editSpineID == "S002")
@@ -227,8 +227,8 @@ import ScreenplayDomain
             #expect(try Data(contentsOf: docx) == bytes)
             let script = ScreenplayTextImport.document(extracted, title: "PDF Test", detectStructure: true)
             let native = directory.appendingPathComponent("native.json")
-            try JSONEncoder.openScreenplayEncoder().encode(script).write(to: native)
-            model.loadOpenScreenplay(at: native)
+            try JSONEncoder.screenplayOSEncoder().encode(script).write(to: native)
+            model.loadScreenplayOSDocument(at: native)
             let pdf = directory.appendingPathComponent("sample.pdf")
             let pdfBytes = try model.makePrintPDF(); try pdfBytes.write(to: pdf)
             let pdfText = try ScreenplayTextImport.extract(pdf)

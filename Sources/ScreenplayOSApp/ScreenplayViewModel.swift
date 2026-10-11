@@ -23,7 +23,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var convertedCopyStatus: String?
     @Published var convertedCopyReceipt: LegacyConvertedCopyReceipt?
     lazy var chromeState = ScreenplayChromeState(model: self)
-    @Published private(set) var document: OpenScreenplayDocument? {
+    @Published private(set) var document: ScreenplayOSDocument? {
         didSet {
             // Includes nested edits, production-context changes, Undo/Redo and Open.
             // Selection and workspace changes can reuse the same derived summaries.
@@ -169,7 +169,7 @@ final class ScreenplayViewModel: ObservableObject {
     private let importer = FDXImporter()
     private let autosaveDirectory: URL
     private let preferences: UserDefaults
-    private var lastSavedDocument: OpenScreenplayDocument?
+    private var lastSavedDocument: ScreenplayOSDocument?
     private var diskVersion: (url: URL, data: Data)?
     private let recoveryDirectory: URL
     private let continuityBibleRoot: URL?
@@ -181,7 +181,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var saveProblem: String?
     @Published private(set) var recoveryCopies: [RecoveryCopy] = []
     private struct EditState {
-        let document: OpenScreenplayDocument
+        let document: ScreenplayOSDocument
         let selection: UUID?
         var caret: NSRange? = nil
         var documentCaret: NSRange? = nil
@@ -983,7 +983,7 @@ final class ScreenplayViewModel: ObservableObject {
         persistTakeSidecar(document, root: takeRoot)
     }
 
-    private func persistTakeSidecar(_ document: OpenScreenplayDocument, root: URL?) {
+    private func persistTakeSidecar(_ document: ScreenplayOSDocument, root: URL?) {
         do {
             _ = try TakeWorkflow.persistProjection(of: document, root: root)
             takeSidecarProblem = nil
@@ -1163,7 +1163,7 @@ final class ScreenplayViewModel: ObservableObject {
             screenplayID: screenplay.id
         )
 
-        document = OpenScreenplayDocument(
+        document = ScreenplayOSDocument(
             project: project,
             screenplay: screenplay,
             titlePage: TitlePage(title: "Untitled Screenplay")
@@ -1824,7 +1824,7 @@ final class ScreenplayViewModel: ObservableObject {
             openPackagePreview(at: url)
         case "json":
             legacyWindow?.makeKeyAndOrderFront(nil)
-            loadOpenScreenplay(at: url)
+            loadScreenplayOSDocument(at: url)
         case "pdf", "docx", "txt", "text", "fountain":
             legacyWindow?.makeKeyAndOrderFront(nil)
             reviewTextImport(at: url)
@@ -1898,7 +1898,7 @@ final class ScreenplayViewModel: ObservableObject {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    func acceptImportedDocument(_ imported: OpenScreenplayDocument, source url: URL, warnings: [String]) {
+    func acceptImportedDocument(_ imported: ScreenplayOSDocument, source url: URL, warnings: [String]) {
         guard saveBeforeReplacingDocument() else { return }
         document = imported
         lastSavedDocument = nil
@@ -1964,11 +1964,11 @@ final class ScreenplayViewModel: ObservableObject {
         autosave()
     }
 
-    func loadOpenScreenplay(at url: URL) {
+    func loadScreenplayOSDocument(at url: URL) {
         guard saveBeforeReplacingDocument() else { return }
         do {
             let data = try Data(contentsOf: url)
-            let decoded = try BoardImageStorage.resolved(JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data), at: url)
+            let decoded = try BoardImageStorage.resolved(JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data), at: url)
             // Saving rewrites the file from the decoded model; never autosave over
             // content this build cannot represent.
             let dropped = LegacyRoundTrip.droppedPaths(original: data, document: decoded)
@@ -2024,7 +2024,7 @@ final class ScreenplayViewModel: ObservableObject {
             let directory = snapshotsDirectory(for: projectURL)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let url = directory.appendingPathComponent(snapshotFileName(label: label, date: Date()))
-            let data = try JSONEncoder.openScreenplayEncoder().encode(document)
+            let data = try JSONEncoder.screenplayOSEncoder().encode(document)
             try DocumentFileWriter.write(data, to: url, overwriteExisting: false)
             snapshotName = ""
             loadSnapshots()
@@ -2045,7 +2045,7 @@ final class ScreenplayViewModel: ObservableObject {
         guard let current = document, let saveURL else { return }
         do {
             let data = try Data(contentsOf: snapshot.url)
-            var decoded = try JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+            var decoded = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
             guard decoded.project.id == current.project.id else {
                 errorMessage = "This snapshot belongs to a different project."
                 return
@@ -2902,7 +2902,7 @@ final class ScreenplayViewModel: ObservableObject {
             let directory = snapshotsDirectory(for: saveURL)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let backup = directory.appendingPathComponent(snapshotFileName(label: "Before Title Page Repair", date: Date()))
-            try DocumentFileWriter.write(JSONEncoder.openScreenplayEncoder().encode(current), to: backup, overwriteExisting: false)
+            try DocumentFileWriter.write(JSONEncoder.screenplayOSEncoder().encode(current), to: backup, overwriteExisting: false)
             rememberUndoState()
             document?.screenplay.elements.removeLast(Self.importedTitlePlaceholders.count)
             // Preserve the imported wording on the title page; it remains editable.
@@ -4227,7 +4227,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     @discardableResult
-    private func saveDocument(to url: URL, reportStatus: Bool = true, overwriteExisting: Bool = true, documentToSave: OpenScreenplayDocument? = nil, approvedExistingData: Data? = nil) -> Bool {
+    private func saveDocument(to url: URL, reportStatus: Bool = true, overwriteExisting: Bool = true, documentToSave: ScreenplayOSDocument? = nil, approvedExistingData: Data? = nil) -> Bool {
         guard var document = documentToSave ?? self.document else { return false }
 
         do {
@@ -4243,7 +4243,7 @@ final class ScreenplayViewModel: ObservableObject {
             // leaving absolute references into the previous folder.
             // Gather only when some image version lives outside this project's Board Images
             // folder (a cheap path check); afterwards autosave does no image I/O.
-            let gathered: (document: OpenScreenplayDocument, unavailable: Int)
+            let gathered: (document: ScreenplayOSDocument, unavailable: Int)
             let boardFolder = url.deletingLastPathComponent().resolvingSymlinksInPath()
                 .appendingPathComponent(BoardImageStorage.folder).standardizedFileURL
             let hasOutsideImages = document.boardFrames.contains { frame in
@@ -4255,7 +4255,7 @@ final class ScreenplayViewModel: ObservableObject {
                 gathered = (document, 0)
             }
             document = gathered.document
-            let data = try JSONEncoder.openScreenplayEncoder().encode(BoardImageStorage.portableReferences(document, at: url))
+            let data = try JSONEncoder.screenplayOSEncoder().encode(BoardImageStorage.portableReferences(document, at: url))
             // A first save must never replace an existing file, even if another
             // process creates it after we choose the filename.
             let expected = diskVersion?.url == url.standardizedFileURL ? diskVersion?.data : approvedExistingData
@@ -5398,7 +5398,7 @@ final class ScreenplayViewModel: ObservableObject {
         let directory = snapshotsDirectory(for: saveURL)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent(snapshotFileName(label: "Before Restore", date: Date()))
-        let data = try JSONEncoder.openScreenplayEncoder().encode(document)
+        let data = try JSONEncoder.screenplayOSEncoder().encode(document)
         try DocumentFileWriter.write(data, to: url, overwriteExisting: false)
     }
 
@@ -5519,7 +5519,7 @@ final class ScreenplayViewModel: ObservableObject {
             .filter { url in
                 guard url.lastPathComponent.hasSuffix(".snapshot.open-screenplay.json"),
                       let data = try? Data(contentsOf: url),
-                      let snapshot = try? JSONDecoder.openScreenplayDecoder().decode(OpenScreenplayDocument.self, from: data)
+                      let snapshot = try? JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
                 else { return false }
                 return snapshot.project.id == document?.project.id
             }
@@ -6971,7 +6971,7 @@ extension ScreenplayViewModel {
             try FileManager.default.createDirectory(at: recoveryDirectory, withIntermediateDirectories: true)
             let url = recoveryDirectory.appendingPathComponent("\(document.project.id)-\(recoverySessionID).json")
             let record = RecoveryRecord(document: document, originalURL: saveURL ?? sourceURL, savedAt: Date())
-            let data = try JSONEncoder.openScreenplayEncoder().encode(record)
+            let data = try JSONEncoder.screenplayOSEncoder().encode(record)
             try data.write(to: url, options: .atomic)
             ownedRecoveryFiles.insert(url)
             loadRecoveryCopies()
@@ -6995,7 +6995,7 @@ extension ScreenplayViewModel {
         let urls = (try? FileManager.default.contentsOfDirectory(at: recoveryDirectory, includingPropertiesForKeys: nil)) ?? []
         recoveryCopies = urls.filter { $0.pathExtension == "json" }.compactMap { url in
             guard let data = try? Data(contentsOf: url),
-                  let record = try? JSONDecoder.openScreenplayDecoder().decode(RecoveryRecord.self, from: data) else { return nil }
+                  let record = try? JSONDecoder.screenplayOSDecoder().decode(RecoveryRecord.self, from: data) else { return nil }
             return RecoveryCopy(url: url, title: record.document.project.metadata.title, savedAt: record.savedAt)
         }.sorted { $0.savedAt > $1.savedAt }
     }
@@ -7003,7 +7003,7 @@ extension ScreenplayViewModel {
     func openRecoveryCopy(_ copy: RecoveryCopy) {
         guard saveBeforeReplacingDocument() else { return }
         do {
-            let record = try JSONDecoder.openScreenplayDecoder().decode(RecoveryRecord.self, from: Data(contentsOf: copy.url))
+            let record = try JSONDecoder.screenplayOSDecoder().decode(RecoveryRecord.self, from: Data(contentsOf: copy.url))
             document = record.document
             lastSavedDocument = nil
             diskVersion = nil

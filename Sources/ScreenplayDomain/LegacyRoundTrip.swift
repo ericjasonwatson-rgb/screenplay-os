@@ -12,9 +12,9 @@ public enum LegacyRoundTrip {
     /// JSON paths present in `original` that would be missing after saving `document`.
     /// Unknown null, false, and empty values are meaningful too (for example, a
     /// future opt-out flag). If comparison is inconclusive, protect the original.
-    public static func droppedPaths(original: Data, document: OpenScreenplayDocument) -> [String] {
+    public static func droppedPaths(original: Data, document: ScreenplayOSDocument) -> [String] {
         guard let raw = try? JSONSerialization.jsonObject(with: original),
-              let encoded = try? JSONEncoder.openScreenplayEncoder().encode(document),
+              let encoded = try? JSONEncoder.screenplayOSEncoder().encode(document),
               let saved = try? JSONSerialization.jsonObject(with: encoded) else { return ["<unverified JSON round trip>"] }
         var paths: [String] = []
         collect(raw, saved, path: "", into: &paths)

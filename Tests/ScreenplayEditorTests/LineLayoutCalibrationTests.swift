@@ -34,10 +34,10 @@ struct LineLayoutCalibrationTests {
         let prefs = try #require(UserDefaults(suiteName: suite))
         defer { prefs.removePersistentDomain(forName: suite) }
         let url = directory.appendingPathComponent("fixture.json")
-        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: url)
+        try JSONEncoder.screenplayOSEncoder().encode(document).write(to: url)
         let legacy = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
         let candidate = ScreenplayViewModel(lineLayoutExperiment: mode, loadInitialDocument: false, autosaveDirectory: directory, preferences: prefs)
-        legacy.loadOpenScreenplay(at: url); candidate.loadOpenScreenplay(at: url)
+        legacy.loadScreenplayOSDocument(at: url); candidate.loadScreenplayOSDocument(at: url)
         let original = try Data(contentsOf: url)
         try body(legacy, candidate, directory)
         // Rendering alone must not rewrite the disposable file. Editing tests
@@ -153,7 +153,7 @@ struct LineLayoutCalibrationTests {
                 defer { prefs.removePersistentDomain(forName: suite) }
                 let footer = ScreenplayViewModel(lineLayoutExperiment: .footerContinuationExperiment, loadInitialDocument: false,
                                                  autosaveDirectory: directory, preferences: prefs)
-                footer.loadOpenScreenplay(at: directory.appendingPathComponent("fixture.json"))
+                footer.loadScreenplayOSDocument(at: directory.appendingPathComponent("fixture.json"))
                 #expect(candidate.printedPages.map { $0.elements.map(\.text) } != footer.printedPages.map { $0.elements.map(\.text) })
             }
             let original = candidate.document
