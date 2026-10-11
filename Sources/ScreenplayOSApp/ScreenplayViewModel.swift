@@ -1175,6 +1175,31 @@ final class ScreenplayViewModel: ObservableObject {
         }
     }
 
+    func classifyContinuityCharacter(_ entryID: UUID, as classification: PerformerClassification) {
+        updateContinuityBible(success: "Updated performer classification.") { ledger in
+            try ledger.classifyCharacter(entryID: entryID, as: classification)
+        }
+    }
+
+    func addPerformerConsent(
+        entryID: UUID, performerName: String, scopes: [PerformerConsentScope], expiresAt: Date?, note: String
+    ) {
+        updateContinuityBible(success: "Recorded performer consent.") { ledger in
+            let now = Date()
+            try ledger.addConsent(.init(
+                characterEntryID: entryID, performerName: performerName,
+                scopes: scopes, validFrom: now, expiresAt: expiresAt,
+                recordedAt: now, note: note
+            ))
+        }
+    }
+
+    func revokePerformerConsent(_ recordID: UUID) {
+        updateContinuityBible(success: "Revoked performer consent.") { ledger in
+            try ledger.revokeConsent(recordID: recordID, at: Date())
+        }
+    }
+
     func undoContinuityReviewAction() {
         guard let prior = continuityUndoStack.popLast() else { return }
         continuityBible = prior

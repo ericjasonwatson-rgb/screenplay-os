@@ -16,10 +16,17 @@ struct ContinuityBibleReviewSheet: View {
     @State private var selection: UUID?
     @State private var adoptedName = ""
     @State private var mergeTarget: UUID?
+    @State private var performerName = ""
+    @State private var consentNote = ""
+    @State private var likenessScope = true
+    @State private var voiceScope = false
+    @State private var consentExpires = true
+    @State private var consentExpiry = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
 
     private var ledger: ContinuityBibleLedger? { model.continuityBible }
     private var proposals: [ContinuityProposal] { ledger?.proposals ?? [] }
     private var selected: ContinuityProposal? { proposals.first { $0.id == selection } }
+    private var selectedEntry: ContinuityBibleEntry? { ledger?.entries.first { $0.id == selection } }
     private var mergeChoices: [ContinuityProposal] {
         guard let selected else { return [] }
         return proposals.filter { $0.id != selected.id && $0.kind == selected.kind && $0.status == .proposed }
@@ -64,11 +71,27 @@ struct ContinuityBibleReviewSheet: View {
         .onChange(of: selection) { _ in
             adoptedName = selected?.name ?? ""
             mergeTarget = mergeChoices.first?.id
+            if let entry = selectedEntry, performerName.isEmpty { performerName = entry.name }
         }
     }
 
     private var proposalList: some View {
         List(selection: $selection) {
+            if let entries = ledger?.entries, !entries.isEmpty {
+                Section("Adopted Bible") {
+                    ForEach(entries) { entry in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.name).lineLimit(1)
+                                Text(entry.kind.rawValue.capitalized).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                        }
+                        .tag(entry.id)
+                    }
+                }
+            }
             ForEach(ContinuityEntityKind.allCases.filter { $0 != .style }, id: \.self) { kind in
                 let rows = proposals.filter { $0.kind == kind }
                 if !rows.isEmpty {
@@ -93,8 +116,21 @@ struct ContinuityBibleReviewSheet: View {
     }
 
     @ViewBuilder private var detail: some View {
-        if let proposal = selected {
-            VStack(alignment: .leading, spacing: 12) {
+        if let entry = selectedEntry {
+            entryDetail(entry)
+        } else if let proposal = selected {
+            proposalDetail(proposal)
+        } else {
+            VStack(spacing: 8) {
+                Image(systemName: "book.closed").font(.largeTitle).foregroundStyle(.secondary)
+                Text("No proposal selected").foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func proposalDetail(_ proposal: ContinuityProposal) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(proposal.name).font(.title3.weight(.semibold))
                     Text(proposal.kind.rawValue.capitalized).font(.caption).foregroundStyle(.secondary)
@@ -155,14 +191,91 @@ struct ContinuityBibleReviewSheet: View {
                     Text("Adopted entries: \(entries.count)")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+        }
+        .padding(16)
+    }
+
+    private func entryDetail(_ entry: ContinuityBibleEntry) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(entry.name).font(.title3.weight(.semibold))
+                    Text(entry.kind.rawValue.capitalized).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                }
+                if !entry.aliases.isEmpty {
+                    Text("Aliases: \(entry.aliases.joined(separator: ", "))")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                if entry.kind == .character {
+                    Divider()
+                    Text("Performer and consent").font(.headline)
+                    Picker("Classification", selection: Binding(
+                        get: { entry.performerClassification ?? .fictional },
+                        set: { model.classifyContinuityCharacter(entry.id, as: $0) }
+                    )) {
+                        Text("Fictional character").tag(PerformerClassification.fictional)
+                        Text("Real performer").tag(PerformerClassification.realPerformer)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if entry.performerClassification == .realPerformer {
+                        Text("Likeness generation and voice cloning are blocked unless an applicable, unexpired consent record exists.")
+                            .font(.caption).foregroundStyle(.secondary)
+
+                        GroupBox("Record consent") {
+                            VStack(alignment: .leading, spacing: 8) {
+                                TextField("Performer or rights holder", text: $performerName)
+                                Toggle("Likeness generation", isOn: $likenessScope)
+                                Toggle("Voice cloning", isOn: $voiceScope)
+                                Toggle("Consent expires", isOn: $consentExpires)
+                                if consentExpires { DatePicker("Expiry", selection: $consentExpiry, in: Date()..., displayedComponents: .date) }
+                                TextField("Scope or contract note", text: $consentNote, axis: .vertical).lineLimit(2...4)
+                                Button("Record Consent") {
+                                    var scopes: [PerformerConsentScope] = []
+                                    if likenessScope { scopes.append(.likenessGeneration) }
+                                    if voiceScope { scopes.append(.voiceCloning) }
+                                    model.addPerformerConsent(
+                                        entryID: entry.id, performerName: performerName,
+                                        scopes: scopes, expiresAt: consentExpires ? consentExpiry : nil,
+                                        note: consentNote
+                                    )
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(performerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (!likenessScope && !voiceScope))
+                            }
+                            .padding(6)
+                        }
+
+                        let records = ledger?.consentRecords.filter { $0.characterEntryID == entry.id } ?? []
+                        if records.isEmpty {
+                            Text("No consent on file").foregroundStyle(.red)
+                        } else {
+                            ForEach(records) { record in
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(record.performerName).font(.system(size: 13, weight: .semibold))
+                                        Text(record.scopes.map(\.rawValue).joined(separator: " · "))
+                                            .font(.caption).foregroundStyle(.secondary)
+                                        Text(consentStatus(record)).font(.caption)
+                                            .foregroundStyle(record.revokedAt == nil ? .green : .red)
+                                        if !record.note.isEmpty { Text(record.note).font(.caption).foregroundStyle(.secondary) }
+                                    }
+                                    Spacer()
+                                    if record.revokedAt == nil {
+                                        Button("Revoke", role: .destructive) { model.revokePerformerConsent(record.id) }
+                                    }
+                                }
+                                .padding(10)
+                                .background(StudioAppearance.recess, in: RoundedRectangle(cornerRadius: 6))
+                            }
+                        }
+                    }
+                }
             }
             .padding(16)
-        } else {
-            VStack(spacing: 8) {
-                Image(systemName: "book.closed").font(.largeTitle).foregroundStyle(.secondary)
-                Text("No proposal selected").foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -176,8 +289,19 @@ struct ContinuityBibleReviewSheet: View {
     }
 
     private func selectFirstIfNeeded() {
-        if !proposals.contains(where: { $0.id == selection }) { selection = proposals.first?.id }
+        let entryIDs = Set(ledger?.entries.map(\.id) ?? [])
+        let entrySelected = selection.map(entryIDs.contains) ?? false
+        if !proposals.contains(where: { $0.id == selection }) && !entrySelected {
+            selection = ledger?.entries.first?.id ?? proposals.first?.id
+        }
         adoptedName = selected?.name ?? ""
         mergeTarget = mergeChoices.first?.id
+        if let entry = selectedEntry { performerName = entry.name }
+    }
+
+    private func consentStatus(_ record: PerformerConsentRecord) -> String {
+        if let revoked = record.revokedAt { return "Revoked \(revoked.formatted(date: .abbreviated, time: .omitted))" }
+        if let expiry = record.expiresAt { return "Expires \(expiry.formatted(date: .abbreviated, time: .omitted))" }
+        return "No expiry recorded"
     }
 }

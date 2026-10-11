@@ -16,4 +16,6 @@ On macOS, the **Bible** toolbar button opens an evidence-first review sheet. Eac
 
 Accepted review state is stored atomically in a project-ID-bound Application Support sidecar. The screenplay bytes are not changed. Invalid, oversized, cross-project, and symbolic-link files fail closed. This sidecar is an interim boundary until the tested complete-project package schema can own the ledger without changing the independently recoverable screenplay core.
 
-This slice does not add provider calls, AI alias proposals, reference generation, consent records, prompt composition, takes, or media storage. Those require package persistence and consent records first. Tests use local deterministic data only.
+Adopted character entries can be classified as fictional or as a real performer. Real-performer records identify the performer or rights holder, the allowed scope (`likeness_generation`, `voice_cloning`), validity dates, optional expiry, notes, and revocation. The domain authorization gate allows fictional-character work without a performer record and fails closed for real performers unless an applicable record is active. It returns the consent-record IDs that a future generation job must freeze into provenance.
+
+This slice does not add provider calls, AI alias proposals, reference generation, prompt composition, takes, or media storage. Tests use local deterministic data only. Every future likeness or voice adapter must call the domain gate; displaying consent in the UI alone is insufficient.

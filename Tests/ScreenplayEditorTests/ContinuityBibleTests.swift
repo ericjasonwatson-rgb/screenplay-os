@@ -135,4 +135,57 @@ struct ContinuityBibleTests {
         #expect(model.continuityBible?.entries.isEmpty == true)
         #expect(model.continuityBible?.proposals.first?.status == .proposed)
     }
+
+    @Test func realPerformerGenerationFailsClosedAcrossExpiryAndRevocation() throws {
+        let entry = ContinuityBibleEntry(kind: .character, name: "SARAH", performerClassification: .realPerformer)
+        let now = Date(timeIntervalSince1970: 2_000_000)
+        var ledger = ContinuityBibleLedger(projectID: UUID(), entries: [entry])
+        #expect(throws: ContinuityBibleError.consentRequired) {
+            try ContinuityGenerationGate.authorize(entryID: entry.id, scope: .likenessGeneration, at: now, ledger: ledger)
+        }
+
+        let record = PerformerConsentRecord(
+            characterEntryID: entry.id, performerName: "Sarah Actor",
+            scopes: [.likenessGeneration], validFrom: now.addingTimeInterval(-60),
+            expiresAt: now.addingTimeInterval(60), recordedAt: now.addingTimeInterval(-60)
+        )
+        try ledger.addConsent(record)
+        #expect(try ContinuityGenerationGate.authorize(
+            entryID: entry.id, scope: .likenessGeneration, at: now, ledger: ledger
+        ) == [record.id])
+        #expect(throws: ContinuityBibleError.consentRequired) {
+            try ContinuityGenerationGate.authorize(entryID: entry.id, scope: .voiceCloning, at: now, ledger: ledger)
+        }
+        #expect(throws: ContinuityBibleError.consentRequired) {
+            try ContinuityGenerationGate.authorize(entryID: entry.id, scope: .likenessGeneration,
+                                                   at: now.addingTimeInterval(61), ledger: ledger)
+        }
+        try ledger.revokeConsent(recordID: record.id, at: now)
+        #expect(throws: ContinuityBibleError.consentRequired) {
+            try ContinuityGenerationGate.authorize(entryID: entry.id, scope: .likenessGeneration, at: now, ledger: ledger)
+        }
+    }
+
+    @Test func fictionalCharactersNeedNoPerformerConsentAndLegacyLedgersDecode() throws {
+        let entry = ContinuityBibleEntry(kind: .character, name: "MARTA", performerClassification: .fictional)
+        let ledger = ContinuityBibleLedger(projectID: UUID(), entries: [entry])
+        #expect(try ContinuityGenerationGate.authorize(
+            entryID: entry.id, scope: .voiceCloning, at: Date(), ledger: ledger
+        ).isEmpty)
+
+        let encoded = try JSONEncoder().encode(ledger)
+        var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: "consent_records")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        #expect(try JSONDecoder().decode(ContinuityBibleLedger.self, from: legacy).consentRecords.isEmpty)
+
+        let unclassified = ContinuityBibleEntry(kind: .character, name: "UNKNOWN")
+        let unclassifiedLedger = ContinuityBibleLedger(projectID: UUID(), entries: [unclassified])
+        #expect(throws: ContinuityBibleError.invalidConsent) {
+            try ContinuityGenerationGate.authorize(
+                entryID: unclassified.id, scope: .likenessGeneration,
+                at: Date(), ledger: unclassifiedLedger
+            )
+        }
+    }
 }

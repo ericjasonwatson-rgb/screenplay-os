@@ -93,21 +93,111 @@ public struct ContinuityBibleEntry: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+public enum PerformerConsentScope: String, Codable, CaseIterable, Sendable {
+    case likenessGeneration = "likeness_generation"
+    case voiceCloning = "voice_cloning"
+}
+
+public struct PerformerConsentRecord: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let characterEntryID: UUID
+    public var performerName: String
+    public var scopes: [PerformerConsentScope]
+    public var validFrom: Date
+    public var expiresAt: Date?
+    public var recordedAt: Date
+    public var revokedAt: Date?
+    public var note: String
+
+    public init(
+        id: UUID = UUID(), characterEntryID: UUID, performerName: String,
+        scopes: [PerformerConsentScope], validFrom: Date, expiresAt: Date? = nil,
+        recordedAt: Date = Date(), revokedAt: Date? = nil, note: String = ""
+    ) {
+        self.id = id
+        self.characterEntryID = characterEntryID
+        self.performerName = performerName
+        self.scopes = scopes
+        self.validFrom = validFrom
+        self.expiresAt = expiresAt
+        self.recordedAt = recordedAt
+        self.revokedAt = revokedAt
+        self.note = note
+    }
+
+    public func allows(_ scope: PerformerConsentScope, at date: Date) -> Bool {
+        scopes.contains(scope) && validFrom <= date && (expiresAt.map({ date < $0 }) ?? true)
+            && revokedAt == nil
+    }
+}
+
+public enum ContinuityGenerationGate {
+    /// Returns the consent records that must be frozen into provenance. Fictional
+    /// characters require no record and return an empty list.
+    public static func authorize(
+        entryID: UUID, scope: PerformerConsentScope, at date: Date,
+        ledger: ContinuityBibleLedger
+    ) throws -> [UUID] {
+        guard let entry = ledger.entries.first(where: { $0.id == entryID }) else {
+            throw ContinuityBibleError.entryNotFound
+        }
+        guard entry.kind == .character else { throw ContinuityBibleError.kindMismatch }
+        switch entry.performerClassification {
+        case .fictional:
+            return []
+        case .realPerformer:
+            break
+        case nil:
+            throw ContinuityBibleError.invalidConsent
+        }
+        let records = ledger.consentRecords.filter { $0.characterEntryID == entryID && $0.allows(scope, at: date) }
+        guard !records.isEmpty else { throw ContinuityBibleError.consentRequired }
+        return records.map(\.id).sorted { $0.uuidString < $1.uuidString }
+    }
+}
+
 public struct ContinuityBibleLedger: Codable, Equatable, Sendable {
     public static let currentVersion = 1
     public let version: Int
     public let projectID: UUID
     public var proposals: [ContinuityProposal]
     public var entries: [ContinuityBibleEntry]
+    public var consentRecords: [PerformerConsentRecord]
 
     public init(
         version: Int = Self.currentVersion, projectID: UUID,
-        proposals: [ContinuityProposal] = [], entries: [ContinuityBibleEntry] = []
+        proposals: [ContinuityProposal] = [], entries: [ContinuityBibleEntry] = [],
+        consentRecords: [PerformerConsentRecord] = []
     ) {
         self.version = version
         self.projectID = projectID
         self.proposals = proposals
         self.entries = entries
+        self.consentRecords = consentRecords
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case version, proposals, entries
+        case projectID = "project_id"
+        case consentRecords = "consent_records"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        projectID = try container.decode(UUID.self, forKey: .projectID)
+        proposals = try container.decode([ContinuityProposal].self, forKey: .proposals)
+        entries = try container.decode([ContinuityBibleEntry].self, forKey: .entries)
+        consentRecords = try container.decodeIfPresent([PerformerConsentRecord].self, forKey: .consentRecords) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(projectID, forKey: .projectID)
+        try container.encode(proposals, forKey: .proposals)
+        try container.encode(entries, forKey: .entries)
+        try container.encode(consentRecords, forKey: .consentRecords)
     }
 
     @discardableResult
@@ -138,6 +228,9 @@ public struct ContinuityBibleLedger: Codable, Equatable, Sendable {
               let entryIndex = entries.firstIndex(where: { $0.id == token.entryID }),
               proposals[proposalIndex].status == .adopted else {
             throw ContinuityBibleError.undoTargetNotFound
+        }
+        guard !consentRecords.contains(where: { $0.characterEntryID == token.entryID }) else {
+            throw ContinuityBibleError.invalidConsent
         }
         entries.remove(at: entryIndex)
         proposals[proposalIndex].status = .proposed
@@ -190,10 +283,41 @@ public struct ContinuityBibleLedger: Codable, Equatable, Sendable {
         entries = token.entries
     }
 
+    public mutating func classifyCharacter(entryID: UUID, as classification: PerformerClassification) throws {
+        guard let index = entries.firstIndex(where: { $0.id == entryID }) else {
+            throw ContinuityBibleError.entryNotFound
+        }
+        guard entries[index].kind == .character else { throw ContinuityBibleError.kindMismatch }
+        entries[index].performerClassification = classification
+    }
+
+    public mutating func addConsent(_ record: PerformerConsentRecord) throws {
+        guard let entry = entries.first(where: { $0.id == record.characterEntryID }) else {
+            throw ContinuityBibleError.entryNotFound
+        }
+        guard entry.kind == .character, entry.performerClassification == .realPerformer,
+              !record.performerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !record.scopes.isEmpty, Set(record.scopes).count == record.scopes.count,
+              record.expiresAt.map({ $0 > record.validFrom }) ?? true,
+              !consentRecords.contains(where: { $0.id == record.id }) else {
+            throw ContinuityBibleError.invalidConsent
+        }
+        consentRecords.append(record)
+    }
+
+    public mutating func revokeConsent(recordID: UUID, at date: Date) throws {
+        guard let index = consentRecords.firstIndex(where: { $0.id == recordID }),
+              consentRecords[index].revokedAt == nil, date >= consentRecords[index].recordedAt else {
+            throw ContinuityBibleError.invalidConsent
+        }
+        consentRecords[index].revokedAt = date
+    }
+
     public func validated() throws -> ContinuityBibleLedger {
         guard version == Self.currentVersion,
               Set(proposals.map(\.id)).count == proposals.count,
-              Set(entries.map(\.id)).count == entries.count else {
+              Set(entries.map(\.id)).count == entries.count,
+              Set(consentRecords.map(\.id)).count == consentRecords.count else {
             throw ContinuityBibleError.invalidLedger
         }
         let proposalIDs = Set(proposals.map(\.id))
@@ -207,6 +331,16 @@ public struct ContinuityBibleLedger: Codable, Equatable, Sendable {
         }
         for entry in entries where entry.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw ContinuityBibleError.invalidLedger
+        }
+        let entryIDs = Set(entries.filter { $0.kind == .character }.map(\.id))
+        for record in consentRecords {
+            guard entryIDs.contains(record.characterEntryID),
+                  !record.performerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !record.scopes.isEmpty, Set(record.scopes).count == record.scopes.count,
+                  record.expiresAt.map({ $0 > record.validFrom }) ?? true,
+                  record.revokedAt.map({ $0 >= record.recordedAt }) ?? true else {
+                throw ContinuityBibleError.invalidLedger
+            }
         }
         return self
     }
@@ -223,7 +357,8 @@ public struct ContinuityReviewUndo: Codable, Equatable, Sendable {
 }
 
 public enum ContinuityBibleError: Error, Equatable {
-    case proposalNotFound, proposalNotPending, invalidName, kindMismatch, undoTargetNotFound, invalidLedger, invalidFile
+    case proposalNotFound, proposalNotPending, entryNotFound, invalidName, kindMismatch
+    case undoTargetNotFound, invalidConsent, consentRequired, invalidLedger, invalidFile
 }
 
 public enum ContinuityBibleFileStore {
