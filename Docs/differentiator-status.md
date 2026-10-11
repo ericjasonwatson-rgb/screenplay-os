@@ -33,3 +33,7 @@ Do not apply these edits until the matching acceptance tests and owner GUI revie
 ## Gate before any sale
 
 The product is not ready to charge from build 28. A1 through A5 need green automated tests and owner GUI acceptance. Commerce also needs offline license verification, immutable free-core rules, legal review, and a real merchant-of-record decision. `commerce.enforcement` must remain off until those gates are complete.
+
+## Post-build-28 implementation under review
+
+The source after build 28 now closes the audited A1–A5 code gaps: generated and imported images become durable shot Takes with provenance; Take selection remains undoable and non-destructive; Edit has synchronized imported dialogue/music/effects lanes and includes those references in EDL/FCPXML handoff; the continuity bible persists inside the document with sidecar migration; and Activity provides a project cost ledger plus CSV. Video generation, generated voice, linked video playback, shared Studio bibles/review, and disclosure reports remain unimplemented and must not be claimed. These changes have not been published or shipped and still require owner GUI acceptance.
