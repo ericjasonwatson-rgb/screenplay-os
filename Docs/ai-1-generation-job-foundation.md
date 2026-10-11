@@ -41,9 +41,23 @@ Validation completed in both build configurations on 2026-10-10:
 All checks passed. The existing Swift concurrency, test-target and unhandled
 resource warnings remain outside this increment.
 
+## Controller increment
+
+`GenerationJobController` now serializes state changes, validates and persists a
+complete candidate ledger before exposing each accepted transition, and rejects
+illegal transitions. On relaunch it derives a recovery-review set for every queued
+or running job. Submission remains blocked until an explicit caller action
+acknowledges that review; initialization performs no send, retry or polling work.
+Running records retain their opaque provider task ID for a future deliberate poll.
+
+Controller validation completed in both build configurations on 2026-10-10:
+
+- Debug: 304 Swift tests in 51 suites, 37 importer checks and 14 self-tests.
+- Release: 304 Swift tests in 51 suites, 37 importer checks and 14 self-tests.
+
+All checks passed. Tests use deterministic records and perform no provider request.
+
 ## Next increment
 
-Add an actor-isolated ledger controller and explicit state transitions. Relaunch
-recovery must leave ambiguous running/queued paid requests paused for inspection;
-it must never resend them automatically. Then add an exact consent preview and a
-local exportable activity record before connecting any live provider adapter.
+Add an exact consent preview and a local exportable activity record before
+connecting any live provider adapter.
