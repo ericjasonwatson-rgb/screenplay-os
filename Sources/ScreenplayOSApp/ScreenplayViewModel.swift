@@ -13,6 +13,9 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var dialogueAssistantPresented = false
     @Published var generationConsentPreview: GenerationConsentPreview?
     @Published var generationActivityStatus: String?
+    @Published var continuityBiblePresented = false
+    @Published private(set) var continuityBible: ContinuityBibleLedger?
+    @Published private(set) var continuityBibleStatus: String?
     @Published var portableExportInProgress = false
     @Published var portableExportStatus: String?
     lazy var chromeState = ScreenplayChromeState(model: self)
@@ -28,6 +31,7 @@ final class ScreenplayViewModel: ObservableObject {
                 generationController = nil
                 generationConsentPreview = nil
                 generationActivityStatus = nil
+                loadContinuityBible()
             }
             if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.outline.first?.template != document?.outline.first?.template,
                let name = document?.outline.first?.template,
@@ -40,6 +44,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
     private var writingSourceCache: (text: String, ranges: [NSRange])?
     private var generationController: GenerationJobController?
+    private var continuityUndoStack: [ContinuityBibleLedger] = []
     private var sceneBreakdownCache: [SceneBreakdown]?
     private var planningEstimateCache: [String: SceneDurationEstimate]?
     private var sceneEstimateSourceCache = SceneDurationEstimateCache()
@@ -153,6 +158,7 @@ final class ScreenplayViewModel: ObservableObject {
     private var lastSavedDocument: OpenScreenplayDocument?
     private var diskVersion: (url: URL, data: Data)?
     private let recoveryDirectory: URL
+    private let continuityBibleRoot: URL?
     private let recoverySessionID = UUID()
     private var ownedRecoveryFiles: Set<URL> = []
     @Published private(set) var saveProblem: String?
@@ -196,7 +202,7 @@ final class ScreenplayViewModel: ObservableObject {
         return lineLayoutExperiment
     }
 
-    init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil) {
+    init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil, continuityBibleRoot: URL? = nil) {
         LegacyPreferences.copyOnProductionLaunch(to: preferences)
         self.lineLayoutExperiment = lineLayoutExperiment
         self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
@@ -205,6 +211,7 @@ final class ScreenplayViewModel: ObservableObject {
         self.recoveryDirectory = recoveryDirectory ?? autosaveDirectory?.appendingPathComponent("Recovery", isDirectory: true)
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("ScreenplayOS/Recovery", isDirectory: true)
+        self.continuityBibleRoot = continuityBibleRoot
         loadRecoveryCopies()
         refreshPackageRecoveries()
         if loadInitialDocument {
@@ -1119,6 +1126,118 @@ final class ScreenplayViewModel: ObservableObject {
         )
         document?.project.metadata.modifiedAt = Date()
         autosave()
+    }
+
+    func presentContinuityBible() {
+        guard document != nil else { errorMessage = "Open a screenplay first."; return }
+        if continuityBible == nil { loadContinuityBible() }
+        continuityBiblePresented = true
+    }
+
+    func scanContinuityBible() {
+        guard let screenplay = document?.screenplay else { return }
+        var ledger = continuityBible ?? ContinuityBibleLedger(projectID: screenplay.id)
+        let extracted = ContinuityExtractor.proposals(from: screenplay)
+        let preserved = ledger.proposals.filter { $0.status != .proposed }
+        let pendingByKey = ledger.proposals.filter { $0.status == .proposed }.reduce(into: [String: ContinuityProposal]()) {
+            if $0[continuityProposalKey($1)] == nil { $0[continuityProposalKey($1)] = $1 }
+        }
+        let preservedKeys = Set(preserved.map(continuityProposalKey))
+        let refreshed = extracted.compactMap { proposal -> ContinuityProposal? in
+            let key = continuityProposalKey(proposal)
+            guard !preservedKeys.contains(key) else { return nil }
+            guard var existing = pendingByKey[key] else { return proposal }
+            existing.name = proposal.name
+            existing.evidence = proposal.evidence
+            return existing
+        }
+        ledger.proposals = preserved + refreshed
+        continuityBible = ledger
+        continuityUndoStack.removeAll()
+        persistContinuityBible("Scanned \(refreshed.count) pending proposals from the script.")
+    }
+
+    func adoptContinuityProposal(_ proposalID: UUID, name: String) {
+        updateContinuityBible(success: "Adopted bible entry.") { ledger in
+            _ = try ledger.adopt(proposalID: proposalID, as: name)
+        }
+    }
+
+    func rejectContinuityProposal(_ proposalID: UUID) {
+        updateContinuityBible(success: "Rejected proposal.") { ledger in
+            _ = try ledger.reject(proposalID: proposalID)
+        }
+    }
+
+    func mergeContinuityProposal(_ proposalID: UUID, into targetID: UUID) {
+        updateContinuityBible(success: "Merged proposal as an alias.") { ledger in
+            _ = try ledger.merge(proposalID: proposalID, into: targetID)
+        }
+    }
+
+    func undoContinuityReviewAction() {
+        guard let prior = continuityUndoStack.popLast() else { return }
+        continuityBible = prior
+        persistContinuityBible("Undid the last bible review action.")
+    }
+
+    var canUndoContinuityReviewAction: Bool { !continuityUndoStack.isEmpty }
+
+    private func updateContinuityBible(success: String, change: (inout ContinuityBibleLedger) throws -> Void) {
+        guard var ledger = continuityBible else { return }
+        let prior = ledger
+        do {
+            try change(&ledger)
+            continuityUndoStack.append(prior)
+            continuityBible = ledger
+            persistContinuityBible(success)
+        } catch {
+            continuityBibleStatus = "The bible change could not be applied: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadContinuityBible() {
+        continuityUndoStack.removeAll()
+        guard let screenplay = document?.screenplay else {
+            continuityBible = nil
+            continuityBibleStatus = nil
+            return
+        }
+        do {
+            let url = try ContinuityBibleWorkflow.storageURL(projectID: screenplay.id, root: continuityBibleRoot)
+            if FileManager.default.fileExists(atPath: url.path) {
+                let loaded = try ContinuityBibleFileStore.read(from: url)
+                guard loaded.projectID == screenplay.id else { throw ContinuityBibleError.invalidLedger }
+                continuityBible = loaded
+                continuityBibleStatus = nil
+            } else {
+                continuityBible = ContinuityBibleLedger(
+                    projectID: screenplay.id,
+                    proposals: ContinuityExtractor.proposals(from: screenplay)
+                )
+                continuityBibleStatus = "Review the local extraction. Nothing has been adopted yet."
+            }
+        } catch {
+            continuityBible = ContinuityBibleLedger(projectID: screenplay.id)
+            continuityBibleStatus = "The saved continuity bible could not be read. It was left untouched."
+        }
+    }
+
+    private func persistContinuityBible(_ success: String) {
+        guard let ledger = continuityBible else { return }
+        do {
+            let url = try ContinuityBibleWorkflow.storageURL(projectID: ledger.projectID, root: continuityBibleRoot)
+            try ContinuityBibleFileStore.write(ledger, to: url)
+            continuityBibleStatus = success
+        } catch {
+            continuityBibleStatus = "The continuity bible could not be saved. The in-memory review remains open."
+        }
+    }
+
+    private func continuityProposalKey(_ proposal: ContinuityProposal) -> String {
+        let name = proposal.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ").uppercased()
+        return proposal.kind.rawValue + "|" + name
     }
 
     func setProductionEntityStatus(_ entityID: UUID, status: ProductionEntityStatus) {

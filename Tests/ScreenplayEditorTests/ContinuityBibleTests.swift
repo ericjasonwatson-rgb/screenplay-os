@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import ScreenplayDomain
+@testable import ScreenplayOSApp
 
 struct ContinuityBibleTests {
     @Test func extractsCharactersLocationsAndRecurringPropsWithEvidence() {
@@ -67,5 +68,71 @@ struct ContinuityBibleTests {
         #expect(ContinuityExtractor.sceneLocation("EXT./INT. CAR — MOVING") == "CAR")
         #expect(ContinuityExtractor.sceneLocation("I/E. TRAIN – NIGHT") == "TRAIN")
         #expect(ContinuityExtractor.characterBaseName("JOSÉ (V.O.) (CONT'D)") == "JOSÉ")
+    }
+
+    @Test func mergeRejectAndUndoPreserveReviewState() throws {
+        let first = ContinuityProposal(kind: .character, name: "MOM", evidence: [
+            .init(elementID: UUID(), elementIndex: 1, sceneHeadingID: nil, sceneHeading: nil, exactText: "MOM")
+        ])
+        let second = ContinuityProposal(kind: .character, name: "SARAH", evidence: [
+            .init(elementID: UUID(), elementIndex: 4, sceneHeadingID: nil, sceneHeading: nil, exactText: "SARAH")
+        ])
+        var ledger = ContinuityBibleLedger(projectID: UUID(), proposals: [first, second])
+        let mergeUndo = try ledger.merge(proposalID: first.id, into: second.id)
+        #expect(ledger.proposals[0].status == .merged)
+        #expect(ledger.proposals[0].mergedIntoID == second.id)
+        #expect(ledger.proposals[1].aliases == ["MOM"])
+        #expect(ledger.proposals[1].occurrenceCount == 2)
+        try ledger.undo(mergeUndo)
+        #expect(ledger.proposals == [first, second])
+
+        let rejectUndo = try ledger.reject(proposalID: first.id)
+        #expect(ledger.proposals[0].status == .rejected)
+        try ledger.undo(rejectUndo)
+        #expect(ledger.proposals == [first, second])
+    }
+
+    @Test func ledgerPersistsAtomicallyAndRejectsSymlinks() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("continuity.json")
+        let ledger = ContinuityBibleLedger(projectID: UUID(), proposals: [
+            .init(kind: .location, name: "RIVER", evidence: [
+                .init(elementID: UUID(), elementIndex: 0, sceneHeadingID: nil, sceneHeading: nil, exactText: "EXT. RIVER - DAY")
+            ])
+        ])
+        try ContinuityBibleFileStore.write(ledger, to: url)
+        #expect(try ContinuityBibleFileStore.read(from: url) == ledger)
+
+        let link = root.appendingPathComponent("link.json")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: url)
+        #expect(throws: ContinuityBibleError.invalidFile) { try ContinuityBibleFileStore.read(from: link) }
+    }
+
+    @MainActor @Test func reviewAdoptionPersistsWithoutChangingTheScreenplay() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = ScreenplayViewModel(loadInitialDocument: false, continuityBibleRoot: root)
+        model.newDocument()
+        let projectID = try #require(model.document?.screenplay.id)
+        let heading = try #require(model.document?.screenplay.elements.first)
+        model.editText(
+            id: heading.id, text: "INT. KITCHEN - DAY",
+            before: NSRange(location: 0, length: 0),
+            after: NSRange(location: 18, length: 0), groupable: false
+        )
+        let scriptBeforeReview = model.document?.screenplay
+        model.scanContinuityBible()
+        let proposal = try #require(model.continuityBible?.proposals.first { $0.kind == .location })
+        model.adoptContinuityProposal(proposal.id, name: "Family Kitchen")
+
+        #expect(model.document?.screenplay == scriptBeforeReview)
+        #expect(model.continuityBible?.entries.first?.name == "Family Kitchen")
+        let url = try ContinuityBibleWorkflow.storageURL(projectID: projectID, root: root)
+        #expect(try ContinuityBibleFileStore.read(from: url) == model.continuityBible)
+
+        model.undoContinuityReviewAction()
+        #expect(model.continuityBible?.entries.isEmpty == true)
+        #expect(model.continuityBible?.proposals.first?.status == .proposed)
     }
 }

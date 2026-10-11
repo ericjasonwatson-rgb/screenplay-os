@@ -75,6 +75,7 @@ struct ContentView: View {
         )
         .sheet(item: $model.boardGenerationSnapshot) { snapshot in BoardImageAssistant(model: model, snapshot: snapshot) }
         .sheet(isPresented: $model.dialogueAssistantPresented) { DialogueAssistantView(model: model) }
+        .sheet(isPresented: $model.continuityBiblePresented) { ContinuityBibleReviewSheet(model: model) }
         .sheet(item: $model.generationConsentPreview) { preview in
             GenerationConsentSheet(preview: preview,
                 send: { model.approveOfflineDialogueRequest(preview) },
@@ -165,6 +166,12 @@ private struct WorkspaceToolbar: ToolbarContent {
                 Label("Context", systemImage: "sidebar.right")
             }
             .toggleStyle(StudioToggleStyle())
+
+            Button {
+                model.presentContinuityBible()
+            } label: {
+                Label("Bible", systemImage: "book.pages")
+            }
 
             Button {
                 model.save()

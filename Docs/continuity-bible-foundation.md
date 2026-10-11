@@ -1,6 +1,6 @@
 # Continuity bible foundation
 
-Status: Phase AI-2 foundation implemented in `ScreenplayDomain`; review UI and project-package persistence remain pending.
+Status: Phase AI-2 local extraction and the first macOS review workflow are implemented. Package-embedded persistence remains pending.
 
 `ContinuityExtractor` runs locally and reads the canonical screenplay without changing it. It proposes:
 
@@ -10,6 +10,10 @@ Status: Phase AI-2 foundation implemented in `ScreenplayDomain`; review UI and p
 
 Every proposal carries exact source text, element identity and order, and the current scene heading. Occurrence count and first appearance are derived from that evidence. Prop extraction intentionally favors missed candidates over false positives; ordinary prose cannot be reliably reduced to nouns without language analysis.
 
-The versioned `ContinuityBibleLedger` keeps proposals separate from adopted entries. Extraction alone writes nothing to the bible. Adoption creates an entry linked to its source elements and returns an undo token; undo removes that entry and restores the proposal. Character entries default to `fictional` and must be deliberately reclassified before any future real-performer workflow.
+The versioned `ContinuityBibleLedger` keeps proposals separate from adopted entries. Extraction alone writes nothing to the bible. Adoption creates an entry linked to its source elements and returns an undo token; undo removes that entry and restores the proposal. Review also supports rejection and same-kind alias merging. Character entries default to `fictional` and must be deliberately reclassified before any future real-performer workflow.
 
-This slice does not add provider calls, AI alias merging, reference generation, consent records, prompt composition, takes, or media storage. Those require the review workflow and package-persistence boundary first. Tests use local deterministic data only.
+On macOS, the **Bible** toolbar button opens an evidence-first review sheet. Each row shows its status and occurrence count; the detail pane shows the exact script lines and scene headings. Adoption can rename the entry. Merge, reject, and the sheet's review undo are explicit actions.
+
+Accepted review state is stored atomically in a project-ID-bound Application Support sidecar. The screenplay bytes are not changed. Invalid, oversized, cross-project, and symbolic-link files fail closed. This sidecar is an interim boundary until the tested complete-project package schema can own the ledger without changing the independently recoverable screenplay core.
+
+This slice does not add provider calls, AI alias proposals, reference generation, consent records, prompt composition, takes, or media storage. Those require package persistence and consent records first. Tests use local deterministic data only.

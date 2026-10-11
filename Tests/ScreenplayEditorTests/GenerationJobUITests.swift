@@ -12,4 +12,13 @@ struct GenerationJobUITests {
         #expect(url.path.contains(projectID.uuidString))
         #expect(url.lastPathComponent == "generation-jobs-v1.json")
     }
+
+    @Test func continuityStorageIsProjectBound() throws {
+        let projectID = UUID(uuidString: "72000000-0000-0000-0000-000000000001")!
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("continuity-ui-test")
+        let url = try ContinuityBibleWorkflow.storageURL(projectID: projectID, root: root)
+        #expect(url.path.hasPrefix(root.path + "/"))
+        #expect(url.path.contains(projectID.uuidString))
+        #expect(url.lastPathComponent == "continuity-bible-v1.json")
+    }
 }

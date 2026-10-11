@@ -5,7 +5,7 @@ public enum ContinuityEntityKind: String, Codable, CaseIterable, Sendable {
 }
 
 public enum ContinuityProposalStatus: String, Codable, CaseIterable, Sendable {
-    case proposed, adopted, rejected
+    case proposed, adopted, rejected, merged
 }
 
 public struct ScriptEvidence: Codable, Equatable, Identifiable, Sendable {
@@ -36,11 +36,12 @@ public struct ContinuityProposal: Codable, Equatable, Identifiable, Sendable {
     public var aliases: [String]
     public var evidence: [ScriptEvidence]
     public var status: ContinuityProposalStatus
+    public var mergedIntoID: UUID?
 
     public init(
         id: UUID = UUID(), kind: ContinuityEntityKind, name: String,
         aliases: [String] = [], evidence: [ScriptEvidence],
-        status: ContinuityProposalStatus = .proposed
+        status: ContinuityProposalStatus = .proposed, mergedIntoID: UUID? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -48,6 +49,7 @@ public struct ContinuityProposal: Codable, Equatable, Identifiable, Sendable {
         self.aliases = aliases
         self.evidence = evidence
         self.status = status
+        self.mergedIntoID = mergedIntoID
     }
 
     public var occurrenceCount: Int { evidence.count }
@@ -140,6 +142,74 @@ public struct ContinuityBibleLedger: Codable, Equatable, Sendable {
         entries.remove(at: entryIndex)
         proposals[proposalIndex].status = .proposed
     }
+
+    @discardableResult
+    public mutating func reject(proposalID: UUID) throws -> ContinuityReviewUndo {
+        guard let index = proposals.firstIndex(where: { $0.id == proposalID }) else {
+            throw ContinuityBibleError.proposalNotFound
+        }
+        guard proposals[index].status == .proposed else { throw ContinuityBibleError.proposalNotPending }
+        let before = proposals[index]
+        proposals[index].status = .rejected
+        return ContinuityReviewUndo(proposals: [before], entries: entries)
+    }
+
+    @discardableResult
+    public mutating func merge(proposalID: UUID, into targetID: UUID) throws -> ContinuityReviewUndo {
+        guard proposalID != targetID,
+              let sourceIndex = proposals.firstIndex(where: { $0.id == proposalID }),
+              let targetIndex = proposals.firstIndex(where: { $0.id == targetID }) else {
+            throw ContinuityBibleError.proposalNotFound
+        }
+        guard proposals[sourceIndex].status == .proposed, proposals[targetIndex].status == .proposed else {
+            throw ContinuityBibleError.proposalNotPending
+        }
+        guard proposals[sourceIndex].kind == proposals[targetIndex].kind else {
+            throw ContinuityBibleError.kindMismatch
+        }
+        let before = [proposals[sourceIndex], proposals[targetIndex]]
+        let alias = proposals[sourceIndex].name
+        if !proposals[targetIndex].aliases.contains(alias) { proposals[targetIndex].aliases.append(alias) }
+        for item in proposals[sourceIndex].evidence where !proposals[targetIndex].evidence.contains(where: { $0.elementID == item.elementID }) {
+            proposals[targetIndex].evidence.append(item)
+        }
+        proposals[targetIndex].evidence.sort { $0.elementIndex < $1.elementIndex }
+        proposals[sourceIndex].status = .merged
+        proposals[sourceIndex].mergedIntoID = targetID
+        return ContinuityReviewUndo(proposals: before, entries: entries)
+    }
+
+    public mutating func undo(_ token: ContinuityReviewUndo) throws {
+        guard !token.proposals.isEmpty else { throw ContinuityBibleError.undoTargetNotFound }
+        for prior in token.proposals {
+            guard let index = proposals.firstIndex(where: { $0.id == prior.id }) else {
+                throw ContinuityBibleError.undoTargetNotFound
+            }
+            proposals[index] = prior
+        }
+        entries = token.entries
+    }
+
+    public func validated() throws -> ContinuityBibleLedger {
+        guard version == Self.currentVersion,
+              Set(proposals.map(\.id)).count == proposals.count,
+              Set(entries.map(\.id)).count == entries.count else {
+            throw ContinuityBibleError.invalidLedger
+        }
+        let proposalIDs = Set(proposals.map(\.id))
+        for proposal in proposals {
+            guard !proposal.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  proposal.evidence.count <= 100_000,
+                  proposal.mergedIntoID.map(proposalIDs.contains) ?? true,
+                  (proposal.status == .merged) == (proposal.mergedIntoID != nil) else {
+                throw ContinuityBibleError.invalidLedger
+            }
+        }
+        for entry in entries where entry.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw ContinuityBibleError.invalidLedger
+        }
+        return self
+    }
 }
 
 public struct ContinuityAdoptionUndo: Codable, Equatable, Sendable {
@@ -147,8 +217,41 @@ public struct ContinuityAdoptionUndo: Codable, Equatable, Sendable {
     public let entryID: UUID
 }
 
+public struct ContinuityReviewUndo: Codable, Equatable, Sendable {
+    public let proposals: [ContinuityProposal]
+    public let entries: [ContinuityBibleEntry]
+}
+
 public enum ContinuityBibleError: Error, Equatable {
-    case proposalNotFound, proposalNotPending, invalidName, undoTargetNotFound
+    case proposalNotFound, proposalNotPending, invalidName, kindMismatch, undoTargetNotFound, invalidLedger, invalidFile
+}
+
+public enum ContinuityBibleFileStore {
+    public static let maximumBytes = 32 * 1_024 * 1_024
+
+    public static func write(_ ledger: ContinuityBibleLedger, to url: URL) throws {
+        guard url.isFileURL else { throw ContinuityBibleError.invalidFile }
+        let validated = try ledger.validated()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(validated)
+        guard data.count <= maximumBytes else { throw ContinuityBibleError.invalidFile }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: url, options: .atomic)
+    }
+
+    public static func read(from url: URL) throws -> ContinuityBibleLedger {
+        guard url.isFileURL,
+              let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
+              values.isRegularFile == true, values.isSymbolicLink != true,
+              let size = values.fileSize, size <= maximumBytes else {
+            throw ContinuityBibleError.invalidFile
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(ContinuityBibleLedger.self, from: Data(contentsOf: url)).validated()
+    }
 }
 
 public enum ContinuityExtractor {
