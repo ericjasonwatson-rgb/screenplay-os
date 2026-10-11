@@ -84,3 +84,17 @@ The executable destination profile and scene/reference transformations are now i
 ## Converted-copy writer follow-up — 2026-09-12
 
 A separate experimental macOS writer now creates only new destinations, retains exact source bytes, performs exclusive publication, and verifies staged/published output. See `legacy-converted-copy.md` for failure/recovery behavior and 37 focused tests. The app still cannot edit the new package format; existing save behavior and the remaining conformance gates are unchanged.
+
+## Board-media planning gate — 2026-10-11
+
+`Scripts/legacy_media.py` adds a read-only migration plan for legacy board image
+versions. It preserves board/version identity, order, selection, prompt and model;
+resolves only local file URLs or one-level `Board Images/` references; rejects
+remote URLs, unsafe relative paths, symlinks, nonregular or oversized files;
+validates declared SHA-256 and PNG dimensions; and assigns deterministic packaged
+media identity plus content-addressed attachment paths. Identical bytes are
+deduplicated in the plan. It does not write packages or change user media.
+
+The next gate is integrating this plan into the staged converted-copy writer and
+its independent readback inventory. Until that is complete, converted copies with
+board metadata are not complete portable media archives.
