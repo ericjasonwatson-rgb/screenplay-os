@@ -87,6 +87,24 @@ Keep EDL/FCPXML behavior intact. C2PA compatibility is a metadata design target;
 Content Credentials signing is not implemented. Use the full two-minute scenario
 in the preserved brief; passing mocks cannot prove NLE or provider interoperability.
 
+## AI-3 take migration foundation — 2026-10-10
+
+`Take.swift` introduces the provider-neutral, Codable media-candidate record without
+installing it in the legacy screenplay schema. A take binds stable shot and optional
+board identities to ordered media, hash, duration/in/out, candidate selection state,
+notes, and local provenance. The provenance shape can retain a generation job,
+provider/model, prompt/hash, references, and consent records, while the legacy bridge
+records only facts the old board version actually contains.
+
+`BoardTakeMigration` is a deterministic in-memory bridge. Existing board images map
+to still takes with identical IDs, order, paths, hashes, prompt/model provenance,
+board timing and selection. The reverse projection reconstructs the exact legacy
+image records. Invalid selection, duplicate IDs, wrong-shot application, ambiguous
+selection and video-to-image downgrade fail closed. No document bytes, media files,
+or project-format versions are changed by this increment. Persisted takes, a take
+strip, compare mode, review status and selected-take playback remain AI-3 work;
+async video providers remain blocked until that path is complete.
+
 ## Known privacy gaps to resolve before new production sends
 
 - DialogueConnection and board generation read Keychain from MainActor tasks.
