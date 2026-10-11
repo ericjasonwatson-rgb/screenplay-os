@@ -152,6 +152,10 @@ struct BoardImageAssistant: View {
     @State private var result: Data?
     @State private var resultPrompt = ""
     @State private var resultModel = ""
+    @State private var resultJobID: UUID?
+    @State private var resultGeneratedAt: Date?
+    @State private var resultEstimatedCost: GenerationCost?
+    @State private var resultActualCost: GenerationCost?
     @State private var busy = false
     @State private var preparing = false
     @State private var status = ""
@@ -282,9 +286,13 @@ struct BoardImageAssistant: View {
                 try await controller.markSubmitted(jobID: preview.jobID, at: Date())
                 let data = try await imageProvider.generate(key: key, model: preview.modelID, prompt: preview.request.prompt)
                 guard generation == token, !Task.isCancelled else { return }
-                try await controller.markSucceeded(jobID: preview.jobID, at: Date())
+                let completedAt = Date()
+                try await controller.markSucceeded(jobID: preview.jobID, at: completedAt)
                 activeJobID = nil
                 result = data; resultPrompt = preview.request.prompt; resultModel = preview.modelID
+                resultJobID = preview.jobID; resultGeneratedAt = completedAt
+                resultEstimatedCost = preview.estimatedCost
+                resultActualCost = nil
                 model.generationActivityStatus = "Generated a board image through the reviewed AI request."
                 status = "Review the image. Your project has not changed."
             } catch {
@@ -319,8 +327,17 @@ struct BoardImageAssistant: View {
         }
         do {
             let url = try BoardImageStorage.store(data, beside: documentURL)
-            let version = BoardImageVersion(fileURL: url, sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
-                prompt: resultPrompt, model: resultModel)
+            guard let resultJobID, let resultGeneratedAt else {
+                status = "The generation record is incomplete. Generate the board again before adopting it."
+                return
+            }
+            let version = BoardImageVersion(
+                fileURL: url,
+                sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
+                prompt: resultPrompt, model: resultModel, providerID: "openai",
+                generationJobID: resultJobID, generatedAt: resultGeneratedAt,
+                estimatedCost: resultEstimatedCost, actualCost: resultActualCost
+            )
             if model.adoptBoardImage(version, snapshot: snapshot) { dismiss() }
             else { status = "The shot changed. The PNG is saved, but was not attached." }
         } catch { status = "Could not store the image in the project folder. Check that the folder is writable." }

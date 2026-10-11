@@ -130,6 +130,37 @@ struct TakeMigrationTests {
         #expect(first != (try BoardTakeMigration.sourceRevision([changed])))
     }
 
+    @Test func generatedBoardBecomesTraceableTakeAndRoundTrips() throws {
+        var board = fixture()
+        let jobID = UUID(uuidString: "50000000-0000-0000-0000-000000000001")!
+        let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+        board.imageVersions[0] = BoardImageVersion(
+            id: board.imageVersions[0].id,
+            fileURL: board.imageVersions[0].fileURL,
+            sha256: board.imageVersions[0].sha256,
+            prompt: "Reviewed grounded prompt",
+            model: "image-model",
+            providerID: "openai",
+            generationJobID: jobID,
+            generatedAt: timestamp,
+            estimatedCost: .init(currency: "USD", amountMicros: 25_000)
+        )
+        board.selectedImageID = board.imageVersions[0].id
+
+        let takes = try BoardTakeMigration.project([board])
+        let generated = try #require(takes.first { $0.id == board.imageVersions[0].id })
+        #expect(generated.kind == .generatedImage)
+        #expect(generated.provenance.source == .generationJob)
+        #expect(generated.provenance.generationJobID == jobID)
+        #expect(generated.provenance.providerID == "openai")
+        #expect(generated.provenance.generatedAt == timestamp)
+        #expect(generated.provenance.estimatedCost?.amountMicros == 25_000)
+        #expect(try BoardTakeMigration.applyingImageTakes(takes, to: [board]) == [board])
+        #expect(try TakeLedger(
+            projectID: UUID(), sourceRevision: String(repeating: "a", count: 64), takes: takes
+        ).validated().takes == takes)
+    }
+
     @Test func corruptLegacySelectionAndDuplicateIDsFailClosed() throws {
         var missing = fixture()
         missing.selectedImageID = UUID()

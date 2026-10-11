@@ -29,13 +29,19 @@ public struct Take: Codable, Equatable, Identifiable, Sendable {
         public var promptSHA256: String?
         public var referenceAssetPaths: [String]
         public var consentRecordIDs: [UUID]
+        public var generatedAt: Date?
+        public var estimatedCost: GenerationCost?
+        public var actualCost: GenerationCost?
 
         public init(source: Source, generationJobID: UUID? = nil, providerID: String? = nil,
                     modelID: String? = nil, prompt: String? = nil, promptSHA256: String? = nil,
-                    referenceAssetPaths: [String] = [], consentRecordIDs: [UUID] = []) {
+                    referenceAssetPaths: [String] = [], consentRecordIDs: [UUID] = [],
+                    generatedAt: Date? = nil, estimatedCost: GenerationCost? = nil,
+                    actualCost: GenerationCost? = nil) {
             self.source = source; self.generationJobID = generationJobID; self.providerID = providerID
             self.modelID = modelID; self.prompt = prompt; self.promptSHA256 = promptSHA256
             self.referenceAssetPaths = referenceAssetPaths; self.consentRecordIDs = consentRecordIDs
+            self.generatedAt = generatedAt; self.estimatedCost = estimatedCost; self.actualCost = actualCost
         }
     }
 
@@ -125,7 +131,14 @@ public struct TakeLedger: Codable, Equatable, Sendable {
                 guard provenance.generationJobID != nil,
                       provenance.providerID != nil, provenance.modelID != nil,
                       let prompt = provenance.prompt, let promptSHA256 = provenance.promptSHA256,
-                      Self.sha256(prompt) == promptSHA256 else { throw TakeValidationError.invalidProvenance }
+                      Self.sha256(prompt) == promptSHA256,
+                      provenance.generatedAt != nil else { throw TakeValidationError.invalidProvenance }
+            }
+            for cost in [provenance.estimatedCost, provenance.actualCost].compactMap({ $0 }) {
+                guard cost.amountMicros >= 0,
+                      cost.currency.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil else {
+                    throw TakeValidationError.invalidProvenance
+                }
             }
             if take.status == .selected {
                 let target = Self.targetKey(for: take)
@@ -307,13 +320,22 @@ public enum BoardTakeMigration {
                 guard !image.sha256.isEmpty, !image.fileURL.absoluteString.isEmpty else {
                     throw BoardTakeMigrationError.invalidMedia
                 }
+                let generated = image.generationJobID != nil
                 result.append(Take(
                     id: image.id, shotID: board.shotID, boardFrameID: board.id, order: order,
-                    kind: .boardStill, mediaURL: image.fileURL, sha256: image.sha256,
+                    kind: generated ? .generatedImage : .boardStill,
+                    mediaURL: image.fileURL, sha256: image.sha256,
                     durationSeconds: board.durationSeconds,
                     status: image.id == board.selectedImageID ? .selected : .candidate,
                     note: board.notes,
-                    provenance: .init(source: .legacyBoardImage, modelID: image.model, prompt: image.prompt)
+                    provenance: .init(
+                        source: generated ? .generationJob : .legacyBoardImage,
+                        generationJobID: image.generationJobID, providerID: image.providerID,
+                        modelID: image.model, prompt: image.prompt,
+                        promptSHA256: generated ? sha256(image.prompt) : nil,
+                        generatedAt: image.generatedAt, estimatedCost: image.estimatedCost,
+                        actualCost: image.actualCost
+                    )
                 ))
             }
         }
@@ -337,10 +359,19 @@ public enum BoardTakeMigration {
             let ordered = group.sorted { ($0.order, $0.id.uuidString) < ($1.order, $1.id.uuidString) }
             result[index].imageVersions = ordered.map {
                 BoardImageVersion(id: $0.id, fileURL: $0.mediaURL, sha256: $0.sha256,
-                                  prompt: $0.provenance.prompt ?? "", model: $0.provenance.modelID ?? "")
+                                  prompt: $0.provenance.prompt ?? "", model: $0.provenance.modelID ?? "",
+                                  providerID: $0.provenance.providerID,
+                                  generationJobID: $0.provenance.generationJobID,
+                                  generatedAt: $0.provenance.generatedAt,
+                                  estimatedCost: $0.provenance.estimatedCost,
+                                  actualCost: $0.provenance.actualCost)
             }
             result[index].selectedImageID = selected.first?.id
         }
         return result
+    }
+
+    private static func sha256(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
