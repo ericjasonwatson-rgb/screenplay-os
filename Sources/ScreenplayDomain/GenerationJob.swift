@@ -59,11 +59,36 @@ public struct GenerationRequestSnapshot: Codable, Equatable, Sendable {
     public let prompt: String
     public let references: [GenerationReference]
     public let parameters: [String: String]
+    public let continuityEntryIDs: [UUID]
+    public let consentRecordIDs: [UUID]
 
-    public init(prompt: String, references: [GenerationReference] = [], parameters: [String: String] = [:]) {
+    public init(
+        prompt: String,
+        references: [GenerationReference] = [],
+        parameters: [String: String] = [:],
+        continuityEntryIDs: [UUID] = [],
+        consentRecordIDs: [UUID] = []
+    ) {
         self.prompt = prompt
         self.references = references
         self.parameters = parameters
+        self.continuityEntryIDs = continuityEntryIDs
+        self.consentRecordIDs = consentRecordIDs
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case prompt, references, parameters
+        case continuityEntryIDs = "continuity_entry_ids"
+        case consentRecordIDs = "consent_record_ids"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        prompt = try container.decode(String.self, forKey: .prompt)
+        references = try container.decodeIfPresent([GenerationReference].self, forKey: .references) ?? []
+        parameters = try container.decodeIfPresent([String: String].self, forKey: .parameters) ?? [:]
+        continuityEntryIDs = try container.decodeIfPresent([UUID].self, forKey: .continuityEntryIDs) ?? []
+        consentRecordIDs = try container.decodeIfPresent([UUID].self, forKey: .consentRecordIDs) ?? []
     }
 
     public func sha256() throws -> String {
@@ -205,7 +230,13 @@ public struct GenerationJobLedger: Codable, Equatable, Sendable {
             guard Self.hexDigest(job.target.sourceRevision), Self.hexDigest(job.requestSHA256),
                   job.requestSHA256 == (try job.request.sha256()) else { throw GenerationJobValidationError.invalidDigest }
             guard Self.nonempty(job.request.prompt, maximum: 1_000_000), job.request.references.count <= 64,
-                  job.request.parameters.count <= 128 else { throw GenerationJobValidationError.invalidRequest }
+                  job.request.parameters.count <= 128,
+                  job.request.continuityEntryIDs.count <= 10_000,
+                  job.request.consentRecordIDs.count <= 10_000,
+                  Set(job.request.continuityEntryIDs).count == job.request.continuityEntryIDs.count,
+                  Set(job.request.consentRecordIDs).count == job.request.consentRecordIDs.count else {
+                throw GenerationJobValidationError.invalidRequest
+            }
             for (key, value) in job.request.parameters where !Self.nonempty(key, maximum: 200) || value.utf8.count > 20_000 {
                 throw GenerationJobValidationError.invalidRequest
             }

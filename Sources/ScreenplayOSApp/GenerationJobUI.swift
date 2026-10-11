@@ -43,6 +43,14 @@ struct GenerationConsentSheet: View {
                 Text(preview.request.parameters.sorted { $0.key < $1.key }.map { "\($0.key): \($0.value)" }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
+            if !preview.request.continuityEntryIDs.isEmpty {
+                Text("Continuity records: \(preview.request.continuityEntryIDs.map(\.uuidString).joined(separator: ", "))")
+                    .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
+            if !preview.request.consentRecordIDs.isEmpty {
+                Text("Consent records relied on: \(preview.request.consentRecordIDs.map(\.uuidString).joined(separator: ", "))")
+                    .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
             Text("Offline fixture: no screenplay content or credentials leave this Mac.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {

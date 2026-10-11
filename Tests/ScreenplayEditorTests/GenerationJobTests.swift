@@ -42,6 +42,13 @@ struct GenerationJobTests {
         let json = try #require(String(data: data, encoding: .utf8))
         #expect(!json.localizedCaseInsensitiveContains("api_key"))
         #expect(!json.localizedCaseInsensitiveContains("authorization"))
+
+        let consentID = UUID()
+        let withConsent = GenerationRequestSnapshot(
+            prompt: snapshot.prompt, references: snapshot.references,
+            parameters: snapshot.parameters, consentRecordIDs: [consentID]
+        )
+        #expect(try withConsent.sha256() != snapshot.sha256())
     }
 
     @Test func projectBindingIdentityAndConsentAreValidated() throws {
@@ -81,6 +88,20 @@ struct GenerationJobTests {
         badCost.estimatedCost = .init(currency: "usd", amountMicros: -1)
         #expect(throws: GenerationJobValidationError.invalidCost) {
             try GenerationJobLedger(projectID: projectID, jobs: [badCost]).validated()
+        }
+
+        let duplicateID = UUID()
+        let duplicateProvenance = GenerationRequestSnapshot(
+            prompt: "Shot", consentRecordIDs: [duplicateID, duplicateID]
+        )
+        let duplicateJob = GenerationJobRecord(
+            id: UUID(), projectID: projectID, capability: .image, providerID: "mock", modelID: "fixture",
+            target: .init(kind: .board, id: targetID, sourceRevision: digest),
+            request: duplicateProvenance, requestSHA256: try duplicateProvenance.sha256(),
+            createdAt: instant, updatedAt: instant
+        )
+        #expect(throws: GenerationJobValidationError.invalidRequest) {
+            try GenerationJobLedger(projectID: projectID, jobs: [duplicateJob]).validated()
         }
     }
 
