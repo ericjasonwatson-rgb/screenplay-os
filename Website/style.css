@@ -25,3 +25,5 @@ button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,inpu
 /* Keep app chrome and the complete board-to-timeline relationship in the hero. */
 .hero{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr)}.hero-crop{aspect-ratio:2400/1520}.hero-crop img{width:100%;height:auto;transform:none}
 @media(max-width:760px){.hero{display:flex;flex-direction:column}.mode-visual-outline{--crop-y:-38%}.mode-visual-boards{--crop-y:-28%}.mode-visual-edit{--crop-y:-53%}}
+/* Keep the product and optional-AI statements distinct, with a small gap. */
+.hero-copy .lead-primary{margin-bottom:8px}
