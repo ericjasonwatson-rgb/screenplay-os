@@ -251,6 +251,8 @@ Use **ScreenplayOS.app** beside this project folder. The separate Review apps we
 
 Run `./Scripts/package-app.sh` from the project to rebuild this same app. The bundle records its source commit in ScreenplayOSRevision. This is a local development build, not a signed distribution release. For the direct-download DMG, website, and signed release procedure, see [Docs/direct-distribution.md](Docs/direct-distribution.md).
 
+For a new public website release, first verify the packaged artifacts, then run `python3 Scripts/update-site-release.py ../ScreenplayOS-<version>-build<build>-public` from this repository. The script reads `release-manifest.json` and `SHA256SUMS.txt`, checks the DMG bytes, and updates the install line and checksum in `Website/index.html`. Review and commit the resulting website changes before publishing; this command does not deploy. Update Buttondown's after-confirmation redirect to the new DMG as part of the separate release operation.
+
 Shot and board source links follow merged or replaced paragraphs alongside script notes. Remapped links become paragraph-level links because previous text offsets may no longer be accurate. If a source is deleted outright, its production item and original reference remain preserved; Go to Source uses another surviving reference or explains that the source is missing without selecting a nonexistent paragraph. Undo restores the source and production links together.
 
 ### Long-script pagination performance

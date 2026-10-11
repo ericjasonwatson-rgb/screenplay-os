@@ -144,7 +144,7 @@ def main():
         archive = output / f"ScreenplayOS-{version}.zip"
         run("ditto", "-c", "-k", "--keepParent", app, archive)
         notes = output / "RELEASE_NOTES.md"
-        status = "Public release" if not args.unsigned else "Unpublished local review candidate"
+        status = "Early access beta" if not args.unsigned else "Unpublished local review candidate"
         notes.write_text(f"# ScreenplayOS {version} ({build})\n\n{status}. Built from `{git('rev-parse', 'HEAD')}`"
                          f"{' with uncommitted changes' if dirty else ''}.\n\n"
                          "ScreenplayOS is a local macOS writing and filmmaking workspace with Outline, Script, Shot, Boards, and Edit views. "
