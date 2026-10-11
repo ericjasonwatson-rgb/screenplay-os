@@ -29,9 +29,12 @@ This is durable local service state, not portable canonical project data.
 Board Details now presents image versions as a horizontal take strip with a
 thumbnail, take number, model, and selected state. Choosing a card still uses
 the existing undoable `BoardFrame.selectedImageID` mutation, so the screenplay
-document remains authoritative and older compatible files keep working. A
-projection error is shown without mutating the screenplay. Compare-two review,
-media playback, and canonical package persistence remain future work.
+document remains authoritative and older compatible files keep working. Users
+can place exactly two takes in a larger side-by-side comparison and adopt either
+one without making comparison state part of the document. Comparison clears
+when its board or project is replaced. A projection error is shown without
+mutating the screenplay. Media playback and canonical package persistence remain
+future work.
 
 ## Deferred
 

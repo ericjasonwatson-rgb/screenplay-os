@@ -28,6 +28,12 @@ final class ScreenplayViewModel: ObservableObject {
             planningEstimateCache = nil
             editTimelineCache = nil
             if oldValue?.screenplay.elements != document?.screenplay.elements { writingSourceCache = nil }
+            if oldValue?.screenplay.id != document?.screenplay.id {
+                comparedBoardTakeIDs = []
+            } else if oldValue?.boardFrames != document?.boardFrames {
+                let available = Set(takesForSelectedBoardFrame.map(\.id))
+                comparedBoardTakeIDs = comparedBoardTakeIDs.filter(available.contains)
+            }
             if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.boardFrames != document?.boardFrames {
                 scheduleTakeSidecarRefresh()
             }
@@ -103,6 +109,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var currentSceneSpineID: String?
     @Published private(set) var currentShotID: UUID?
     @Published private(set) var currentBoardFrameID: UUID?
+    @Published private(set) var comparedBoardTakeIDs: [UUID] = []
     @Published var scrollTargetElementID: UUID?
     @Published var sourceNavigationProblem: String?
     @Published var findQuery = ""
@@ -921,6 +928,36 @@ final class ScreenplayViewModel: ObservableObject {
     var takesForSelectedBoardFrame: [Take] {
         guard let selectedBoardFrame else { return [] }
         return (try? BoardTakeMigration.project([selectedBoardFrame])) ?? []
+    }
+
+    var comparedBoardTakes: [Take] {
+        let takes = takesForSelectedBoardFrame
+        return comparedBoardTakeIDs.compactMap { id in takes.first(where: { $0.id == id }) }
+    }
+
+    func beginBoardTakeComparison() {
+        let takes = takesForSelectedBoardFrame
+        guard takes.count >= 2 else {
+            comparedBoardTakeIDs = []
+            return
+        }
+        let selected = takes.first(where: { $0.status == .selected }) ?? takes[0]
+        let alternate = takes.first(where: { $0.id != selected.id })!
+        comparedBoardTakeIDs = [selected.id, alternate.id]
+    }
+
+    func toggleBoardTakeComparison(_ id: UUID) {
+        guard takesForSelectedBoardFrame.contains(where: { $0.id == id }) else { return }
+        if let index = comparedBoardTakeIDs.firstIndex(of: id) {
+            comparedBoardTakeIDs.remove(at: index)
+        } else {
+            comparedBoardTakeIDs.append(id)
+            if comparedBoardTakeIDs.count > 2 { comparedBoardTakeIDs.removeFirst() }
+        }
+    }
+
+    func clearBoardTakeComparison() {
+        comparedBoardTakeIDs = []
     }
 
     private func scheduleTakeSidecarRefresh() {
@@ -2081,6 +2118,7 @@ final class ScreenplayViewModel: ObservableObject {
     }
 
     func selectBoardFrame(_ frame: BoardFrame) {
+        if currentBoardFrameID != frame.id { clearBoardTakeComparison() }
         selectedObject = .boardFrame(frame.id, sceneSpineID: frame.sceneSpineID)
         setFilmContext(sceneSpineID: frame.sceneSpineID, shotID: frame.shotID, boardFrameID: frame.id)
         if let index = boardFramesForSelectedScene.firstIndex(where: { $0.id == frame.id }) {

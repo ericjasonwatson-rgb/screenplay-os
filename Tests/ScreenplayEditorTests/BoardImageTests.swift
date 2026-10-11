@@ -190,6 +190,13 @@ import ScreenplayDomain
         #expect(model.adoptBoardImage(second, snapshot: secondSnapshot))
         #expect(model.takesForSelectedBoardFrame.map(\.id) == [first.id, second.id])
         #expect(model.takesForSelectedBoardFrame.map(\.status) == [.candidate, .selected])
+        model.beginBoardTakeComparison()
+        #expect(model.comparedBoardTakeIDs == [second.id, first.id])
+        #expect(model.comparedBoardTakes.map(\.id) == [second.id, first.id])
+        model.toggleBoardTakeComparison(second.id)
+        #expect(model.comparedBoardTakeIDs == [first.id])
+        model.toggleBoardTakeComparison(second.id)
+        #expect(model.comparedBoardTakeIDs == [first.id, second.id])
 
         model.flushTakeSidecar()
         let url = try TakeWorkflow.storageURL(projectID: screenplay.id, root: directory)
@@ -203,5 +210,7 @@ import ScreenplayDomain
         let changed = try TakeFileStore.read(from: url)
         #expect(changed.takes.map(\.status) == [.selected, .candidate])
         #expect(changed.sourceRevision != initial.sourceRevision)
+        model.newDocument()
+        #expect(model.comparedBoardTakeIDs.isEmpty)
     }
 }

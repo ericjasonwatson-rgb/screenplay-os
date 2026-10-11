@@ -2267,6 +2267,9 @@ private struct BoardDetailsPane: View {
                                 .buttonStyle(StudioButtonStyle(ai: true))
                         }
                         if !frame.imageVersions.isEmpty {
+                            if !model.comparedBoardTakes.isEmpty {
+                                TakeComparisonView(model: model, frame: frame)
+                            }
                             TakeStrip(model: model, frame: frame)
                         }
                         if frame.imageVersions.isEmpty == false && model.takesForSelectedBoardFrame.isEmpty {
@@ -2331,6 +2334,16 @@ private struct TakeStrip: View {
                 Text("Takes")
                     .font(.caption.weight(.semibold))
                 Spacer()
+                if model.comparedBoardTakes.isEmpty {
+                    Button("Compare two") { model.beginBoardTakeComparison() }
+                        .buttonStyle(.borderless)
+                        .controlSize(.small)
+                        .disabled(model.takesForSelectedBoardFrame.count < 2)
+                } else {
+                    Button("Close comparison") { model.clearBoardTakeComparison() }
+                        .buttonStyle(.borderless)
+                        .controlSize(.small)
+                }
                 Text("\(model.takesForSelectedBoardFrame.count) version\(model.takesForSelectedBoardFrame.count == 1 ? "" : "s")")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -2338,9 +2351,10 @@ private struct TakeStrip: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     ForEach(model.takesForSelectedBoardFrame) { take in
-                        Button {
-                            model.selectBoardImage(take.id, for: frame.id)
-                        } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Button {
+                                model.selectBoardImage(take.id, for: frame.id)
+                            } label: {
                             VStack(alignment: .leading, spacing: 5) {
                                 ZStack(alignment: .topTrailing) {
                                     Rectangle().fill(Color.black.opacity(0.72))
@@ -2363,7 +2377,6 @@ private struct TakeStrip: View {
                                     .lineLimit(1)
                             }
                             .padding(6)
-                            .frame(width: 142)
                             .background(take.status == .selected ? StudioAppearance.selection : StudioAppearance.recess)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 5)
@@ -2371,16 +2384,89 @@ private struct TakeStrip: View {
                                             lineWidth: take.status == .selected ? 2 : ScreenplayOSTokens.Spacing.hairline)
                             }
                             .clipShape(RoundedRectangle(cornerRadius: 5))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Use Take \(take.order + 1) for this board")
+                            .accessibilityLabel("Take \(take.order + 1), \(take.status == .selected ? "selected" : "candidate")")
+                            .accessibilityHint("Selects this image for the board and Boardomatic")
+
+                            Button {
+                                model.toggleBoardTakeComparison(take.id)
+                            } label: {
+                                Label(model.comparedBoardTakeIDs.contains(take.id) ? "Comparing" : "Compare",
+                                      systemImage: model.comparedBoardTakeIDs.contains(take.id) ? "checkmark.square.fill" : "square")
+                                    .font(.caption2)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityHint("Adds or removes this take from the two-up comparison")
                         }
-                        .buttonStyle(.plain)
-                        .help("Select Take \(take.order + 1)")
-                        .accessibilityLabel("Take \(take.order + 1), \(take.status == .selected ? "selected" : "candidate")")
-                        .accessibilityHint("Selects this image for the board and Boardomatic")
+                        .frame(width: 142)
                     }
                 }
             }
             .scrollIndicators(.visible)
         }
+    }
+}
+
+private struct TakeComparisonView: View {
+    @ObservedObject var model: ScreenplayViewModel
+    let frame: BoardFrame
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Label("Compare", systemImage: "rectangle.split.2x1")
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Text(model.comparedBoardTakes.count == 2 ? "Two-up review" : "Choose one more take")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(alignment: .top, spacing: 10) {
+                ForEach(model.comparedBoardTakes) { take in
+                    VStack(alignment: .leading, spacing: 5) {
+                        ZStack(alignment: .topTrailing) {
+                            Rectangle().fill(Color.black.opacity(0.72))
+                            if let version = frame.imageVersions.first(where: { $0.id == take.id }) {
+                                BoardImageView(version: version)
+                            }
+                            if take.status == .selected {
+                                Text("IN USE")
+                                    .font(.caption2.bold())
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color.accentColor)
+                                    .foregroundStyle(.white)
+                                    .padding(6)
+                            }
+                        }
+                        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                        HStack {
+                            Text("Take \(take.order + 1)").font(.caption.weight(.semibold))
+                            Spacer()
+                            if take.status != .selected {
+                                Button("Use") { model.selectBoardImage(take.id, for: frame.id) }
+                                    .buttonStyle(.borderless)
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                if model.comparedBoardTakes.count == 1 {
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                        .foregroundStyle(.secondary)
+                        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                        .overlay { Text("Choose another take below").font(.caption).foregroundStyle(.secondary) }
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(10)
+        .background(StudioAppearance.recess)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 
