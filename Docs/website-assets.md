@@ -1,6 +1,6 @@
 # Website asset provenance
 
-The site screenshots show the signed ScreenplayOS 0.1.4 (27) app with the disposable, original “The Last Light” demo screenplay. No owner screenplay appears. `Website/assets/screenshots/outline-script.*` was captured earlier from the same build. `boards.*` and `edit.*` were recaptured after replacing all demo board images with the drawings below. Each PNG is a 2400 × 1520 window capture at 2×; its WebP is an optimized derivative. Captures were made from the app window, without the desktop or user files.
+The five site screenshots show Outline, Script, Shot, Boards, and Edit modes in the signed ScreenplayOS 0.1.4 (27) app with the disposable, original “The Last Light” demo screenplay. No owner screenplay appears. `Website/assets/screenshots/{outline,script,shot,boards,edit}.*` are app-window captures from that demo. Boards and Edit show the original drawings below. Each PNG is a 2400 × 1520 window capture at 2×; its WebP is an optimized derivative. Captures exclude the desktop and user files.
 
 The twelve `Website/assets/demo-boards/NN.png` images are original local raster drawings made for this demonstration by `Website/tools/draw-demo-boards.py`. The drawing script uses Pillow shapes and lines; it does not fetch stock art, use a third-party image, or call any AI service. The demo project references copies of these files in a disposable `/private/tmp/screenplayos-demo-home` directory; no temporary project or user document is published. All frames are 1280 × 720.
 
