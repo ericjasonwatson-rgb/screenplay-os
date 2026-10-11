@@ -1,7 +1,9 @@
+import CryptoKit
 import Foundation
 
-/// A media candidate for one stable shot slot. This is a domain projection only;
-/// canonical document persistence is deliberately deferred until the package migration exists.
+/// A media candidate for one stable shot slot. Canonical document persistence is
+/// deliberately deferred until the package migration exists; TakeLedger is a
+/// project-bound local sidecar in the interim.
 public struct Take: Codable, Equatable, Identifiable, Sendable {
     public enum Kind: String, Codable, Sendable {
         case boardStill = "board_still"
@@ -63,6 +65,190 @@ public struct Take: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+public struct TakeLedger: Codable, Equatable, Sendable {
+    public static let currentVersion = 1
+
+    public let version: Int
+    public let projectID: UUID
+    /// Digest of the document inputs from which this snapshot was built. A nil
+    /// value is valid only for an empty ledger.
+    public var sourceRevision: String?
+    public var takes: [Take]
+
+    public init(version: Int = TakeLedger.currentVersion, projectID: UUID,
+                sourceRevision: String? = nil, takes: [Take] = []) {
+        self.version = version
+        self.projectID = projectID
+        self.sourceRevision = sourceRevision
+        self.takes = takes
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case version, takes
+        case projectID = "project_id"
+        case sourceRevision = "source_revision"
+    }
+
+    public func validated() throws -> TakeLedger {
+        guard version == Self.currentVersion else { throw TakeValidationError.unsupportedLedgerVersion }
+        guard Set(takes.map(\.id)).count == takes.count else { throw TakeValidationError.duplicateTakeID }
+        if takes.isEmpty {
+            guard sourceRevision == nil || Self.hexDigest(sourceRevision!) else { throw TakeValidationError.invalidDigest }
+        } else {
+            guard sourceRevision.map(Self.hexDigest) == true else { throw TakeValidationError.invalidDigest }
+        }
+
+        var selectedTargets: Set<String> = []
+        for take in takes {
+            guard take.order >= 0 else { throw TakeValidationError.invalidOrder }
+            guard Self.validMediaURL(take.mediaURL), Self.hexDigest(take.sha256) else {
+                throw TakeValidationError.invalidMedia
+            }
+            guard take.durationSeconds.isFinite, take.durationSeconds > 0,
+                  take.inPointSeconds.isFinite, take.inPointSeconds >= 0,
+                  take.outPointSeconds.isFinite, take.outPointSeconds > take.inPointSeconds,
+                  take.outPointSeconds <= take.durationSeconds else { throw TakeValidationError.invalidTiming }
+            guard take.note.utf8.count <= 100_000 else { throw TakeValidationError.invalidText }
+            let provenance = take.provenance
+            guard provenance.providerID.map({ Self.nonempty($0, maximum: 200) }) ?? true,
+                  provenance.modelID.map({ Self.nonempty($0, maximum: 300) }) ?? true,
+                  provenance.prompt.map({ $0.utf8.count <= 1_000_000 }) ?? true,
+                  provenance.promptSHA256.map(Self.hexDigest) ?? true,
+                  provenance.referenceAssetPaths.count <= 64,
+                  provenance.consentRecordIDs.count <= 10_000,
+                  Set(provenance.referenceAssetPaths).count == provenance.referenceAssetPaths.count,
+                  Set(provenance.consentRecordIDs).count == provenance.consentRecordIDs.count,
+                  provenance.referenceAssetPaths.allSatisfy(Self.safeRelativePath) else {
+                throw TakeValidationError.invalidProvenance
+            }
+            if provenance.source == .generationJob {
+                guard provenance.generationJobID != nil,
+                      provenance.providerID != nil, provenance.modelID != nil,
+                      let prompt = provenance.prompt, let promptSHA256 = provenance.promptSHA256,
+                      Self.sha256(prompt) == promptSHA256 else { throw TakeValidationError.invalidProvenance }
+            }
+            if take.status == .selected {
+                let target = Self.targetKey(for: take)
+                guard selectedTargets.insert(target).inserted else { throw TakeValidationError.multipleSelectedTakes }
+            }
+        }
+        return self
+    }
+
+    private static func nonempty(_ value: String, maximum: Int) -> Bool {
+        !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value.utf8.count <= maximum
+    }
+    private static func hexDigest(_ value: String) -> Bool {
+        value.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil
+    }
+    private static func sha256(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+    private static func targetKey(for take: Take) -> String {
+        take.boardFrameID.map { "board:\($0.uuidString)" } ?? "shot:\(take.shotID.uuidString)"
+    }
+    private static func safeRelativePath(_ value: String) -> Bool {
+        guard nonempty(value, maximum: 4_096), !value.hasPrefix("/"), !value.hasPrefix("~") else { return false }
+        let parts = value.split(separator: "/", omittingEmptySubsequences: false)
+        return !parts.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." })
+    }
+    private static func validMediaURL(_ url: URL) -> Bool {
+        let value = url.absoluteString
+        guard !value.isEmpty, value.utf8.count <= 8_192 else { return false }
+        if url.isFileURL { return !url.path.isEmpty && url.path.utf8.count <= 4_096 }
+        guard url.scheme == nil, url.host == nil else { return false }
+        return safeRelativePath(url.path.removingPercentEncoding ?? url.path)
+    }
+}
+
+public enum TakeValidationError: Error, Equatable {
+    case unsupportedLedgerVersion, duplicateTakeID, projectMismatch, invalidDigest
+    case invalidOrder, invalidMedia, invalidTiming, invalidText, invalidProvenance
+    case multipleSelectedTakes, takeNotFound, invalidFile
+}
+
+public enum TakeFileStore {
+    public static let maximumBytes = 50 * 1_024 * 1_024
+
+    public static func write(_ ledger: TakeLedger, to url: URL) throws {
+        guard url.isFileURL else { throw TakeValidationError.invalidFile }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let data = try encoder.encode(ledger.validated())
+        guard data.count <= maximumBytes else { throw TakeValidationError.invalidFile }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        try data.write(to: url, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    public static func read(from url: URL) throws -> TakeLedger {
+        guard url.isFileURL else { throw TakeValidationError.invalidFile }
+        let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        guard values.isRegularFile == true, values.isSymbolicLink != true,
+              let size = values.fileSize, size <= maximumBytes else { throw TakeValidationError.invalidFile }
+        return try JSONDecoder().decode(TakeLedger.self, from: Data(contentsOf: url)).validated()
+    }
+}
+
+/// Serializes local take-sidecar changes. Every accepted mutation reaches disk
+/// before the new snapshot becomes visible to callers.
+public actor TakeController {
+    public let projectID: UUID
+    public let storageURL: URL
+    private var ledger: TakeLedger
+
+    public init(projectID: UUID, storageURL: URL) throws {
+        self.projectID = projectID
+        self.storageURL = storageURL
+        if FileManager.default.fileExists(atPath: storageURL.path) {
+            let loaded = try TakeFileStore.read(from: storageURL)
+            guard loaded.projectID == projectID else { throw TakeValidationError.projectMismatch }
+            ledger = loaded
+        } else {
+            ledger = TakeLedger(projectID: projectID)
+        }
+    }
+
+    public func snapshot() -> TakeLedger { ledger }
+
+    public func replaceAll(with takes: [Take], sourceRevision: String) throws {
+        try commit(TakeLedger(projectID: projectID, sourceRevision: sourceRevision, takes: takes))
+    }
+
+    public func select(_ takeID: UUID) throws {
+        guard let selected = ledger.takes.first(where: { $0.id == takeID }) else { throw TakeValidationError.takeNotFound }
+        let target = targetKey(for: selected)
+        var candidate = ledger
+        for index in candidate.takes.indices {
+            let otherTarget = targetKey(for: candidate.takes[index])
+            if otherTarget == target, candidate.takes[index].status == .selected {
+                candidate.takes[index].status = .candidate
+            }
+        }
+        guard let index = candidate.takes.firstIndex(where: { $0.id == takeID }) else { throw TakeValidationError.takeNotFound }
+        candidate.takes[index].status = .selected
+        try commit(candidate)
+    }
+
+    public func reject(_ takeID: UUID) throws {
+        guard let index = ledger.takes.firstIndex(where: { $0.id == takeID }) else { throw TakeValidationError.takeNotFound }
+        var candidate = ledger
+        candidate.takes[index].status = .rejected
+        try commit(candidate)
+    }
+
+    private func commit(_ candidate: TakeLedger) throws {
+        let validated = try candidate.validated()
+        try TakeFileStore.write(validated, to: storageURL)
+        ledger = validated
+    }
+
+    private func targetKey(for take: Take) -> String {
+        take.boardFrameID.map { "board:\($0.uuidString)" } ?? "shot:\(take.shotID.uuidString)"
+    }
+}
+
 public enum BoardTakeMigrationError: Error, Equatable {
     case invalidDuration
     case duplicateTakeID
@@ -88,7 +274,8 @@ public enum BoardTakeMigration {
             }
             for (order, image) in board.imageVersions.enumerated() {
                 guard ids.insert(image.id).inserted else { throw BoardTakeMigrationError.duplicateTakeID }
-                guard !image.sha256.isEmpty, !image.fileURL.absoluteString.isEmpty else { throw BoardTakeMigrationError.invalidMedia }
+                guard image.sha256.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil,
+                      !image.fileURL.absoluteString.isEmpty else { throw BoardTakeMigrationError.invalidMedia }
                 result.append(Take(
                     id: image.id, shotID: board.shotID, boardFrameID: board.id, order: order,
                     kind: .boardStill, mediaURL: image.fileURL, sha256: image.sha256,

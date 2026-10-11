@@ -16,7 +16,14 @@ The UI explicitly discloses this limitation: sending or relocating the screenpla
 
 `Take` now defines the provider-neutral media candidate needed before video generation: stable shot and optional board identity, ordered media, duration and in/out points, candidate/selected/rejected state, note, and local provenance. `BoardTakeMigration` projects every legacy `BoardImageVersion` into a take without changing the saved screenplay schema or deleting the legacy record. The projection keeps IDs, order, paths, hashes, prompt/model provenance, timing, notes, and selection, and it can reconstruct the exact legacy image records. Corrupt selection, duplicate IDs, wrong-shot application, multiple selected takes, and video-to-image downgrade fail closed.
 
-This is an in-memory migration boundary, not persisted Take support, a take strip, or media playback. Canonical package persistence remains blocked on the tested project-format migration.
+`TakeLedger`, `TakeFileStore`, and `TakeController` now add a versioned,
+project-bound local sidecar for that projection. The store validates source and
+media hashes, local paths, timing, provenance, unique identity, and unambiguous
+selection; writes atomically with owner-only permissions; and rejects symlinks.
+Selection changes reach disk before the controller publishes them. This is
+durable local service state, not portable canonical project data. A take strip,
+media playback, and canonical package persistence remain blocked on their
+respective UI and tested project-format migrations.
 
 ## Deferred
 

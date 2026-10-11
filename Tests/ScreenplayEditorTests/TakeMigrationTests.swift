@@ -13,12 +13,75 @@ struct TakeMigrationTests {
         )
         board.imageVersions = [
             .init(id: UUID(uuidString: "30000000-0000-0000-0000-000000000001")!,
-                  fileURL: URL(string: "Board%20Images/a.png")!, sha256: "aaa", prompt: "Wide one", model: "image-a"),
+                  fileURL: URL(string: "Board%20Images/a.png")!, sha256: String(repeating: "a", count: 64),
+                  prompt: "Wide one", model: "image-a"),
             .init(id: UUID(uuidString: "30000000-0000-0000-0000-000000000002")!,
-                  fileURL: URL(string: "Board%20Images/b.png")!, sha256: "bbb", prompt: "Wide two", model: "image-b")
+                  fileURL: URL(string: "Board%20Images/b.png")!, sha256: String(repeating: "b", count: 64),
+                  prompt: "Wide two", model: "image-b")
         ]
         board.selectedImageID = board.imageVersions[1].id
         return board
+    }
+
+    @Test func takeSidecarPersistsProjectBoundSnapshotAndRejectsSymlink() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("AI/takes-v1.json")
+        let projectID = UUID(uuidString: "40000000-0000-0000-0000-000000000001")!
+        let takes = try BoardTakeMigration.project([fixture()])
+        let ledger = TakeLedger(projectID: projectID, sourceRevision: String(repeating: "c", count: 64), takes: takes)
+
+        try TakeFileStore.write(ledger, to: url)
+        #expect(try TakeFileStore.read(from: url) == ledger)
+        let permissions = try #require((try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions]) as? NSNumber)
+        #expect(permissions.intValue & 0o077 == 0)
+
+        let link = root.appendingPathComponent("takes-link.json")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: url)
+        #expect(throws: TakeValidationError.invalidFile) { try TakeFileStore.read(from: link) }
+    }
+
+    @Test func takeLedgerRejectsUnsafeOrAmbiguousRecords() throws {
+        let projectID = UUID()
+        let revision = String(repeating: "c", count: 64)
+        var takes = try BoardTakeMigration.project([fixture()])
+        takes[0].mediaURL = URL(string: "https://example.com/asset.png")!
+        #expect(throws: TakeValidationError.invalidMedia) {
+            try TakeLedger(projectID: projectID, sourceRevision: revision, takes: takes).validated()
+        }
+
+        takes = try BoardTakeMigration.project([fixture()])
+        takes[0].status = .selected
+        #expect(throws: TakeValidationError.multipleSelectedTakes) {
+            try TakeLedger(projectID: projectID, sourceRevision: revision, takes: takes).validated()
+        }
+
+        takes = try BoardTakeMigration.project([fixture()])
+        takes[0].inPointSeconds = 4
+        #expect(throws: TakeValidationError.invalidTiming) {
+            try TakeLedger(projectID: projectID, sourceRevision: revision, takes: takes).validated()
+        }
+    }
+
+    @Test func controllerPersistsSelectionBeforePublishingSnapshot() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("AI/takes-v1.json")
+        let projectID = UUID()
+        let revision = String(repeating: "d", count: 64)
+        let takes = try BoardTakeMigration.project([fixture()])
+        let controller = try TakeController(projectID: projectID, storageURL: url)
+
+        try await controller.replaceAll(with: takes, sourceRevision: revision)
+        try await controller.select(takes[0].id)
+        let saved = try TakeFileStore.read(from: url)
+        #expect(saved.takes.first(where: { $0.id == takes[0].id })?.status == .selected)
+        #expect(saved.takes.first(where: { $0.id == takes[1].id })?.status == .candidate)
+        #expect(await controller.snapshot() == saved)
+
+        #expect(throws: TakeValidationError.projectMismatch) {
+            _ = try TakeController(projectID: UUID(), storageURL: url)
+        }
     }
 
     @Test func legacyImagesProjectToTakesAndRoundTripWithoutLoss() throws {
