@@ -131,3 +131,13 @@ The next slice is native destination-candidate construction followed by the stag
 writer, durability checks, independent disk readback, and parity testing. The
 Python bridge remains active until those safety properties are replaced rather
 than bypassed.
+
+The following native identity stage now produces Python-compatible RFC 4122 UUIDv5
+scene, shot-addendum, and revision identities from the authenticated source. Scene
+identity depends on the source element UUID rather than heading wording or order.
+Known legacy aliases and reference paths resolve through one map; duplicate aliases,
+unresolved references, identity collisions, and invalid revision timestamps block
+construction. Three focused Swift tests cover parity, deterministic regeneration,
+rename/reorder stability, and blockers. This is still an in-memory plan: payload
+translation, schema-equivalent validation, inventories, staged writes, and readback
+remain before the native writer can replace Python.
