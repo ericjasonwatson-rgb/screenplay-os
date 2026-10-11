@@ -10,7 +10,7 @@ Use the existing `.screenplay` package as the single portable container. Keep it
 
 A minimal standalone screenplay remains valid without the envelope. When screenplayOS creates a full project, it includes the envelope even if only writing features are used. Attaching an envelope to a standalone screenplay preserves the document and element UUIDs and creates a ProjectID once. This is additive enrichment of the same package, not a subscription conversion.
 
-The screenplay core specification and project extension have separate version declarations because they have different responsibilities. This is not two incompatible product formats. Readers declare support for each; entitlement state affects neither. The working extension identifier is `open-screenplay-project`, initially `0.1-draft` during development. Do not advertise it as released 1.0.
+The screenplay core specification and project extension have separate version declarations because they have different responsibilities. This is not two incompatible product formats. Readers declare support for each; entitlement state affects neither. The working extension identifier is `screenplayos-project`, initially `0.1-draft` during development. Do not advertise it as released 1.0.
 
 ```text
 My Film.screenplay/
@@ -103,3 +103,4 @@ Future jobs similarly pin input object revisions, with candidate outputs adopted
 ## Delivery boundary
 
 See `project-format-migration-plan.md` for field mapping and executable acceptance work. The first implementation slice is a read-only, loss-aware legacy inspector and migration report against synthetic fixtures. It must bypass the normalizing application decoder. Next come draft schemas, independent recovery fixtures, and a staged writer with failure tests. Only then connect migration to an explicit Save a Converted Copy workflow. Existing default saves remain legacy until those gates pass.
+The format identifiers were renamed from `open-screenplay` and `open-screenplay-project` to `screenplayos` and `screenplayos-project` because of a trademark conflict; readers retain permanent compatibility with the former identifiers.

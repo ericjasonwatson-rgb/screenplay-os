@@ -27,7 +27,7 @@ pipeline acceptance scenario or the additional Final Draft layout comparisons.
 These are additive optional fields in the existing monolithic format, not a new
 native package schema. Existing versions 1.0/1.1/1.2 decode absent targets as unset
 and keep their version. No automatic conversion or format-version bump occurs.
-The optional fields are described in `Specs/open-screenplay-1.0.schema.json`:
+The optional fields are described in `Specs/screenplayos-1.0.schema.json`:
 
 - `outline[].target_duration_seconds`: integer seconds, omitted when unset.
 - `scene_duration_targets`: optional object keyed by scene-heading element UUID,

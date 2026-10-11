@@ -5,7 +5,7 @@
 
 ## Read-only planning first
 
-Read original bytes through a duplicate-key-detecting, number-preserving JSON parser. Inventory every field, type, identity, reference, and unknown subtree before creating typed projections. Do not use `OpenScreenplayDocument.init(from:)`: it currently normalizes scene identities and regenerates editorial structure while decoding.
+Read original bytes through a duplicate-key-detecting, number-preserving JSON parser. Inventory every field, type, identity, reference, and unknown subtree before creating typed projections. Do not use `ScreenplayOSDocument.init(from:)`: it currently normalizes scene identities and regenerates editorial structure while decoding.
 
 A migration plan records source SHA-256, source byte count, detected dialect, proposed target versions, mapping version, identity map, per-field disposition, unresolved references, and warnings/blockers. Identity assignments belong to the plan and are reused on retries for that exact source digest. Changed source bytes invalidate the plan. Missing metadata must be reported as missing; do not invent authors, creation dates, IDs that purport to be historical, or object revision ancestry.
 

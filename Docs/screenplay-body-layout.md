@@ -100,7 +100,7 @@ existing Character-based anchors. Missing/false means the historical trim-and-
 omit-blank policy. Existing locks are neither rewritten nor reinterpreted on open.
 New-lock tests cover blank-only pages, exact whitespace, lock/reopen equality, and
 legacy-lock output. This is an extension of the prototype lock record, not a
-released Open Screenplay Format production-lock standard. Older app builds do
+released ScreenplayOS Document Format production-lock standard. Older app builds do
 not understand the new policy and must not be used for lock-conformant output
 from newly locked documents.
 

@@ -1,4 +1,4 @@
-# OPEN SCREENPLAY FORMAT 1.0
+# SCREENPLAYOS DOCUMENT FORMAT 1.0
 ## Founding Native Document Standard
 
 **Status:** REVISED DRAFT FOR IMPLEMENTATION — not yet a released standard  
@@ -51,7 +51,7 @@ The manifest contains document-level metadata, not screenplay content:
 
 ```json
 {
-  "format": "open-screenplay",
+  "format": "screenplayos",
   "format_version": "1.0",
   "document_id": "7e915d29-47a7-4c77-96aa-5b062c3381be",
   "title": "My Film",
@@ -312,7 +312,7 @@ The free creative layer must cover screenplay text, notes, versions, characters,
 
 ## 21. Release gates and unresolved details
 
-Before declaring Open Screenplay Format 1.0 released:
+Before declaring ScreenplayOS Document Format 1.0 released:
 
 1. Select the specification/schema license and publish stable versioned documentation.
 2. Publish all core file schemas and semantic validation rules.

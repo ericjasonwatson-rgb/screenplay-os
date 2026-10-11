@@ -1,6 +1,6 @@
 # Platform architecture: implementation contract
 
-Adopted 2026-09-12 from the supplied Platform Architecture direction. This contract connects that direction to UI implementation and the revised Open Screenplay Format draft. It describes required direction, not completed platform support.
+Adopted 2026-09-12 from the supplied Platform Architecture direction. This contract connects that direction to UI implementation and the revised ScreenplayOS document format draft. It describes required direction, not completed platform support.
 
 ## Governing documents
 
@@ -8,11 +8,11 @@ Adopted 2026-09-12 from the supplied Platform Architecture direction. This contr
 - platform-architecture.md: complete user-supplied platform direction, preserved verbatim.
 - ui-ux-design-constitution.md: focus, density, context, and interaction principles.
 - product-architecture.md: five views of one film.
-- open-screenplay-format-1.0-revised-draft.md: portable screenplay document contract, still a draft.
+- screenplayos-format-1.0-revised-draft.md: portable screenplay document contract, still a draft.
 
 ## One project; independent screenplay recovery
 
-The complete film project is richer than a screenplay package. It owns sequences, scenes, screenplay, shots, boards, media relationships, edit/timeline information, metadata, and versions. Its screenplay and manually authored shot lists must remain independently recoverable through the open screenplay format.
+The complete film project is richer than a screenplay package. It owns sequences, scenes, screenplay, shots, boards, media relationships, edit/timeline information, metadata, and versions. Its screenplay and manually authored shot lists must remain independently recoverable through the ScreenplayOS document format.
 
 Use the same permanent object identities across these representations. Do not create a second editable screenplay merely to power another platform or view. The document format is a persistence/interoperability contract, not a requirement that every project object occupy one JSON file or one package.
 
@@ -65,7 +65,7 @@ Future synchronization must detect concurrent edits using object revisions/causa
 
 The current product is a local macOS SwiftUI/AppKit prototype. ScreenplayDomain contains Foundation-based model code and the editor uses a native text view. The Mac ScreenplayViewModel still combines creative commands, persistence, AppKit dialogs, PDF work, and presentation state. iPadOS, iOS, browser clients, robust cross-device sync, package-level persistence, and notarized distribution are not implemented merely because this architecture is adopted.
 
-The existing Specs/open-screenplay-1.0.schema.json describes the monolithic prototype representation. It is not the schema for the revised package draft. Preserve compatibility until a loss-aware migration exists.
+The existing Specs/legacy/open-screenplay-1.0.schema.json describes the monolithic prototype representation. It is not the schema for the revised package draft. Preserve compatibility until a loss-aware migration exists.
 
 The current same-harness 120-page native-window benchmark measured median insert/layout/display-request time at about 120 ms in Debug and 98–100 ms in Release. These are not hardware key-to-screen measurements or proof of acceptable responsiveness. See typing-benchmark.md for workload and limitations.
 

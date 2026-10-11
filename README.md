@@ -10,15 +10,16 @@ Start with [the team review guide](Docs/team-review.md) for build instructions, 
 
 Follow [Platform Architecture](Docs/platform-architecture.md) and its [implementation contract](Docs/platform-implementation-contract.md), alongside the existing UI constitution and product architecture. These requirements govern future UI work: one project model, shared creative commands, native Mac interaction, adaptive iPad/phone surfaces, and local-first persistence. The current application remains a macOS prototype; other platforms and sync are future work.
 
-The [revised native-format draft](Docs/open-screenplay-format-1.0-revised-draft.md) defines the portable screenplay contract. The complete filmmaking project is richer, while screenplay and manually authored creative work must remain independently recoverable. The current monolithic schema is a prototype representation, not conformance to that draft.
+The [revised native-format draft](Docs/screenplayos-format-1.0-revised-draft.md) defines the portable screenplay contract. The complete filmmaking project is richer, while screenplay and manually authored creative work must remain independently recoverable. The current monolithic schema is a prototype representation, not conformance to that draft.
 
 ## What is included
 
-- `Specs/open-screenplay-1.0.schema.json`: legacy prototype JSON Schema; not the revised package-format schema.
+- `Specs/screenplayos-1.0.schema.json`: current monolithic ScreenplayOS document schema.
+- `Specs/legacy/open-screenplay-1.0.schema.json`: unchanged legacy prototype schema retained for backward-compatible reads.
 - `Sources/ScreenplayDomain`: Swift domain model for projects, screenplays, elements, shots, and script-linked shot references.
 - `Sources/ScreenplayFDX`: minimal FDX importer that maps Final Draft paragraphs into native screenplay elements.
 - `Sources/ScreenplayOSApp`: first macOS app shell with an editable screenplay surface.
-- `Sources/screenplay-inspect`: CLI tool for inspecting FDX files and emitting native Open Screenplay JSON.
+- `Sources/screenplay-inspect`: CLI tool for inspecting FDX and old or current ScreenplayOS JSON documents, with optional normalized JSON output.
 - `Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx`: canonical compatibility fixture from the uploaded pilot.
 - Regression tests for domain encoding and FDX import.
 
@@ -152,10 +153,10 @@ In Xcode, open `Package.swift`, choose the `ScreenplayOS` scheme, then press Run
 - Press Delete on an empty selected line to remove that screenplay element.
 - Use Clean Script or Shift-Command-K to remove empty screenplay elements and normalize casing.
 - Use Command-Delete to remove empty screenplay elements only.
-- Use Command-S or the save button to save as native Open Screenplay JSON.
+- Use Command-S or the save button to save as native ScreenplayOS document JSON.
 - Use Shift-Command-E or Export PDF to create a formatted PDF with a title page.
 - Use Option-Command-E or Export Report to create the selected report as a `.txt` file.
-- Use Command-O to open either `.fdx` imports or saved `.json` Open Screenplay documents.
+- Use Command-O to open either `.fdx` imports or saved `.screenplayos.json` ScreenplayOS documents or legacy `.open-screenplay.json` documents.
 - On launch, the app reopens the saved JSON in Downloads if one exists.
 - Empty FDX paragraphs are skipped during import instead of appearing as dead space.
 - FDX import reads only real top-level script paragraphs, ignoring nested Final Draft metadata paragraphs.
@@ -178,7 +179,7 @@ The architectural boundary is:
 ```text
 FDX file
   -> compatibility importer
-  -> Open Screenplay domain model
+  -> ScreenplayOS domain model
   -> editor / OS features
 ```
 

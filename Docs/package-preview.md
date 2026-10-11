@@ -6,7 +6,7 @@ Native verification passed with a synthetic two-scene package. Opening displays 
 
 The Open command now accepts experimental `.screenplay` directories alongside legacy JSON and FDX. Packages open in a separate preview sheet with script text, scene navigation, a read-only/experimental label, and Close Preview. The editable document, save URL, recent-document history, and undo stack are not replaced by this path.
 
-The preview uses its own display model, never `OpenScreenplayDocument` or the app's normalizing decoder. It contains selectable text rather than an editable text view. Main app menu commands are disabled while it is shown, and the editor's local keyboard monitor ignores preview events. Closing the sheet returns to the existing draft. The package is never passed to autosave, Save As, or the editable document's persistence path.
+The preview uses its own display model, never `ScreenplayOSDocument` or the app's normalizing decoder. It contains selectable text rather than an editable text view. Main app menu commands are disabled while it is shown, and the editor's local keyboard monitor ignores preview events. Closing the sheet returns to the existing draft. The package is never passed to autosave, Save As, or the editable document's persistence path.
 
 ## Verification boundary
 

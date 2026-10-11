@@ -1,6 +1,6 @@
 # Destination schemas and scene/reference mapping
 
-**Status:** Implemented, in-memory legacy migration candidate profile `0.1`. Not a released Open Screenplay standard, package writer, or app save mode.
+**Status:** Implemented, in-memory legacy migration candidate profile `0.1`. Not a released ScreenplayOS document standard, package writer, or app save mode.
 
 ```sh
 python3 Scripts/inspect-legacy.py /absolute/path/to/project.open-screenplay.json --candidate
@@ -14,7 +14,7 @@ The command reports source identity, allocated scene identities, reference mappi
 
 `Scripts/requirements-inspector.txt` pins the tested dependency. Basic inspection and `--mapping` remain standard-library-only. `--candidate` and the destination tests require `jsonschema==4.26.0`, already available in the current development environment. There are no remote schema references or network requests.
 
-The bundle permits unknown fields and open workflow/type strings for preservation. Its existing-record schemas intentionally retain several legacy field names. It is an executable migration profile, not complete conformance schemas for all future Open Screenplay files, media, formatting ranges, or production locks. Missing optional source collections do not manufacture optional destination files.
+The bundle permits unknown fields and open workflow/type strings for preservation. Its existing-record schemas intentionally retain several legacy field names. It is an executable migration profile, not complete conformance schemas for all future ScreenplayOS document files, media, formatting ranges, or production locks. Missing optional source collections do not manufacture optional destination files.
 
 ## Identity and active transformations
 
