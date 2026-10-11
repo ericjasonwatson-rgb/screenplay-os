@@ -138,3 +138,13 @@ Official contracts opened on 2026-10-10 (no authenticated/provider generation ca
 - https://platform.claude.com/docs/en/api/models/list
 
 See ai-0-validation.md for exact test counts, performance and remaining gates.
+
+## AI-1 durable-record increment — 2026-10-10
+
+GenerationJob.swift now implements the versioned project-bound job record, exact
+request snapshot/hash, relative reference metadata, integer-micro cost records,
+strict state validation and a local atomic JSON sidecar store. The sidecar is not
+part of legacy screenplay JSON or the draft open-package schema, and no app path
+installs it yet. No queue, relaunch reconciliation, consent UI, activity export,
+Take migration or live provider send is claimed. See
+ai-1-generation-job-foundation.md for evidence and the next bounded increment.
