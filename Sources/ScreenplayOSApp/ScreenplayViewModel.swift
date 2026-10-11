@@ -18,6 +18,8 @@ final class ScreenplayViewModel: ObservableObject {
     @Published private(set) var continuityBible: ContinuityBibleLedger?
     @Published private(set) var continuityBibleStatus: String?
     @Published private(set) var takeSidecarProblem: String?
+    @Published var editAudioLedger: EditAudioLedger?
+    @Published var editAudioStatus: String?
     @Published var portableExportInProgress = false
     @Published var portableExportStatus: String?
     @Published var convertedCopyInProgress = false
@@ -46,6 +48,7 @@ final class ScreenplayViewModel: ObservableObject {
                 generationConsentPreview = nil
                 generationActivityStatus = nil
                 loadContinuityBible()
+                loadEditAudio()
             }
             if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.outline.first?.template != document?.outline.first?.template,
                let name = document?.outline.first?.template,
@@ -175,7 +178,9 @@ final class ScreenplayViewModel: ObservableObject {
     private let recoveryDirectory: URL
     private let continuityBibleRoot: URL?
     private let takeRoot: URL?
+    let editAudioRoot: URL?
     private let takeSidecarEnabled: Bool
+    let editAudioPlayer = EditAudioPlayer()
     private var takeSidecarTask: Task<Void, Never>?
     private let recoverySessionID = UUID()
     private var ownedRecoveryFiles: Set<URL> = []
@@ -223,7 +228,7 @@ final class ScreenplayViewModel: ObservableObject {
     init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true,
          autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard,
          recoveryDirectory: URL? = nil, continuityBibleRoot: URL? = nil,
-         takeRoot: URL? = nil) {
+         takeRoot: URL? = nil, editAudioRoot: URL? = nil) {
         LegacyPreferences.copyOnProductionLaunch(to: preferences)
         self.lineLayoutExperiment = lineLayoutExperiment
         self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
@@ -234,6 +239,7 @@ final class ScreenplayViewModel: ObservableObject {
                 .appendingPathComponent("ScreenplayOS/Recovery", isDirectory: true)
         self.continuityBibleRoot = continuityBibleRoot
         self.takeRoot = takeRoot
+        self.editAudioRoot = editAudioRoot
         self.takeSidecarEnabled = takeRoot != nil
         loadRecoveryCopies()
         refreshPackageRecoveries()
@@ -1808,7 +1814,7 @@ final class ScreenplayViewModel: ObservableObject {
         }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: selectedProductionExportKind.fileExtension) ?? .plainText]
-        panel.message = (selectedProductionExportKind == .premiereEDL || selectedProductionExportKind == .finalCutXML) ? "24 fps timing guide with placeholders, not linked footage. Uses the current Estimates setting. Untimed scenes are omitted: \(untimedEditSceneCount)." : ""
+        panel.message = (selectedProductionExportKind == .premiereEDL || selectedProductionExportKind == .finalCutXML) ? "24 fps timing guide with video placeholders. Imported audio-lane clips are linked. Uses the current Estimates setting. Untimed scenes are omitted: \(untimedEditSceneCount)." : ""
         panel.canCreateDirectories = true
         panel.title = "Export Edit File"
         panel.prompt = "Export"

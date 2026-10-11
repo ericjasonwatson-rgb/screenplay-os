@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import ScreenplayDomain
 
 struct EditPlaybackBar: View {
     @ObservedObject var model: ScreenplayViewModel
@@ -99,14 +100,20 @@ struct EditTimeLane: View {
                                     }
                                 }
                             }.padding(.top, 30)
-                        }.frame(height: 180)
+                            VStack(spacing: 3) {
+                                ForEach(EditAudioLane.allCases, id: \.self) { lane in
+                                    EditAudioLaneRow(model: model, lane: lane, scale: scale, width: width)
+                                }
+                            }
+                            .padding(.top, 134)
+                        }.frame(height: 250)
                     }
                     .frame(width: width, alignment: .leading)
                     .overlay(alignment: .topLeading) {
                         VStack(spacing: 0) {
                             Image(systemName: "arrowtriangle.down.fill").font(.system(size: 12))
                             Rectangle().frame(width: 1.5)
-                        }.foregroundStyle(Color.orange).frame(width: 12, height: 214)
+                        }.foregroundStyle(Color.orange).frame(width: 12, height: 284)
                             .offset(x: model.editPlayheadSeconds * scale - 6).allowsHitTesting(false)
                     }
                     .padding(.horizontal, 12)
@@ -115,6 +122,69 @@ struct EditTimeLane: View {
                 Text("Enable Estimates or add timed boards to populate the timeline.")
                     .foregroundStyle(.secondary).padding(20)
             }
-        }.frame(minHeight: 230)
+        }.frame(minHeight: 300)
+    }
+}
+
+private struct EditAudioLaneRow: View {
+    @ObservedObject var model: ScreenplayViewModel
+    let lane: EditAudioLane
+    let scale: Double
+    let width: Double
+
+    private var clips: [EditAudioClip] {
+        (model.editAudioLedger?.clips ?? []).filter { $0.lane == lane }
+    }
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Rectangle().fill(Color.white.opacity(0.035)).frame(width: width, height: 34)
+            ForEach(clips) { clip in
+                Text(clip.name)
+                    .font(.system(size: 10, weight: .medium))
+                    .lineLimit(1)
+                    .padding(.horizontal, 5)
+                    .frame(width: max(8, clip.durationSeconds * scale), height: 27, alignment: .leading)
+                    .background(laneColor.opacity(0.78))
+                    .overlay(Rectangle().strokeBorder(.black.opacity(0.7)))
+                    .offset(x: clip.timelineStartSeconds * scale)
+                    .help(clipHelp(clip))
+                    .contextMenu {
+                        Button("Remove from timeline", role: .destructive) { model.removeAudioClip(clip.id) }
+                    }
+            }
+            HStack(spacing: 4) {
+                Button { model.showImportAudioClipPanel(lane: lane) } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.mini)
+                Text(laneName.uppercased()).font(.system(size: 9, weight: .bold, design: .monospaced))
+            }
+            .padding(.horizontal, 5)
+            .frame(height: 27)
+            .background(Color.black.opacity(0.72))
+        }
+        .frame(width: width, height: 34)
+    }
+
+    private var laneName: String {
+        switch lane {
+        case .dialogue: return "Dialogue"
+        case .music: return "Music"
+        case .effects: return "Effects"
+        }
+    }
+    private var laneColor: Color {
+        switch lane {
+        case .dialogue: return Color(red: 0.20, green: 0.48, blue: 0.72)
+        case .music: return Color(red: 0.48, green: 0.34, blue: 0.68)
+        case .effects: return Color(red: 0.35, green: 0.58, blue: 0.40)
+        }
+    }
+    private func clipHelp(_ clip: EditAudioClip) -> String {
+        let start = String(format: "%.1fs", clip.timelineStartSeconds)
+        let duration = String(format: "%.1fs", clip.durationSeconds)
+        return "\(laneName) · \(start) · \(duration)"
     }
 }

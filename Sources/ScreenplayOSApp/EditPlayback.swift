@@ -58,13 +58,17 @@ extension ScreenplayViewModel {
         let timed = Set(editTimeline.map(\.sceneSpineID))
         return editorialBeats.filter { !timed.contains($0.sceneSpineID) }.count
     }
-    func pauseEditPlayback() { editIsPlaying = false }
+    func pauseEditPlayback() {
+        editIsPlaying = false
+        editAudioPlayer.stop()
+    }
     func toggleEditPlayback() {
         guard editDuration > 0 else { return }
         pauseBoardomatic()
         if editIsPlaying { pauseEditPlayback(); return }
         if editPlayheadSeconds >= editDuration { seekEdit(to: 0) }
         editIsPlaying = true
+        editAudioPlayer.synchronize(ledger: editAudioLedger, playhead: editPlayheadSeconds, playing: true)
     }
     func advanceEditPlayback(by seconds: Double) {
         guard editIsPlaying else { return }
@@ -83,5 +87,6 @@ extension ScreenplayViewModel {
         if let boardID = entry.clip?.boardFrameID, let board = boardFrames.first(where: { $0.id == boardID }) {
             selectBoardFrame(board)
         }
+        editAudioPlayer.synchronize(ledger: editAudioLedger, playhead: editPlayheadSeconds, playing: editIsPlaying)
     }
 }
