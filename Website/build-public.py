@@ -20,6 +20,8 @@ for name in ('index.html', 'style.css', 'site.js'):
     shutil.copy2(HERE / name, destination / name)
 (destination / 'assets').mkdir(exist_ok=True)
 shutil.copytree(HERE / 'assets' / 'brand', destination / 'assets' / 'brand', dirs_exist_ok=True)
+# The former hero logo stays in source history but is unused by the public page.
+(destination / 'assets' / 'brand' / 'hero-logo.webp').unlink(missing_ok=True)
 # Remove the old, full-size logo if an existing dist directory still has it.
 (destination / 'assets' / 'ScreenplayOSLogo.png').unlink(missing_ok=True)
 shutil.copytree(HERE / 'assets' / 'screenshots', destination / 'assets' / 'screenshots', dirs_exist_ok=True)
