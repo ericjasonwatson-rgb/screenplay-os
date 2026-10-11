@@ -5,6 +5,8 @@ import SwiftUI
 
 struct GenerationConsentSheet: View {
     let preview: GenerationConsentPreview
+    var sendLabel = "Send to Offline Fixture"
+    var privacyNote = "Offline fixture: no screenplay content or credentials leave this Mac."
     let send: () -> Void
     let cancel: () -> Void
 
@@ -51,12 +53,12 @@ struct GenerationConsentSheet: View {
                 Text("Consent records relied on: \(preview.request.consentRecordIDs.map(\.uuidString).joined(separator: ", "))")
                     .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
-            Text("Offline fixture: no screenplay content or credentials leave this Mac.")
+            Text(privacyNote)
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("Cancel", role: .cancel, action: cancel)
                 Spacer()
-                Button("Send to Offline Fixture", action: send)
+                Button(sendLabel, action: send)
                     .buttonStyle(StudioButtonStyle(ai: true))
                     .keyboardShortcut(.defaultAction)
             }

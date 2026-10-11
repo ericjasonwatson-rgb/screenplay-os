@@ -647,6 +647,16 @@ final class ScreenplayViewModel: ObservableObject {
         (document?.activity ?? []).sorted { $0.createdAt > $1.createdAt }
     }
 
+    func generationJobController(for projectID: UUID) throws -> GenerationJobController {
+        guard document?.screenplay.id == projectID else { throw GenerationJobValidationError.projectMismatch }
+        if let generationController { return generationController }
+        let controller = try GenerationJobController(
+            projectID: projectID, storageURL: OfflineGenerationWorkflow.storageURL(projectID: projectID)
+        )
+        generationController = controller
+        return controller
+    }
+
     func prepareOfflineDialogueRequest() {
         guard let snapshot = DialogueSnapshot.capture(self), let document else {
             errorMessage = "Select a dialogue paragraph before creating an offline AI request."
@@ -658,9 +668,7 @@ final class ScreenplayViewModel: ObservableObject {
                                       sourceRevision: OfflineGenerationWorkflow.sourceRevision(snapshot))
         Task {
             do {
-                let controller = try generationController ?? GenerationJobController(
-                    projectID: projectID, storageURL: OfflineGenerationWorkflow.storageURL(projectID: projectID))
-                generationController = controller
+                let controller = try generationJobController(for: projectID)
                 let request = GenerationRequestSnapshot(prompt: prompt, parameters: ["candidate_count": "3"])
                 let now = Date()
                 let job = GenerationJobRecord(id: UUID(), projectID: projectID, capability: .text,
@@ -705,9 +713,7 @@ final class ScreenplayViewModel: ObservableObject {
         let projectID = document.screenplay.id
         Task {
             do {
-                let controller = try generationController ?? GenerationJobController(
-                    projectID: projectID, storageURL: OfflineGenerationWorkflow.storageURL(projectID: projectID))
-                generationController = controller
+                let controller = try generationJobController(for: projectID)
                 let activity = try await controller.activityExport(generatedAt: Date())
                 guard !activity.entries.isEmpty else { errorMessage = "No submitted AI jobs are available to export."; return }
                 let panel = NSSavePanel()
@@ -6994,7 +7000,7 @@ extension ScreenplayViewModel {
             document?.boardFrames[index].selectedImageID = version.id
         } else {
             let shot = snapshot.shot
-            var frame = BoardFrame(shotID: shot.id, sceneSpineID: shot.sceneSpineID,
+            var frame = BoardFrame(id: snapshot.targetBoardID, shotID: shot.id, sceneSpineID: shot.sceneSpineID,
                 frameNumber: boardFrames.filter { $0.sceneSpineID == shot.sceneSpineID }.count + 1,
                 label: shot.label, prompt: version.prompt, sourceRefs: shot.sourceRefs)
             frame.imageVersions = [version]; frame.selectedImageID = version.id

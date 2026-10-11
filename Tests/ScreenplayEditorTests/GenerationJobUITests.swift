@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ScreenplayDomain
 @testable import ScreenplayOSApp
 
 @Suite("Generation job UI boundaries")
@@ -20,5 +21,17 @@ struct GenerationJobUITests {
         #expect(url.path.hasPrefix(root.path + "/"))
         #expect(url.path.contains(projectID.uuidString))
         #expect(url.lastPathComponent == "continuity-bible-v1.json")
+    }
+
+    @MainActor @Test func oneControllerIsReusedForEveryProjectGenerationWorkflow() throws {
+        let model = ScreenplayViewModel(loadInitialDocument: false)
+        model.newDocument()
+        let projectID = try #require(model.document?.screenplay.id)
+        let first = try model.generationJobController(for: projectID)
+        let second = try model.generationJobController(for: projectID)
+        #expect(first === second)
+        #expect(throws: GenerationJobValidationError.projectMismatch) {
+            try model.generationJobController(for: UUID())
+        }
     }
 }

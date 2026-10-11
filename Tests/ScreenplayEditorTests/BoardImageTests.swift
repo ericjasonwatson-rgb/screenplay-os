@@ -15,6 +15,12 @@ import ScreenplayDomain
         #expect(BoardImageAPI.failure(status: 403, data: Data(), key: "", prompt: "").message.contains("verification"))
         #expect(BoardImageAPI.failure(status: 404, data: Data(), key: "", prompt: "").message.contains("model name"))
         #expect(BoardImageAPI.failure(status: 500, data: Data(), key: "", prompt: "").message.contains("service problem"))
+        let generic = BoardImageAPI.sanitizedMessage(
+            "Bearer private-token sk-another-secret PRIVATE PROMPT", key: "private-token", prompt: "PRIVATE PROMPT"
+        )
+        #expect(!generic.contains("private-token"))
+        #expect(!generic.contains("sk-another-secret"))
+        #expect(!generic.contains("PRIVATE PROMPT"))
     }
     @Test func creditFailureWithoutCodeIsActionable() throws {
         let data = try JSONSerialization.data(withJSONObject: ["error": ["message": "You have no credits remaining."]])
@@ -116,6 +122,10 @@ import ScreenplayDomain
         let snapshot = try #require(BoardGenerationSnapshot(model: model, shot: shot))
         #expect(snapshot.sceneExcerpt.contains("INT. ROOM - DAY"))
         #expect(snapshot.prompt.contains("Scene excerpt"))
+        let composition = try snapshot.composition(model: model, instruction: snapshot.directingIntent, evaluatedAt: Date())
+        #expect(composition.target.id == board.id)
+        #expect(composition.request.prompt.contains("COVERED SCREENPLAY"))
+        #expect(composition.request.prompt.contains(shot.label))
         let image = BoardImageVersion(fileURL: directory.appendingPathComponent("board.png"), sha256: "test", prompt: "Reviewed prompt", model: "test-model")
         #expect(model.adoptBoardImage(image, snapshot: snapshot))
         #expect(model.boardFrames.first?.id == board.id)
