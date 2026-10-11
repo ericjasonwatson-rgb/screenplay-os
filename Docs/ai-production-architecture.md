@@ -11,11 +11,12 @@ main plus `v0.1.3-build26-source`. Retain Phase A: FDX export, honest duration
 ranges, a lock-preserving line-pitch decision, and separate target durations.
 FDX export and legacy targets exist. The line-pitch decision retains legacy as
 production and keeps experimental pagination disabled pending two independent
-rendered comparisons. Full Phase A acceptance is still open.
+rendered comparisons. Those comparisons rejected candidate promotion; Phase A is
+accepted with legacy pagination and no compatibility claim.
 See phase-a-fdx-export.md, phase-a-duration-targets.md and
 pagination-comparison-2026-10-08.md. Do not infer full Phase A acceptance from
-passing tests. The architecture/interface preparation of AI-0 does not authorize
-advancing production generation ahead of these gates.
+passing tests. AI-1 may now proceed; production generation still waits for its job,
+preview, provenance and activity-history gates.
 
 The owner supplied the production lessons on 2026-10-10. The expensive failure
 mode was generation that created extensive downstream re-editing. Review happened

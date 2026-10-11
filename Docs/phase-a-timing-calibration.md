@@ -54,9 +54,9 @@ release publication or signing changes occurred.
 
 ## Remaining
 
-Beat/scene targets and safe migration, two additional Final Draft layout
-comparisons, and full Phase A acceptance remain. The lock-preserving line-pitch
-decision is recorded below. Audio/takes/NLE round trip are later phases.
+The target-duration increment and its compatibility handling are complete. Two
+additional Final Draft layout comparisons and the lock-preserving decision are
+recorded below. Audio/takes/NLE round trip are later phases.
 
 ## Paired benchmark results
 
@@ -95,3 +95,16 @@ page boundaries, line wrapping, baselines, continuation placement and total text
 Then define an explicit document-level conversion with a page-change preview.
 Never change an existing or locked document implicitly. The candidate remains
 initializer-only and disabled by default until those checks pass.
+
+## Phase A acceptance — 2026-10-10
+
+Phase A is accepted with **legacy pagination retained** and no Final Draft
+pagination-compatibility claim. FDX export, honest duration ranges, separate authored
+beat/scene targets, the lock-preserving line-pitch decision and the two independent
+real-script comparisons are complete. The comparisons failed to justify promoting
+the experimental profile; that is a valid decision result, not an unfinished gate.
+
+Do not make AI timing depend on the experimental profile. Estimated and target
+durations remain independent of printed pagination, and existing page locks retain
+legacy geometry. Any future compatibility-profile work requires a new bounded gate
+and explicit document conversion; it does not reopen Phase A for AI-1.

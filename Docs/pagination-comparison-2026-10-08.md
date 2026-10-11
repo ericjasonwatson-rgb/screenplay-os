@@ -214,3 +214,31 @@ A native-window regression covers wide/narrow/wide resizing with both panels, ex
 This change does not enable experimental pagination, install an app, or publish a release.
 
 Validation: final full Debug and Release runs each passed 291 Swift tests in 48 suites, 37 importer checks, and 14 self-tests (342 checks per configuration). This includes the new native fit/selection/keyboard/preview regression. Existing test/toolchain warnings remain; these are not warning-free builds.
+
+## Independent real-script comparisons — 2026-10-10
+
+Compared the internal header-continuation candidate with two matching Final Draft
+13 FDX/PDF pairs: *The Chickamauga Wars_The Legend of Dragging Canoe V2* and
+*The Old Line 8_12_26-EW*. The originals were read-only. Candidate PDFs were
+generated from fresh imports in Release using the existing initializer-only profile;
+the candidate adds a separate title page, which was excluded from script comparison.
+
+Both total page counts matched: 9/9 for Chickamauga and 7/7 for Old Line. The page
+boundaries did not. Chickamauga matched only page-ending boundaries 2 and 9; pages
+1 and 3–8 moved source material across page breaks. Old Line matched boundaries
+1–3 and 5–7 but moved material from Final Draft page 5 onto candidate page 4.
+Revision marks, revision headers, standalone page numbers and generated MORE/CONT'D
+markers were excluded from the boundary assessment. Line wrapping also differed in
+places even when the ending source boundary matched.
+
+This rejects promotion of the candidate. Matching totals in five samples concealed
+material boundary differences in both real scripts. Legacy layout remains the only
+production profile; the app must not claim Final Draft pagination compatibility.
+The experimental profile remains disabled and cannot create production locks.
+Hashes and boundary arrays are in
+`AuditEvidence/pagination-2026-10-10/real-script-comparison.json`; generated PDFs
+remain local under `work/` and are not committed.
+
+Focused Release generation passed the 37 importer checks, the requested calibration
+test and 14 self-tests for each pair. No production source remained modified after
+the diagnostic helper was removed. This comparison did not install or publish an app.
