@@ -172,6 +172,7 @@ public enum TakeFileStore {
 
     public static func write(_ ledger: TakeLedger, to url: URL) throws {
         guard url.isFileURL else { throw TakeValidationError.invalidFile }
+        try validateWriteDestination(url)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         let data = try encoder.encode(ledger.validated())
@@ -188,6 +189,26 @@ public enum TakeFileStore {
         guard values.isRegularFile == true, values.isSymbolicLink != true,
               let size = values.fileSize, size <= maximumBytes else { throw TakeValidationError.invalidFile }
         return try JSONDecoder().decode(TakeLedger.self, from: Data(contentsOf: url)).validated()
+    }
+
+    private static func validateWriteDestination(_ url: URL) throws {
+        let manager = FileManager.default
+        if manager.fileExists(atPath: url.path) {
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+            guard values.isRegularFile == true, values.isSymbolicLink != true else {
+                throw TakeValidationError.invalidFile
+            }
+        }
+        var existingParent = url.deletingLastPathComponent()
+        while !manager.fileExists(atPath: existingParent.path) {
+            let next = existingParent.deletingLastPathComponent()
+            guard next.path != existingParent.path else { throw TakeValidationError.invalidFile }
+            existingParent = next
+        }
+        let parentValues = try existingParent.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        guard parentValues.isDirectory == true, parentValues.isSymbolicLink != true else {
+            throw TakeValidationError.invalidFile
+        }
     }
 }
 
@@ -263,6 +284,12 @@ public enum BoardTakeMigrationError: Error, Equatable {
 /// Lossless, deterministic bridge for the existing BoardImageVersion records.
 /// It does not write a new schema or delete the legacy records.
 public enum BoardTakeMigration {
+    public static func sourceRevision(_ boards: [BoardFrame]) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return SHA256.hash(data: try encoder.encode(boards)).map { String(format: "%02x", $0) }.joined()
+    }
+
     public static func project(_ boards: [BoardFrame]) throws -> [Take] {
         var ids: Set<UUID> = []
         var result: [Take] = []
@@ -274,8 +301,12 @@ public enum BoardTakeMigration {
             }
             for (order, image) in board.imageVersions.enumerated() {
                 guard ids.insert(image.id).inserted else { throw BoardTakeMigrationError.duplicateTakeID }
-                guard image.sha256.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil,
-                      !image.fileURL.absoluteString.isEmpty else { throw BoardTakeMigrationError.invalidMedia }
+                // Older documents only required a nonempty digest field. Preserve
+                // those records in the lossless projection; the stricter TakeLedger
+                // correctly refuses to persist them until the media is revalidated.
+                guard !image.sha256.isEmpty, !image.fileURL.absoluteString.isEmpty else {
+                    throw BoardTakeMigrationError.invalidMedia
+                }
                 result.append(Take(
                     id: image.id, shotID: board.shotID, boardFrameID: board.id, order: order,
                     kind: .boardStill, mediaURL: image.fileURL, sha256: image.sha256,

@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct ScreenplayOSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = ScreenplayViewModel()
+    @StateObject private var model = ScreenplayViewModel(takeRoot: TakeWorkflow.applicationSupportRoot)
 
     private var packageFieldEditor: NSTextView? {
         guard model.packageEditor != nil, let text = NSApp.keyWindow?.firstResponder as? NSTextView,

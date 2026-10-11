@@ -16,6 +16,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var continuityBiblePresented = false
     @Published private(set) var continuityBible: ContinuityBibleLedger?
     @Published private(set) var continuityBibleStatus: String?
+    @Published private(set) var takeSidecarProblem: String?
     @Published var portableExportInProgress = false
     @Published var portableExportStatus: String?
     lazy var chromeState = ScreenplayChromeState(model: self)
@@ -27,6 +28,9 @@ final class ScreenplayViewModel: ObservableObject {
             planningEstimateCache = nil
             editTimelineCache = nil
             if oldValue?.screenplay.elements != document?.screenplay.elements { writingSourceCache = nil }
+            if oldValue?.screenplay.id != document?.screenplay.id || oldValue?.boardFrames != document?.boardFrames {
+                scheduleTakeSidecarRefresh()
+            }
             if oldValue?.screenplay.id != document?.screenplay.id {
                 generationController = nil
                 generationConsentPreview = nil
@@ -159,6 +163,9 @@ final class ScreenplayViewModel: ObservableObject {
     private var diskVersion: (url: URL, data: Data)?
     private let recoveryDirectory: URL
     private let continuityBibleRoot: URL?
+    private let takeRoot: URL?
+    private let takeSidecarEnabled: Bool
+    private var takeSidecarTask: Task<Void, Never>?
     private let recoverySessionID = UUID()
     private var ownedRecoveryFiles: Set<URL> = []
     @Published private(set) var saveProblem: String?
@@ -202,7 +209,10 @@ final class ScreenplayViewModel: ObservableObject {
         return lineLayoutExperiment
     }
 
-    init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true, autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard, recoveryDirectory: URL? = nil, continuityBibleRoot: URL? = nil) {
+    init(lineLayoutExperiment: ScreenplayLineLayout = .legacy, loadInitialDocument: Bool = true,
+         autosaveDirectory: URL? = nil, preferences: UserDefaults = .standard,
+         recoveryDirectory: URL? = nil, continuityBibleRoot: URL? = nil,
+         takeRoot: URL? = nil) {
         LegacyPreferences.copyOnProductionLaunch(to: preferences)
         self.lineLayoutExperiment = lineLayoutExperiment
         self.autosaveDirectory = autosaveDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
@@ -212,6 +222,8 @@ final class ScreenplayViewModel: ObservableObject {
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("ScreenplayOS/Recovery", isDirectory: true)
         self.continuityBibleRoot = continuityBibleRoot
+        self.takeRoot = takeRoot
+        self.takeSidecarEnabled = takeRoot != nil
         loadRecoveryCopies()
         refreshPackageRecoveries()
         if loadInitialDocument {
@@ -904,6 +916,40 @@ final class ScreenplayViewModel: ObservableObject {
         return boardFrames
             .filter { $0.sceneSpineID == selectedSceneBreakdown.editSpineID }
             .sorted { $0.frameNumber < $1.frameNumber }
+    }
+
+    var takesForSelectedBoardFrame: [Take] {
+        guard let selectedBoardFrame else { return [] }
+        return (try? BoardTakeMigration.project([selectedBoardFrame])) ?? []
+    }
+
+    private func scheduleTakeSidecarRefresh() {
+        takeSidecarTask?.cancel()
+        guard takeSidecarEnabled, let document else {
+            takeSidecarProblem = nil
+            return
+        }
+        let root = takeRoot
+        takeSidecarTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+            self?.persistTakeSidecar(document, root: root)
+        }
+    }
+
+    func flushTakeSidecar() {
+        takeSidecarTask?.cancel()
+        guard takeSidecarEnabled, let document else { return }
+        persistTakeSidecar(document, root: takeRoot)
+    }
+
+    private func persistTakeSidecar(_ document: OpenScreenplayDocument, root: URL?) {
+        do {
+            _ = try TakeWorkflow.persistProjection(of: document, root: root)
+            takeSidecarProblem = nil
+        } catch {
+            takeSidecarProblem = "The local take index could not be updated. The screenplay and board versions remain unchanged."
+        }
     }
 
     var selectedShot: Shot? {

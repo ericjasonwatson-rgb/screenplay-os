@@ -2260,21 +2260,25 @@ private struct BoardDetailsPane: View {
             Divider()
 
             if let frame = model.selectedBoardFrame {
-                if let shot = model.shots.first(where: { $0.id == frame.shotID }) {
-                    Button("Generate board image…") { model.presentBoardGenerator(for: shot) }
-                        .buttonStyle(StudioButtonStyle(ai: true))
-                }
-                if !frame.imageVersions.isEmpty {
-                    Picker("Image version", selection: Binding(
-                        get: { frame.selectedImageID ?? frame.imageVersions.last!.id },
-                        set: { model.selectBoardImage($0, for: frame.id) }
-                    )) {
-                        ForEach(Array(frame.imageVersions.enumerated()), id: \.element.id) { index, version in
-                            Text("Version \(index + 1)").tag(version.id)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if let shot = model.shots.first(where: { $0.id == frame.shotID }) {
+                            Button("Generate board image…") { model.presentBoardGenerator(for: shot) }
+                                .buttonStyle(StudioButtonStyle(ai: true))
                         }
-                    }
-                }
-                VStack(alignment: .leading, spacing: 12) {
+                        if !frame.imageVersions.isEmpty {
+                            TakeStrip(model: model, frame: frame)
+                        }
+                        if frame.imageVersions.isEmpty == false && model.takesForSelectedBoardFrame.isEmpty {
+                            Text("These legacy board versions cannot enter Take review until their media records are revalidated.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let problem = model.takeSidecarProblem {
+                            Text(problem)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     Text(frame.label)
                         .font(.system(size: 14, weight: .semibold))
                         .lineLimit(2)
@@ -2305,15 +2309,78 @@ private struct BoardDetailsPane: View {
                         Label("Source in Script", systemImage: "arrow.turn.down.right")
                     }
                     .buttonStyle(.bordered)
-                    Spacer()
+                    }
+                    .padding(14)
                 }
-                .padding(14)
             } else {
                 EmptyWorkspacePrompt(systemImage: "photo", title: "No board selected", message: "Select a board to adjust its prompt, timing, and notes.")
                     .padding(14)
             }
         }
         .background(ScreenplayOSTokens.Palette.appBackground)
+    }
+}
+
+private struct TakeStrip: View {
+    @ObservedObject var model: ScreenplayViewModel
+    let frame: BoardFrame
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text("Takes")
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Text("\(model.takesForSelectedBoardFrame.count) version\(model.takesForSelectedBoardFrame.count == 1 ? "" : "s")")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(model.takesForSelectedBoardFrame) { take in
+                        Button {
+                            model.selectBoardImage(take.id, for: frame.id)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                ZStack(alignment: .topTrailing) {
+                                    Rectangle().fill(Color.black.opacity(0.72))
+                                    if let version = frame.imageVersions.first(where: { $0.id == take.id }) {
+                                        BoardImageView(version: version)
+                                    }
+                                    if take.status == .selected {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .symbolRenderingMode(.palette)
+                                            .foregroundStyle(.white, Color.accentColor)
+                                            .padding(5)
+                                    }
+                                }
+                                .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                                Text("Take \(take.order + 1)")
+                                    .font(.caption.weight(.semibold))
+                                Text(take.provenance.modelID ?? "Local board")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            .padding(6)
+                            .frame(width: 142)
+                            .background(take.status == .selected ? StudioAppearance.selection : StudioAppearance.recess)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(take.status == .selected ? Color.accentColor : ScreenplayOSTokens.Palette.separator,
+                                            lineWidth: take.status == .selected ? 2 : ScreenplayOSTokens.Spacing.hairline)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Select Take \(take.order + 1)")
+                        .accessibilityLabel("Take \(take.order + 1), \(take.status == .selected ? "selected" : "candidate")")
+                        .accessibilityHint("Selects this image for the board and Boardomatic")
+                    }
+                }
+            }
+            .scrollIndicators(.visible)
+        }
     }
 }
 

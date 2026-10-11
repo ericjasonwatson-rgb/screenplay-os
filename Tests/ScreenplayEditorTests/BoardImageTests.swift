@@ -155,4 +155,53 @@ import ScreenplayDomain
         model.newDocument()
         #expect(!second.isCurrent(model))
     }
+
+    @MainActor @Test func takeProjectionPersistsAndTracksCanonicalBoardSelection() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let suite = "TakeProjectionTests.\(UUID())"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: directory,
+                                        preferences: defaults, takeRoot: directory)
+        let heading = ScreenplayElement(type: .sceneHeading, text: "INT. REVIEW ROOM - DAY")
+        let screenplay = Screenplay(metadata: .init(title: "Take review"), elements: [heading])
+        let document = OpenScreenplayDocument(
+            project: Project(metadata: .init(title: "Take review", author: ""), screenplayID: screenplay.id),
+            screenplay: screenplay
+        )
+        let file = directory.appendingPathComponent("project.json")
+        try JSONEncoder.openScreenplayEncoder().encode(document).write(to: file)
+        model.loadOpenScreenplay(at: file)
+        model.selectElement(id: heading.id)
+        model.generateShotListForSelectedScene()
+        model.generateBoardsForSelectedScene()
+        let shot = try #require(model.shots.first)
+        let firstSnapshot = try #require(BoardGenerationSnapshot(model: model, shot: shot))
+        let first = BoardImageVersion(fileURL: directory.appendingPathComponent("first.png"),
+                                      sha256: String(repeating: "a", count: 64),
+                                      prompt: "First", model: "fixture-image")
+        #expect(model.adoptBoardImage(first, snapshot: firstSnapshot))
+        let secondSnapshot = try #require(BoardGenerationSnapshot(model: model, shot: shot))
+        let second = BoardImageVersion(fileURL: directory.appendingPathComponent("second.png"),
+                                       sha256: String(repeating: "b", count: 64),
+                                       prompt: "Second", model: "fixture-image")
+        #expect(model.adoptBoardImage(second, snapshot: secondSnapshot))
+        #expect(model.takesForSelectedBoardFrame.map(\.id) == [first.id, second.id])
+        #expect(model.takesForSelectedBoardFrame.map(\.status) == [.candidate, .selected])
+
+        model.flushTakeSidecar()
+        let url = try TakeWorkflow.storageURL(projectID: screenplay.id, root: directory)
+        let initial = try TakeFileStore.read(from: url)
+        #expect(initial.takes.map(\.id) == [first.id, second.id])
+        #expect(initial.takes.map(\.status) == [.candidate, .selected])
+
+        model.selectBoardImage(first.id, for: try #require(model.selectedBoardFrame?.id))
+        #expect(model.takesForSelectedBoardFrame.map(\.status) == [.selected, .candidate])
+        model.flushTakeSidecar()
+        let changed = try TakeFileStore.read(from: url)
+        #expect(changed.takes.map(\.status) == [.selected, .candidate])
+        #expect(changed.sourceRevision != initial.sourceRevision)
+    }
 }

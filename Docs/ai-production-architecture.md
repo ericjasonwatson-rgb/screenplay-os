@@ -35,7 +35,7 @@ Storykit remains ON HOLD. No storage migration is authorized by this inventory.
 | Job model and queue | Planned | DialogueConnection and BoardImageAssistant have transient Task/cancellation tokens, not durable jobs. No relaunch resume, concurrency limits, polling, retry queue or ledger. |
 | Continuity bible | Planned | Character cues and scene headings exist; there is no canonical character/location/prop/style reference library or performer-consent store. |
 | Prompt composer | Partial | DialogueSnapshot.capture and BoardGenerationSnapshot.prompt compose scene-grounded text. No attached references, bible resolution, templates, cost preview or exact complete-request preview. |
-| Takes and review | Partial | BoardImageVersion stores id, fileURL, SHA-256, prompt and model; selectedImageID selects a version. No general video/voice Take, in/out points, review status or compare-two workflow. |
+| Takes and review | Partial | BoardImageVersion stores id, fileURL, SHA-256, prompt and model; selectedImageID selects a version. Board Details exposes these as a horizontal take strip backed by a rebuildable project-bound Take sidecar. No general video/voice Take, compare-two workflow, or selected-take playback. |
 | Cost ledger and budgets | Planned | API-charge notices are present; no estimated/actual amounts, budgets, totals or CSV cost report. Unknown price must not be shown as zero. |
 | Provenance | Partial | Board version prompt/model/hash exist. No durable job, provider/version, consent references, adopter identity, complete timestamps, export sidecars or disclosure report. |
 | Consent and adoption | Partial | Explicit send and snapshot-current checks; dialogue insertion/replacement and board adoption are undoable. No likeness/voice consent gate or batch preview. |
@@ -105,8 +105,10 @@ or project-format versions are changed by this increment. A following bounded
 increment added a versioned, project-bound Take sidecar with strict validation,
 atomic owner-only writes, symlink rejection, a source-revision digest, and
 persist-before-publish selection/rejection. It remains rebuildable local service
-state rather than portable canonical project data. A take strip, compare mode,
-selected-take playback, and package persistence remain AI-3 work;
+state rather than portable canonical project data. Board Details now exposes a
+horizontal image take strip, while canonical selection remains the existing
+undoable `BoardFrame.selectedImageID`. Compare mode, selected-take playback,
+general video/voice takes, and package persistence remain AI-3 work;
 async video providers remain blocked until that path is complete.
 
 ## Known privacy gaps to resolve before new production sends

@@ -39,6 +39,14 @@ struct TakeMigrationTests {
         let link = root.appendingPathComponent("takes-link.json")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: url)
         #expect(throws: TakeValidationError.invalidFile) { try TakeFileStore.read(from: link) }
+        #expect(throws: TakeValidationError.invalidFile) { try TakeFileStore.write(ledger, to: link) }
+        #expect(try TakeFileStore.read(from: url) == ledger)
+
+        let linkedDirectory = root.appendingPathComponent("linked-directory")
+        try FileManager.default.createSymbolicLink(at: linkedDirectory, withDestinationURL: url.deletingLastPathComponent())
+        #expect(throws: TakeValidationError.invalidFile) {
+            try TakeFileStore.write(ledger, to: linkedDirectory.appendingPathComponent("escaped.json"))
+        }
     }
 
     @Test func takeLedgerRejectsUnsafeOrAmbiguousRecords() throws {
@@ -99,6 +107,27 @@ struct TakeMigrationTests {
 
         let data = try JSONEncoder().encode(takes)
         #expect(try JSONDecoder().decode([Take].self, from: data) == takes)
+    }
+
+    @Test func legacyNonstandardDigestStillProjectsButCannotEnterStrictLedger() throws {
+        var board = fixture()
+        board.imageVersions[0].sha256 = "legacy-digest"
+        let takes = try BoardTakeMigration.project([board])
+        #expect(takes[0].sha256 == "legacy-digest")
+        #expect(try BoardTakeMigration.applyingImageTakes(takes, to: [board]) == [board])
+        #expect(throws: TakeValidationError.invalidMedia) {
+            try TakeLedger(projectID: UUID(), sourceRevision: String(repeating: "a", count: 64), takes: takes).validated()
+        }
+    }
+
+    @Test func sourceRevisionIsDeterministicAndChangesWithBoardSelection() throws {
+        let board = fixture()
+        let first = try BoardTakeMigration.sourceRevision([board])
+        #expect(first.count == 64)
+        #expect(first == (try BoardTakeMigration.sourceRevision([board])))
+        var changed = board
+        changed.selectedImageID = changed.imageVersions[0].id
+        #expect(first != (try BoardTakeMigration.sourceRevision([changed])))
     }
 
     @Test func corruptLegacySelectionAndDuplicateIDsFailClosed() throws {

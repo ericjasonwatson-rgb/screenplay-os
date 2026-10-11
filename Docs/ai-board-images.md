@@ -20,10 +20,18 @@ The UI explicitly discloses this limitation: sending or relocating the screenpla
 project-bound local sidecar for that projection. The store validates source and
 media hashes, local paths, timing, provenance, unique identity, and unambiguous
 selection; writes atomically with owner-only permissions; and rejects symlinks.
-Selection changes reach disk before the controller publishes them. This is
-durable local service state, not portable canonical project data. A take strip,
-media playback, and canonical package persistence remain blocked on their
-respective UI and tested project-format migrations.
+Selection changes reach disk before the controller publishes them. The app now
+rebuilds this sidecar from authoritative `board_frames` whenever board versions
+or their selection changes. Invalid legacy digests remain readable in the
+lossless projection, but fail closed instead of entering the stricter sidecar.
+This is durable local service state, not portable canonical project data.
+
+Board Details now presents image versions as a horizontal take strip with a
+thumbnail, take number, model, and selected state. Choosing a card still uses
+the existing undoable `BoardFrame.selectedImageID` mutation, so the screenplay
+document remains authoritative and older compatible files keep working. A
+projection error is shown without mutating the screenplay. Compare-two review,
+media playback, and canonical package persistence remain future work.
 
 ## Deferred
 
