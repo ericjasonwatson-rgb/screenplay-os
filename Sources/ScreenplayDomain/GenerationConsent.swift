@@ -113,3 +113,43 @@ public struct GenerationActivityExport: Codable, Equatable, Sendable {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 }
+
+public struct GenerationCostLedger: Equatable, Identifiable, Sendable {
+    public let projectID: UUID
+    public let entries: [GenerationActivityEntry]
+    public var id: UUID { projectID }
+
+    public init(ledger: GenerationJobLedger) throws {
+        let ledger = try ledger.validated()
+        projectID = ledger.projectID
+        entries = ledger.jobs.compactMap { job in
+            guard let consentedAt = job.consentedAt, let submittedAt = job.submittedAt else { return nil }
+            return GenerationActivityEntry(job: job, consentedAt: consentedAt, submittedAt: submittedAt)
+        }.sorted { $0.submittedAt < $1.submittedAt }
+    }
+
+    public var totals: [String: Int64] {
+        entries.reduce(into: [:]) { result, entry in
+            guard let cost = entry.actualCost ?? entry.estimatedCost else { return }
+            result[cost.currency, default: 0] += cost.amountMicros
+        }
+    }
+
+    public func csvData() -> Data {
+        let header = "job_id,submitted_at,provider,model,capability,target_kind,target_id,status,estimated_currency,estimated_amount_micros,actual_currency,actual_amount_micros"
+        let formatter = ISO8601DateFormatter()
+        let rows = entries.map { entry in
+            [entry.id.uuidString, formatter.string(from: entry.submittedAt), entry.providerID, entry.modelID,
+             entry.capability.rawValue, entry.target.kind.rawValue, entry.target.id.uuidString, entry.status.rawValue,
+             entry.estimatedCost?.currency ?? "", entry.estimatedCost.map { String($0.amountMicros) } ?? "",
+             entry.actualCost?.currency ?? "", entry.actualCost.map { String($0.amountMicros) } ?? ""]
+                .map(Self.csvField).joined(separator: ",")
+        }
+        return Data(([header] + rows).joined(separator: "\n").appending("\n").utf8)
+    }
+
+    private static func csvField(_ value: String) -> String {
+        guard value.contains(",") || value.contains("\"") || value.contains("\n") else { return value }
+        return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+    }
+}

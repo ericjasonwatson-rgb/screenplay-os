@@ -60,4 +60,27 @@ struct GenerationConsentTests {
         try activity.write(to: destination)
         #expect(try Data(contentsOf: destination) == activity.jsonData())
     }
+
+    @Test func costLedgerExportsSubmittedCostsWithoutInventingUnknownValues() async throws {
+        var submitted = try job()
+        submitted.status = .running
+        submitted.consentedAt = instant
+        submitted.submittedAt = instant.addingTimeInterval(2)
+        submitted.updatedAt = instant.addingTimeInterval(2)
+        let ledger = try GenerationCostLedger(ledger: .init(projectID: projectID, jobs: [submitted]))
+        #expect(ledger.totals == ["USD": 50_000])
+        let csv = String(decoding: ledger.csvData(), as: UTF8.self)
+        #expect(csv.contains("mock,fixture-v1,image,board"))
+        #expect(csv.contains("USD,50000,,"))
+
+        let request = GenerationRequestSnapshot(prompt: "Unknown cost")
+        var unknown = GenerationJobRecord(id: UUID(), projectID: projectID, capability: .text,
+            providerID: "provider,quoted", modelID: "model", target: .init(kind: .scene, id: UUID(), sourceRevision: digest),
+            request: request, requestSHA256: try request.sha256(), status: .running, createdAt: instant, updatedAt: instant,
+            consentedAt: instant, submittedAt: instant)
+        unknown.actualCost = nil
+        let unknownCSV = String(decoding: try GenerationCostLedger(ledger: .init(projectID: projectID, jobs: [unknown])).csvData(), as: UTF8.self)
+        #expect(unknownCSV.contains("\"provider,quoted\""))
+        #expect(unknownCSV.hasSuffix(",,,,\n"))
+    }
 }

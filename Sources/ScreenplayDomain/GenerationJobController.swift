@@ -122,6 +122,10 @@ public actor GenerationJobController {
         try GenerationActivityExport(ledger: ledger, generatedAt: generatedAt)
     }
 
+    public func costLedger() throws -> GenerationCostLedger {
+        try GenerationCostLedger(ledger: ledger)
+    }
+
     private func finish(jobID: UUID, status: GenerationJobStatus, at date: Date,
                         actualCost: GenerationCost?, error: String?) throws {
         try update(jobID) { job in

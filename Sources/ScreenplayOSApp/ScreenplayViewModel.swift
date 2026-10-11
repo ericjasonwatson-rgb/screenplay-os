@@ -14,6 +14,7 @@ final class ScreenplayViewModel: ObservableObject {
     @Published var dialogueAssistantPresented = false
     @Published var generationConsentPreview: GenerationConsentPreview?
     @Published var generationActivityStatus: String?
+    @Published var generationCostLedger: GenerationCostLedger?
     @Published var continuityBiblePresented = false
     @Published private(set) var continuityBible: ContinuityBibleLedger?
     @Published private(set) var continuityBibleStatus: String?
@@ -756,6 +757,35 @@ final class ScreenplayViewModel: ObservableObject {
                     generationActivityStatus = "Exported \(activity.entries.count) submitted AI job\(activity.entries.count == 1 ? "" : "s")."
                 }
             } catch { errorMessage = "Could not export AI activity: \(error.localizedDescription)" }
+        }
+    }
+
+    func showGenerationCostLedger() {
+        guard let document else { errorMessage = "Open a screenplay before viewing AI costs."; return }
+        Task {
+            do {
+                generationCostLedger = try await generationJobController(for: document.screenplay.id).costLedger()
+            } catch { errorMessage = "Could not load AI cost ledger: \(error.localizedDescription)" }
+        }
+    }
+
+    func showGenerationCostCSVExportPanel() {
+        guard let document else { errorMessage = "Open a screenplay before exporting AI costs."; return }
+        Task {
+            do {
+                let ledger = try await generationJobController(for: document.screenplay.id).costLedger()
+                guard !ledger.entries.isEmpty else { errorMessage = "No submitted AI jobs are available to export."; return }
+                let panel = NSSavePanel()
+                panel.allowedContentTypes = [.commaSeparatedText]
+                panel.canCreateDirectories = true
+                panel.title = "Export AI Cost Ledger"
+                panel.prompt = "Export"
+                panel.nameFieldStringValue = "\(title.replacingOccurrences(of: "/", with: "-"))-AI-Costs.csv"
+                if panel.runModal() == .OK, let url = panel.url {
+                    try ledger.csvData().write(to: url, options: .atomic)
+                    generationActivityStatus = "Exported \(ledger.entries.count) AI cost ledger entr\(ledger.entries.count == 1 ? "y" : "ies")."
+                }
+            } catch { errorMessage = "Could not export AI cost ledger: \(error.localizedDescription)" }
         }
     }
 

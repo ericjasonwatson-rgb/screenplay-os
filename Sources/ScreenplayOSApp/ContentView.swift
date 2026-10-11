@@ -81,6 +81,9 @@ struct ContentView: View {
                 send: { model.approveOfflineDialogueRequest(preview) },
                 cancel: { model.cancelOfflineDialogueRequest(preview) })
         }
+        .sheet(item: $model.generationCostLedger) { ledger in
+            GenerationCostLedgerView(ledger: ledger) { model.generationCostLedger = nil }
+        }
         .sheet(isPresented: $model.titlePagePresented) { ScreenplayTitlePageEditor(model: model) }
         .sheet(item: $model.packagePreview) { preview in
             PackagePreviewView(preview: preview) { model.packagePreview = nil }
@@ -512,6 +515,8 @@ private struct ActivitySections: View {
             Button("Preview Offline AI Request…") { model.prepareOfflineDialogueRequest() }
                 .disabled(model.selectedElement?.type != .dialogue)
             Button("Export AI Activity…") { model.showGenerationActivityExportPanel() }
+            Button("AI Cost Ledger…") { model.showGenerationCostLedger() }
+            Button("Export AI Costs (CSV)…") { model.showGenerationCostCSVExportPanel() }
             if let status = model.generationActivityStatus {
                 Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
@@ -532,6 +537,35 @@ private struct ActivitySections: View {
                 }
             }
         }
+    }
+}
+
+private struct GenerationCostLedgerView: View {
+    let ledger: GenerationCostLedger
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack { Text("AI Cost Ledger").font(.title2.bold()); Spacer(); Button("Done", action: dismiss) }
+            Text("Unknown provider costs remain blank. Estimates are replaced by actual costs when providers report them.")
+                .foregroundStyle(.secondary)
+            Table(ledger.entries) {
+                TableColumn("Submitted") { Text($0.submittedAt.formatted(date: .abbreviated, time: .shortened)) }
+                TableColumn("Provider") { Text($0.providerID) }
+                TableColumn("Model") { Text($0.modelID) }
+                TableColumn("Status") { Text($0.status.rawValue) }
+                TableColumn("Cost") { entry in
+                    if let cost = entry.actualCost ?? entry.estimatedCost {
+                        Text("\(cost.currency) \(Double(cost.amountMicros) / 1_000_000, format: .number.precision(.fractionLength(2...6)))")
+                    } else { Text("Unknown").foregroundStyle(.secondary) }
+                }
+            }
+            if ledger.totals.isEmpty { Text("Total: Unknown").bold() }
+            else { ForEach(ledger.totals.keys.sorted(), id: \.self) { currency in
+                Text("Total: \(currency) \(Double(ledger.totals[currency, default: 0]) / 1_000_000, format: .number.precision(.fractionLength(2...6)))").bold()
+            }}
+        }
+        .padding(20).frame(minWidth: 760, minHeight: 420)
     }
 }
 
