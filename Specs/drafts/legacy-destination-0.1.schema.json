@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Unreleased legacy destination candidate 0.1",
-  "description": "In-memory legacy migration payload profile, not released Open Screenplay conformance. No writer is enabled.",
+  "description": "In-memory legacy migration payload profile, not released ScreenplayOS document conformance. No writer is enabled.",
   "type": "object",
   "properties": {
     "manifest.json": {
@@ -1078,7 +1078,7 @@
       "type": "object",
       "properties": {
         "format": {
-          "const": "open-screenplay"
+          "enum": ["screenplayos", "open-screenplay"]
         },
         "format_version": {
           "const": "1.0"
@@ -1220,7 +1220,7 @@
       "type": "object",
       "properties": {
         "format": {
-          "const": "open-screenplay-project"
+          "enum": ["screenplayos-project", "open-screenplay-project"]
         },
         "format_version": {
           "const": "0.1-draft"

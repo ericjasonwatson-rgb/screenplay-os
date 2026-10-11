@@ -458,7 +458,7 @@ final class PackageEditor: ObservableObject, Identifiable {
         let source = directory.appendingPathComponent(UUID().uuidString + ".screenplay")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         let id = UUID().uuidString, time = ISO8601DateFormatter().string(from: Date())
-        let manifest = ["format": "open-screenplay", "format_version": "1.0", "document_id": id,
+        let manifest = ["format": "screenplayos", "format_version": "1.0", "document_id": id,
                         "title": title, "author": "", "created_at": time, "modified_at": time]
         let script: [String: Any] = ["id": id, "elements": [["id": UUID().uuidString, "type": "scene_heading", "text": ""]]]
         try JSONSerialization.data(withJSONObject: manifest).write(to: source.appendingPathComponent("manifest.json"), options: .atomic)

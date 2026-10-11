@@ -5,15 +5,23 @@ import ScreenplayFDX
 let arguments = CommandLine.arguments.dropFirst()
 
 guard let inputPath = arguments.first else {
-    FileHandle.standardError.write(Data("Usage: screenplay-inspect <file.fdx> [--json]\n".utf8))
+    FileHandle.standardError.write(Data("Usage: screenplay-inspect <file.fdx|file.json> [--json]\n".utf8))
     exit(64)
 }
 
 let emitJSON = arguments.contains("--json")
 do {
-    let importer = FDXImporter()
-    let result = try importer.importFile(at: URL(fileURLWithPath: inputPath))
-    let document = result.document
+    let url = URL(fileURLWithPath: inputPath)
+    let document: ScreenplayOSDocument
+    let warnings: [String]
+    if url.pathExtension.lowercased() == "fdx" {
+        let result = try FDXImporter().importFile(at: url)
+        document = result.document
+        warnings = result.warnings
+    } else {
+        document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: Data(contentsOf: url))
+        warnings = []
+    }
 
     if emitJSON {
         let data = try JSONEncoder.screenplayOSEncoder().encode(document)
@@ -24,7 +32,7 @@ do {
         let scenes = elements.filter { $0.type == .sceneHeading }
         let characters = Set(elements.filter { $0.type == .character }.map(\.text)).sorted()
 
-        print("Open Screenplay inspection")
+        print("ScreenplayOS document inspection")
         print("Title: \(document.project.metadata.title)")
         print("Elements: \(elements.count)")
         print("Scenes: \(scenes.count)")
@@ -37,9 +45,9 @@ do {
             }
         }
 
-        if !result.warnings.isEmpty {
+        if !warnings.isEmpty {
             print("Warnings:")
-            for warning in result.warnings {
+            for warning in warnings {
                 print("- \(warning)")
             }
         }

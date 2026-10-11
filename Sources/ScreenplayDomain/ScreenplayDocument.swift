@@ -1,6 +1,8 @@
 import Foundation
 
 public struct ScreenplayOSDocument: Codable, Equatable {
+    public static let currentFormat = "screenplayos"
+    public static let readableFormats: Set<String> = [currentFormat, "open-screenplay"]
     public var format: String
     public var formatVersion: String
     public var project: Project
@@ -20,7 +22,7 @@ public struct ScreenplayOSDocument: Codable, Equatable {
     public var editorialSpine: EditorialSpine
 
     public init(
-        format: String = "open-screenplay",
+        format: String = ScreenplayOSDocument.currentFormat,
         formatVersion: String = "1.0",
         project: Project,
         screenplay: Screenplay,
@@ -74,11 +76,13 @@ public struct ScreenplayOSDocument: Codable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        format = try container.decode(String.self, forKey: .format)
+        let storedFormat = try container.decode(String.self, forKey: .format)
         formatVersion = try container.decode(String.self, forKey: .formatVersion)
-        guard format == "open-screenplay", ["1.0", "1.1", "1.2"].contains(formatVersion) else {
+        guard Self.readableFormats.contains(storedFormat), ["1.0", "1.1", "1.2"].contains(formatVersion) else {
             throw DecodingError.dataCorruptedError(forKey: .formatVersion, in: container, debugDescription: "Unsupported legacy screenplay version")
         }
+        // Read forever, write new: decoding an old identifier is an in-memory migration.
+        format = Self.currentFormat
         project = try container.decode(Project.self, forKey: .project)
         typography = try container.decodeIfPresent(DocumentTypography.self, forKey: .typography)
         if let typography, typography.paper != "US_LETTER" {
@@ -109,6 +113,26 @@ public struct ScreenplayOSDocument: Codable, Equatable {
         productionContext = try container.decodeIfPresent(ProductionContext.self, forKey: .productionContext) ?? ProductionContext()
         ensureSceneSpineIDs()
         ensureEditorialSpine()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(Self.currentFormat, forKey: .format)
+        try container.encode(formatVersion, forKey: .formatVersion)
+        try container.encode(project, forKey: .project)
+        try container.encode(screenplay, forKey: .screenplay)
+        try container.encodeIfPresent(typography, forKey: .typography)
+        try container.encode(titlePage, forKey: .titlePage)
+        try container.encode(productionContext, forKey: .productionContext)
+        try container.encode(aiSettings, forKey: .aiSettings)
+        try container.encode(proposals, forKey: .proposals)
+        try container.encode(activity, forKey: .activity)
+        try container.encode(outline, forKey: .outline)
+        try container.encodeIfPresent(sceneDurationTargets, forKey: .sceneDurationTargets)
+        try container.encode(scriptNotes, forKey: .scriptNotes)
+        try container.encode(shots, forKey: .shots)
+        try container.encode(boardFrames, forKey: .boardFrames)
+        try container.encode(editorialSpine, forKey: .editorialSpine)
     }
 
     public mutating func ensureSceneSpineIDs(prefix: String = "S") {

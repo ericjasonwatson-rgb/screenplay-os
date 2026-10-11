@@ -74,6 +74,9 @@ struct NativeLegacyPayloadPlanTests {
         #expect(archivedSource == normalizedOriginal)
 
         let project = try #require(JSONSerialization.jsonObject(with: plan.projectData) as? [String: Any])
+        #expect(project["format"] as? String == "screenplayos-project")
+        let manifest = try #require(JSONSerialization.jsonObject(with: plan.payloads["manifest.json"]!) as? [String: Any])
+        #expect(manifest["format"] as? String == "screenplayos")
         let head = try #require(project["head"] as? [String: Any])
         #expect((head["files"] as? [String: Any])?.count == plan.inventory.count)
         #expect((head["objects"] as? [[String: Any]])?.count == plan.objects.count)

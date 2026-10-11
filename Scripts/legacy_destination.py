@@ -49,7 +49,9 @@ def schema_validate(files):
 
 
 def _construct(data, created_at):
-    schema = json.loads((ROOT / 'Specs/open-screenplay-1.0.schema.json').read_text())
+    source_format = raw.parse_source(data).get('format')
+    schema_name = 'legacy/open-screenplay-1.0.schema.json' if source_format == 'open-screenplay' else 'screenplayos-1.0.schema.json'
+    schema = json.loads((ROOT / 'Specs' / schema_name).read_text())
     plan = raw.create_mapping(data, schema)
     if plan['status'] == 'blocked':
         raise ValueError('legacy inspection blockers must be resolved first')
@@ -104,7 +106,7 @@ def _construct(data, created_at):
             element['scene'] = {'id': scene_map[element['id']]}
     metadata = source['project']['metadata']
     files = {
-        'manifest.json': {'format': 'open-screenplay', 'format_version': '1.0',
+        'manifest.json': {'format': 'screenplayos', 'format_version': '1.0',
                           'document_id': source['screenplay']['id'], **{key: metadata[key] for key in ('title', 'author', 'created_at', 'modified_at')}},
         'screenplay.json': {'id': source['screenplay']['id'], 'elements': elements},
         # Immutable migration archive, explicitly not a second editable screenplay.
@@ -162,7 +164,7 @@ def _construct(data, created_at):
     for id, kind in records:
         objects.append({'id': id, 'kind': kind, 'revision_id': identity('object:' + id.lower() + ':' + revision),
                         'parents': [], 'state': 'active'})
-    files['project.json'] = {'format': 'open-screenplay-project', 'format_version': '0.1-draft',
+    files['project.json'] = {'format': 'screenplayos-project', 'format_version': '0.1-draft',
         'project_id': project_id, 'screenplay_id': source['screenplay']['id'],
         'head': {'id': revision, 'parents': [], 'created_at': created_at, 'objects': objects,
                  'files': {file: {'sha256': hashlib.sha256(raw.preserve_json(content)).hexdigest(),

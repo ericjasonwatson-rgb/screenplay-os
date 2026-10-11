@@ -128,7 +128,7 @@ func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
     let data = try JSONEncoder.screenplayOSEncoder().encode(document)
     let json = String(decoding: data, as: UTF8.self)
 
-    try expect(json.contains("\"format\" : \"open-screenplay\""), "Missing open-screenplay format marker.")
+    try expect(json.contains("\"format\" : \"screenplayos\""), "Missing ScreenplayOS format marker.")
     try expect(json.contains("\"format_version\" : \"1.0\""), "Missing format version.")
     try expect(json.contains("\"scene_heading\""), "Missing scene heading element type.")
     try expect(json.contains("\"spine_id\" : \"S001\""), "Missing persistent scene spine ID.")
@@ -512,7 +512,7 @@ func testImportsDefendersFixture() throws {
 }
 
 let tests: [(String, () throws -> Void)] = [
-    ("Open Screenplay JSON contract", testScreenplayOSDocumentEncodesStableTopLevelContract),
+    ("ScreenplayOS JSON contract", testScreenplayOSDocumentEncodesStableTopLevelContract),
     ("Production context contract", testProductionContextEncodesReviewableEntities),
     ("AI settings backward compatibility", testAISettingsDecodeOlderThreeModeFiles),
     ("Legacy Post AI compatibility", testAISettingsDecodeLegacyPostModeFiles),

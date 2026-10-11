@@ -1725,7 +1725,7 @@ final class ScreenplayViewModel: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.canCreateDirectories = true
-        panel.title = "Save Open Screenplay"
+        panel.title = "Save ScreenplayOS Document"
         panel.prompt = "Save"
         panel.nameFieldStringValue = defaultSaveFileName()
 
@@ -5406,7 +5406,7 @@ final class ScreenplayViewModel: ObservableObject {
         let safeTitle = title
             .replacingOccurrences(of: " ", with: "_")
             .replacingOccurrences(of: "/", with: "-")
-        return "\(safeTitle).open-screenplay.json"
+        return "\(safeTitle).screenplayos.json"
     }
 
     private func defaultReportFileName(for kind: ReportKind) -> String {
@@ -5431,7 +5431,7 @@ final class ScreenplayViewModel: ObservableObject {
 
     private func defaultDownloadsSaveURL() -> URL {
         let filename = defaultSaveFileName()
-        let suffix = ".open-screenplay.json"
+        let suffix = ".screenplayos.json"
         let stem = String(filename.dropLast(suffix.count))
         var candidate = autosaveDirectory.appendingPathComponent(filename)
         var number = 2
@@ -5459,7 +5459,7 @@ final class ScreenplayViewModel: ObservableObject {
             .filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        return "\(safeTitle).\(formatter.string(from: date)).\(safeLabel).\(UUID().uuidString).snapshot.open-screenplay.json"
+        return "\(safeTitle).\(formatter.string(from: date)).\(safeLabel).\(UUID().uuidString).snapshot.screenplayos.json"
     }
 
     private func loadBundledFixture() {
@@ -5517,7 +5517,8 @@ final class ScreenplayViewModel: ObservableObject {
         }
         snapshots = files
             .filter { url in
-                guard url.lastPathComponent.hasSuffix(".snapshot.open-screenplay.json"),
+                guard (url.lastPathComponent.hasSuffix(".snapshot.screenplayos.json") ||
+                       url.lastPathComponent.hasSuffix(".snapshot.open-screenplay.json")),
                       let data = try? Data(contentsOf: url),
                       let snapshot = try? JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
                 else { return false }

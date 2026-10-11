@@ -80,7 +80,7 @@ for name in ['convert-legacy-copy.py', 'legacy_copy.py', 'legacy_destination.py'
     target = converter / 'Scripts' / name
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(pathlib.Path('Scripts') / name, target)
-for name in ['open-screenplay-1.0.schema.json', 'drafts/legacy-destination-0.1.schema.json']:
+for name in ['screenplayos-1.0.schema.json', 'legacy/open-screenplay-1.0.schema.json', 'drafts/legacy-destination-0.1.schema.json']:
     target = converter / 'Specs' / name
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(pathlib.Path('Specs') / name, target)
@@ -93,10 +93,24 @@ if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
     'CFBundleName': 'ScreenplayOS',
     'CFBundleIconFile': 'ScreenplayOS.icns',
     'CFBundlePackageType': 'APPL',
+    'CFBundleDocumentTypes': [{
+        'CFBundleTypeName': 'ScreenplayOS document',
+        'CFBundleTypeRole': 'Editor',
+        'LSItemContentTypes': ['com.screenplayos.document'],
+    }],
     'CFBundleShortVersionString': version,
     'CFBundleVersion': build,
     'LSMinimumSystemVersion': '13.0',
     'NSHighResolutionCapable': True,
+    'UTExportedTypeDeclarations': [{
+        'UTTypeIdentifier': 'com.screenplayos.document',
+        'UTTypeDescription': 'ScreenplayOS document',
+        'UTTypeConformsTo': ['public.json'],
+        'UTTypeTagSpecification': {
+            'public.filename-extension': ['screenplayos.json'],
+            'public.mime-type': 'application/vnd.screenplayos+json',
+        },
+    }],
     'ScreenplayOSRevision': revision,
     'ScreenplayOSBuildConfiguration': sys.argv[3],
 }))

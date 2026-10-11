@@ -23,3 +23,5 @@ fi
 configuration="${SCREENPLAYOS_BUILD_CONFIGURATION:-debug}"
 swift test --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" "${test_args[@]}" "$@"
 swift run --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-self-test
+swift run --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island.open-screenplay.json --json >/dev/null
+swift run --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-inspect Tests/Fixtures/Minimal.screenplayos.json --json >/dev/null

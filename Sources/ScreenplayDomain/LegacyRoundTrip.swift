@@ -7,7 +7,7 @@ import Foundation
 /// to open such files as unsaved copies instead of autosaving over the original.
 public enum LegacyRoundTrip {
     /// Keys a supported migration intentionally rewrites under a new name.
-    static let migratedPaths: Set<String> = ["ai_settings.post_enabled"]
+    static let migratedPaths: Set<String> = ["format", "ai_settings.post_enabled"]
 
     /// JSON paths present in `original` that would be missing after saving `document`.
     /// Unknown null, false, and empty values are meaningful too (for example, a

@@ -38,6 +38,8 @@ enum PackageEditedCopy {
         // Only manifest modification time and explicitly edited text can change.
         var files = session.currentFiles
         var manifest = try PreservedJSON(files["manifest.json"]!)
+        try manifest.replaceString(at: [.key("format")], expected: manifest.string(at: [.key("format")]),
+                                   with: "screenplayos")
         let oldTime = try manifest.string(at: [.key("modified_at")])
         try manifest.replaceString(at: [.key("modified_at")], expected: oldTime,
                                    with: ISO8601DateFormatter().string(from: now))

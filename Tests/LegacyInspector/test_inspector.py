@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('inspector', ROOT / 'Scripts/inspect-legacy.py')
 inspector = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(inspector)
-SCHEMA = json.loads((ROOT / 'Specs/open-screenplay-1.0.schema.json').read_text())
+SCHEMA = json.loads((ROOT / 'Specs/legacy/open-screenplay-1.0.schema.json').read_text())
 PROJECT = '00000000-0000-4000-8000-000000000001'
 SCRIPT = '00000000-0000-4000-8000-000000000002'
 ELEMENT = '00000000-0000-4000-8000-000000000003'
@@ -32,6 +32,14 @@ class InspectorTests(unittest.TestCase):
 
     def codes(self, report):
         return {f['code'] for f in report['findings']}
+
+    def test_reader_accepts_legacy_and_current_identifiers(self):
+        legacy = fixture()
+        current = copy.deepcopy(legacy)
+        current['format'] = 'screenplayos'
+        current_schema = json.loads((ROOT / 'Specs/screenplayos-1.0.schema.json').read_text())
+        self.assertEqual(inspector.inspect_bytes(json.dumps(legacy).encode(), SCHEMA)['dialect'], 'legacy-monolithic-candidate')
+        self.assertEqual(inspector.inspect_bytes(json.dumps(current).encode(), current_schema)['dialect'], 'legacy-monolithic-candidate')
 
     def test_supported_empty_and_unicode_scripts(self):
         value = fixture()

@@ -67,7 +67,7 @@ struct NativeLegacyPayloadPlan: Equatable {
         }
         var values: [String: Any] = [:]
         values["manifest.json"] = [
-            "format": "open-screenplay", "format_version": "1.0", "document_id": screenplayID,
+            "format": "screenplayos", "format_version": "1.0", "document_id": screenplayID,
             "title": try required(metadata, "title", at: "/project/metadata"),
             "author": try required(metadata, "author", at: "/project/metadata"),
             "created_at": try required(metadata, "created_at", at: "/project/metadata"),
@@ -170,7 +170,7 @@ struct NativeLegacyPayloadPlan: Equatable {
         guard Set(objects.map(\.id)).count == objects.count else { throw Failure.identityCollision }
         objects.sort { $0.id.uuidString < $1.id.uuidString }
         let projectPayload: [String: Any] = [
-            "format": "open-screenplay-project", "format_version": "0.1-draft",
+            "format": "screenplayos-project", "format_version": "0.1-draft",
             "project_id": projectID, "screenplay_id": screenplayID,
             "head": ["id": identities.revisionID.uuidString.lowercased(), "parents": [], "created_at": identities.createdAt,
                      "objects": objects.map { ["id": $0.id.uuidString.lowercased(), "kind": $0.kind,

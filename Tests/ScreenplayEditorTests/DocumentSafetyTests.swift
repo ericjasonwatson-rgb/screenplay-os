@@ -725,7 +725,7 @@ struct DocumentSafetyTests {
 
     @Test func preexistingFileIsPreservedOnFirstAutosave() throws {
         try withModel { model, directory, _ in
-            let existing = directory.appendingPathComponent("Untitled_Screenplay.open-screenplay.json")
+            let existing = directory.appendingPathComponent("Untitled_Screenplay.screenplayos.json")
             let sentinel = Data("existing screenplay".utf8)
             try sentinel.write(to: existing)
             model.newDocument()

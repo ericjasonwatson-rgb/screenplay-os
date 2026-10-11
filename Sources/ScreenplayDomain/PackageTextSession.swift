@@ -42,7 +42,7 @@ public struct PackageTextSession {
         guard let metadata = try JSONSerialization.jsonObject(with: manifestBytes) as? [String: Any],
               Set(metadata.keys) == ["format", "format_version", "document_id", "title", "author", "created_at", "modified_at"],
               metadata.values.allSatisfy({ $0 is String }),
-              try manifest.string(at: [.key("format")]) == "open-screenplay",
+              ["screenplayos", "open-screenplay"].contains(try manifest.string(at: [.key("format")])),
               try manifest.string(at: [.key("format_version")]) == "1.0",
               let documentID = UUID(uuidString: try manifest.string(at: [.key("document_id")])) else {
             throw Failure.unsupportedContent

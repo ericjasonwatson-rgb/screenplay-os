@@ -61,7 +61,7 @@ import ScreenplayDomain
         let moved = root.appendingPathComponent("moved")
         try FileManager.default.moveItem(at: copy, to: moved)
         try FileManager.default.removeItem(at: image)
-        let file = moved.appendingPathComponent("Project.open-screenplay.json")
+        let file = moved.appendingPathComponent("Project.screenplayos.json")
         let bytes = try Data(contentsOf: file)
         #expect(!String(decoding: bytes, as: UTF8.self).contains(root.path))
         let decoded = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: bytes)

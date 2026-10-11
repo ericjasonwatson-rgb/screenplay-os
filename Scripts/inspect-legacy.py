@@ -98,7 +98,7 @@ def inspect_bytes(data, schema):
               and isinstance(root['screenplay'].get('elements'), list))
     if shaped:
         report['dialect'] = 'legacy-monolithic-candidate'
-    if not shaped or root.get('format') != 'open-screenplay' or root.get('format_version') != '1.0':
+    if not shaped or root.get('format') not in {'screenplayos', 'open-screenplay'} or root.get('format_version') != '1.0':
         finding('blocker', 'unsupported_dialect', '', 'Structure and supported legacy declarations must agree; a version label alone is insufficient.')
 
     ids = {}
@@ -389,7 +389,14 @@ def main():
     parser.add_argument('--mapping', action='store_true', help='Validate draft field mapping in memory; print metadata only')
     args = parser.parse_args()
     try:
-        schema = json.loads((Path(__file__).resolve().parent.parent / 'Specs/open-screenplay-1.0.schema.json').read_text())
+        source_bytes = Path(args.source).read_bytes()
+        try:
+            source_format = parse_source(source_bytes).get('format')
+        except ValueError:
+            # Let the normal inspector report duplicate keys or malformed content.
+            source_format = None
+        schema_name = 'legacy/open-screenplay-1.0.schema.json' if source_format == 'open-screenplay' else 'screenplayos-1.0.schema.json'
+        schema = json.loads((Path(__file__).resolve().parent.parent / 'Specs' / schema_name).read_text())
         report = inspect_file(args.source, schema)
         if args.mapping:
             data = Path(args.source).read_bytes()

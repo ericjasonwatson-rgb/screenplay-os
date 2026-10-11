@@ -105,7 +105,7 @@ enum BoardImageStorage {
         let staging = destination.deletingLastPathComponent().appendingPathComponent(".board-export-" + UUID().uuidString)
         try fm.createDirectory(at: staging, withIntermediateDirectories: false)
         defer { try? fm.removeItem(at: staging) }
-        let file = staging.appendingPathComponent("Project.open-screenplay.json")
+        let file = staging.appendingPathComponent("Project.screenplayos.json")
         var copy = document
         for board in copy.boardFrames.indices {
             for index in copy.boardFrames[board].imageVersions.indices {

@@ -35,6 +35,8 @@ enum PackageCurrentSave {
         if replacing { guard try PackageEditedCopy.snapshot(target) == base else { throw PackageEditedCopy.Failure.changedSource } }
         var files = base
         var manifest = try PreservedJSON(files["manifest.json"]!)
+        try manifest.replaceString(at: [.key("format")], expected: manifest.string(at: [.key("format")]),
+                                   with: "screenplayos")
         try manifest.replaceString(at: [.key("modified_at")], expected: manifest.string(at: [.key("modified_at")]),
                                    with: ISO8601DateFormatter().string(from: Date()))
         files["settings.json"] = session.settingsBytes

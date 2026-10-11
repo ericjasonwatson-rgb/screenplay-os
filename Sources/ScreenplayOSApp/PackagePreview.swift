@@ -73,7 +73,7 @@ enum PackagePreviewReader {
         }
         func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
         let project = try object(readFile("project.json"))
-        guard project["format"] as? String == "open-screenplay-project",
+        guard ["screenplayos-project", "open-screenplay-project"].contains(project["format"] as? String ?? ""),
               project["format_version"] as? String == "0.1-draft",
               let head = project["head"] as? [String: Any],
               let inventory = head["files"] as? [String: [String: Any]],
@@ -106,7 +106,7 @@ enum PackagePreviewReader {
               metadata["source_sha256"] as? String == digest(original) else { throw PackagePreviewError.check(#line) }
         let manifest = try object(observed["manifest.json"]!)
         let screenplay = try object(observed["screenplay.json"]!)
-        guard manifest["format"] as? String == "open-screenplay", manifest["format_version"] as? String == "1.0",
+        guard ["screenplayos", "open-screenplay"].contains(manifest["format"] as? String ?? ""), manifest["format_version"] as? String == "1.0",
               let documentID = screenplay["id"] as? String, UUID(uuidString: documentID) != nil,
               manifest["document_id"] as? String == documentID, project["screenplay_id"] as? String == documentID,
               let projectID = project["project_id"] as? String, UUID(uuidString: projectID) != nil,
