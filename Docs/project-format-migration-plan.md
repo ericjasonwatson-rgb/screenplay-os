@@ -113,3 +113,21 @@ receipt. The signed bundle carries the reviewed scripts and schemas. It currentl
 depends on a separately installed Python 3 plus `jsonschema`; absence is reported
 without creating the destination. Replace this bridge with a native bundled converter
 before calling the workflow generally available or dependable on ordinary Macs.
+
+## Native conversion preflight — 2026-10-11
+
+`NativeLegacyConversionPlan` now implements the first read-only Swift stage needed
+to remove the external Python runtime. It retains exact source bytes, rejects
+duplicate-key/malformed input and model round trips that would drop fields, checks
+the source again after planning, and authenticates local board PNGs into a
+content-addressed, deduplicated attachment plan while preserving board version
+order, selection, prompt, and model. Symlinks, nonregular or oversized files,
+remote/unsafe references, invalid digests, changed bytes, and invalid PNG dimensions
+fail the plan. Four focused Swift tests cover success, deduplication, source change,
+unknown/duplicate fields, and unsafe media.
+
+This preflight does not yet write a package and is not used by the menu command.
+The next slice is native destination-candidate construction followed by the staged
+writer, durability checks, independent disk readback, and parity testing. The
+Python bridge remains active until those safety properties are replaced rather
+than bypassed.
