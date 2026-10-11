@@ -27,3 +27,38 @@ button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,inpu
 @media(max-width:760px){.hero{display:flex;flex-direction:column}.mode-visual-outline{--crop-y:-38%}.mode-visual-boards{--crop-y:-28%}.mode-visual-edit{--crop-y:-53%}}
 /* Keep the product and optional-AI statements distinct, with a small gap. */
 .hero-copy .lead-primary{margin-bottom:8px}
+
+/* Round 11: show the complete board and a readable timeline as two views of
+   the same Edit capture. Each crop maps source pixels into an overflow frame. */
+.hero-art{display:block;text-decoration:none;color:var(--blue)}
+.hero-art:focus-visible{outline:3px solid #176ca7;outline-offset:4px}
+.hero-pane{position:relative;display:block;overflow:hidden;background:var(--deep);border:1px solid var(--line)}
+.hero-pane picture{display:block}
+.hero-pane img{position:absolute;left:0;top:0;display:block;max-width:none;height:auto;border:0}
+.hero-board{aspect-ratio:640/360}
+.hero-board img{width:375%;transform:translate(-36.667%,-29.934%)}
+.hero-timeline{aspect-ratio:784/210;margin-top:4px}
+.hero-timeline img{width:306.122%;transform:translate(-1%,-68.947%)}
+.hero-art .mode-enlarge{margin-top:9px}
+
+/* Source-safe rectangles: edges fall in margins or between UI elements. */
+.mode-crop{height:auto}
+.mode-crop img{position:absolute;left:0;top:0;height:auto;max-width:none;border:0}
+.mode-visual-outline .mode-crop{aspect-ratio:1320/895}
+.mode-visual-outline .mode-crop img{width:181.818%;transform:translate(-1%,-15.789%)}
+.mode-visual-script .mode-crop{aspect-ratio:880/550}
+.mode-visual-script .mode-crop img{width:272.727%;transform:translate(-35.833%,-23.026%)}
+.mode-visual-shot .mode-crop{aspect-ratio:1020/810}
+.mode-visual-shot .mode-crop img{width:235.294%;transform:translate(-55%,-14.803%)}
+.mode-visual-boards .mode-crop{aspect-ratio:660/690}
+.mode-visual-boards .mode-crop img{width:363.636%;transform:translate(-49.583%,-15.132%)}
+.mode-visual-edit .mode-crop{aspect-ratio:784/210}
+.mode-visual-edit .mode-crop img{width:306.122%;transform:translate(-1%,-68.947%)}
+@media(max-width:760px){
+  .hero-timeline{aspect-ratio:391/210}
+  .hero-timeline img{width:613.811%}
+  .mode-visual-outline .mode-crop{aspect-ratio:960/895}
+  .mode-visual-outline .mode-crop img{width:250%}
+  .mode-visual-edit .mode-crop{aspect-ratio:391/210}
+  .mode-visual-edit .mode-crop img{width:613.811%}
+}
