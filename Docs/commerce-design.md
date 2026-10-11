@@ -1,10 +1,10 @@
 # Commerce design
 
-Status: engineering design only. Commerce enforcement remains off. No merchant account, production key, checkout, webhook, or sale exists.
+Status: Lemon Squeezy selected by the owner on 2026-10-11. Commerce enforcement remains off. No merchant account, production key, checkout, webhook, or sale exists.
 
 ## Recommendation
 
-Start with **Lemon Squeezy**. Both candidates act as merchant of record and handle sales-tax/VAT collection, refunds, chargebacks, subscriptions, and buyer receipts. Lemon Squeezy has a simpler documented fit for this launch: subscription-linked license keys, activation limits, variants for tiers/seats, downloadable files, webhooks, and twice-monthly bank/PayPal payouts. Paddle is credible for a later SaaS-heavy operation, but its documented built-in Mac licensing belongs to Paddle Classic; Paddle Billing would still require our own signed-license fulfillment service.
+**Decision: use Lemon Squeezy.** Both candidates act as merchant of record and handle sales-tax/VAT collection, refunds, chargebacks, subscriptions, and buyer receipts. Lemon Squeezy has a simpler documented fit for this launch: subscription-linked license keys, activation limits, variants for tiers/seats, downloadable files, webhooks, and twice-monthly bank/PayPal payouts. Paddle is credible for a later SaaS-heavy operation, but its documented built-in Mac licensing belongs to Paddle Classic; Paddle Billing would still require our own signed-license fulfillment service.
 
 This is an operational recommendation, not a permanent architecture choice. The app trusts only a ScreenplayOS Ed25519 signature, never a vendor-specific response, so the merchant can change.
 
@@ -28,7 +28,7 @@ Sources checked 2026-10-11: Paddle help on [tax](https://www.paddle.com/help/sel
 5. The buyer downloads the JSON license and chooses **AI > Enter License…**. A future deep link or paste flow may reduce friction, but file import is easiest to inspect and recover.
 6. ScreenplayOS verifies the signature locally. Renewal can deliver a replacement file. Writing never phones home and license failure never blocks core file access.
 
-Production prerequisites: choose merchant; approve refund policy; create products/variants; deploy webhook service; create production signing key outside Git and back it up; replace the placeholder public key; test webhook replay/refunds/cancellation; keep `commerce.enforcement` off until acceptance passes.
+Production prerequisites: approve refund policy; create and activate the Lemon Squeezy store; create products/variants; deploy webhook service; create production signing key outside Git and back it up; replace the placeholder public key; test webhook replay/refunds/cancellation; keep `commerce.enforcement` off until acceptance passes.
 
 ## License tooling and key custody
 

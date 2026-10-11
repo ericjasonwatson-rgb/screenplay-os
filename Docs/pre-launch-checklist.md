@@ -15,7 +15,7 @@ Status: **not ready to charge**. Charging and enforcement remain off.
 | Offline signed licenses and 14-day grace | Foundation done | Ed25519 verifier and file-entry UI; production key/public key replacement still required |
 | License status UI acceptance | Not done | Manually test valid, grace, expired, invalid, VoiceOver, and recovery copy on signed build |
 | Pricing | Partly done | One JSON config; Pro/founding/minimum-seat values encoded; owner must set Studio monthly/yearly prices |
-| Merchant of record | Decision required | Recommendation: Lemon Squeezy; owner must approve and create account/products later |
+| Merchant of record | Selected; setup pending | Owner selected Lemon Squeezy on 2026-10-11; account, test store and products still need creation |
 | Webhook/license service | Not done | Design exists; implement, threat-model, deploy, monitor, back up signer, test replay/refund/cancel |
 | Production signing key custody | Not done | Create outside Git in managed secrets/HSM; rotate and recover; replace placeholder public key |
 | Terms, Privacy, EULA | Drafted only | Attorney review and owner decisions required; publish only approved final text |
@@ -36,9 +36,8 @@ Status: **not ready to charge**. Charging and enforcement remain off.
 
 ## Owner decisions
 
-1. Approve Lemon Squeezy or choose Paddle.
-2. Set Studio monthly and annual per-seat prices within or outside the proposed range.
-3. Define founding eligibility continuity and perpetual-fallback edge cases with counsel.
-4. Approve refund, support, device/seat, and privacy contact policies.
-5. Choose hosting and secret custody for the license signer.
+1. Set Studio monthly and annual per-seat prices within or outside the proposed range.
+2. Define founding eligibility continuity and perpetual-fallback edge cases with counsel.
+3. Approve refund, support, device/seat, and privacy contact policies.
+4. Choose hosting and secret custody for the license signer.
 
