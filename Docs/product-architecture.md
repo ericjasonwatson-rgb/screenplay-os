@@ -237,8 +237,7 @@ end-to-end implementation was found. Inventory inspected at `2ee74fd`.
 
 ### Phased implementation contract
 
-Use the detailed [acceptance scenario](pipeline-acceptance-scenario.md). Implement
-A (timing and interchange), B (audio), C (takes), then D (handoff and round trip),
+The 2026-10-10 [AI-native production direction](ai-native-production-direction.md) supersedes this older phase order. Preserve Phase A (timing and interchange), then follow AI-0 through AI-6. The earlier [acceptance scenario](pipeline-acceptance-scenario.md) remains useful evidence, not the governing sequence. Work
 with bounded commits and evidence notes. Extend canonical data only when its phase
 needs it; do not introduce empty infrastructure for all phases at once.
 
