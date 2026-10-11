@@ -147,5 +147,7 @@ strict state validation and a local atomic JSON sidecar store. The sidecar is no
 part of legacy screenplay JSON or the draft open-package schema, and no app path
 installs it yet. An actor-isolated controller now persists legal transitions and
 blocks ambiguous queued/running jobs after relaunch until explicit recovery review.
-No queue runner, consent UI, activity export, Take migration or live provider send is claimed. See
+Exact consent snapshots now bind approval to the frozen request, and submitted jobs
+can be exported as credential-free local activity JSON. No queue runner, consent UI,
+Take migration or live provider send is claimed. See
 ai-1-generation-job-foundation.md for evidence and the next bounded increment.

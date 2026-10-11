@@ -5,6 +5,7 @@ public enum GenerationJobControllerError: Error, Equatable {
     case duplicateJobID
     case invalidTransition
     case recoveryReviewRequired
+    case consentPreviewChanged
 }
 
 /// Serializes durable job changes and persists each accepted transition before
@@ -53,9 +54,22 @@ public actor GenerationJobController {
         }
     }
 
-    public func grantConsent(for jobID: UUID, at date: Date) throws {
+    public func consentPreview(for jobID: UUID) throws -> GenerationConsentPreview {
+        guard let job = ledger.jobs.first(where: { $0.id == jobID }) else {
+            throw GenerationJobControllerError.jobNotFound
+        }
+        guard [.draft, .awaitingConsent].contains(job.status) else {
+            throw GenerationJobControllerError.invalidTransition
+        }
+        return GenerationConsentPreview(job: job)
+    }
+
+    public func grantConsent(for jobID: UUID, matching preview: GenerationConsentPreview, at date: Date) throws {
         try update(jobID) { job in
             guard job.status == .awaitingConsent else { throw GenerationJobControllerError.invalidTransition }
+            guard preview == GenerationConsentPreview(job: job) else {
+                throw GenerationJobControllerError.consentPreviewChanged
+            }
             job.status = .queued
             job.consentedAt = date
             job.updatedAt = date
@@ -102,6 +116,10 @@ public actor GenerationJobController {
         guard recoveryReviewIDs.remove(jobID) != nil else {
             throw GenerationJobControllerError.invalidTransition
         }
+    }
+
+    public func activityExport(generatedAt: Date) throws -> GenerationActivityExport {
+        try GenerationActivityExport(ledger: ledger, generatedAt: generatedAt)
     }
 
     private func finish(jobID: UUID, status: GenerationJobStatus, at date: Date,

@@ -57,7 +57,22 @@ Controller validation completed in both build configurations on 2026-10-10:
 
 All checks passed. Tests use deterministic records and perform no provider request.
 
+## Consent and activity increment
+
+`GenerationConsentPreview` contains the full provider, model, capability, target,
+prompt, reference metadata, parameters, request hash and estimated cost (including
+nil when unavailable). Consent now requires that exact immutable value to match the
+current durable job. A changed field invalidates approval.
+
+`GenerationActivityExport` is deterministic local JSON containing only jobs that
+were actually submitted. It records exact creative inputs, target, provider/model,
+status, timestamps and estimated/actual cost while excluding credentials and opaque
+provider task IDs. Export is an explicit local write with owner-only permissions.
+
+Consent/activity validation passed in Debug and Release: 306 Swift tests in 52
+suites, 37 importer checks and 14 self-tests in each configuration.
+
 ## Next increment
 
-Add an exact consent preview and a local exportable activity record before
-connecting any live provider adapter.
+Expose these domain boundaries through a read-only consent UI and Activity export
+command, still using deterministic providers before any live adapter is connected.

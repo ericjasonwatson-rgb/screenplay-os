@@ -28,7 +28,8 @@ struct GenerationJobControllerTests {
         let controller = try GenerationJobController(projectID: projectID, storageURL: url)
         try await controller.add(job())
         try await controller.requestConsent(for: jobID, at: created.addingTimeInterval(1))
-        try await controller.grantConsent(for: jobID, at: created.addingTimeInterval(2))
+        let preview = try await controller.consentPreview(for: jobID)
+        try await controller.grantConsent(for: jobID, matching: preview, at: created.addingTimeInterval(2))
         try await controller.markSubmitted(jobID: jobID, at: created.addingTimeInterval(3), providerTaskID: "task-1")
         try await controller.markSucceeded(jobID: jobID, at: created.addingTimeInterval(4),
                                            actualCost: .init(currency: "USD", amountMicros: 100_000))
@@ -46,7 +47,8 @@ struct GenerationJobControllerTests {
         let controller = try GenerationJobController(projectID: projectID, storageURL: url)
         try await controller.add(job())
         await #expect(throws: GenerationJobControllerError.invalidTransition) {
-            try await controller.grantConsent(for: jobID, at: created)
+            let preview = try await controller.consentPreview(for: jobID)
+            try await controller.grantConsent(for: jobID, matching: preview, at: created)
         }
         let other = try GenerationJobController(projectID: UUID(), storageURL: root.appendingPathComponent("other.json"))
         await #expect(throws: GenerationJobValidationError.projectMismatch) { try await other.add(job()) }
@@ -58,7 +60,8 @@ struct GenerationJobControllerTests {
         let first = try GenerationJobController(projectID: projectID, storageURL: url)
         try await first.add(job())
         try await first.requestConsent(for: jobID, at: created.addingTimeInterval(1))
-        try await first.grantConsent(for: jobID, at: created.addingTimeInterval(2))
+        let preview = try await first.consentPreview(for: jobID)
+        try await first.grantConsent(for: jobID, matching: preview, at: created.addingTimeInterval(2))
 
         let reopened = try GenerationJobController(projectID: projectID, storageURL: url)
         #expect(await reopened.jobsRequiringRecoveryReview().map(\.id) == [jobID])
@@ -76,7 +79,8 @@ struct GenerationJobControllerTests {
         let first = try GenerationJobController(projectID: projectID, storageURL: url)
         try await first.add(job())
         try await first.requestConsent(for: jobID, at: created.addingTimeInterval(1))
-        try await first.grantConsent(for: jobID, at: created.addingTimeInterval(2))
+        let preview = try await first.consentPreview(for: jobID)
+        try await first.grantConsent(for: jobID, matching: preview, at: created.addingTimeInterval(2))
         try await first.markSubmitted(jobID: jobID, at: created.addingTimeInterval(3), providerTaskID: "existing-task")
 
         let reopened = try GenerationJobController(projectID: projectID, storageURL: url)
