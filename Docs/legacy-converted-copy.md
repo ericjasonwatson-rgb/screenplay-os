@@ -38,7 +38,7 @@ After abrupt process termination, there may be no diagnostic output. Inspect the
 
 This verifies process interruption and injected I/O failures on the current development filesystem. It is not physical power-loss testing, a guarantee for every filesystem/device, or protection against a hostile process swapping ancestor directories. Source rereads detect changes over those intervals; they are not a file lock and cannot prevent later edits. The writer currently supports macOS only and does not overwrite existing packages.
 
-Production locks, legacy offsets, unknown/service fields, and historical metadata retain the destination profile's existing limits. The immutable source archive preserves them, but does not make lock-aware editing or print output conformant. No complete media registry, attachment migration, revision retention/merge engine, signing, or format release is implied.
+Production locks, legacy offsets, unknown/service fields, and historical metadata retain the destination profile's existing limits. The immutable source archive preserves them, but does not make lock-aware editing or print output conformant. Legacy board PNG versions now receive a validated `film/media.json` registry and content-addressed attachments when every referenced image is present and hash-valid. Missing or unsafe board media blocks the copy rather than producing a falsely complete archive. Other media, revision retention/merge, signing, and format release remain unimplemented.
 
 ## Next application step
 

@@ -84,3 +84,49 @@ def build_media_plan(source_path):
         media.append({'id': asset_id, 'board_id': board['id'], 'shot_id': board['shot_id'],
                       'selected_version_id': selected, 'versions': migrated})
     return {'version': 1, 'project_id': str(project_id), 'media': media, 'attachments': attachments}
+
+
+def validate_packaged_media(registry, boards, attachments):
+    """Validate a relocated package using only its JSON records and attachment bytes."""
+    def integer(value):
+        if type(value) is int: return value
+        # Disk readback may use the independently loaded inspector's Number
+        # subclass, so validate the exact token rather than class identity.
+        if isinstance(value, str) and type(value) is not str and value.isdigit(): return int(value)
+        raise ValueError('media registry integer is invalid')
+    if not isinstance(registry, dict) or integer(registry.get('version')) != 1 or not isinstance(registry.get('media'), list):
+        raise ValueError('invalid media registry')
+    board_map = {item.get('id'): item for item in boards}
+    if len(board_map) != len(boards):
+        raise ValueError('duplicate board identity')
+    expected_paths = set()
+    seen_assets = set()
+    for asset in registry['media']:
+        if asset.get('id') in seen_assets:
+            raise ValueError('duplicate media identity')
+        seen_assets.add(asset.get('id'))
+        board = board_map.get(asset.get('board_id'))
+        if board is None or asset.get('shot_id') != board.get('shot_id'):
+            raise ValueError('media target does not match board')
+        legacy = board.get('image_versions', [])
+        versions = asset.get('versions')
+        if not isinstance(versions, list) or [x.get('id') for x in versions] != [x.get('id') for x in legacy]:
+            raise ValueError('media versions do not match board order')
+        if asset.get('selected_version_id') != board.get('selected_image_id'):
+            raise ValueError('media selection does not match board')
+        for version, original in zip(versions, legacy):
+            path = version.get('path'); digest = version.get('sha256')
+            if path != 'attachments/boards/' + str(digest) + '.png' or digest != original.get('sha256'):
+                raise ValueError('media digest or path does not match board')
+            data = attachments.get(path)
+            if data is None or hashlib.sha256(data).hexdigest() != digest or len(data) != integer(version.get('bytes')):
+                raise ValueError('attachment bytes do not match media registry')
+            width, height = _png_dimensions(data)
+            if [width, height] != [integer(version.get('width')), integer(version.get('height'))]:
+                raise ValueError('attachment dimensions do not match media registry')
+            if version.get('media_type') != 'image/png' or version.get('prompt', '') != original.get('prompt', '') or version.get('model', '') != original.get('model', ''):
+                raise ValueError('media metadata does not match board')
+            expected_paths.add(path)
+    if expected_paths != set(attachments):
+        raise ValueError('unreferenced or missing media attachment')
+    return True

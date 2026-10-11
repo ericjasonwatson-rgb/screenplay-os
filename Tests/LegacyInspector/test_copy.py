@@ -1,4 +1,6 @@
 import errno
+import base64
+import hashlib
 import importlib.util
 import json
 import os
@@ -39,6 +41,34 @@ class CopyTests(unittest.TestCase):
         self.assertTrue(writer.read_copy(self.target)['verified'])
         self.assertEqual((self.target/'provenance/source.json').read_bytes(), self.data)
         self.assertEqual(set(self.root.iterdir()), {self.source, self.target})
+        self.unchanged()
+
+    def test_board_media_is_packaged_deduplicated_relocated_and_verified(self):
+        png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+        digest = hashlib.sha256(png).hexdigest()
+        folder = self.root / 'Board Images'; folder.mkdir(); image = folder / 'take.png'; image.write_bytes(png)
+        value = rich(); board = value['board_frames'][0]
+        board['image_versions'] = [
+            {'id': '00000000-0000-4000-8000-000000000061', 'fileURL': 'Board%20Images/take.png',
+             'sha256': digest, 'prompt': 'Wide', 'model': 'fixture'},
+            {'id': '00000000-0000-4000-8000-000000000062', 'fileURL': image.as_uri(),
+             'sha256': digest, 'prompt': 'Again', 'model': 'fixture'}]
+        board['selected_image_id'] = board['image_versions'][1]['id']
+        self.source.chmod(0o644); self.data = json.dumps(value, indent=3).encode() + b'\n'; self.source.write_bytes(self.data)
+        self.source.chmod(0o444); self.modified = self.source.stat().st_mtime_ns
+
+        result = writer.write_copy(self.source, self.target)
+        self.assertEqual(result['media_attachments'], 1)
+        attachment = self.target / 'attachments' / 'boards' / (digest + '.png')
+        self.assertEqual(attachment.read_bytes(), png)
+        registry = json.loads((self.target / 'film/media.json').read_text())
+        self.assertEqual(len(registry['media'][0]['versions']), 2)
+        self.assertEqual(registry['media'][0]['selected_version_id'], board['selected_image_id'])
+        relocated = self.root / 'relocated.screenplay'; self.target.rename(relocated)
+        self.assertTrue(writer.read_copy(relocated)['verified'])
+        attachment = relocated / 'attachments' / 'boards' / (digest + '.png')
+        attachment.write_bytes(png + b'changed')
+        with self.assertRaises(ValueError): writer.read_copy(relocated)
         self.unchanged()
 
     def test_existing_file_directory_and_symlink_are_not_replaced(self):

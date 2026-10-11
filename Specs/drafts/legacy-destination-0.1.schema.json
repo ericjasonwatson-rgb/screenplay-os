@@ -73,6 +73,9 @@
       ],
       "additionalProperties": true
     },
+    "film/media.json": {
+      "$ref": "#/$defs/mediaRegistry"
+    },
     "film/edit.json": {
       "$ref": "#/$defs/editorialSpine"
     },
@@ -767,6 +770,44 @@
         }
       },
       "additionalProperties": true
+    },
+    "mediaRegistry": {
+      "type": "object",
+      "required": ["version", "project_id", "media"],
+      "properties": {
+        "version": {"const": 1},
+        "project_id": {"$ref": "#/$defs/uuid"},
+        "media": {"type": "array", "items": {"$ref": "#/$defs/mediaAsset"}}
+      },
+      "additionalProperties": false
+    },
+    "mediaAsset": {
+      "type": "object",
+      "required": ["id", "board_id", "shot_id", "selected_version_id", "versions"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "board_id": {"$ref": "#/$defs/uuid"},
+        "shot_id": {"$ref": "#/$defs/uuid"},
+        "selected_version_id": {"type": ["string", "null"], "format": "uuid"},
+        "versions": {"type": "array", "items": {"$ref": "#/$defs/mediaVersion"}}
+      },
+      "additionalProperties": false
+    },
+    "mediaVersion": {
+      "type": "object",
+      "required": ["id", "path", "sha256", "bytes", "media_type", "width", "height", "prompt", "model"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "path": {"type": "string", "pattern": "^attachments/boards/[0-9a-f]{64}\\.png$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "media_type": {"const": "image/png"},
+        "width": {"type": "integer", "minimum": 1, "maximum": 32768},
+        "height": {"type": "integer", "minimum": 1, "maximum": 32768},
+        "prompt": {"type": "string"},
+        "model": {"type": "string"}
+      },
+      "additionalProperties": false
     },
     "editorialSpine": {
       "type": "object",

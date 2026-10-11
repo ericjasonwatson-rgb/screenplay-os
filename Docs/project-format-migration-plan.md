@@ -95,6 +95,8 @@ validates declared SHA-256 and PNG dimensions; and assigns deterministic package
 media identity plus content-addressed attachment paths. Identical bytes are
 deduplicated in the plan. It does not write packages or change user media.
 
-The next gate is integrating this plan into the staged converted-copy writer and
-its independent readback inventory. Until that is complete, converted copies with
-board metadata are not complete portable media archives.
+The staged converted-copy writer now consumes this plan, writes `film/media.json`
+and content-addressed board PNGs, adds every byte to the project revision inventory,
+and independently verifies the relocated package against its board records. A
+missing, changed, unsafe, or unreferenced attachment fails readback. This remains
+an experimental new-destination copy; the app does not edit this rich package.

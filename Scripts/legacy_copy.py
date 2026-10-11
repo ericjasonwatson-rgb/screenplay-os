@@ -1,5 +1,6 @@
 """macOS-only, new-destination writer for the unreleased migration profile."""
 import ctypes
+import copy
 import fcntl
 import hashlib
 import importlib.util
@@ -15,6 +16,9 @@ _spec = importlib.util.spec_from_file_location('legacy_destination', Path(__file
 destination = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(destination)
 raw = destination.raw
+_media_spec = importlib.util.spec_from_file_location('legacy_media', Path(__file__).with_name('legacy_media.py'))
+legacy_media = importlib.util.module_from_spec(_media_spec)
+_media_spec.loader.exec_module(legacy_media)
 
 
 class CopyFailure(Exception):
@@ -87,24 +91,41 @@ def read_copy(package):
     project = raw.parse_source(_read_regular(package / 'project.json'))
     inventory = project['head']['files']
     allowed = set(destination.load_schema()['properties']) - {'project.json'}
-    if not isinstance(inventory, dict) or not set(inventory) <= allowed:
+    attachment_names = {name for name in inventory if name.startswith('attachments/boards/')}
+    json_names = set(inventory) - attachment_names
+    if (not isinstance(inventory, dict) or not json_names <= allowed or
+            any(name != 'attachments/boards/' + Path(name).stem + '.png' or
+                len(Path(name).stem) != 64 or any(c not in '0123456789abcdef' for c in Path(name).stem)
+                for name in attachment_names)):
         raise ValueError('unsafe or unsupported inventory path')
     expected = set(inventory) | {'project.json', 'provenance/source.json', 'provenance/candidate.json'}
     if names != expected:
         raise ValueError('missing or unaccounted package file')
-    payloads = {'project.json': project}
+    payloads = {}
+    attachment_bytes = {}
     for name, entry in inventory.items():
         data = _read_regular(package / name)
         if hashlib.sha256(data).hexdigest() != entry['sha256'] or len(data) != int(entry['bytes']):
             raise ValueError('payload bytes do not match the committed inventory')
-        payloads[name] = raw.parse_source(data)
+        if name in attachment_names: attachment_bytes[name] = data
+        else: payloads[name] = raw.parse_source(data)
     if not isinstance(metadata, dict) or 'files' in metadata:
         raise ValueError('invalid candidate metadata')
-    candidate = {**metadata, 'files': payloads}
+    registry = payloads.pop('film/media.json', None)
+    base_project = copy.deepcopy(project)
+    for name in attachment_names | ({'film/media.json'} if registry is not None else set()):
+        base_project['head']['files'].pop(name, None)
+    candidate = {**metadata, 'files': {'project.json': base_project, **payloads}}
     destination.validate_candidate(original, candidate)
+    if registry is None:
+        if attachment_bytes: raise ValueError('attachments require a media registry')
+    else:
+        if registry.get('project_id') != project.get('project_id'):
+            raise ValueError('media registry project mismatch')
+        legacy_media.validate_packaged_media(registry, payloads.get('film/boards.json', {}).get('boards', []), attachment_bytes)
     return {'source_sha256': hashlib.sha256(original).hexdigest(),
             'project_revision': project['head']['id'], 'payload_files': len(payloads),
-            'verified': True, 'app_editing_supported': False}
+            'media_attachments': len(attachment_bytes), 'verified': True, 'app_editing_supported': False}
 
 
 def write_copy(source, target, checkpoint=lambda phase, stage: None):
@@ -121,11 +142,25 @@ def write_copy(source, target, checkpoint=lambda phase, stage: None):
         raise FileExistsError('destination already exists')
     original = _read_regular(source)
     candidate = destination.build_candidate(original)
+    media_plan = legacy_media.build_media_plan(source)
     stage = Path(tempfile.mkdtemp(prefix='.screenplay-conversion-', dir=parent))
     phase, published = 'staging_created', False
     try:
         checkpoint(phase, stage)
-        payloads = {name: raw.preserve_json(value) for name, value in candidate['files'].items()}
+        files = copy.deepcopy(candidate['files'])
+        payloads = {name: raw.preserve_json(value) for name, value in files.items()}
+        if media_plan['media']:
+            registry = {'version': media_plan['version'], 'project_id': media_plan['project_id'], 'media': media_plan['media']}
+            payloads['film/media.json'] = raw.preserve_json(registry)
+            for name, entry in media_plan['attachments'].items():
+                data = _read_regular(entry['source_path'])
+                if hashlib.sha256(data).hexdigest() != entry['sha256'] or len(data) != entry['bytes']:
+                    raise ValueError('board image changed during staging')
+                payloads[name] = data
+            for name in ['film/media.json', *media_plan['attachments']]:
+                data = payloads[name]
+                files['project.json']['head']['files'][name] = {'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
+            payloads['project.json'] = raw.preserve_json(files['project.json'])
         payloads['provenance/source.json'] = original
         payloads['provenance/candidate.json'] = raw.preserve_json({key: value for key, value in candidate.items() if key != 'files'})
         for name, data in payloads.items():

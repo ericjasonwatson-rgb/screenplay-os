@@ -40,6 +40,10 @@ class MediaPlanTests(unittest.TestCase):
         self.assertEqual(record['selected_version_id'], self.document['board_frames'][0]['selected_image_id'])
         self.assertEqual(record['versions'][0]['path'], 'attachments/boards/' + self.digest + '.png')
         self.assertEqual((record['versions'][0]['width'], record['versions'][0]['height']), (1, 1))
+        attachments = {path: Path(entry['source_path']).read_bytes() for path, entry in plan['attachments'].items()}
+        self.assertTrue(media.validate_packaged_media(
+            {'version': plan['version'], 'project_id': plan['project_id'], 'media': plan['media']},
+            self.document['board_frames'], attachments))
         self.assertEqual(self.source.read_bytes(), before)
 
     def test_changed_missing_remote_and_symlink_media_fail_closed(self):
