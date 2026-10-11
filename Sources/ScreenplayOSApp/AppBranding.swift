@@ -4,10 +4,12 @@ import SwiftUI
 /// Branding stays in the Mac shell; it does not read or change project content.
 @MainActor
 enum AppBranding {
+    /// Transparent master for every in-app use. The ICNS remains the application
+    /// icon because macOS selects its size-specific representations for the Dock.
     static let logo: NSImage = {
         // Packaged macOS apps use Contents/Resources; swift run uses Bundle.module.
-        let url = Bundle.main.url(forResource: "ScreenplayOSLogo", withExtension: "png")
-            ?? Bundle.module.url(forResource: "ScreenplayOSLogo", withExtension: "png")
+        let url = Bundle.main.url(forResource: "ScreenplayOSAppIcon", withExtension: "png")
+            ?? Bundle.module.url(forResource: "ScreenplayOSAppIcon", withExtension: "png")
         guard let url,
               let image = NSImage(contentsOf: url) else {
             return NSImage(named: NSImage.applicationIconName) ?? NSImage()
@@ -21,9 +23,10 @@ enum AppBranding {
         return url.flatMap(NSImage.init(contentsOf:)) ?? logo
     }()
 
-    /// Give the menu bar a small representation without changing the source image.
+    /// Use the transparent PNG directly; loading the ICNS here can select an
+    /// opaque legacy representation on some macOS versions.
     static let menuBarIcon: NSImage = {
-        let image = appIcon.copy() as! NSImage
+        let image = logo.copy() as! NSImage
         image.size = NSSize(width: 18, height: 18)
         image.isTemplate = false
         return image
@@ -77,7 +80,7 @@ private struct AboutScreenplayOSView: View {
 struct AppLogoButton: View {
     var body: some View {
         Button(action: AppBranding.showAbout) {
-            Image(nsImage: AppBranding.appIcon)
+            Image(nsImage: AppBranding.logo)
                 .resizable()
                 .interpolation(.high)
                 .aspectRatio(contentMode: .fit)

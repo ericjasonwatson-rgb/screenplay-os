@@ -68,10 +68,10 @@ shutil.copy2(source, temporary)
 temporary.replace(app / 'Contents/MacOS/ScreenplayOS')
 resources = app / 'Contents/Resources'
 resources.mkdir(parents=True, exist_ok=True)
-# Preserve the supplied PNG and its prebuilt standard macOS icon representations.
+# Package the transparent master and its standard macOS icon representations.
 branding = pathlib.Path('Sources/ScreenplayOSApp/Resources')
-shutil.copy2(branding / 'ScreenplayOSLogo.png', resources / 'ScreenplayOSLogo.png')
 shutil.copy2(branding / 'ScreenplayOS.icns', resources / 'ScreenplayOS.icns')
+shutil.copy2(branding / 'ScreenplayOSAppIcon.png', resources / 'ScreenplayOSAppIcon.png')
 # The experimental converted-copy command is an explicit bridge to the vetted
 # Python writer. Keep its scripts and schemas inside the signed bundle; the app
 # still checks for a compatible local Python runtime before offering success.

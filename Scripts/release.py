@@ -43,7 +43,7 @@ def verify_app(app, version, build, arch):
     for key, value in expected.items():
         if info.get(key) != value:
             raise RuntimeError(f"{key}: expected {value!r}, found {info.get(key)!r}")
-    for resource in ("ScreenplayOS.icns", "ScreenplayOSLogo.png"):
+    for resource in ("ScreenplayOS.icns", "ScreenplayOSAppIcon.png"):
         if not (app / "Contents/Resources" / resource).is_file():
             raise RuntimeError(f"Missing app resource: {resource}")
     binary = app / "Contents/MacOS/ScreenplayOS"
