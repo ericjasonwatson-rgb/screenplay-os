@@ -59,6 +59,22 @@ Native destination planning now also assigns deterministic scene, shot-addendum,
 The native follow-up now constructs the complete in-memory payload split and
 project revision inventory. It preserves the semantic legacy archive, translates
 scene references through one checked map, includes authenticated board attachments,
-and commits byte counts and SHA-256 values before any future write. It still performs
-no filesystem mutation. Native staging, publication, and independent readback are
-the next required layer before the Python writer can be removed.
+and commits byte counts and SHA-256 values before writing.
+
+`NativeLegacyPackageWriter` now provides the native staged publication layer. It
+creates a private sibling package, writes every nested payload with exclusive
+creation and no final-symlink following, fully flushes each file, syncs the directory
+tree, compares an independently read inventory with the complete in-memory byte set,
+and opens the staged package through `PackagePreviewReader`. It then rereads the
+source, publishes with `RENAME_EXCL`, syncs the destination parent, and repeats both
+byte-exact and semantic readback before returning a receipt. Source changes,
+competing destinations, corrupt staged or published bytes, unsafe paths, and injected
+failures retain the relevant stage or published package without reporting success.
+Canonical `realpath` comparison accounts for macOS `/var` and `/private/var` aliases.
+
+Four focused Swift integration tests cover successful publication, exact source
+preservation, checkpoints before and after publication, source mutation, a competing
+destination, and staged/published corruption. The writer is deliberately not wired
+to **Save Converted Copy…** yet. Python-parity fixtures and service integration remain
+the next gates; the current Python path stays active until the native pipeline proves
+equivalent rather than merely producing a package the preview accepts.

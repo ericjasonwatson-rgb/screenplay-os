@@ -159,3 +159,19 @@ This remains an in-memory plan and does not authorize package writes. A native
 staged writer, directory durability, exclusive publication, independent disk
 readback, Python-parity fixtures, and menu integration still remain. The existing
 Python bridge stays active until those gates pass.
+
+## Native staged writer — 2026-10-11
+
+`NativeLegacyPackageWriter` now consumes the authenticated preflight, deterministic
+identity plan, and complete payload inventory. It writes only to a new sibling stage,
+uses exclusive non-following file creation, flushes files and directories, verifies
+the exact recursive byte set, reopens through the independent Swift package reader,
+rereads the source before publication, publishes with macOS `RENAME_EXCL`, and repeats
+disk and source verification before returning success. Failures retain the stage or
+published package with the failed phase and never remove a competing destination.
+
+Focused integration tests cover success, source preservation, failures at both sides
+of publication, source mutation, destination races, and staged/published corruption.
+This completes the native persistence primitive, not the migration switch. Cross-
+implementation parity fixtures, error/report mapping, and menu-service integration
+remain required before removing the Python bridge.
