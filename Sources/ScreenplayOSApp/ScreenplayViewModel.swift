@@ -1334,6 +1334,12 @@ final class ScreenplayViewModel: ObservableObject {
             return
         }
         do {
+            if let embedded = document?.continuityBible {
+                guard embedded.projectID == screenplay.id else { throw ContinuityBibleError.invalidLedger }
+                continuityBible = try embedded.validated()
+                continuityBibleStatus = nil
+                return
+            }
             let url = try ContinuityBibleWorkflow.storageURL(projectID: screenplay.id, root: continuityBibleRoot)
             if FileManager.default.fileExists(atPath: url.path) {
                 let loaded = try ContinuityBibleFileStore.read(from: url)
@@ -1356,8 +1362,12 @@ final class ScreenplayViewModel: ObservableObject {
     private func persistContinuityBible(_ success: String) {
         guard let ledger = continuityBible else { return }
         do {
+            let validated = try ledger.validated()
+            document?.continuityBible = validated
+            document?.project.metadata.modifiedAt = Date()
             let url = try ContinuityBibleWorkflow.storageURL(projectID: ledger.projectID, root: continuityBibleRoot)
-            try ContinuityBibleFileStore.write(ledger, to: url)
+            try ContinuityBibleFileStore.write(validated, to: url)
+            autosave()
             continuityBibleStatus = success
         } catch {
             continuityBibleStatus = "The continuity bible could not be saved. The in-memory review remains open."

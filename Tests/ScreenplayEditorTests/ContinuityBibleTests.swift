@@ -128,12 +128,18 @@ struct ContinuityBibleTests {
 
         #expect(model.document?.screenplay == scriptBeforeReview)
         #expect(model.continuityBible?.entries.first?.name == "Family Kitchen")
+        #expect(model.document?.continuityBible == model.continuityBible)
         let url = try ContinuityBibleWorkflow.storageURL(projectID: projectID, root: root)
         #expect(try ContinuityBibleFileStore.read(from: url) == model.continuityBible)
+
+        let encoded = try JSONEncoder().encode(model.document)
+        let reopened = try JSONDecoder().decode(ScreenplayOSDocument.self, from: encoded)
+        #expect(reopened.continuityBible == model.continuityBible)
 
         model.undoContinuityReviewAction()
         #expect(model.continuityBible?.entries.isEmpty == true)
         #expect(model.continuityBible?.proposals.first?.status == .proposed)
+        #expect(model.document?.continuityBible == model.continuityBible)
     }
 
     @Test func realPerformerGenerationFailsClosedAcrossExpiryAndRevocation() throws {

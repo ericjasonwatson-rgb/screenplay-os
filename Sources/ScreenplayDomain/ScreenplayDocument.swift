@@ -20,6 +20,7 @@ public struct ScreenplayOSDocument: Codable, Equatable {
     public var shots: [Shot]
     public var boardFrames: [BoardFrame]
     public var editorialSpine: EditorialSpine
+    public var continuityBible: ContinuityBibleLedger?
 
     public init(
         format: String = ScreenplayOSDocument.currentFormat,
@@ -35,7 +36,8 @@ public struct ScreenplayOSDocument: Codable, Equatable {
         scriptNotes: [ScriptNote] = [],
         shots: [Shot] = [],
         boardFrames: [BoardFrame] = [],
-        editorialSpine: EditorialSpine = EditorialSpine()
+        editorialSpine: EditorialSpine = EditorialSpine(),
+        continuityBible: ContinuityBibleLedger? = nil
     ) {
         self.format = format
         self.formatVersion = formatVersion
@@ -51,6 +53,7 @@ public struct ScreenplayOSDocument: Codable, Equatable {
         self.shots = shots
         self.boardFrames = boardFrames
         self.editorialSpine = editorialSpine
+        self.continuityBible = continuityBible
         ensureSceneSpineIDs()
         ensureEditorialSpine()
     }
@@ -72,6 +75,7 @@ public struct ScreenplayOSDocument: Codable, Equatable {
         case shots
         case boardFrames = "board_frames"
         case editorialSpine = "editorial_spine"
+        case continuityBible = "continuity_bible"
     }
 
     public init(from decoder: Decoder) throws {
@@ -108,6 +112,16 @@ public struct ScreenplayOSDocument: Codable, Equatable {
         shots = try container.decodeIfPresent([Shot].self, forKey: .shots) ?? []
         boardFrames = try container.decodeIfPresent([BoardFrame].self, forKey: .boardFrames) ?? []
         editorialSpine = try container.decodeIfPresent(EditorialSpine.self, forKey: .editorialSpine) ?? EditorialSpine()
+        continuityBible = try container.decodeIfPresent(ContinuityBibleLedger.self, forKey: .continuityBible)
+        if let continuityBible {
+            guard continuityBible.projectID == screenplay.id else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .continuityBible, in: container,
+                    debugDescription: "Continuity bible must belong to this screenplay"
+                )
+            }
+            _ = try continuityBible.validated()
+        }
         titlePage = try container.decodeIfPresent(TitlePage.self, forKey: .titlePage)
             ?? TitlePage(title: project.metadata.title, author: project.metadata.author)
         productionContext = try container.decodeIfPresent(ProductionContext.self, forKey: .productionContext) ?? ProductionContext()
@@ -133,6 +147,7 @@ public struct ScreenplayOSDocument: Codable, Equatable {
         try container.encode(shots, forKey: .shots)
         try container.encode(boardFrames, forKey: .boardFrames)
         try container.encode(editorialSpine, forKey: .editorialSpine)
+        try container.encodeIfPresent(continuityBible, forKey: .continuityBible)
     }
 
     public mutating func ensureSceneSpineIDs(prefix: String = "S") {
