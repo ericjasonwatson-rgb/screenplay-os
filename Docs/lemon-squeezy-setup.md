@@ -1,6 +1,6 @@
-# Lemon Squeezy setup for ScreenplayOS
+# Lemon Squeezy setup for ScreenplayOS — superseded
 
-Decision date: 2026-10-11. Status: owner setup required; test mode only. Do not enable live checkout or commerce enforcement from this checklist.
+Superseded on 2026-10-11 by the Stripe Managed Payments decision in `commerce-design.md`. Retained as a historical comparison only. Do not create products, credentials, webhooks, or accounts from this checklist.
 
 ## Account and store
 

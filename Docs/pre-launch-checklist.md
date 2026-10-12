@@ -15,8 +15,8 @@ Status: **not ready to charge**. Charging and enforcement remain off.
 | Offline signed licenses and 14-day grace | Foundation done | Ed25519 verifier and file-entry UI; production key/public key replacement still required |
 | License status UI acceptance | Not done | Manually test valid, grace, expired, invalid, VoiceOver, and recovery copy on signed build |
 | Pricing | Partly done | One JSON config; Pro/founding/minimum-seat values encoded; owner must set Studio monthly/yearly prices |
-| Merchant of record | Selected; setup pending | Owner selected Lemon Squeezy on 2026-10-11; account, test store and products still need creation |
-| Webhook/license service | Not done | Design exists; implement, threat-model, deploy, monitor, back up signer, test replay/refund/cancel |
+| Merchant of record | Stripe sandbox selected | Managed Payments selected 2026-10-11; no live products, prices or webhook |
+| Webhook/license service | Test foundation done | Stripe signature verification, four lifecycle events, idempotency, one-time activation and Ed25519 signing are locally tested; deployment, durable storage, email delivery, monitoring and threat review remain |
 | Production signing key custody | Not done | Create outside Git in managed secrets/HSM; rotate and recover; replace placeholder public key |
 | Terms, Privacy, EULA | Drafted only | Attorney review and owner decisions required; publish only approved final text |
 | Refund/support policy | Not done | Owner and counsel decision; align merchant settings and customer copy |
