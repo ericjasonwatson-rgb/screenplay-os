@@ -813,9 +813,9 @@ final class ScreenplayViewModel: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let file = try decoder.decode(SignedLicenseFile.self, from: Data(contentsOf: url))
-            // Public half of a placeholder key. Enforcement cannot be enabled until
-            // release engineering replaces this with the production public key.
-            let placeholder = Data(base64Encoded: "PUAXw+hDiVqStwqnTRt+vJyYLM8uxJaMwM1V8Sr0Zgw=")!
+            // Enforcement remains off until release engineering replaces this
+            // placeholder with the public half of the Worker signing key.
+            let placeholder = Data(base64Encoded: CommerceConfiguration.licensePublicKeyBase64)!
             switch LicenseVerifier(publicKey: placeholder).verify(file, now: Date()) {
             case let .valid(payload): licenseStatusText = "Valid \(payload.tier.rawValue.capitalized) license · \(payload.seatCount) seat\(payload.seatCount == 1 ? "" : "s")"
             case let .grace(payload, until): licenseStatusText = "\(payload.tier.rawValue.capitalized) license in offline grace through \(until.formatted(date: .abbreviated, time: .omitted))"

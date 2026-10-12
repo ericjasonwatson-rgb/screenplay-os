@@ -21,8 +21,60 @@ public enum CoreCapability: String, CaseIterable, Sendable {
 
 public enum CommerceConfiguration {
     public static let enforcementKey = "commerce.enforcement"
+    public static let licenseServiceBaseURL = URL(string: "https://license.screenplayos.com")!
+    // Replace only during the production signer ceremony. The private half
+    // belongs in the license Worker secret store and must never ship in the app.
+    public static let licensePublicKeyBase64 = "PUAXw+hDiVqStwqnTRt+vJyYLM8uxJaMwM1V8Sr0Zgw="
     public static func enforcementEnabled(in defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: enforcementKey) // absent is deliberately false
+    }
+}
+
+public enum CommercePlan: String, Codable, CaseIterable, Sendable {
+    case proMonthly = "pro-monthly"
+    case proAnnual = "pro-annual"
+    case foundingAnnual = "founding-annual"
+    case studioMonthly = "studio-monthly"
+    case studioAnnual = "studio-annual"
+}
+
+/// The application depends on this boundary, not Stripe, Paddle, or their SDKs.
+/// Implementations return browser URLs only; payment UI never appears in-app.
+public protocol PaymentProvider: Sendable {
+    var identifier: String { get }
+    func checkoutURL(for plan: CommercePlan) -> URL?
+    var subscriptionManagementURL: URL? { get }
+    var cancellationFallbackURL: URL { get }
+}
+
+public struct HostedPaymentProvider: PaymentProvider, Equatable, Sendable {
+    public let identifier: String
+    public let checkoutURLs: [CommercePlan: URL]
+    public let subscriptionManagementURL: URL?
+    public let cancellationFallbackURL: URL
+
+    public init(identifier: String, checkoutURLs: [CommercePlan: URL],
+                subscriptionManagementURL: URL?, cancellationFallbackURL: URL) {
+        self.identifier = identifier
+        self.checkoutURLs = checkoutURLs
+        self.subscriptionManagementURL = subscriptionManagementURL
+        self.cancellationFallbackURL = cancellationFallbackURL
+    }
+
+    public func checkoutURL(for plan: CommercePlan) -> URL? { checkoutURLs[plan] }
+}
+
+public struct LicenseActivationRequest: Codable, Equatable, Sendable {
+    public let email: String
+    public init(email: String) { self.email = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+}
+
+public struct LicenseActivationExchange: Codable, Equatable, Sendable {
+    public let email: String
+    public let code: String
+    public init(email: String, code: String) {
+        self.email = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        self.code = code.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -79,19 +131,24 @@ public struct PricingConfiguration: Codable, Equatable, Sendable {
 
 public struct LicensePayload: Codable, Equatable, Sendable {
     public let licenseID: UUID
+    public let email: String
     public let tier: ProductTier
     public let seatCount: Int
     public let issuedAt: Date
+    /// End of the paid period. `expiresAt` includes the 14-day offline grace.
+    public let paidThrough: Date?
     public let expiresAt: Date?
     public let planID: String
     public let perpetualUntilVersion: String?
 
-    public init(licenseID: UUID, tier: ProductTier, seatCount: Int, issuedAt: Date,
-                expiresAt: Date?, planID: String, perpetualUntilVersion: String?) {
+    public init(licenseID: UUID, email: String = "", tier: ProductTier, seatCount: Int, issuedAt: Date,
+                paidThrough: Date? = nil, expiresAt: Date?, planID: String, perpetualUntilVersion: String?) {
         self.licenseID = licenseID
+        self.email = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         self.tier = tier
         self.seatCount = seatCount
         self.issuedAt = issuedAt
+        self.paidThrough = paidThrough
         self.expiresAt = expiresAt
         self.planID = planID
         self.perpetualUntilVersion = perpetualUntilVersion
@@ -126,11 +183,17 @@ public struct LicenseVerifier: Sendable {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         guard file.payload.seatCount > 0,
+              file.payload.paidThrough == nil || file.payload.email.contains("@"),
               let signature = Data(base64Encoded: file.signature),
               let key = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKey),
               let payload = try? encoder.encode(file.payload),
               key.isValidSignature(signature, for: payload) else { return .invalid }
         guard let expiry = file.payload.expiresAt else { return .valid(file.payload) }
+        if let paidThrough = file.payload.paidThrough {
+            if now <= paidThrough { return .valid(file.payload) }
+            return now <= expiry ? .grace(file.payload, until: expiry) : .expired(file.payload)
+        }
+        // Compatibility with foundation licenses issued before paidThrough existed.
         if now <= expiry { return .valid(file.payload) }
         let graceEnd = expiry.addingTimeInterval(TimeInterval(Self.offlineGraceDays * 86_400))
         return now <= graceEnd ? .grace(file.payload, until: graceEnd) : .expired(file.payload)

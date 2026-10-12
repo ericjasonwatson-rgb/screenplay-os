@@ -9,10 +9,11 @@ func value(after flag: String) -> String? {
 
 guard let privatePath = value(after: "--private-key"),
       let outputPath = value(after: "--output"),
+      let email = value(after: "--email"),
       let tierText = value(after: "--tier"), let tier = ProductTier(rawValue: tierText),
       let seatsText = value(after: "--seats"), let seats = Int(seatsText), seats > 0,
       let plan = value(after: "--plan") else {
-    fputs("Usage: swift run screenplay-license-tool --private-key /safe/test.key --output license.json --tier pro --seats 1 --plan test [--expires 2027-01-01T00:00:00Z] [--perpetual-until 1.0]\n", stderr)
+    fputs("Usage: swift run screenplay-license-tool --private-key /safe/test.key --output license.json --email test@example.com --tier pro --seats 1 --plan test [--paid-through 2027-01-01T00:00:00Z] [--expires 2027-01-15T00:00:00Z] [--perpetual-until 1.0]\n", stderr)
     exit(64)
 }
 
@@ -30,8 +31,9 @@ if FileManager.default.fileExists(atPath: keyURL.path) {
 }
 
 let formatter = ISO8601DateFormatter()
+let paidThrough = value(after: "--paid-through").flatMap(formatter.date(from:))
 let expiry = value(after: "--expires").flatMap(formatter.date(from:))
-let payload = LicensePayload(licenseID: UUID(), tier: tier, seatCount: seats, issuedAt: Date(), expiresAt: expiry,
+let payload = LicensePayload(licenseID: UUID(), email: email, tier: tier, seatCount: seats, issuedAt: Date(), paidThrough: paidThrough, expiresAt: expiry,
                              planID: plan, perpetualUntilVersion: value(after: "--perpetual-until"))
 let license = try LicenseVerifier.signed(payload: payload, privateKey: key)
 let encoder = JSONEncoder()

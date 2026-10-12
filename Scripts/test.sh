@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/LegacyInspector
+node --test LicenseWorker/test/*.test.mjs
 
 # Keep compiler caches inside the ignored build directory, including in Codex.
 export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
