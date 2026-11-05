@@ -63,3 +63,32 @@ synthetic fixture only. It is **not** a FilmCraft import/export
 round-trip, and does not verify rate-aware trimming, audio,
 multi-track editorial, real media relinking, external API transport,
 or an undoable adoption of externally changed edits.
+
+## External editor acceptance — offline review gate
+
+The branch now contains `Scripts/compare_filmcraft_otio.py`, a
+fail-closed comparator that accepts a ScreenplayOS-exported OTIO file
+and a separately returned OTIO file. Both are parsed with official
+OpenTimelineIO, then compared by unique editorial occurrence IDs.
+A returned timeline may propose media replacements, time changes,
+clip reordering or updated notes. Those changes are printed as
+structured, **non-adopted** proposals. An absent/duplicated occurrence,
+missing ScreenplayOS namespace, changed Take, shot, board, generation
+job, media fingerprint or prompt fingerprint is rejected.
+
+`Scripts/test_filmcraft_roundtrip_review.py` runs synthetic adversarial
+cases from the actual Swift OTIO export. The tests never import a
+candidate into the ScreenplayOS project or access an AI provider.
+
+`Scripts/run_filmcraft_roundtrip.py` is an optional, intentionally
+manual headless FilmCraft invocation. Given a locally verified
+`filmcraft-cli` executable, it issues `file.import` and
+`file.exportOtio` in one isolated CLI session and compares the
+returned OTIO against the original. The wrapper does not download or
+trust any latest release automatically. Do not state that the real
+FilmCraft round-trip has passed until this command is executed on a
+**pinned, checksum-verified** binary and its report is inspected.
+
+Current public FilmCraft documentation describes these command IDs
+and a separately distributed macOS CLI. Its rapid release cadence
+makes a floating binary unsuitable as an acceptance gate.
