@@ -25,7 +25,14 @@ struct ScreenplayOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
-                .onAppear { appDelegate.model = model; model.enablePackageWindows() }
+                .onAppear {
+                    appDelegate.model = model
+                    model.enablePackageWindows()
+                    SiriWorkspaceNavigation.consume(model: model)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: SiriWorkspaceNavigation.notification)) { _ in
+                    SiriWorkspaceNavigation.consume(model: model)
+                }
                 .background(DocumentCloseGuard(model: model))
                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
         }
