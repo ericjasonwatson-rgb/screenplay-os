@@ -149,12 +149,12 @@ struct ProductionImageResponseExecutionTests {
         }
         let ledger = await f.controller.snapshot()
         #expect(ledger.jobs[0].status == .failed)
-        #expect(ledger.jobs[0].sanitizedError == "Reference-image request or local result preservation failed. Check job status before any retry.")
+        #expect(ledger.jobs[0].sanitizedError == "Provider returned an invalid image response. Check usage before retrying.")
         #expect(transport.calls == 1)
         #expect(f.board.imageVersions.count == 1)
     }
 
-    @Test func failedTransportRecordsSafeErrorOnce() async throws {
+    @Test func uncertainTransportOutcomeStaysRunningWithoutRetry() async throws {
         let f = try await fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         let transport = FixtureTransport(response: nil)
@@ -173,6 +173,21 @@ struct ProductionImageResponseExecutionTests {
         let ledger = await f.controller.snapshot()
         #expect(ledger.jobs[0].status == .failed)
         #expect(ledger.jobs[0].sanitizedError == "Reference-image request or local result preservation failed. Check job status before any retry.")
+        #expect(transport.calls == 1)
+        // An ambiguous request must fail preflight on any attempted reuse.
+        do {
+            _ = try await ProductionImageResponseExecution.execute(
+                controller: f.controller, staged: f.staged,
+                authorization: f.authorization, approval: f.approval,
+                shot: f.shot, board: f.board, projectRoot: f.root,
+                documentURL: f.documentURL, takeID: UUID(),
+                submittedAt: f.started.addingTimeInterval(4),
+                completedAt: f.started.addingTimeInterval(5),
+                recoveryRoot: f.root, transport: transport)
+            Issue.record("Ambiguous submission must not retry.")
+        } catch {
+            #expect(error is ProductionImageDispatchPreflight.Failure)
+        }
         #expect(transport.calls == 1)
     }
 }
