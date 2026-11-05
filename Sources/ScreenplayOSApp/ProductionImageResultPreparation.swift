@@ -55,6 +55,35 @@ enum ProductionImageResultPreparation {
     enum Failure: Error, Equatable {
         case jobNotCompleted
         case mismatchedJob
+        case missingDurableJob
+    }
+
+    /// Production entry point. Reads the terminal record from the durable actor
+    /// rather than accepting a synthetic succeeded job supplied by the UI.
+    /// A verified local result may be persisted as an unselected candidate,
+    /// but this does not modify the project document or the Take ledger.
+    static func prepareFromPersistedJob(
+        response: Data,
+        controller: GenerationJobController,
+        staged: ApprovedProductionImageReview,
+        currentShot: Shot,
+        currentBoard: BoardFrame,
+        approval: ProductionBoardApproval,
+        documentURL: URL,
+        takeID: UUID,
+        now: Date
+    ) async throws -> Take {
+        let ledger = try await controller.snapshot().validated()
+        guard ledger.projectID == staged.job.projectID,
+              let job = ledger.jobs.first(where: { $0.id == staged.job.id }) else {
+            throw Failure.missingDurableJob
+        }
+        // All terminal job records are immutable under GenerationJobController.
+        return try prepare(
+            response: response, job: job, staged: staged,
+            currentShot: currentShot, currentBoard: currentBoard,
+            approval: approval, documentURL: documentURL,
+            takeID: takeID, now: now)
     }
 
     static func prepare(
