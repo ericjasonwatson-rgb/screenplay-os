@@ -1,0 +1,31 @@
+name: Campaign Workspace
+
+on:
+  pull_request:
+    paths:
+      - 'Sources/ScreenplayDomain/Campaign*.swift'
+      - 'Sources/ScreenplayOSApp/Campaign*.swift'
+      - 'Sources/ScreenplayOSApp/ScreenplayOSApp.swift'
+      - 'Sources/ScreenplayOSApp/ScreenplayViewModel.swift'
+      - 'Sources/ScreenplayOSApp/ScreenplayChromeState.swift'
+      - 'Tests/ScreenplayEditorTests/Campaign*.swift'
+      - '.github/workflows/campaign-workspace.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  campaign:
+    runs-on: macos-15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [debug, release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift toolchain
+        run: swift --version
+      - name: Test campaign domain, local storage and commands
+        run: swift test --configuration ${{ matrix.configuration }} --disable-sandbox --filter Campaign

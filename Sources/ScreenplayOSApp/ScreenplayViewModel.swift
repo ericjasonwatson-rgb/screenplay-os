@@ -9,6 +9,7 @@ import ScreenplayFDX
 
 @MainActor
 final class ScreenplayViewModel: ObservableObject {
+    @Published var campaignPresented = false
     @Published var showEditScript = false
     @Published var boardGenerationSnapshot: BoardGenerationSnapshot?
     @Published var dialogueAssistantPresented = false

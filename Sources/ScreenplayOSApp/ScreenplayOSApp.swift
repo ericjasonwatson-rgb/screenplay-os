@@ -18,13 +18,18 @@ struct ScreenplayOSApp: App {
     }
 
     private var scriptCommandsDisabled: Bool {
-        !model.scriptEditorFocused || model.titlePagePresented ||
+        !model.scriptEditorFocused || model.campaignPresented || model.titlePagePresented ||
         model.dialogueAssistantPresented || model.boardGenerationSnapshot != nil || model.generationConsentPreview != nil
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
+                .sheet(isPresented: $model.campaignPresented) {
+                    if let projectID = model.document?.project.id {
+                        CampaignWorkspaceView(model: model, projectID: projectID)
+                    }
+                }
                 .onAppear { appDelegate.model = model; model.enablePackageWindows() }
                 .background(DocumentCloseGuard(model: model))
                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
@@ -39,7 +44,7 @@ struct ScreenplayOSApp: App {
             CommandGroup(replacing: .appInfo) {
                 Group {
                     Button("About ScreenplayOS", action: AppBranding.showAbout)
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
             }
             CommandGroup(replacing: .newItem) {
                 Group {
@@ -86,7 +91,7 @@ struct ScreenplayOSApp: App {
                             }
                         }
                     }
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packagePreview != nil || model.campaignPresented)
             }
             CommandGroup(replacing: .saveItem) {
                 Button("Close Window") { NSApp.keyWindow?.performClose(nil) }
@@ -135,7 +140,7 @@ struct ScreenplayOSApp: App {
                         model.showProductionExportPanel()
                     }
                     .keyboardShortcut("p", modifiers: [.command, .option])
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
                 if let editor = model.packageEditor {
                     Button("Save Package") { editor.saveCurrent() }
                         .keyboardShortcut("s", modifiers: [.command])
@@ -156,7 +161,7 @@ struct ScreenplayOSApp: App {
                     }
                         .keyboardShortcut("z", modifiers: [.command, .shift])
                         .disabled(packageFieldEditor == nil && !(model.packageEditor?.canRedo ?? model.canRedo))
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packagePreview != nil || model.campaignPresented)
             }
             CommandGroup(after: .textEditing) {
                 if let editor = model.packageEditor {
@@ -164,6 +169,14 @@ struct ScreenplayOSApp: App {
                     Button("Find Next") { editor.navigateFind() }.keyboardShortcut("g", modifiers: [.command])
                     Button("Find Previous") { editor.navigateFind(backward: true) }.keyboardShortcut("g", modifiers: [.command, .shift])
                 }
+            }
+            CommandMenu("Campaign") {
+                Button("Campaign Brief & Scope…") { model.campaignPresented = true }
+                    .disabled(model.document == nil || model.packageSheetOpen || model.campaignPresented
+                              || model.titlePagePresented || model.dialogueAssistantPresented
+                              || model.continuityBiblePresented || model.boardGenerationSnapshot != nil
+                              || model.generationConsentPreview != nil || model.generationCostLedger != nil
+                              || model.convertedCopyReceipt != nil)
             }
             CommandMenu("Workspace") {
                 Group {
@@ -220,11 +233,11 @@ struct ScreenplayOSApp: App {
                         AppDelegate.resetMainWindowLayout()
                     }
                     .keyboardShortcut("0", modifiers: [.command, .shift])
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
             }
             CommandMenu("AI") {
                 Button("Connect AI provider…") { model.dialogueAssistantPresented = true }
-                    .disabled(model.packageSheetOpen)
+                    .disabled(model.packageSheetOpen || model.campaignPresented)
                 Button("Suggest dialogue line…") { model.dialogueAssistantPresented = true }
                     .disabled(model.packageSheetOpen || model.selectedElement?.type != .dialogue)
                 Divider()
@@ -236,7 +249,7 @@ struct ScreenplayOSApp: App {
                     .disabled(model.packageSheetOpen || model.document == nil)
                 Divider()
                 Button("Enter License…") { model.showLicenseImportPanel() }
-                    .disabled(model.packageSheetOpen)
+                    .disabled(model.packageSheetOpen || model.campaignPresented)
             }
             CommandMenu("Screenplay") {
                 Group {
@@ -444,7 +457,7 @@ struct ScreenplayOSApp: App {
                         .keyboardShortcut("7", modifiers: [.command])
                     }
                     .disabled(scriptCommandsDisabled)
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
             }
         }
         MenuBarExtra {
