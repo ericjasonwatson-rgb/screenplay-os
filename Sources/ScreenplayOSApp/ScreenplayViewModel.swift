@@ -2647,6 +2647,10 @@ final class ScreenplayViewModel: ObservableObject {
         if !sidebarMode.isCrossCutting && sidebarMode.workflowMode != mode {
             sidebarMode = lastSidebarModeByWorkflow[mode] ?? mode.defaultSidebarMode
         }
+        // Workspace replacement is structural, unlike incremental text edits.
+        // Refresh the scoped chrome signal immediately so the outgoing native
+        // writing view is removed before a new workspace lays out.
+        chromeState.refresh(from: self)
     }
 
     /// True while the script editor has keyboard focus; script-editing shortcuts apply only then.
