@@ -1,5 +1,6 @@
 import SwiftUI
 import PDFKit
+import ScreenplayDomain
 
 /// A separate document section. Title-page editing never appends screenplay paragraphs.
 struct ScreenplayTitlePageEditor: View {
@@ -40,6 +41,7 @@ struct ScreenplayTitlePageEditor: View {
 private struct TitlePageExportPreview: View {
     @ObservedObject var model: ScreenplayViewModel
     @State private var document: PDFDocument?
+    @State private var renderedTitlePage: TitlePage?
     @State private var error: String?
     @State private var updating = true
 
@@ -54,7 +56,7 @@ private struct TitlePageExportPreview: View {
                 }
                 .padding().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .accessibilityElement(children: .combine)
-            } else if let document {
+            } else if let document, renderedTitlePage == model.titlePage {
                 TitlePagePDFView(document: document)
             } else {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -65,12 +67,14 @@ private struct TitlePageExportPreview: View {
             // information is being rendered or has overflowed the page.
             updating = true
             document = nil
+            renderedTitlePage = nil
             error = nil
             do {
                 try await Task.sleep(nanoseconds: 150_000_000)
                 try Task.checkCancellation()
                 let data = try model.makeTitlePagePDF()
                 guard let rendered = PDFDocument(data: data) else { throw PrintPDFError.renderFailed }
+                renderedTitlePage = model.titlePage
                 document = rendered
                 error = nil
                 updating = false
@@ -78,6 +82,7 @@ private struct TitlePageExportPreview: View {
                 // A newer field value or closing the editor cancels this render.
             } catch {
                 document = nil
+                renderedTitlePage = nil
                 self.error = error.localizedDescription
                 updating = false
             }
