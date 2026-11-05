@@ -10,6 +10,7 @@ struct ProductionImagePendingJobsSheet: View {
 
     @State private var pending: [GenerationJobRecord] = []
     @State private var recoverable: [GenerationJobRecord] = []
+    @State private var unresolved: [GenerationJobRecord] = []
     @State private var working = false
     @State private var message = ""
 
@@ -21,10 +22,10 @@ struct ProductionImagePendingJobsSheet: View {
                 Button("Refresh") { Task { await refresh() } }.disabled(working)
                 Button("Close", action: dismiss)
             }
-            Text("Unsent requests remain local and cannot send themselves. Completed images saved on this Mac can be restored without another API charge. Recovery adds an unselected Take; it never changes the edit.")
+            Text("Unsent requests remain local. Saved results can be restored without another API charge. Submitted requests with no saved result are shown separately; their provider outcome may be unknown and they are never retried automatically.")
                 .font(.caption).foregroundStyle(.secondary)
             if working { ProgressView().controlSize(.small) }
-            if pending.isEmpty && recoverable.isEmpty && !working {
+            if pending.isEmpty && recoverable.isEmpty && unresolved.isEmpty && !working {
                 Text("No unsent or recoverable production-image jobs were found for this project.")
                     .foregroundStyle(.secondary)
             }
@@ -48,6 +49,27 @@ struct ProductionImagePendingJobsSheet: View {
                                 .disabled(working)
                             }
                             .padding(.vertical, 6)
+                        }
+                    }
+                }
+                if !unresolved.isEmpty {
+                    Section("Submitted requests — outcome unconfirmed") {
+                        ForEach(unresolved) { job in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("\(job.providerID) · \(job.modelID)").font(.headline)
+                                Text("Submission may have reached the provider. No saved result was found.")
+                                    .foregroundStyle(.orange)
+                                Text("Job: \(job.id.uuidString)")
+                                    .font(.caption.monospaced()).textSelection(.enabled)
+                                if let submittedAt = job.submittedAt {
+                                    Text("Submitted: \(submittedAt.formatted(date: .abbreviated, time: .standard))")
+                                        .font(.caption).textSelection(.enabled)
+                                }
+                                Text("Request SHA-256: \(job.requestSHA256)")
+                                    .font(.caption.monospaced()).textSelection(.enabled)
+                                Text(ProductionImageUncertainSubmission.guidance)
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }.padding(.vertical, 6)
                         }
                     }
                 }
@@ -88,7 +110,7 @@ struct ProductionImagePendingJobsSheet: View {
         working = true
         defer { working = false }
         guard let projectID = model.document?.screenplay.id else {
-            pending = []; recoverable = []
+            pending = []; recoverable = []; unresolved = []
             message = "No project is open."
             return
         }
@@ -119,6 +141,12 @@ struct ProductionImagePendingJobsSheet: View {
         }.sorted { $0.createdAt > $1.createdAt }
 
         let recoveryRoot = try ProductionImageResultVault.defaultRoot()
+        unresolved = jobs.filter { job in
+            let hasSavedResult = (try? ProductionImageResultVault.load(
+                projectID: projectID, jobID: job.id, root: recoveryRoot)) != nil
+            return ProductionImageUncertainSubmission.isUnresolved(
+                job, hasPreservedImage: hasSavedResult)
+        }.sorted { $0.createdAt > $1.createdAt }
         recoverable = jobs.filter { job in
             guard [.succeeded, .running].contains(job.status),
                   job.consentedAt != nil, job.submittedAt != nil,
