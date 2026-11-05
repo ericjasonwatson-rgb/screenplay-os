@@ -1,3 +1,4 @@
+import AppKit
 import CryptoKit
 import Foundation
 import Testing
@@ -26,18 +27,30 @@ struct ProductionImageTakeHandoffTests {
         return (shot, board, brief)
     }
 
-    // Signature fixture is NOT a valid decoded PNG. The real adapter must
-    // validate image decoding before calling candidate().
-    private let mockOutput = Data([137,80,78,71,13,10,26,10,0,1,2,3])
+    private func validPNG() throws -> Data {
+        let bitmap = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: 1, pixelsHigh: 1,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+            isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        ))
+        return try #require(bitmap.representation(using: .png, properties: [:]))
+    }
+
+    private let invalidSignatureOnly = Data([137,80,78,71,13,10,26,10,0,1,2,3])
 
     @Test func outputIsACandidateAndNeverReplacesApprovedBoard() throws {
         let (shot, board, brief) = fixture()
         let original = board
+        let mockOutput = try validPNG()
+        let stored = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
+        try mockOutput.write(to: stored)
+        defer { try? FileManager.default.removeItem(at: stored) }
         let id = UUID(), job = UUID(), date = Date(timeIntervalSince1970: 1_700_000_000)
         let take = try ProductionImageTakeHandoff.candidate(
             brief: brief, currentShot: shot, currentBoard: board,
             approvedBoardIDs: [board.id],
-            output: mockOutput, storedMediaURL: URL(fileURLWithPath: "/tmp/production.png"),
+            output: mockOutput, storedMediaURL: stored,
             takeID: id, jobID: job, providerID: "mock", modelID: "fixture", generatedAt: date)
         #expect(take.id == id && take.kind == .generatedImage && take.status == .candidate)
         #expect(take.shotID == shot.id && take.boardFrameID == board.id)
@@ -59,7 +72,7 @@ struct ProductionImageTakeHandoffTests {
         #expect(throws: ProductionImagePlanningError.staleBoard) {
             try ProductionImageTakeHandoff.candidate(
                 brief: brief, currentShot: shot, currentBoard: edited,
-                approvedBoardIDs: [board.id], output: mockOutput,
+                approvedBoardIDs: [board.id], output: invalidSignatureOnly,
                 storedMediaURL: URL(fileURLWithPath: "/tmp/take.png"),
                 takeID: UUID(), jobID: UUID(), providerID: "mock",
                 modelID: "fixture", generatedAt: Date())
@@ -67,7 +80,7 @@ struct ProductionImageTakeHandoffTests {
         #expect(throws: ProductionImagePlanningError.staleBoard) {
             try ProductionImageTakeHandoff.candidate(
                 brief: brief, currentShot: shot, currentBoard: board,
-                approvedBoardIDs: [], output: mockOutput,
+                approvedBoardIDs: [], output: invalidSignatureOnly,
                 storedMediaURL: URL(fileURLWithPath: "/tmp/take.png"),
                 takeID: UUID(), jobID: UUID(), providerID: "mock",
                 modelID: "fixture", generatedAt: Date())
@@ -84,12 +97,33 @@ struct ProductionImageTakeHandoffTests {
                 takeID: UUID(), jobID: UUID(), providerID: "mock",
                 modelID: "fixture", generatedAt: Date())
         }
+        let mockOutput = try validPNG()
+        let stored = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
+        try mockOutput.write(to: stored)
+        defer { try? FileManager.default.removeItem(at: stored) }
         #expect(throws: ProductionImageTakeHandoff.Failure.self) {
             try ProductionImageTakeHandoff.candidate(
                 brief: brief, currentShot: shot, currentBoard: board,
                 approvedBoardIDs: [board.id], output: mockOutput,
-                storedMediaURL: URL(fileURLWithPath: "/tmp/take.png"),
+                storedMediaURL: stored,
                 takeID: UUID(), jobID: UUID(), providerID: "",
+                modelID: "fixture", generatedAt: Date())
+        }
+        #expect(throws: ProductionImageTakeHandoff.Failure.self) {
+            try ProductionImageTakeHandoff.candidate(
+                brief: brief, currentShot: shot, currentBoard: board,
+                approvedBoardIDs: [board.id], output: invalidSignatureOnly,
+                storedMediaURL: stored,
+                takeID: UUID(), jobID: UUID(), providerID: "mock",
+                modelID: "fixture", generatedAt: Date())
+        }
+        try Data([0, 1, 2]).write(to: stored)
+        #expect(throws: ProductionImageTakeHandoff.Failure.self) {
+            try ProductionImageTakeHandoff.candidate(
+                brief: brief, currentShot: shot, currentBoard: board,
+                approvedBoardIDs: [board.id], output: mockOutput,
+                storedMediaURL: stored,
+                takeID: UUID(), jobID: UUID(), providerID: "mock",
                 modelID: "fixture", generatedAt: Date())
         }
     }
