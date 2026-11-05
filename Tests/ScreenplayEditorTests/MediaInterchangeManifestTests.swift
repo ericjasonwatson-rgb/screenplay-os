@@ -57,4 +57,27 @@ struct MediaInterchangeManifestTests {
             try MediaInterchangeManifest.make([occurrence(duration: 0)], mediaExists: { _ in true })
         }
     }
+
+    @Test func timelineBridgePreservesRealIDsAndRejectsMissingBindings() throws {
+        let scene = UUID(), shot = UUID(), board = UUID()
+        let first = TimedEditSegment(id: UUID(), sceneSpineID: "S001", label: "First",
+                                     start: 0, duration: 1, clip: nil, estimate: nil)
+        let second = TimedEditSegment(id: UUID(), sceneSpineID: "S001", label: "Repeat",
+                                      start: 1, duration: 2, clip: nil, estimate: nil)
+        let binding = MediaInterchangeManifest.SourceBinding(
+            sceneID: scene, shotID: shot, boardID: board,
+            mediaPath: "attachments/take.mov", note: "Director selected")
+        let result = try MediaInterchangeManifest.fromTimeline(
+            [first, second], bindings: [first.id: binding, second.id: binding],
+            mediaExists: { _ in true })
+        #expect(result.occurrences.map(\\.occurrenceID) == [first.id, second.id])
+        #expect(result.occurrences.map(\\.shotID) == [shot, shot])
+        #expect(result.occurrences.map(\\.durationFrames) == [24, 48])
+        #expect(result.occurrences.allSatisfy { $0.boardID == board && $0.note == "Director selected" })
+        #expect(throws: MediaInterchangeManifest.TimelineError.self) {
+            try MediaInterchangeManifest.fromTimeline([first, second],
+                bindings: [first.id: binding], mediaExists: { _ in true })
+        }
+    }
+
 }
