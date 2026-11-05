@@ -5,6 +5,7 @@ import Foundation
 enum MediaTimelineOTIO {
     enum ExportError: Error, Equatable {
         case invalidRate
+        case nonContiguousTimeline
         case missingAsset(UUID)
     }
 
@@ -14,6 +15,13 @@ enum MediaTimelineOTIO {
                        requireMedia: Bool = false) throws -> Data {
         guard framesPerSecond > 0 && framesPerSecond <= 120 else { throw ExportError.invalidRate }
         let checked = try MediaInterchangeManifest.read(MediaInterchangeManifest.json(manifest))
+        var cursor = 0
+        for item in checked.occurrences {
+            guard item.startFrame == cursor else { throw ExportError.nonContiguousTimeline }
+            let (next, overflow) = cursor.addingReportingOverflow(item.durationFrames)
+            guard !overflow else { throw ExportError.nonContiguousTimeline }
+            cursor = next
+        }
         let missing = Set(checked.missingMedia.map(\.occurrenceID))
         if requireMedia, let first = checked.occurrences.first(where: { $0.mediaPath == nil || missing.contains($0.occurrenceID) }) {
             throw ExportError.missingAsset(first.occurrenceID)
