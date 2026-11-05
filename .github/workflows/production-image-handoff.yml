@@ -80,12 +80,29 @@ jobs:
           swift test --configuration debug --disable-sandbox --filter OpenAIReferenceImage
           swift test --configuration debug --disable-sandbox --filter OpenAIProductionImage
 
-  full-regression:
+  public-regression:
     runs-on: macos-15
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Show toolchain
         run: swift --version
-      - name: Run full ScreenplayOS editor and domain regression suite
-        run: swift test --configuration debug --disable-sandbox --no-parallel
+      - name: Run public-safe regression without republishing private screenplay fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Commit a0b19bfd intentionally removed these private scripts from
+          # the public tree. Preserve the source-fidelity tests unchanged.
+          json="Tests/Fixtures/Defenders_of_Cat_Island.open-screenplay.json"
+          fdx="Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx"
+          if [[ -f "$json" && -f "$fdx" ]]; then
+            echo "Both authored fixtures available: running complete suite."
+            swift test --configuration debug --disable-sandbox --no-parallel
+          else
+            echo "::warning title=Private fixtures unavailable::Running all public-safe tests; source-fidelity tests require the original private JSON and FDX files."
+            # Exact tests that read the intentionally removed private assets.
+            # Never synthesize user creative material or weaken these tests.
+            private_fixture_tests='currentProjectFormatReportsNoLoss|unknownContentIncludingNullIsNamed|unknownEmptyValuesProtectOriginalEvenAfterEditing|changedArrayLengthCannotHideUnknownFields|migrationExceptionIsScopedAndMalformedComparisonFailsClosed|projectWithUnknownContentOpensAsCopyAndOriginalIsNeverRewritten|defendersFixtureRoundTripsWithoutChangingSource|oldDocumentOpensInPlaceAndAutosavesToItsOriginalPath|fixturesRetainSourceAndProduceConsistentPrintPlans|speechAndPageTopTrialsPreserveAllTextAndFitPages|completeWindowPreservesWritingThroughPaneChangesAndReopening|importedScriptKeepsPrintedPaginationThroughEdits'
+            swift test --configuration debug --disable-sandbox --no-parallel --skip "$private_fixture_tests"
+            echo "::notice title=Private fixture gate::12 source-fidelity tests deliberately excluded; rerun with the genuine private fixtures before release certification."
+          fi
