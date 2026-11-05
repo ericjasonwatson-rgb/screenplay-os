@@ -70,9 +70,9 @@ struct MediaInterchangeManifestTests {
         let result = try MediaInterchangeManifest.fromTimeline(
             [first, second], bindings: [first.id: binding, second.id: binding],
             mediaExists: { _ in true })
-        #expect(result.occurrences.map(\\.occurrenceID) == [first.id, second.id])
-        #expect(result.occurrences.map(\\.shotID) == [shot, shot])
-        #expect(result.occurrences.map(\\.durationFrames) == [24, 48])
+        #expect(result.occurrences.map(\.occurrenceID) == [first.id, second.id])
+        #expect(result.occurrences.map(\.shotID) == [shot, shot])
+        #expect(result.occurrences.map(\.durationFrames) == [24, 48])
         #expect(result.occurrences.allSatisfy { $0.boardID == board && $0.note == "Director selected" })
         #expect(throws: MediaInterchangeManifest.TimelineError.self) {
             try MediaInterchangeManifest.fromTimeline([first, second],
