@@ -17,6 +17,15 @@ TRACKED = (
     "generation_job_id", "media_sha256", "prompt_sha256",
 )
 
+def safe_relative_media_path(value):
+    if not isinstance(value, str) or not value or value.startswith(("/", "\\\\")):
+        return False
+    if "\\\\" in value or "://" in value or ":" in value:
+        return False
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        return False
+    return all(part not in ("", ".", "..") for part in value.split("/"))
+
 def snapshot(path):
     timeline = otio.adapters.read_from_file(str(path))
     if not isinstance(timeline, otio.schema.Timeline):
@@ -38,6 +47,8 @@ def snapshot(path):
         reference = clip.media_reference
         if not isinstance(reference, otio.schema.ExternalReference):
             raise ValueError(f"Clip {index} lost its ExternalReference")
+        if not safe_relative_media_path(reference.target_url):
+            raise ValueError(f"Clip {index} returned unsafe/absolute media path")
         entries.append({
             "ids": {field: namespace[field] for field in TRACKED},
             "index": index,
