@@ -28,8 +28,25 @@ struct NativeEditorTests {
             return view.subviews.lazy.compactMap { find($0) }.first
         }
         func settle() async throws {
-            host.layoutSubtreeIfNeeded()
-            try await Task.sleep(nanoseconds: 100_000_000)
+            // NavigationSplitView and HSplitView may finish their AppKit layout
+            // on later run-loop turns, particularly after resizing two side
+            // panels. Observe the *actual* viewport geometry instead of
+            // assuming a fixed 100 ms delay is enough for the round trip.
+            var previousWidth: CGFloat?
+            var stableSamples = 0
+            for iteration in 0..<15 {
+                host.layoutSubtreeIfNeeded()
+                let width = find(host)?.enclosingScrollView?.contentSize.width ?? 0
+                if iteration >= 3, width > 0,
+                   let previousWidth, abs(width - previousWidth) < 0.25 {
+                    stableSamples += 1
+                } else {
+                    stableSamples = 0
+                }
+                if stableSamples >= 3 { return }
+                previousWidth = width
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
             host.layoutSubtreeIfNeeded()
         }
         try await settle()
