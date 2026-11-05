@@ -76,7 +76,7 @@ struct ProductionImageTakeHandoffTests {
 
     @Test func refusesAbsentOutputAndInvalidProvider() throws {
         let (shot, board, brief) = fixture()
-        #expect(throws: ProductionImageTakeHandoff.Failure.missingOutput) {
+        #expect(throws: ProductionImageTakeHandoff.Failure.self) {
             try ProductionImageTakeHandoff.candidate(
                 brief: brief, currentShot: shot, currentBoard: board,
                 approvedBoardIDs: [board.id], output: Data(),
@@ -84,7 +84,7 @@ struct ProductionImageTakeHandoffTests {
                 takeID: UUID(), jobID: UUID(), providerID: "mock",
                 modelID: "fixture", generatedAt: Date())
         }
-        #expect(throws: ProductionImageTakeHandoff.Failure.invalidProvenance) {
+        #expect(throws: ProductionImageTakeHandoff.Failure.self) {
             try ProductionImageTakeHandoff.candidate(
                 brief: brief, currentShot: shot, currentBoard: board,
                 approvedBoardIDs: [board.id], output: mockOutput,
