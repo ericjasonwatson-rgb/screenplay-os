@@ -45,7 +45,7 @@ struct AuditFixTests {
 
     private var fixtureURL: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/Defenders_of_Cat_Island.open-screenplay.json")
+            .appendingPathComponent("Fixtures/Synthetic.open-screenplay.json")
     }
 
     private func withModel(_ body: (ScreenplayViewModel, URL) throws -> Void) throws {

@@ -111,7 +111,7 @@ struct PaginationTests {
 
     @Test func importedScriptKeepsPrintedPaginationThroughEdits() throws {
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/Defenders_of_Cat_Island.open-screenplay.json")
+            .appendingPathComponent("Fixtures/Synthetic.open-screenplay.json")
         let document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: Data(contentsOf: fixture))
         let stressElements = (0..<6).flatMap { _ in document.screenplay.elements.map { source in
             var copy = ScreenplayElement(type: source.type, text: source.text)

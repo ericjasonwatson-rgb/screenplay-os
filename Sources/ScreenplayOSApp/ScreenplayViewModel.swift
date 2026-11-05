@@ -6447,7 +6447,7 @@ final class ScreenplayViewModel: ObservableObject {
             currentDirectory.deletingLastPathComponent(),
             repoFromSource
         ].map {
-            $0.appendingPathComponent("Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx")
+            $0.appendingPathComponent("Tests/Fixtures/Synthetic_Final_Draft.fdx")
         }
     }
 }

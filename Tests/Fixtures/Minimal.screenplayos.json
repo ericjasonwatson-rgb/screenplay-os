@@ -2,43 +2,39 @@
   "format": "screenplayos",
   "format_version": "1.0",
   "project": {
-    "id": "72D334E0-42E7-4B35-8889-E29C8DB07DF4",
+    "id": "85AEA6E7-59C8-5E05-AF9A-5B8E23EBC197",
     "metadata": {
+      "title": "Receipt Printer Test",
       "author": "",
-      "created_at": "2026-09-11T22:19:33Z",
-      "modified_at": "2026-09-11T22:19:33Z",
-      "title": "Defenders_of_Cat_Island_Pilot_Final_Draft"
+      "created_at": "2026-01-01T00:00:00Z",
+      "modified_at": "2026-01-01T00:00:00Z"
     },
-    "screenplay_id": "AFFD9950-339D-4FA5-B6AC-80CD71CFD00F"
+    "screenplay_id": "33F479CF-A932-5C0A-B6C7-92DCA7710348"
   },
   "screenplay": {
+    "id": "33F479CF-A932-5C0A-B6C7-92DCA7710348",
+    "metadata": {
+      "title": "Receipt Printer Test"
+    },
     "elements": [
       {
-        "external_ids": {
-          "fdx_paragraph_id": "7c0b5089-a2ad-4a1d-a0c2-49b64a0ed840"
-        },
-        "id": "53CCF62C-8FF9-40EA-B1F3-81899249EE37",
-        "text": "DEFENDERS OF CAT ISLAND",
-        "type": "action"
+        "id": "6A0346D0-2189-5DB4-A003-89973639D117",
+        "type": "action",
+        "text": "A receipt printer rests beside an empty tray.",
+        "external_ids": {}
       },
       {
-        "external_ids": {
-          "fdx_paragraph_id": "af66163a-cf0a-48f6-b327-1304620c3abd"
-        },
-        "id": "F41A7543-91C5-4ED7-BC30-A90CD1B3FBDD",
-        "text": "\"The Savannah Rubies\"",
-        "type": "action"
+        "id": "1E500051-0713-5F8B-A21E-94A04C61EE9D",
+        "type": "action",
+        "text": "One blank ticket curls gently from the slot.",
+        "external_ids": {}
       }
     ],
-    "id": "AFFD9950-339D-4FA5-B6AC-80CD71CFD00F",
-    "metadata": {
-      "title": "Defenders_of_Cat_Island_Pilot_Final_Draft"
-    },
     "revision": 0,
     "revision_settings": {
-      "color": "blue",
+      "mode_enabled": false,
       "label": "Blue Revision",
-      "mode_enabled": false
+      "color": "blue"
     }
   }
 }

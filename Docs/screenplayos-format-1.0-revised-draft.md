@@ -78,7 +78,7 @@ The document UUID identifies the work across saves, relocation, and named versio
     {
       "id": "a1fbd3b5-6f17-46e4-9bf6-b58e0c0bc304",
       "type": "action",
-      "text": "The Mewseum is hushed and bright."
+      "text": "A clock ticks above an empty reception desk."
     }
   ]
 }

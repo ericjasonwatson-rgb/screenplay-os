@@ -20,7 +20,7 @@ The [revised native-format draft](Docs/screenplayos-format-1.0-revised-draft.md)
 - `Sources/ScreenplayFDX`: minimal FDX importer that maps Final Draft paragraphs into native screenplay elements.
 - `Sources/ScreenplayOSApp`: first macOS app shell with an editable screenplay surface.
 - `Sources/screenplay-inspect`: CLI tool for inspecting FDX and old or current ScreenplayOS JSON documents, with optional normalized JSON output.
-- `Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx`: canonical compatibility fixture from the uploaded pilot.
+- `Tests/Fixtures/Synthetic_Final_Draft.fdx`: synthetic compatibility fixture for public regression tests.
 - Regression tests for domain encoding and FDX import.
 
 ## Product architecture direction
@@ -50,8 +50,8 @@ The [revised native-format draft](Docs/screenplayos-format-1.0-revised-draft.md)
 ./Scripts/test.sh
 swift run screenplay-self-test
 swift run ScreenplayOS
-swift run screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx
-swift run screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx --json
+swift run screenplay-inspect Tests/Fixtures/Synthetic_Final_Draft.fdx
+swift run screenplay-inspect Tests/Fixtures/Synthetic_Final_Draft.fdx --json
 ```
 
 `./Scripts/test.sh` runs the editor safety regressions and the domain/import self-tests. It also supplies the Swift Testing framework paths needed by Command Line Tools-only installations. The editor tests use temporary files and isolated preferences.

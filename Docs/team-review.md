@@ -4,7 +4,7 @@ Review update: page navigation and repaired bundle signing (2026-10-02). The rel
 
 ## Run the review app
 
-Download the zipped ScreenplayOS app from this private repository's Releases page when a release is available. Extract it and launch the app. The supplied build is for Apple silicon Macs. The 0.1.3 (26) release was Developer ID signed and notarized; earlier review builds were ad-hoc signed, and `Scripts/package-app.sh` still produces ad-hoc builds unless a signing identity is supplied. Notarization confirms the signature and a malware scan, not application correctness. Check the release's SHA-256 and its bundle revision (About window) before reporting results. It has not been validated on every supported macOS version. If macOS blocks it, report the exact message; developers can build from source instead.
+Download the zipped ScreenplayOS app from this repository's Releases page when a release is available. Extract it and launch the app. The supplied build is for Apple silicon Macs. The 0.1.3 (26) release was Developer ID signed and notarized; earlier review builds were ad-hoc signed, and `Scripts/package-app.sh` still produces ad-hoc builds unless a signing identity is supplied. Notarization confirms the signature and a malware scan, not application correctness. Check the release's SHA-256 and its bundle revision (About window) before reporting results. It has not been validated on every supported macOS version. If macOS blocks it, report the exact message; developers can build from source instead.
 
 Use a duplicate screenplay for review. Legacy imports and new drafts can automatically save into Downloads; editing a previously saved document updates that file. Keep your originals separate. Do not replace production work with this prototype.
 
@@ -28,7 +28,7 @@ SCREENPLAYOS_BUILD_CONFIGURATION=release ./Scripts/test.sh
 
 The test script keeps compiler caches in `.build`, handles Command Line Tools Swift Testing search paths, and runs the Python inspector checks and Swift self-tests. Python 3 is required for those checks and app packaging. The navigation update adds viewport/zoom/page-jump coverage to the pagination suite. See page-navigation-review.md for the behavior and distribution limitations.
 
-The owner has approved including the Defenders of Cat Island pilot fixture in this private repository for team review. Its presence is not permission to redistribute the screenplay outside the team. No new open-source license is granted by this review setup.
+Private screenplay fixtures have been removed from the current public source tree. Use synthetic fixtures for public tests and reviews; do not upload private screenplays. Historical validation notes refer to a separately held private pilot and do not authorize redistribution. No new open-source license is granted by this review setup.
 
 ## Page navigation
 
