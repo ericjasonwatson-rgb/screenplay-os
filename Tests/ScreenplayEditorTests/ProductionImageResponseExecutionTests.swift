@@ -101,7 +101,7 @@ struct ProductionImageResponseExecutionTests {
             documentURL: f.documentURL, takeID: UUID(),
             submittedAt: f.started.addingTimeInterval(2),
             completedAt: f.started.addingTimeInterval(3),
-            transport: transport)
+            recoveryRoot: f.root, transport: transport)
         #expect(transport.calls == 1)
         #expect(take.status == .candidate)
         #expect(take.shotID == f.shot.id && take.boardFrameID == f.board.id)
@@ -118,7 +118,7 @@ struct ProductionImageResponseExecutionTests {
                 documentURL: f.documentURL, takeID: UUID(),
                 submittedAt: f.started.addingTimeInterval(4),
                 completedAt: f.started.addingTimeInterval(5),
-                transport: transport)
+                recoveryRoot: f.root, transport: transport)
             Issue.record("Completed job should not be dispatched twice.")
         } catch {
             #expect(error is ProductionImageDispatchPreflight.Failure)
@@ -137,14 +137,14 @@ struct ProductionImageResponseExecutionTests {
                 documentURL: f.documentURL, takeID: UUID(),
                 submittedAt: f.started.addingTimeInterval(2),
                 completedAt: f.started.addingTimeInterval(3),
-                transport: transport)
+                recoveryRoot: f.root, transport: transport)
             Issue.record("Malformed provider response must be rejected.")
         } catch {
             #expect(error is OpenAIReferenceImageResponse.Failure)
         }
         let ledger = await f.controller.snapshot()
         #expect(ledger.jobs[0].status == .failed)
-        #expect(ledger.jobs[0].sanitizedError == "Reference-image request failed or returned invalid image data.")
+        #expect(ledger.jobs[0].sanitizedError == "Reference-image request or local result preservation failed. Check job status before any retry.")
         #expect(transport.calls == 1)
         #expect(f.board.imageVersions.count == 1)
     }
@@ -160,14 +160,14 @@ struct ProductionImageResponseExecutionTests {
                 documentURL: f.documentURL, takeID: UUID(),
                 submittedAt: f.started.addingTimeInterval(2),
                 completedAt: f.started.addingTimeInterval(3),
-                transport: transport)
+                recoveryRoot: f.root, transport: transport)
             Issue.record("Transport error must not succeed.")
         } catch {
             #expect(error is FixtureFailure)
         }
         let ledger = await f.controller.snapshot()
         #expect(ledger.jobs[0].status == .failed)
-        #expect(ledger.jobs[0].sanitizedError == "Reference-image request failed or returned invalid image data.")
+        #expect(ledger.jobs[0].sanitizedError == "Reference-image request or local result preservation failed. Check job status before any retry.")
         #expect(transport.calls == 1)
     }
 }
