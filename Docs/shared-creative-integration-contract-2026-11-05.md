@@ -78,3 +78,24 @@ Do not relax or delete native rendering tests solely to achieve a green
 badge. Investigate runtime view lifecycle, zoom state and title overflow
 on macOS, then repeat the full suite. Avoid merging any of the stacked
 branches until the cross-branch acceptance gates pass.
+
+## Native editor stabilization follow-up
+
+Full suite run #118 isolated three native view lifecycle/rendering failures:
+fit-width zoom after hiding and restoring panels, title preview after
+overflow, and workspace mode transition retaining an outgoing writing
+view. A separate 60-second recovery-test timeout has occurred when the
+full suite is highly contended on the shared macOS main actor; it needs
+dedicated repetition before attributing the timeout to the feature.
+
+Follow-up commits make title-PDF rendering revision-bound: old PDF
+canvases are no longer eligible for display after the title source
+changes. Structural workflow switches now refresh scoped Chrome signals
+synchronously so the old native editor can leave the view hierarchy
+before the new workspace is laid out. These are intended narrow fixes;
+their effectiveness must be established by the newly queued full suite,
+not inferred from a successful code commit.
+
+The fit-width round-trip case remains open pending its independent
+macOS result and diagnosis of split-view width restoration. Preserve
+the no-mutation and selection invariants in NativeEditorTests.
