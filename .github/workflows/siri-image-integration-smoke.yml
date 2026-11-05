@@ -1,0 +1,25 @@
+name: Siri and Production Image Integration Smoke
+
+on:
+  push:
+    branches:
+      - integration/siri-image-smoke-20261105
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  siri-image-smoke:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift toolchain
+        run: swift --version
+      - name: Read-only Siri navigation and production-image regression gates
+        run: |
+          swift test --configuration debug --disable-sandbox --no-parallel --filter SiriWorkspace
+          swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionImage
+          swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionBoardApproval
+          swift test --configuration debug --disable-sandbox --no-parallel --filter OpenAIReferenceImage
