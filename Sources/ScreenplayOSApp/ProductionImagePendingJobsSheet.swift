@@ -52,17 +52,21 @@ struct ProductionImagePendingJobsSheet: View {
                     }
                 }
                 if !recoverable.isEmpty {
-                    Section("Completed images awaiting project recovery") {
+                    Section("Saved images awaiting project recovery") {
                         ForEach(recoverable) { job in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("\(job.providerID) · \(job.modelID)").font(.headline)
-                                Text("Generated image preserved locally — no new request needed")
+                                Text(job.status == .running
+                                     ? "Saved output found; completion was not recorded. Review and reconcile locally."
+                                     : "Generated image preserved locally — no new request needed")
                                     .foregroundStyle(.secondary)
                                 Text("Board: \(job.target.id.uuidString)")
                                     .font(.caption.monospaced()).textSelection(.enabled)
                                 Text("Job: \(job.id.uuidString)")
                                     .font(.caption.monospaced()).textSelection(.enabled)
-                                Button("Restore as unselected Take (no send)") {
+                                Button(job.status == .running
+                                       ? "Reconcile saved output and restore (no send)"
+                                       : "Restore as unselected Take (no send)") {
                                     Task { await recover(jobID: job.id) }
                                 }
                                 .disabled(working)
@@ -116,9 +120,9 @@ struct ProductionImagePendingJobsSheet: View {
 
         let recoveryRoot = try ProductionImageResultVault.defaultRoot()
         recoverable = jobs.filter { job in
-            guard job.status == .succeeded,
+            guard [.succeeded, .running].contains(job.status),
                   job.consentedAt != nil, job.submittedAt != nil,
-                  job.completedAt != nil,
+                  (job.status == .running || job.completedAt != nil),
                   let board = document.boardFrames.first(where: { $0.id == job.target.id }),
                   !board.imageVersions.contains(where: { $0.generationJobID == job.id }) else {
                 return false
@@ -153,7 +157,7 @@ struct ProductionImagePendingJobsSheet: View {
             let controller = try model.generationJobController(for: projectID)
             let ledger = try await controller.snapshot().validated()
             guard let job = ledger.jobs.first(where: { $0.id == jobID }),
-                  job.status == .succeeded,
+                  [.running, .succeeded].contains(job.status),
                   job.request.parameters["workflow"] == "production_image_from_approved_board",
                   let board = model.boardFrames.first(where: { $0.id == job.target.id }),
                   let shot = model.shots.first(where: { $0.id == board.shotID }) else {
@@ -166,6 +170,14 @@ struct ProductionImagePendingJobsSheet: View {
             let approval = try ProductionBoardApprovals.load(at: approvalFile)
             try ProductionBoardApprovals.validate(
                 approval, projectID: projectID, shot: shot, board: board)
+            if job.status == .running {
+                // The filmmaker explicitly requested local reconciliation.
+                // No outgoing provider request occurs; only an already saved
+                // image can advance the persistent job to succeeded.
+                try await ProductionImageInterruptedCompletionRecovery.completeFromVault(
+                    controller: controller, jobID: jobID, approval: approval,
+                    shot: shot, board: board, recoveryRoot: approvalRoot, at: Date())
+            }
             let take = try await ProductionImageCompletedResultRecovery.candidate(
                 controller: controller, jobID: jobID, approval: approval,
                 shot: shot, board: board, documentURL: documentURL,
