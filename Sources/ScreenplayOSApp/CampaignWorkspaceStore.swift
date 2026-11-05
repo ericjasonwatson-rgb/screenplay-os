@@ -128,16 +128,23 @@ enum CampaignWorkspaceStore {
         guard url.isFileURL else { throw Failure.unsafePath }
         // /tmp and /var are system aliases on macOS. Resolve those once at the
         // caller's root; never follow a symlink within the campaign hierarchy.
-        var current = url.standardizedFileURL
-        while current.path != "/" {
+        // Do not use standardizedFileURL here: Foundation can shorten the resolved
+        // /private/var path back to the /var symlink on macOS. Walk literal paths.
+        let path = url.path
+        guard path.hasPrefix("/"), !url.pathComponents.contains(".."),
+              !url.pathComponents.contains(".") else { throw Failure.unsafePath }
+        var current = path
+        while current != "/" {
             var info = stat()
-            if lstat(current.path, &info) == 0 {
+            if lstat(current, &info) == 0 {
                 guard (info.st_mode & S_IFMT) != S_IFLNK else { throw Failure.unsafePath }
-                if current != url.standardizedFileURL {
+                if current != path {
                     guard (info.st_mode & S_IFMT) == S_IFDIR else { throw Failure.unsafePath }
                 }
             } else if errno != ENOENT { throw Failure.unsafePath }
-            current.deleteLastPathComponent()
+            let parent = (current as NSString).deletingLastPathComponent
+            guard parent != current, !parent.isEmpty else { throw Failure.unsafePath }
+            current = parent
         }
     }
 }
