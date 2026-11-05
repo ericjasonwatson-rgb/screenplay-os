@@ -7238,9 +7238,15 @@ extension ScreenplayViewModel {
     @discardableResult
     func appendProductionImageCandidate(_ take: Take) throws -> Bool {
         guard requireEntitlement(.takes) else { return false }
-        guard document != nil, saveURL != nil else {
+        guard document != nil, let documentURL = saveURL else {
             throw ProductionImageCandidateAdoption.Failure.boardNotFound
         }
+        let expectedDirectory = documentURL.deletingLastPathComponent()
+            .appendingPathComponent(BoardImageStorage.folder).standardizedFileURL
+        guard take.mediaURL.isFileURL,
+              take.mediaURL.standardizedFileURL.deletingLastPathComponent() == expectedDirectory,
+              take.mediaURL.standardizedFileURL == take.mediaURL.resolvingSymlinksInPath().standardizedFileURL
+        else { throw ProductionImageCandidateAdoption.Failure.invalidCandidate }
         // Always validate stored bytes and digest, not just caller metadata.
         let readVersion = BoardImageVersion(
             id: take.id, fileURL: take.mediaURL,
