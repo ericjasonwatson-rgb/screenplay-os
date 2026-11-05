@@ -19,6 +19,7 @@ struct ProductionImageJobStagingSheet: View {
     @State private var authorization: ProductionImageSendAuthorization?
     @State private var showingConsentReview = false
     @State private var showingPendingJobs = false
+    @State private var showingSendConfirmation = false
     @State private var busy = false
     @State private var message = ""
 
@@ -33,7 +34,7 @@ struct ProductionImageJobStagingSheet: View {
                     Spacer()
                     Button("Close", action: dismiss)
                 }
-                Text("Offline staging only. No image will be uploaded and no API charges can occur here.")
+                Text("Staging and consent are local only. A separate Send now confirmation is required before any external request or charge.")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("Provider: OpenAI")
                 TextField("Image edit model", text: $modelID)
@@ -73,6 +74,10 @@ struct ProductionImageJobStagingSheet: View {
                         Button("Review separate consent…") { showingConsentReview = true }
                             .disabled(busy || stagedRequest == nil || stagedApproval == nil || preview == nil)
                     }
+                    if authorization != nil {
+                        Button("Review and Send now…") { showingSendConfirmation = true }
+                            .disabled(busy || stagedRequest == nil || stagedApproval == nil || preview == nil)
+                    }
                     Button("Cancel staged request") { Task { await cancel() } }
                         .disabled(busy)
                 }
@@ -83,6 +88,17 @@ struct ProductionImageJobStagingSheet: View {
             .padding(20)
         }
         .frame(minWidth: 640, idealWidth: 760, minHeight: 560)
+        .sheet(isPresented: $showingSendConfirmation) {
+            if let stagedPreview, let preview {
+                ProductionImageSendConfirmationSheet(
+                    consent: stagedPreview, reference: preview,
+                    confirmSend: {
+                        showingSendConfirmation = false
+                        Task { await sendNow() }
+                    }, dismiss: { showingSendConfirmation = false }
+                )
+            }
+        }
         .sheet(isPresented: $showingPendingJobs) {
             ProductionImagePendingJobsSheet(model: model) {
                 showingPendingJobs = false
@@ -154,7 +170,7 @@ struct ProductionImageJobStagingSheet: View {
             stagedRequest = staged
             stagedApproval = approval
             authorization = nil
-            message = "The request is only saved for future review. Sending is disabled."
+            message = "The request is staged locally. A separate review and Send now action is required."
         } catch {
             message = "Could not stage the current approved image. Check the board, approval and local image."
         }
@@ -195,9 +211,78 @@ struct ProductionImageJobStagingSheet: View {
                 shot: shot, board: board, projectRoot: projectRoot,
                 providerAcceptsReferenceImages: true, at: Date())
             authorization = proof
-            message = "Consent saved locally. Request is queued but cannot send from this screen. Cancel if you do not want to retain it."
+            message = "Consent saved locally. You may review and explicitly Send now, or cancel the queued request."
         } catch {
             message = "Consent was not recorded. The board, image or stored job may have changed."
+        }
+    }
+
+    /// Invoked solely by the final Send now confirmation, never on view
+    /// appearance or when the app recovers queued requests.
+    private func sendNow() async {
+        guard !busy,
+              let projectID = model.document?.screenplay.id,
+              let stagedRequest, let stagedApproval, let authorization,
+              let documentURL = model.saveURL,
+              let originalBoard = model.boardFrames.first(where: { $0.id == boardID }),
+              let originalShot = model.shots.first(where: { $0.id == originalBoard.shotID }) else {
+            message = "This request is no longer available for sending."
+            return
+        }
+        busy = true
+        defer { busy = false }
+        do {
+            // Never reuse consent after a different project opens or the
+            // approval record changes on disk.
+            guard projectID == stagedRequest.job.projectID else {
+                message = "Project changed; no material was sent."
+                return
+            }
+            let approvalRoot = try FileManager.default.url(
+                for: .applicationSupportDirectory, in: .userDomainMask,
+                appropriateFor: nil, create: true)
+            let approvalFile = approvalRoot.appendingPathComponent(
+                "ScreenplayOS/Approvals/\(projectID.uuidString)/\(boardID.uuidString).json")
+            let currentApproval = try ProductionBoardApprovals.load(at: approvalFile)
+            guard currentApproval == stagedApproval else {
+                message = "Approval has changed; no material was sent."
+                return
+            }
+            let projectRoot = documentURL.deletingLastPathComponent().resolvingSymlinksInPath()
+            let controller = try model.generationJobController(for: projectID)
+            // The saved OpenAI key is loaded only following this explicit click.
+            guard let key = try ProviderKeychain().read(.openai), !key.isEmpty else {
+                message = "Connect OpenAI with a valid API key before sending. No request was made."
+                return
+            }
+            let transport = OpenAIProductionImageTransport(credential: key)
+            let submittedAt = Date()
+            let candidate = try await ProductionImageResponseExecution.execute(
+                controller: controller, staged: stagedRequest,
+                authorization: authorization, approval: currentApproval,
+                shot: originalShot, board: originalBoard, projectRoot: projectRoot,
+                documentURL: documentURL, takeID: UUID(),
+                submittedAt: submittedAt, completedAt: submittedAt.addingTimeInterval(1),
+                transport: transport)
+            // The request may take time. Refuse to insert a candidate when
+            // the UI has switched projects or board/shot has changed.
+            guard model.document?.screenplay.id == projectID,
+                  model.saveURL == documentURL,
+                  model.boardFrames.first(where: { $0.id == boardID }) == originalBoard,
+                  model.shots.first(where: { $0.id == originalShot.id }) == originalShot,
+                  (try? ProductionBoardApprovals.load(at: approvalFile)) == currentApproval else {
+                message = "The image was generated and stored, but the project changed. No Take was inserted; review the completed job before importing the result."
+                return
+            }
+            _ = try model.appendProductionImageCandidate(candidate)
+            message = "Generated image added as an unselected Take. Choose it in Boards if you want to use it."
+            self.authorization = nil
+            self.stagedPreview = nil
+            self.stagedRequest = nil
+            self.stagedApproval = nil
+        } catch {
+            // Never show raw provider error bodies, keys, prompts or media.
+            message = "Image generation did not complete or could not be added. Review the saved job status before trying again; do not blindly retry a possibly billable request."
         }
     }
 
