@@ -117,3 +117,30 @@ only**, never imported into the canonical project.
 The workflow has not yet established a pass at the time of authoring
 this section. A failed or missing-media import is an interoperability
 finding, not permission to remove checks or reconstruct identity.
+
+## Actual FilmCraft v0.17.1 interoperability result
+
+CI run #42065575647 used the vendor's macOS universal FilmCraft CLI
+v0.17.1, verified the downloaded archive against its published
+SHA256SUMS file and completed the headless import/export command path.
+The independent comparator then **failed closed** because the returned
+OTIO Clip 0 had no `metadata.screenplayos` namespace. Therefore the
+real FilmCraft round-trip does **not** preserve the identity/provenance
+contract, despite ScreenplayOS's own native OTIO round-trip passing.
+No claim of FilmCraft compatibility should be made yet.
+
+The new `identity_loss_report` only records the count of returned clips,
+which required fields were lost, whether media paths remain safe,
+content digests of both synthetic files and whether unique clip UUID
+names survived. It **never** assigns a returned clip to a source shot
+by position, filename, or matching duration. The complete authoritative
+identity remains in ScreenplayOS's original manifest. The FilmCraft
+gate continues to fail until the imported/re-exported file preserves
+required provenance or an separately approved, unambiguous identity
+mapping protocol is implemented and tested.
+
+A diagnostic report is saved for the synthetic CI fixture on failure;
+do not upload real film timelines or reveal sensitive clip names.
+The comparator's negative tests check metadata stripping, changed
+names, forged identities and unsafe paths. Any external edit remains
+unadopted.
