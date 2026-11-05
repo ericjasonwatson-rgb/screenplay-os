@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'Sources/ScreenplayDomain/ProductionImagePlanning.swift'
+      - 'Sources/ScreenplayDomain/ProductionBoardApproval.swift'
       - 'Sources/ScreenplayDomain/ProductionImageTakeHandoff.swift'
       - 'Sources/ScreenplayDomain/ProductionImageJobPlanning.swift'
       - 'Sources/ScreenplayDomain/ProductionImageReferencePreview.swift'
@@ -11,6 +12,7 @@ on:
       - 'Sources/ScreenplayOSApp/ProductionImagePlanningSheet.swift'
       - 'Sources/ScreenplayOSApp/ContentView.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImagePlanningTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionBoardApprovalTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageTakeHandoffTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageJobPlanningTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageReferencePreviewTests.swift'
