@@ -52,6 +52,14 @@ def main():
         loss = identity_loss_report(source, path)
         assert loss["status"] == "blocked_identity_loss"
         assert loss["adopted"] is False and loss["matching_performed"] is False
+        assert loss["unique_occurrence_names_preserved"] is True
+        # Names surviving does NOT reinstate missing original Take provenance.
+        name_drift = copy.deepcopy(metadata_stripped)
+        name_drift["tracks"]["children"][0]["children"][0]["name"] = "Renamed by editor"
+        path.write_text(json.dumps(name_drift), encoding="utf-8")
+        changed_names = identity_loss_report(source, path)
+        assert changed_names["unique_occurrence_names_preserved"] is False
+        assert changed_names["adopted"] is False and changed_names["matching_performed"] is False
         assert loss["baseline_occurrences"] == 2 and loss["returned_clips"] == 2
         assert len(loss["baseline_sha256"]) == 64
         assert all(len(item["lost_fields"]) == 8 for item in loss["returned_clip_diagnostics"])
