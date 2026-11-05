@@ -28,6 +28,7 @@ on:
       - 'Tests/ScreenplayEditorTests/ProductionImageDispatchPreflightTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageResultPreparationTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageCandidateAdoptionTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImageOfflineEndToEndTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageTakeHandoffTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageJobPlanningTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageReferencePreviewTests.swift'
