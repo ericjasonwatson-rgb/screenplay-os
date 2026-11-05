@@ -108,6 +108,11 @@ struct ProductionImageResponseExecutionTests {
         #expect(take.durationSeconds == f.board.durationSeconds)
         #expect(take.provenance.generationJobID == f.staged.job.id)
         #expect(f.board == original)
+        // A provider response is preserved independently of adding it to Boards,
+        // and can be recovered without executing the transport again.
+        let recoveredResult = try ProductionImageResultVault.recoverResponse(
+            projectID: f.staged.job.projectID, jobID: f.staged.job.id, root: f.root)
+        #expect(try OpenAIReferenceImageResponse.decode(recoveredResult) == image)
         let ledger = await f.controller.snapshot()
         #expect(ledger.jobs[0].status == .succeeded)
         #expect(ledger.jobs[0].submittedAt != nil)
