@@ -56,6 +56,55 @@ enum MediaInterchangeManifest {
         return Manifest(formatVersion: 1, occurrences: occurrences, missingMedia: missing)
     }
 
+
+    /// Explicit binding from a derived timeline segment to canonical objects.
+    /// Never infer scene or shot identity from a display label.
+    struct SourceBinding {
+        let sceneID: UUID
+        let shotID: UUID
+        let boardID: UUID?
+        let mediaPath: String?
+        let note: String
+    }
+
+    enum TimelineError: Error, Equatable {
+        case missingBinding(UUID)
+        case duplicateSegment(UUID)
+        case invalidFrameTiming
+    }
+
+    /// Converts existing timed edit segments to a read-only manifest.
+    /// The caller must provide a canonical identity binding for every segment.
+    /// No identity is fabricated and no canonical project data is mutated.
+    static func fromTimeline(
+        _ segments: [TimedEditSegment],
+        bindings: [UUID: SourceBinding],
+        mediaExists: (String) -> Bool
+    ) throws -> Manifest {
+        var seen = Set<UUID>()
+        var occurrences: [Occurrence] = []
+        for segment in segments {
+            guard seen.insert(segment.id).inserted else { throw TimelineError.duplicateSegment(segment.id) }
+            guard let binding = bindings[segment.id] else { throw TimelineError.missingBinding(segment.id) }
+            guard segment.start.isFinite, segment.duration.isFinite,
+                  segment.start >= 0, segment.duration > 0,
+                  segment.start <= Double(Int.max / 24),
+                  segment.duration <= Double(Int.max / 24) else {
+                throw TimelineError.invalidFrameTiming
+            }
+            let start = (segment.start * 24).rounded()
+            let duration = (segment.duration * 24).rounded()
+            guard start >= 0, duration >= 1, start <= Double(Int.max / 2),
+                  duration <= Double(Int.max / 2) else { throw TimelineError.invalidFrameTiming }
+            occurrences.append(Occurrence(
+                occurrenceID: segment.id, sceneID: binding.sceneID, shotID: binding.shotID,
+                boardID: binding.boardID, mediaPath: binding.mediaPath,
+                startFrame: Int(start), durationFrames: Int(duration), note: binding.note
+            ))
+        }
+        return try make(occurrences, mediaExists: mediaExists)
+    }
+
     static func json(_ manifest: Manifest) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
