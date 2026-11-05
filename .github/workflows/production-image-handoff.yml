@@ -7,10 +7,12 @@ on:
       - 'Sources/ScreenplayDomain/ProductionImageTakeHandoff.swift'
       - 'Sources/ScreenplayDomain/ProductionImageJobPlanning.swift'
       - 'Sources/ScreenplayDomain/ProductionImageReferencePreview.swift'
+      - 'Sources/ScreenplayOSApp/ProductionImageReviewSheet.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImagePlanningTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageTakeHandoffTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageJobPlanningTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageReferencePreviewTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImageReviewSheetTests.swift'
       - '.github/workflows/production-image-handoff.yml'
   workflow_dispatch:
 
