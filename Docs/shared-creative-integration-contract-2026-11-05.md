@@ -1,0 +1,37 @@
+# ScreenplayOS shared integration contract — 2026-11-05
+
+Status: proposed technical contract; implementation is incremental and unmerged.
+
+## One creative authority
+
+ScreenplayOS owns the canonical ProjectID, screenplay/scene and shot UUIDs, authored boards, selected board image, shot timing and editorial occurrences. A UI button, Siri action, and external provider must not each implement their own mutations; eventually all will invoke the same tested, undoable application command.
+
+### Dependency sequence
+
+1. Stabilize Mac builds and project persistence. PR #1 has the media interchange proposal, and its full native UI regression suite is not green. No merge.
+2. Approve a selected storyboard in the project UI. PR #4 currently models approval as a caller-supplied set, not a persistent approval workflow.
+3. Generate a revision-bound production-image brief locally. No network request or raw image transfer.
+4. Display an exact outgoing payload preview, including any board image/reference bytes, provider/model, charge/unknown charge, consent, and revisions. A provider must explicitly support reference-image input; the old OpenAI one-PNG text-only adapter does not.
+5. Only after user-authorized generation and robust output decoding, save immutable media and create a candidate Take with unchanged shot/board identity and provenance. The stacked PR adds a pure mapping, not a working generation pipeline.
+6. Require explicit adoption via a shared undoable command. Do not overwrite the approved storyboard or rewrite a timeline by selecting a candidate.
+7. Video generation and editorial handoff inherit the same shot/take identities, with reviewable external edits.
+8. Siri/App Intents call only verified application commands. Current PR #3 provides read-only navigation; no creative Siri actions yet.
+
+## Cross-branch contracts
+
+| Producer | Output | Consumer | Safety |
+| --- | --- | --- | --- |
+| Board authoring | stable shotID/boardID/selected image version, duration | ProductionImagePlanning | board-specific approval and stale check |
+| ProductionImagePlanning | immutable brief with exact SHA-256 prompt snapshot and local references | consent/request UI (future) | review and explicit send; no implicit network |
+| Image adapter | decoded and hash-verified local image, job and provider metadata | ProductionImageTakeHandoff | validates current board and produces candidate only |
+| Take ledger | candidate media version, immutable asset identity | Boards / Edit (future) | selection/adoption transactional and undoable |
+| Editorial interchange | scene, shot, take and edit occurrence identities | external NLE (future) | compare proposal, not silent import |
+| Siri Intent | narrow symbolic user request | shared command layer (future) | no direct document mutation or content indexing |
+
+## Tests and remaining acceptance gates
+
+Existing focused CI reported success for PR #3 Siri navigation and PR #4 board planning on 2026-11-05. This stacked branch adds candidate-handoff tests but does not establish merged compatibility. Native macOS editor tests in PR #1 still had failures.
+
+End-to-end must use a Defenders of Cat Island fixture: approve board, prepare brief, explicitly authorize fixed request, generate deterministic fixture via mock, decode and persist media, add candidate take, choose it with Undo, update Boardomatic without changing timing, export OTIO, re-import review proposals, and verify all IDs and provenance. Also test interrupted writes, missing files, stale result, revoked consent, and offline operation. No vendor payments or accounts in CI.
+
+Do not label a mock signature-only buffer as a valid PNG. The pure handoff's byte signature is a coarse guard; the caller MUST use the real image decoder and durable file store before passing the bytes.
