@@ -25,7 +25,9 @@ struct MediaTimelineOTIOTests {
         let ids = try #require(metadata["screenplayos"] as? [String: Any])
         #expect(ids["occurrence_id"] as? String == a.occurrenceID.uuidString)
         #expect(ids["shot_id"] as? String == a.shotID.uuidString)
-        let ref = try #require(clips.first?["media_reference"] as? [String: Any])
+        #expect(clips.first?["active_media_reference_key"] as? String == "DEFAULT_MEDIA")
+        let refs = try #require(clips.first?["media_references"] as? [String: Any])
+        let ref = try #require(refs["DEFAULT_MEDIA"] as? [String: Any])
         #expect(ref["target_url"] as? String == "attachments/take.mov")
     }
 
