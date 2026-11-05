@@ -8,6 +8,9 @@ python3 Scripts/check-fixture-hygiene.py
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/LegacyInspector
 node --test LicenseWorker/test/*.test.mjs
 
+# Verify the independently authored synthetic agency examples before native tests.
+PYTHONDONTWRITEBYTECODE=1 python3 Scripts/check-campaign-agency-fixtures.py --self-test --check
+
 # Keep compiler caches inside the ignored build directory, including in Codex.
 export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$CLANG_MODULE_CACHE_PATH"

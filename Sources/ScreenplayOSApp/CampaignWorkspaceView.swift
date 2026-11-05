@@ -8,7 +8,7 @@ struct CampaignWorkspaceView: View {
     @ObservedObject var model: ScreenplayViewModel
     @StateObject private var session: CampaignWorkspaceSession
     @Environment(\.dismiss) private var dismiss
-    private let projectID: UUID
+    private let importLifecycle: CampaignAgencyImportLifecycle?
     @State private var baselineName = ""
     @State private var selectedBaselineID: UUID?
     @State private var selectedTab = 1
@@ -19,13 +19,17 @@ struct CampaignWorkspaceView: View {
     @State private var ceiling = ""
     @State private var currency = "USD"
 
-    init(model: ScreenplayViewModel, projectID: UUID) {
-        self.model = model; self.projectID = projectID
-        _session = StateObject(wrappedValue: CampaignWorkspaceSession(projectID: projectID))
+    init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
+         importLifecycle: CampaignAgencyImportLifecycle? = nil) {
+        self.model = model
+        self.importLifecycle = importLifecycle
+        _session = StateObject(wrappedValue: CampaignWorkspaceSession(projectID: projectID, root: root))
     }
 
     private var document: ScreenplayOSDocument? {
-        guard model.document?.project.id == projectID else { return nil }
+        // SwiftUI can rebuild this value with a new projectID while retaining the
+        // original StateObject. Never pair that session with another project's sources.
+        guard model.document?.project.id == session.ledger.projectID else { return nil }
         return model.document
     }
     private var baseline: CampaignBaseline? {
@@ -45,11 +49,13 @@ struct CampaignWorkspaceView: View {
                 }
                 Spacer()
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("campaign.close")
             }
             Text("Keep the agreed scope connected to the script, shots and boards. All changes require producer review.")
                 .font(.callout).foregroundStyle(.secondary)
             TabView(selection: $selectedTab) {
-                CampaignAgencySourcesView(session: session, selectedDocumentID: $selectedAgencyDocumentID)
+                CampaignAgencySourcesView(session: session, selectedDocumentID: $selectedAgencyDocumentID,
+                                          importLifecycle: importLifecycle)
                     .tabItem { Label("Agency Sources", systemImage: "doc.text.magnifyingglass") }.tag(0)
                 ScrollView { briefAndDeliverables.padding(.vertical, 12) }
                     .tabItem { Label("Brief & Deliverables", systemImage: "list.bullet.rectangle") }.tag(1)
@@ -66,10 +72,12 @@ struct CampaignWorkspaceView: View {
             Divider()
             HStack {
                 Button("Undo Draft Change", action: session.undoDraft).disabled(!session.canUndoDraft)
+                    .accessibilityIdentifier("campaign.undo")
                 Spacer()
                 Button("Restore Backup…", action: session.importBackup).disabled(!session.canImport)
                 Button("Private Backup…", action: session.exportBackup).disabled(session.isReadOnly)
             }
+            .disabled(document == nil)
             Text(session.status).font(.caption).foregroundStyle(.secondary)
             Text("Campaign records stay on this Mac and are not included in screenplay or portable-project exports. Back them up separately. There are no dedicated working-budget or margin fields. Imported text and notes may be confidential; inspect backups and reports before sharing.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -100,6 +108,7 @@ struct CampaignWorkspaceView: View {
                 Button("Add Deliverable") {
                     session.updateDraft { $0.deliverables.append(CampaignDeliverable(name: "New deliverable")) }
                 }
+                .accessibilityIdentifier("campaign.deliverable.add")
             }
             if session.ledger.draft.deliverables.isEmpty {
                 Text("Add the hero film, cutdowns, vertical versions and market variants you have agreed to deliver.")
@@ -117,10 +126,12 @@ struct CampaignWorkspaceView: View {
                 HStack {
                     TextField("Deliverable name", text: deliverableBinding(item, \.name))
                         .accessibilityLabel("Deliverable name")
+                        .accessibilityIdentifier("campaign.deliverable.name.\(item.id)")
                     Stepper(value: deliverableBinding(item, \.durationSeconds), in: 1...86400) {
                         Text("\(item.durationSeconds) sec").monospacedDigit()
                     }.frame(width: 130)
                     Button("Remove") { session.updateDraft { $0.deliverables.removeAll { $0.id == item.id } } }
+                        .accessibilityIdentifier("campaign.deliverable.remove.\(item.id)")
                 }
                 HStack {
                     field("Ratio", text: deliverableBinding(item, \.aspectRatio))
@@ -306,6 +317,7 @@ struct CampaignWorkspaceView: View {
             Text(label).font(.caption).foregroundStyle(.secondary)
             TextField(label, text: text, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
                 .accessibilityLabel(label)
+                .accessibilityIdentifier("campaign.field.\(label)")
         }
     }
     private func briefBinding(_ path: WritableKeyPath<CampaignBrief, String>) -> Binding<String> {

@@ -140,6 +140,16 @@ repeated add/remove, Undo after removal, Close/Escape/reopen, Go to Source,
 missing sources, failed write, stale writer, backup/restore and cancellation,
 and the agency import/review flows below. No live provider calls are needed.
 
+Hosted lifecycle tests use the real Campaign sheet in an AppKit window, temporary
+campaign storage and synthetic screenplay data. They exercise native text actions,
+Add/Remove/Undo identity, Close/Escape/reopen, script selection and responder
+isolation, project replacement, and discarded unimported agency state. A retained
+SwiftUI session is bound to its ledger's project ID, not a newly supplied view-init
+argument; a project change disables the old panel and dismisses it before reopening.
+These tests do not launch the installed app, discover Shortcuts, drive a real file
+picker or certify VoiceOver/physical-keyboard behavior. Preserve those manual gates;
+passing hosted tests is not complete interactive acceptance.
+
 
 ## Agency text import and reconciliation
 

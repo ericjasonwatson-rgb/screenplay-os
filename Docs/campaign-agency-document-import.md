@@ -76,6 +76,13 @@ checks cancellation at entry, archive members and XML boundaries. Cancel/close
 invalidates the preview token, so late results cannot publish or persist. No network
 operation, account, consent to share, or paid capability is involved.
 
+The transient import lifecycle also invalidates a picker result if the view leaves
+while the native picker is running. Leaving Agency Sources or closing the Campaign
+sheet discards an unimported preview and its revision target, not saved sources.
+Cancel Reading and Cancel Import use the same invalidation path. A failed save
+keeps the exact preview and target for an explicit retry; it never partially imports
+the source or replaces a newer request with an older result.
+
 The campaign working draft permits 1 MiB of retained extracted source bytes,
 4 MiB of retained original-document bytes, 32 revisions and 256 reviews/citations
 each. Baselines duplicate pinned evidence and the existing 16 MiB ledger cap can
@@ -101,6 +108,21 @@ unsupported content, malformed/CRC/traversal/ZIP64/nonregular archives, inflatio
 limits, cancellation, original/extracted-byte persistence, old ledger compatibility,
 review invalidation, undo, source preservation and bounded backup reads. All fixtures
 are synthetic; no user agency documents or credentials are published.
+
+The independently authored [synthetic agency corpus](../Tests/Fixtures/CampaignAgency/README.md)
+adds a brief, two deliverables matrices, a conflicting production memo and a
+metadata-only revision. Five accepted originals and eleven rejection cases have
+checked source XML, exact extracted text/line expectations and original hashes.
+Four native scenarios exercise human reconciliation, review/citation invalidation,
+separate baseline-bound decisions, historical evidence, undo and failed imports.
+These are fictional examples, not a claim of Word rendering or real-agency fidelity.
+
+`Scripts/test.sh` runs the corpus checker with `--self-test --check`; it validates
+the checked-in output without regenerating it. Its eight safety tests cover bounded
+file/XML/ZIP reads and malformed inputs. The import lifecycle suite uses controlled
+continuations for late success/error, repeated requests and cancellation. Hosted
+Campaign tests exercise the real source tab and sheet disappearance. The full
+Debug/Release CI outcomes still belong to the exact source head and run.
 
 Before release, test actual agency DOCX samples, reading order against Word,
 interrupted picker/read/preview flows, repeated cancellation, tab switch/close/reopen,

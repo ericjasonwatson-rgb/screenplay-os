@@ -18,6 +18,8 @@ on:
       - 'Scripts/test.sh'
       - 'Scripts/check-fixture-hygiene.py'
       - 'Scripts/test-fixture-hygiene.py'
+      - 'Scripts/check-campaign-agency-fixtures.py'
+      - 'Tests/Fixtures/CampaignAgency/**'
       - 'Tests/Fixtures/Synthetic*'
       - 'Tests/Fixtures/Minimal.screenplayos.json'
       - '.github/workflows/campaign-workspace.yml'

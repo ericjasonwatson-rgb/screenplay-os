@@ -7,9 +7,7 @@ import ScreenplayDomain
 struct CampaignAgencySourcesView: View {
     @ObservedObject var session: CampaignWorkspaceSession
     @Binding var selectedDocumentID: UUID?
-    @State private var preview: CampaignAgencyImport.Preview?
-    @State private var previewDocumentID: UUID?
-    @State private var problem: String?
+    @StateObject private var importLifecycle: CampaignAgencyImportLifecycle
     @State private var reviewer = ""
     @State private var reviewNote = ""
     @State private var firstLine = "1"
@@ -17,8 +15,13 @@ struct CampaignAgencySourcesView: View {
     @State private var targetKind: CampaignAgencyTargetKind = .deliverable
     @State private var targetID: UUID?
     @State private var citationNote = ""
-    @State private var readTask: Task<CampaignAgencyImport.Preview, Error>?
-    @State private var readingToken: UUID?
+
+    init(session: CampaignWorkspaceSession, selectedDocumentID: Binding<UUID?>,
+         importLifecycle: CampaignAgencyImportLifecycle? = nil) {
+        self.session = session
+        _selectedDocumentID = selectedDocumentID
+        _importLifecycle = StateObject(wrappedValue: importLifecycle ?? CampaignAgencyImportLifecycle())
+    }
 
     private var workspace: CampaignAgencyWorkspace? { session.ledger.draft.agency }
     private var selected: CampaignAgencyRevision? {
@@ -38,21 +41,21 @@ struct CampaignAgencySourcesView: View {
                 Text("Text: .txt, .md, .fountain, up to 256 KiB. DOCX: up to 2 MiB, with bounded text extraction. PDF remains disabled pending parser isolation; no legacy .doc or OCR. Originals and extracted text are retained in private campaign backups and may contain confidential material.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    Button("Choose New Source…") { chooseSource(revising: nil) }.disabled(preview != nil || readingToken != nil)
+                    Button("Choose New Source…") { chooseSource(revising: nil) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading)
                     if let selected {
-                        Button("Choose Revised Source…") { chooseSource(revising: selected.documentID) }.disabled(preview != nil || readingToken != nil)
+                        Button("Choose Revised Source…") { chooseSource(revising: selected.documentID) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading)
                     }
                 }
-                if readingToken != nil {
+                if importLifecycle.isReading {
                     HStack {
                         ProgressView().controlSize(.small)
                         Text("Reading local document…").font(.callout)
                         Spacer()
-                        Button("Cancel Reading", action: cancelReading)
+                        Button("Cancel Reading", action: importLifecycle.cancel)
                     }
                 }
-                if let preview { importPreview(preview) }
-                if let problem { Text(problem).font(.callout).foregroundStyle(.orange).textSelection(.enabled) }
+                if let preview = importLifecycle.preview { importPreview(preview) }
+                if let problem = importLifecycle.problem { Text(problem).font(.callout).foregroundStyle(.orange).textSelection(.enabled) }
                 if let workspace, !workspace.latestRevisions.isEmpty {
                     Picker("Source document", selection: $selectedDocumentID) {
                         Text("Latest imported document").tag(Optional<UUID>.none)
@@ -72,7 +75,7 @@ struct CampaignAgencySourcesView: View {
                         Text("Review the new revision, then remove and recreate any outdated citations against current lines and scope. Freezing another baseline does not clear these warnings.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                } else if preview == nil {
+                } else if importLifecycle.preview == nil {
                     Text("No agency sources imported. You can still use manual bid assumptions and baselines.")
                         .foregroundStyle(.secondary)
                 }
@@ -82,11 +85,7 @@ struct CampaignAgencySourcesView: View {
             reviewer = ""; reviewNote = ""; firstLine = "1"; lastLine = "1"; citationNote = ""
         }
         .onChange(of: targetKind) { _ in targetID = nil }
-        .onDisappear(perform: cancelReading)
-    }
-
-    private func cancelReading() {
-        readTask?.cancel(); readTask = nil; readingToken = nil
+        .onDisappear(perform: importLifecycle.cancel)
     }
 
     private func chooseSource(revising documentID: UUID?) {
@@ -94,21 +93,8 @@ struct CampaignAgencySourcesView: View {
         panel.allowedContentTypes = [UTType.plainText, UTType(filenameExtension: "md"), UTType(filenameExtension: "fountain"), UTType(filenameExtension: "docx")].compactMap { $0 }
         panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
         panel.message = "Choose local text or DOCX for preview. Nothing is imported until you confirm the extraction and its limits."
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let token = UUID(); readingToken = token; problem = nil
-        let task = Task.detached(priority: .userInitiated) { try CampaignAgencyImport.read(url) }
-        readTask = task
-        Task { @MainActor in
-            do {
-                let loaded = try await task.value
-                guard readingToken == token, !Task.isCancelled else { return }
-                preview = loaded; previewDocumentID = documentID
-                readTask = nil; readingToken = nil
-            } catch {
-                guard readingToken == token else { return }
-                if !(error is CancellationError) { problem = error.localizedDescription }
-                readTask = nil; readingToken = nil
-            }
+        importLifecycle.chooseSource(revising: documentID) {
+            panel.runModal() == .OK ? panel.url : nil
         }
     }
 
@@ -123,18 +109,17 @@ struct CampaignAgencySourcesView: View {
                     Text("Both the exact original file and this extracted text will be retained locally. Extraction is not proof that every meaningful part of the original was captured.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if let documentID = previewDocumentID {
+                if let documentID = importLifecycle.previewDocumentID {
                     Text("New revision of \(workspace?.latestRevision(documentID: documentID)?.filename ?? documentID.uuidString). Prior evidence remains saved. Existing review and citations will need reconciliation.")
                         .font(.caption).foregroundStyle(.orange)
                 }
                 sourceText(preview.text, height: 180)
                 HStack {
-                    Button("Cancel Import") { self.preview = nil; previewDocumentID = nil; problem = nil }
+                    Button("Cancel Import", action: importLifecycle.cancel)
                     Spacer()
                     Button("Import Preview Locally") {
-                        if session.importAgencyText(preview, revisingDocumentID: previewDocumentID) {
-                            selectedDocumentID = previewDocumentID ?? session.ledger.draft.agency?.latestRevisions.last?.documentID
-                            self.preview = nil; previewDocumentID = nil; problem = nil
+                        if let documentID = importLifecycle.importPreview(into: session) {
+                            selectedDocumentID = documentID
                         }
                     }
                 }
