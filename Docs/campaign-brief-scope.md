@@ -97,24 +97,33 @@ existing Mac app. It carries exactly the existing chrome compiler-expression fix
 from 642f44e (also in PRs #3/#4) rather than changing other workstreams. It does not
 stack on, modify or merge the image-generation branches.
 
-CI runs full Debug and Release `Scripts/test.sh --no-parallel` on macOS 15, including Python
-LegacyInspector, Node LicenseWorker, all Swift tests, the domain self-test and
-two inspector fixtures. The first aggregate run exposed the existing macOS Bash
-3.2 empty-array expansion failure; the runner now guards the optional flags.
-All tests execute serially because AppKit tests share process-global native state.
-Serial execution resolved a recovery timeout but three existing editor assertions
-still failed (fit-width roundtrip, title-preview overflow, writing-view removal).
-The workflow records downstream smoke checks independently after a suite failure
-and runs the full original 369 tests against pinned main f995ee1 with only the
-existing chrome compiler-expression split. A prior focused three-test control
-reproduced title-preview and writing-view failures but not fit-width, so the full
-control distinguishes shared-suite state from campaign behavior. These controls
-do not merge or alter main.
-See the PR for terminal control results; no full green regression claim is implied. Tests cover
-immutable snapshots, Codable roundtrip, exact Unicode, source changes, impact
-union, dangling references, scope separation/stale approvals, validation, unknown
-JSON preservation, wrong-project isolation, atomic replacement, leases, symlinks,
-permissions, size limits and command persistence/undo/failures.
+The final CI configuration runs full Debug and Release `Scripts/test.sh --no-parallel`
+on macOS 15, including Python LegacyInspector, Node LicenseWorker, all Swift tests,
+the domain self-test and two inspector fixtures. It checks out the exact PR head,
+not a synthetic merge. AppKit tests run serially because they share process-global
+native state. No tests or assertions are skipped, and UI diagnostics are disabled.
+
+A prior complete head/control run reproduced two existing native test failures on
+both Campaign and pinned main f995ee1: writing-view removal after mode change and
+title-preview removal after overflow. Their tests previously slept for a fixed
+interval without driving the host's display cycle. The new test harness waits for
+the actual hierarchy condition while servicing native layout/display and the run
+loop. Original assertions remain, with added first-responder/command isolation
+checks. Full-suite outcomes belong to the final PR head and CI logs; source changes
+alone are not proof these failures are resolved. An earlier fit-width failure was
+not reproduced in that complete head/control run and is not claimed fixed.
+
+A separate matrix composes the exact Campaign head with reviewed Siri PR3 in a new
+detached worktree and runs the complete regression suite. It preserves the Campaign
+sheet, blocks Siri navigation during presentations, drops blocked requests rather
+than replaying stale navigation, and retains original Siri tests. Neither branch is
+merged or changed by composition. See [the integration contract](campaign-siri-integration.md)
+and CI manifests for both source heads and native results.
+
+Tests cover immutable snapshots, exact Unicode and original DOCX bytes, bounded
+extraction, source changes, impact union, dangling references, separate/stale
+approvals, unknown JSON protection, wrong-project isolation, atomic replacement,
+leases, symlinks, bounded backup reads, limits and command persistence/undo/failures.
 
 Local Linux checks: Python LegacyInspector 42 tests, 31 passed / 11 skipped;
 Node LicenseWorker 6 passed; git diff --check passed. Swift is unavailable locally. Scripts/test.sh was attempted and stopped at the

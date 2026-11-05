@@ -9,6 +9,13 @@ on:
       - 'Sources/ScreenplayOSApp/ScreenplayViewModel.swift'
       - 'Sources/ScreenplayOSApp/ScreenplayChromeState.swift'
       - 'Tests/ScreenplayEditorTests/Campaign*.swift'
+      - 'Tests/ScreenplayEditorTests/ChromeObservationTests.swift'
+      - 'Tests/ScreenplayEditorTests/NativeEditorTests.swift'
+      - 'Tests/ScreenplayEditorTests/NativeUIHierarchyDiagnostics.swift'
+      - 'Tests/Integration/**'
+      - 'Scripts/Integration/**'
+      - 'Scripts/validate-campaign-siri-integration.py'
+      - 'Scripts/test.sh'
       - '.github/workflows/campaign-workspace.yml'
   workflow_dispatch:
 
@@ -22,16 +29,61 @@ permissions:
 jobs:
   campaign:
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         configuration: [debug, release]
     steps:
       - uses: actions/checkout@v4
-      - name: Swift toolchain
-        run: swift --version
-      - name: Validate agency import and native lifecycle
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Record exact source and toolchain
+        run: |
+          git rev-parse HEAD
+          swift --version
+      - name: Install regression-test dependency
+        run: python3 -m pip install --user --break-system-packages jsonschema
+      - name: Full offline regression suite
         env:
-          SCREENPLAYOS_NATIVE_UI_DIAGNOSTICS: '1'
-        run: swift test --configuration ${{ matrix.configuration }} --disable-sandbox --no-parallel --filter 'Campaign|windowChangesModesAndReturnsToCurrentText|titleEditorPreviewUpdatesAndRecoversFromOverflow'
+          SCREENPLAYOS_BUILD_CONFIGURATION: ${{ matrix.configuration }}
+        # AppKit tests share process-global windows and the main actor. Run all
+        # tests serially. No filters, diagnostic environment, or relaxed asserts.
+        run: ./Scripts/test.sh --no-parallel
+      - name: Run downstream smoke checks if the aggregate suite failed
+        if: failure()
+        env:
+          CONFIGURATION: ${{ matrix.configuration }}
+        run: |
+          status=0
+          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-self-test || status=1
+          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island.open-screenplay.json --json >/dev/null || status=1
+          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Minimal.screenplayos.json --json >/dev/null || status=1
+          exit "$status"
+  campaign-siri-integration:
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [debug, release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Record exact source and toolchain
+        run: |
+          git rev-parse HEAD
+          swift --version
+      - name: Install regression-test dependency
+        run: python3 -m pip install --user --break-system-packages jsonschema
+      - name: Fetch actual Siri source for fail-closed validation
+        run: git fetch --no-tags origin pull/3/head
+      - name: Verify detached composition safeguards
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/Integration -v
+      - name: Full isolated Campaign and Siri regression suite
+        run: |
+          # Fetch the actual current PR head. A moved, unreviewed Siri head fails
+          # closed in the validator. Neither feature branch is changed or merged.
+          python3 Scripts/validate-campaign-siri-integration.py --campaign-ref HEAD --siri-ref FETCH_HEAD --configuration ${{ matrix.configuration }}
