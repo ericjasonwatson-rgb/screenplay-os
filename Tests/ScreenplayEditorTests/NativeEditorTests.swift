@@ -265,15 +265,24 @@ struct NativeEditorTests {
         refresh()
         let text = try #require(find(host))
         let original = model.writingText
-        text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
+        // Exercise ordinary writing explicitly. A fixture may end in a
+        // Transition, whose native typing is intentionally uppercased.
+        let actionIndex = try #require(model.elements.lastIndex(where: { $0.type == .action }))
+        let insertion = NSRange(location: NSMaxRange(model.writingRanges[actionIndex]), length: 0)
+        let expected = (original as NSString).replacingCharacters(in: insertion, with: " Writing check.")
+        let projection = ScreenplayWritingProjection(elements: model.elements)
+        text.setSelectedRange(projection.displayRange(insertion))
         text.insertText(" Writing check.", replacementRange: text.selectedRange())
         refresh()
-        #expect(model.writingText == original + " Writing check.")
+        #expect(model.writingText == expected)
+        #expect(model.elements[actionIndex].type == .action)
         model.undo()
         refresh()
+        #expect(model.writingText == original)
         #expect(find(host)?.string == ScreenplayWritingProjection(elements: model.elements).text)
         model.redo()
         refresh()
+        #expect(model.writingText == expected)
         let selection = NSRange(location: 100, length: 12)
         try #require(find(host)).setSelectedRange(selection)
         for focused in [true, false] {
