@@ -85,6 +85,85 @@ struct CampaignAgencyDocumentExtractionTests {
         }
     }
 
+    @Test func docxAcceptsExactStandardRootCorePropertiesWithoutExtractingMetadata() throws {
+        for mode in [nil, "Internal"] as [String?] {
+            let result = try Extractor.extract(data: zip(corePropertiesMembers(mode: mode)), filename: "Brief.docx")
+            #expect(result.text == "Agency brief")
+            #expect(!result.text.contains("Synthetic Metadata Author"))
+        }
+    }
+
+    @Test func docxRejectsCorePropertiesRelationshipFromNonRootParts() throws {
+        for part in ["word/_rels/document.xml.rels", "customXml/_rels/item1.xml.rels"] {
+            #expect(throws: Failure.unsupportedContent) {
+                try Extractor.extract(data: zip(corePropertiesMembers(relationshipPart: part)), filename: "Brief.docx")
+            }
+        }
+    }
+
+    @Test func docxRejectsCorePropertiesRelationshipWithUnexpectedTarget() throws {
+        for target in ["word/document.xml", "docProps/alternate.xml", "docProps/../core.xml", "./docProps/core.xml", "docProps/CORE.xml"] {
+            #expect(throws: Failure.unsupportedContent) {
+                try Extractor.extract(data: zip(corePropertiesMembers(target: target)), filename: "Brief.docx")
+            }
+        }
+    }
+
+    @Test func docxRejectsSpoofedMetadataAndEmbeddedPackageRelationshipTypes() throws {
+        let rejectedTypes = [
+            corePropertiesType + "/extra", corePropertiesType + "-suffix", corePropertiesType + "?metadata",
+            corePropertiesType.uppercased(),
+            "https://example.invalid/package/2006/relationships/metadata/core-properties",
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/package",
+            "http://purl.oclc.org/ooxml/officeDocument/relationships/package",
+            corePropertiesType + "/oleObject"
+        ]
+        for type in rejectedTypes {
+            #expect(throws: Failure.unsupportedContent) {
+                try Extractor.extract(data: zip(corePropertiesMembers(type: type)), filename: "Brief.docx")
+            }
+        }
+    }
+
+    @Test func docxRejectsExternalCorePropertiesModesAndTargets() throws {
+        for mode in ["External", "EXTERNAL", "internal"] {
+            #expect(throws: Failure.externalRelationship) {
+                try Extractor.extract(data: zip(corePropertiesMembers(mode: mode)), filename: "Brief.docx")
+            }
+        }
+        for target in ["https://example.invalid/core.xml", "file:///private/core.xml", "/docProps/core.xml"] {
+            #expect(throws: Failure.externalRelationship) {
+                try Extractor.extract(data: zip(corePropertiesMembers(target: target, mode: "Internal")), filename: "Brief.docx")
+            }
+        }
+    }
+
+    @Test func docxStillRejectsUnsafeAndUnsupportedCorePropertiesXML() throws {
+        for xml in [
+            "<core xmlns:w=\"\(wordNamespace)\"><w:ins/></core>",
+            "<core xmlns:w=\"\(wordNamespace)\"><w:fldSimple/></core>",
+            "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"/>",
+            "<core><?synthetic instruction?></core>"
+        ] {
+            #expect(throws: Failure.unsupportedContent) {
+                try Extractor.extract(data: zip(corePropertiesMembers(coreXML: xml)), filename: "Brief.docx")
+            }
+        }
+        for xml in [
+            "<core><broken></core>",
+            "<!DOCTYPE core SYSTEM 'https://example.invalid/never-fetch'><core/>",
+            "<!DOCTYPE core [<!ENTITY secret SYSTEM 'file:///never-read'>]><core>&secret;</core>"
+        ] {
+            #expect(throws: Failure.unsafeXML) {
+                try Extractor.extract(data: zip(corePropertiesMembers(coreXML: xml)), filename: "Brief.docx")
+            }
+        }
+        let external = "<Relationships xmlns=\"\(relationshipNamespace)\"><Relationship Id=\"external\" Type=\"\(corePropertiesType)\" Target=\"https://example.invalid/core.xml\" TargetMode=\"External\"/></Relationships>"
+        #expect(throws: Failure.externalRelationship) {
+            try Extractor.extract(data: zip(corePropertiesMembers(coreXML: external)), filename: "Brief.docx")
+        }
+    }
+
     @Test func docxRejectsDTDAndEntitiesEvenInUnusedParts() throws {
         let invalidXML = [
             "<!DOCTYPE data SYSTEM 'https://example.invalid/private'><data/>",
@@ -200,6 +279,27 @@ struct CampaignAgencyDocumentExtractionTests {
 
     private let wordNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
     private let relationshipNamespace = "http://schemas.openxmlformats.org/package/2006/relationships"
+    private let corePropertiesType = "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties"
+
+    private func corePropertiesMembers(relationshipPart: String = "_rels/.rels", type: String? = nil,
+                                       target: String = "docProps/core.xml", mode: String? = nil,
+                                       coreXML: String? = nil) -> [Member] {
+        var members = standardMembers()
+        let coreOverride = "<Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/>"
+        members[0].bytes = Data(String(decoding: members[0].bytes, as: UTF8.self)
+            .replacingOccurrences(of: "</Types>", with: coreOverride + "</Types>").utf8)
+        let modeAttribute = mode.map { " TargetMode=\"\($0)\"" } ?? ""
+        let relationship = "<Relationship Id=\"rCore\" Type=\"\(type ?? corePropertiesType)\" Target=\"\(target)\"\(modeAttribute)/>"
+        if relationshipPart == "_rels/.rels" {
+            members[1].bytes = Data(String(decoding: members[1].bytes, as: UTF8.self)
+                .replacingOccurrences(of: "</Relationships>", with: relationship + "</Relationships>").utf8)
+        } else {
+            members.append(Member(name: relationshipPart, text: "<Relationships xmlns=\"\(relationshipNamespace)\">\(relationship)</Relationships>"))
+        }
+        let metadata = coreXML ?? "<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:creator>Synthetic Metadata Author</dc:creator><cp:revision>1</cp:revision></cp:coreProperties>"
+        members.append(Member(name: "docProps/core.xml", text: metadata))
+        return members
+    }
 
     private func standardMembers(body: String = "<w:p><w:r><w:t>Agency brief</w:t></w:r></w:p>") -> [Member] {
         [

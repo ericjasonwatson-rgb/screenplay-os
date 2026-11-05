@@ -10,6 +10,7 @@ enum CampaignAgencyDocumentXML {
         "http://purl.oclc.org/ooxml/wordprocessingml/main"
     ])
     private static let relationshipsNamespace = "http://schemas.openxmlformats.org/package/2006/relationships"
+    private static let corePropertiesRelationshipType = "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties"
     private static let contentTypesNamespace = "http://schemas.openxmlformats.org/package/2006/content-types"
     private static let mainContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
     private static let officeDocumentTypes = Set([
@@ -173,7 +174,13 @@ enum CampaignAgencyDocumentXML {
                     reject(parser, .externalRelationship); return
                 }
                 let lowerType = type.lowercased()
-                if ["oleobject", "vbaproject", "activex", "/control", "/package", "attachedtemplate", "afchunk"].contains(where: { lowerType.contains($0) }) {
+                // Standard package metadata is not an embedded package. Allow
+                // only this exact root relationship and local target; its XML
+                // still passes the same all-member safety checks as every part.
+                let isStandardCoreProperties = name == "_rels/.rels" && mode == "Internal" &&
+                    type == CampaignAgencyDocumentXML.corePropertiesRelationshipType && target == "docProps/core.xml"
+                if ["oleobject", "vbaproject", "activex", "/control", "attachedtemplate", "afchunk"].contains(where: { lowerType.contains($0) }) ||
+                    (lowerType.contains("/package") && !isStandardCoreProperties) {
                     reject(parser, .unsupportedContent); return
                 }
                 if name == "_rels/.rels", CampaignAgencyDocumentXML.officeDocumentTypes.contains(type) {

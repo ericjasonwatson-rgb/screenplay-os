@@ -261,7 +261,8 @@ private struct CampaignPanelHost: View {
 private final class CampaignPanelFixture {
     let root: URL
     let model: ScreenplayViewModel
-    let host: NSHostingView<CampaignPanelHost>
+    let hostingController: NSHostingController<CampaignPanelHost>
+    let host: NSView
     let window: NSWindow
     let scriptBeforeEdit: String
     private let preferences: UserDefaults
@@ -281,17 +282,22 @@ private final class CampaignPanelFixture {
         let scriptBeforeEdit = model.writingText
         model.replaceWritingText(in: NSRange(location: 0, length: (model.writingText as NSString).length),
                                  with: "INT. SYNTHETIC ROOM - DAY\nA producer reviews the campaign.")
-        let host = NSHostingView(rootView: CampaignPanelHost(model: model, root: root, importLifecycle: importLifecycle))
+        // Install an AppKit view-controller presentation owner, as an application
+        // window does, before testing SwiftUI's real sheet presentation chain.
+        let hostingController = NSHostingController(rootView: CampaignPanelHost(
+            model: model, root: root, importLifecycle: importLifecycle))
+        let host = hostingController.view
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),
                           styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        window.contentView = host
+        window.contentViewController = hostingController
         window.makeKeyAndOrderFront(nil)
         self.root = root
         self.preferencesSuite = preferencesSuite
         self.preferences = preferences
         self.model = model
         self.scriptBeforeEdit = scriptBeforeEdit
+        self.hostingController = hostingController
         self.host = host
         self.window = window
     }
@@ -315,13 +321,12 @@ private final class CampaignPanelFixture {
 
     func open() async throws -> NSWindow {
         model.campaignPresented = true
-        let appeared = try await waitForNativeUI(host) {
-            guard let content = self.window.attachedSheet?.contentView else { return false }
-            content.layoutSubtreeIfNeeded()
-            return campaignAXElement(in: content) { $0.accessibilityIdentifier() == "campaign.close" } != nil
-        }
-        try #require(appeared, "The actual native Campaign sheet did not appear.")
-        return try #require(window.attachedSheet)
+        let attached = try await waitForNativeUI(host) { self.window.attachedSheet != nil }
+        if !attached { diagnoseFailure("sheet attachment") }
+        try #require(attached, "Campaign binding=\(model.campaignPresented); native sheet attached=\(window.attachedSheet != nil); host belongs to window=\(host.window === window).")
+        let sheet = try #require(window.attachedSheet)
+        _ = try await control("campaign.close")
+        return sheet
     }
 
     func expectDismissed() async throws {
@@ -334,6 +339,7 @@ private final class CampaignPanelFixture {
         let appeared = try await waitForNativeUI(content) {
             campaignAXElement(in: content) { $0.accessibilityIdentifier() == identifier } != nil
         }
+        if !appeared { diagnoseFailure("control \(identifier)") }
         try #require(appeared, "Missing native Campaign control: \(identifier)")
         return try #require(campaignAXElement(in: content) { $0.accessibilityIdentifier() == identifier })
     }
@@ -387,6 +393,40 @@ private final class CampaignPanelFixture {
             return condition(value)
         }
         try #require(committed, "The native action did not persist the expected campaign state.")
+    }
+
+    private static var diagnosedFailure = false
+
+    /// One bounded dump of this synthetic fixture, only after a wait has failed.
+    /// Passing tests never enter this diagnostic path.
+    private func diagnoseFailure(_ stage: String) {
+        guard !Self.diagnosedFailure else { return }
+        Self.diagnosedFailure = true
+        print("CAMPAIGN_UI_DIAGNOSTIC BEGIN \(stage)")
+        print("binding=\(model.campaignPresented) visible=\(window.isVisible) key=\(window.isKeyWindow) active=\(NSApp.isActive) running=\(NSApp.isRunning) hostMatches=\(host.window === window) controller=\(String(describing: window.contentViewController)) attachedSheet=\(String(describing: window.attachedSheet))")
+        var remaining = 200
+        var seen = Set<ObjectIdentifier>()
+        func describe(_ value: Any, path: String, depth: Int = 0) {
+            guard depth < 24, remaining > 0, let element = value as? any NSAccessibilityProtocol,
+                  seen.insert(ObjectIdentifier(element as AnyObject)).inserted else { return }
+            remaining -= 1
+            print("CAMPAIGN_AX \(path) type=\(type(of: element)) identifier=\(String(describing: element.accessibilityIdentifier()).prefix(120)) role=\(String(describing: element.accessibilityRole())) label=\(String(describing: element.accessibilityLabel()).prefix(120)) frame=\(element.accessibilityFrame())")
+            for (index, child) in (element.accessibilityChildren() ?? []).enumerated() {
+                describe(child, path: "\(path).ax\(index)", depth: depth + 1)
+            }
+            if let view = value as? NSView {
+                for (index, child) in view.subviews.enumerated() {
+                    describe(child, path: "\(path).view\(index)", depth: depth + 1)
+                }
+            }
+        }
+        if let sheet = window.attachedSheet {
+            print("CAMPAIGN_SHEET visible=\(sheet.isVisible) parentMatches=\(sheet.sheetParent === window) responder=\(String(describing: sheet.firstResponder))")
+            if let content = sheet.contentView { describe(content, path: "sheet") }
+        } else {
+            describe(host, path: "host")
+        }
+        print("CAMPAIGN_UI_DIAGNOSTIC END \(stage)")
     }
 }
 
