@@ -17,3 +17,18 @@ The local preview's `providerID = local-preview-only` and `modelID = not-selecte
 7. Verify pricing/account access separately and store observed costs, never report an unverified unknown cost as free. Run offline deterministic CI; a live paid provider test must be manually opted into and not part of PR CI.
 
 The current `ProductionImageSendGate` is an *offline validation building block*. It neither mutates the durable job nor proves that a UI button was pressed. The calling UI and controller must enforce that connection. No production send implementation should use a boolean fabricated by a headless caller.
+
+## Added dispatch preflight (2026-11-05)
+
+`ProductionImageDispatchPreflight.prepare` combines a persisted queued job,
+the exact previously consented request, the source approval revision, the
+frozen image bytes and the provider-specific JSON builder. It blocks altered,
+cancelled, unconsented and recovered queued jobs; recovered jobs must be
+reviewed before any later submission. It does not attach credentials, call
+URLSession, or mark a job submitted. The preflight result should be considered
+ephemeral: any actual Send implementation must re-check it at dispatch time
+and rely on the durable controller to record submission.
+
+Next work: authenticated transport behind an explicitly user-triggered
+command, safe response parsing and durable output storage, then candidate
+Take creation and separate filmmaker adoption. Keep network tests opt-in.
