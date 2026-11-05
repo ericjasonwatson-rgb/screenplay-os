@@ -14,6 +14,7 @@ on:
       - 'Sources/ScreenplayOSApp/ProductionImageResponseExecution.swift'
       - 'Sources/ScreenplayOSApp/ProductionImageResultVault.swift'
       - 'Sources/ScreenplayOSApp/ProductionImageCompletedResultRecovery.swift'
+      - 'Sources/ScreenplayOSApp/ProductionImageInterruptedCompletionRecovery.swift'
       - 'Sources/ScreenplayOSApp/OpenAIProductionImageTransport.swift'
       - 'Sources/ScreenplayOSApp/ProductionImageJobStagingSheet.swift'
       - 'Sources/ScreenplayOSApp/ProductionImageConsentDecisionSheet.swift'
@@ -39,6 +40,7 @@ on:
       - 'Tests/ScreenplayEditorTests/ProductionImageResponseExecutionTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageResultVaultTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageCompletedResultRecoveryTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImageInterruptedCompletionRecoveryTests.swift'
       - 'Tests/ScreenplayEditorTests/OpenAIProductionImageTransportTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageJobStagingSheetTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageConsentDecisionSheetTests.swift'
@@ -66,4 +68,8 @@ jobs:
       - name: Show toolchain
         run: swift --version
       - name: Test storyboard approval and candidate handoff
-        run: swift test --configuration debug --disable-sandbox --filter ProductionImage
+        run: |
+          swift test --configuration debug --disable-sandbox --filter ProductionImage
+          swift test --configuration debug --disable-sandbox --filter ProductionBoardApproval
+          swift test --configuration debug --disable-sandbox --filter OpenAIReferenceImage
+          swift test --configuration debug --disable-sandbox --filter OpenAIProductionImage
