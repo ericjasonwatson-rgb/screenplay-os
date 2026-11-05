@@ -68,8 +68,9 @@ struct ProductionImageConsentCoordinatorTests {
         // Persisted state survives controller reconstruction without dispatch.
         let reloaded = try GenerationJobController(
             projectID: f.projectID, storageURL: f.root.appendingPathComponent("jobs.json"))
-        #expect((await reloaded.snapshot()).jobs[0].status == .queued)
-        #expect((await reloaded.snapshot()).jobs[0].submittedAt == nil)
+        let recoveredLedger = await reloaded.snapshot()
+        #expect(recoveredLedger.jobs[0].status == .queued)
+        #expect(recoveredLedger.jobs[0].submittedAt == nil)
     }
 
     @Test func decliningSendNeverRecordsConsent() async throws {
@@ -108,7 +109,8 @@ struct ProductionImageConsentCoordinatorTests {
         } catch {
             #expect(error is ProductionBoardApprovalError)
         }
-        #expect((await f.controller.snapshot()).jobs[0].status == .awaitingConsent)
+        let ledger = await f.controller.snapshot()
+        #expect(ledger.jobs[0].status == .awaitingConsent)
     }
 
     @Test func duplicateStagingDoesNotDuplicateJob() async throws {
@@ -122,6 +124,7 @@ struct ProductionImageConsentCoordinatorTests {
         } catch {
             #expect(error as? GenerationJobControllerError == .duplicateJobID)
         }
-        #expect((await f.controller.snapshot()).jobs.count == 1)
+        let ledger = await f.controller.snapshot()
+        #expect(ledger.jobs.count == 1)
     }
 }
