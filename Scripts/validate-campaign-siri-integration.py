@@ -17,17 +17,25 @@ import subprocess
 import sys
 import tempfile
 
-SIRI_HEAD = "a45d29182535e5a90bdab9cb23096d3e4376fb26"
-CAMPAIGN_BASE = "d09cd41587b3bf2637e3a33f8febb55eecbde77e"
+SIRI_HEAD = "c20b136622cc752cc350335824bcd0de33a846a0"
+CAMPAIGN_BASE = "d8ad69259d7ca04011fb683f189d0cc29b983c0a"
+MERGE_BASE = "f995ee1d2fe383b1159e0fa9dddd9b76f777696b"
 APP = "Sources/ScreenplayOSApp/ScreenplayOSApp.swift"
 SIRI_SOURCE = "Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift"
 SIRI_TESTS = "Tests/ScreenplayEditorTests/SiriWorkspaceIntentsTests.swift"
 INTEGRATION_TEST = "CampaignSiriWorkspaceIntegrationTests.swift"
-SIRI_FILES = {
-    APP, SIRI_SOURCE, SIRI_TESTS,
-    "Sources/ScreenplayOSApp/ScreenplayChromeState.swift",
-    ".github/workflows/siri-intents-macos.yml",
+# The sanitized Siri head retains the original five implementation/test changes
+# and deletes two private fixtures. Match statuses too: a deletion is not an
+# allowance to reintroduce a similarly named file.
+SIRI_INVENTORY = {
+    APP: "M", SIRI_SOURCE: "A", SIRI_TESTS: "A",
+    "Sources/ScreenplayOSApp/ScreenplayChromeState.swift": "M",
+    ".github/workflows/siri-intents-macos.yml": "A",
+    "Tests/Fixtures/Defenders_of_Cat_Island.open-screenplay.json": "D",
+    "Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx": "D",
 }
+SIRI_FILES = set(SIRI_INVENTORY)
+HYGIENE_PATH = "Scripts/check-fixture-hygiene.py"
 PATCH_PATH = "Scripts/Integration/campaign-siri-modal-boundary.patch"
 TEST_PATH = "Tests/Integration/" + INTEGRATION_TEST
 
@@ -58,10 +66,31 @@ def reviewed_inputs(repo: Path, campaign_ref: str, siri_ref: str) -> tuple[str, 
     if git(repo, "merge-base", "--is-ancestor", siri, campaign, allowed=(0, 1)).returncode == 0:
         raise IntegrationError("Siri is already in Campaign history. Retire this temporary integration check instead of replaying it.")
     base = git(repo, "merge-base", campaign, siri).stdout.decode().strip()
-    files = set(filter(None, git(repo, "diff", "--name-only", "-z", base, siri).stdout.decode().split("\0")))
-    if files != SIRI_FILES:
-        raise IntegrationError(f"Siri change inventory is no longer the reviewed five files: {sorted(files)}")
+    if base != MERGE_BASE:
+        raise IntegrationError("Siri merge base changed. Review ancestry before composing sources.")
+    fields = git(repo, "diff", "--name-status", "--no-renames", "-z", base, siri).stdout.decode().split("\0")
+    fields = fields[:-1] if fields[-1] == "" else fields
+    if len(fields) % 2:
+        raise IntegrationError("Malformed Siri source inventory; no composition is allowed.")
+    inventory = dict(zip(fields[1::2], fields[::2]))
+    if inventory != SIRI_INVENTORY:
+        raise IntegrationError("Siri change inventory no longer matches the reviewed five source changes and two fixture deletions.")
     return campaign, siri, base
+
+
+def check_fixture_hygiene(destination: Path) -> dict:
+    """Check the materialized current tree, including prepare-only validation."""
+    checker = destination / HYGIENE_PATH
+    if not checker.is_file() or checker.is_symlink():
+        raise IntegrationError("Composed source is missing the regular fixture-hygiene checker. Propagate the synthetic baseline before validation.")
+    result = subprocess.run([sys.executable, str(checker)], cwd=destination,
+                            capture_output=True, text=True)
+    if result.returncode:
+        # The checker reports paths/reasons, never matched private source text.
+        details = (result.stderr or result.stdout).strip()
+        raise IntegrationError(f"Composed source fixture hygiene failed (exit {result.returncode}). {details}")
+    return {"status": "passed", "checker_sha256": hashlib.sha256(checker.read_bytes()).hexdigest(),
+            "summary": result.stdout.strip()}
 
 
 def compose(repo: Path, destination: Path, campaign_ref: str, siri_ref: str) -> dict:
@@ -95,9 +124,11 @@ def compose(repo: Path, destination: Path, campaign_ref: str, siri_ref: str) -> 
         raise IntegrationError("Composed app no longer has exactly one Campaign sheet and both reviewed Siri lifecycle hooks.")
     if git(destination, "show", f"{combined}:{SIRI_TESTS}").stdout != git(repo, "show", f"{siri}:{SIRI_TESTS}").stdout:
         raise IntegrationError("Original Siri tests must remain byte-for-byte unchanged.")
+    hygiene = check_fixture_hygiene(destination)
     manifest = {
         "campaign_head": campaign, "siri_head": siri, "merge_base": base,
         "combined_tree": combined,
+        "fixture_hygiene": hygiene,
         "patch_sha256": hashlib.sha256(patch.read_bytes()).hexdigest(),
         "integration_tests_sha256": hashlib.sha256(test.read_bytes()).hexdigest(),
         "native_tests": "not run", "worktree": str(destination),

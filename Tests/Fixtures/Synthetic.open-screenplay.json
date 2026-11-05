@@ -1,0 +1,2448 @@
+{
+  "format": "open-screenplay",
+  "format_version": "1.1",
+  "project": {
+    "id": "9A017DA5-6931-5290-8763-3DE947044B71",
+    "metadata": {
+      "title": "The Paper Bridge",
+      "author": "Synthetic Test Writer",
+      "created_at": "2026-01-01T00:00:00Z",
+      "modified_at": "2026-01-01T00:00:00Z"
+    },
+    "screenplay_id": "F56E30AE-EF5C-519B-83AD-95C9FBCCCFF5"
+  },
+  "screenplay": {
+    "id": "F56E30AE-EF5C-519B-83AD-95C9FBCCCFF5",
+    "metadata": {
+      "title": "The Paper Bridge",
+      "episode_title": "A synthetic routing exercise"
+    },
+    "elements": [
+      {
+        "id": "D947EFAB-4443-5471-9A33-B5F985CBAA61",
+        "type": "action",
+        "text": "THE PAPER BRIDGE",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0001"
+        }
+      },
+      {
+        "id": "E3BBD42E-C162-5A76-9AA0-5B4B5B0CE658",
+        "type": "action",
+        "text": "A synthetic routing exercise",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0002"
+        }
+      },
+      {
+        "id": "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB",
+        "type": "scene_heading",
+        "text": "INT. MODEL WORKSHOP - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0003"
+        },
+        "spine_id": "S001",
+        "revision_mark": {
+          "label": "Blue Revision",
+          "color": "blue",
+          "changed_at": "2026-01-01T00:00:00Z"
+        }
+      },
+      {
+        "id": "A41CC738-5555-57E1-A157-4A86A36F3610",
+        "type": "action",
+        "text": "Mara sets a folded map beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0004"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 10,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "EE897673-0545-54E5-832F-5813D31363E3",
+        "type": "shot",
+        "text": "CLOSE ON CARD 01",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0005"
+        }
+      },
+      {
+        "id": "0184AF25-7382-5A9A-A206-489FFA82841B",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0006"
+        }
+      },
+      {
+        "id": "6071CB49-75A3-59ED-AC73-2B367895C9D6",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0007"
+        }
+      },
+      {
+        "id": "3AF2A881-47C2-5B5F-B3B2-E5BBEB96369A",
+        "type": "dialogue",
+        "text": "Route 01 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0008"
+        }
+      },
+      {
+        "id": "AC0DF838-434A-50D5-9D08-C1FA9CDFF593",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0009"
+        }
+      },
+      {
+        "id": "EFFD1E53-7CE9-5CAB-BEF0-F5E546BD94ED",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0010"
+        }
+      },
+      {
+        "id": "3F03B533-F7EE-50C4-A790-67338773C3D3",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0011"
+        }
+      },
+      {
+        "id": "9C969652-18FE-578A-916D-951F82F9F69A",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0015"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "4D5F3DD6-E39E-5D58-8B92-BB1C94D5191B",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0023"
+        }
+      },
+      {
+        "id": "C9C9A674-41B0-5C6E-ADED-E479F3F98C24",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0024"
+        }
+      },
+      {
+        "id": "1FFCDB33-6D0B-500F-A5AD-6D746C7D1F35",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0022"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "DA32BF8E-A539-540A-84B1-441638A3DE34",
+        "type": "general",
+        "text": "CARD 01: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0026"
+        }
+      },
+      {
+        "id": "70E72843-B107-5983-8A9D-076C7233082C",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0027"
+        }
+      },
+      {
+        "id": "489DDEBD-0233-5758-B682-52E8F0571B09",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-02"
+        }
+      },
+      {
+        "id": "685E6602-6AF3-5BC4-B70C-639FC69F4169",
+        "type": "scene_heading",
+        "text": "INT. SORTING ROOM - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0028"
+        },
+        "spine_id": "S002"
+      },
+      {
+        "id": "0C09572A-4160-5530-AA98-BE972B3DC713",
+        "type": "action",
+        "text": "Mara sets a brass token beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0029"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 11,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "AAF3432F-0864-558B-A1B6-2DA7BDA99FDD",
+        "type": "shot",
+        "text": "CLOSE ON CARD 02",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0030"
+        }
+      },
+      {
+        "id": "45C4E1AE-9A52-5718-B51A-2154606C92FA",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0031"
+        }
+      },
+      {
+        "id": "CF7803F3-2DD3-5068-AC61-DB91F1CDCCB0",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0032"
+        }
+      },
+      {
+        "id": "190B0322-B271-5C52-9387-D02C19C68740",
+        "type": "dialogue",
+        "text": "Route 02 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0033"
+        }
+      },
+      {
+        "id": "E030F5E0-3AAA-5D1D-BE17-897D4CF590E5",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0034"
+        }
+      },
+      {
+        "id": "A85D4ABE-B63E-5BB9-97E2-652E3AB4433D",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0035"
+        }
+      },
+      {
+        "id": "C765A0AF-CA06-54D6-8F84-D874AF80F450",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0036"
+        }
+      },
+      {
+        "id": "D2D13AB8-AED3-5AC9-9B5D-892E55C7CAB7",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0040"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "810D64C4-83DC-5476-8948-AE6F0AF7EC51",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0048"
+        }
+      },
+      {
+        "id": "B35AFC51-54D3-5BB2-B01E-05770E1788CA",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0049"
+        }
+      },
+      {
+        "id": "8F8166C7-5B1D-5D0E-8752-FB121A4D1534",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0047"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "08A6165F-2851-5D6C-8850-ECA78B893E79",
+        "type": "general",
+        "text": "CARD 02: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0051"
+        }
+      },
+      {
+        "id": "92C8DB88-63C1-5850-8CED-3F1012A14301",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0052"
+        }
+      },
+      {
+        "id": "71196EF5-3B55-5FBD-B8AF-F1EFED3685F4",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-03"
+        }
+      },
+      {
+        "id": "D295762E-3922-5EEF-87DD-FB27E862B973",
+        "type": "scene_heading",
+        "text": "INT. TRAM PLATFORM - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0053"
+        },
+        "spine_id": "S003"
+      },
+      {
+        "id": "8001E9CB-D86E-53D7-ACA9-D674E6046BE3",
+        "type": "action",
+        "text": "Mara sets a red spool beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0054"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 9,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "F48BC03F-4BB8-51D8-9B47-E2250F06A7BC",
+        "type": "shot",
+        "text": "CLOSE ON CARD 03",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0055"
+        }
+      },
+      {
+        "id": "09BCCCA1-BBFE-5DFC-B648-7CEC4ACA1A3B",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0056"
+        }
+      },
+      {
+        "id": "5760F475-14C9-5DE6-9016-068B1E3B4B2D",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0057"
+        }
+      },
+      {
+        "id": "00953528-ACBD-5AF5-AEB9-C0AF3967BCBE",
+        "type": "dialogue",
+        "text": "Route 03 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0058"
+        }
+      },
+      {
+        "id": "CBC51F8D-35DE-528A-91D3-19DED80FFB4D",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0059"
+        }
+      },
+      {
+        "id": "76844EC9-8947-53AA-9C4A-7BE605D991A6",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0060"
+        }
+      },
+      {
+        "id": "70D94748-AEFA-589B-8F3A-7F54614308F9",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0061"
+        }
+      },
+      {
+        "id": "F05B846D-0627-5FE9-8674-476F8C254C75",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0065"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "798481F4-73E7-5D72-9182-C88E35C48E87",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0073"
+        }
+      },
+      {
+        "id": "37978AE1-DD64-51AA-903A-F5A98FFEC773",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0074"
+        }
+      },
+      {
+        "id": "0ED2B6E3-6583-53BB-851A-09F28CDDA1FE",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0072"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "AB205548-8284-5522-BD99-CE9192568729",
+        "type": "general",
+        "text": "CARD 03: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0076"
+        }
+      },
+      {
+        "id": "CDF8AD6B-F306-58A2-8AFB-586A481D821F",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0077"
+        }
+      },
+      {
+        "id": "DE81FFD7-5859-54EC-A1D8-94E6A00C3785",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-04"
+        }
+      },
+      {
+        "id": "B9514C2E-76E5-5F96-AD2F-1E7529325945",
+        "type": "scene_heading",
+        "text": "INT. GLASS CORRIDOR - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0079"
+        },
+        "spine_id": "S004"
+      },
+      {
+        "id": "E96E45BC-E76D-59D7-8BA9-45558806F7A0",
+        "type": "action",
+        "text": "Mara sets a route card beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0080"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 10,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "B9FF7D96-FA4C-57DE-BD98-0893712B3A1F",
+        "type": "shot",
+        "text": "CLOSE ON CARD 04",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0081"
+        }
+      },
+      {
+        "id": "5CC5539D-801C-5BBF-8FF5-7BFF04C291D2",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0082"
+        }
+      },
+      {
+        "id": "4BE552CE-2F87-5387-B17A-398D07F1BAD9",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0083"
+        }
+      },
+      {
+        "id": "E0F787A0-D72B-5BE7-9E83-C6E7C7C1CDEF",
+        "type": "dialogue",
+        "text": "Route 04 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0084"
+        }
+      },
+      {
+        "id": "0EAF3D98-7CD8-5D9F-8ADB-72FDCF0EFDB3",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0085"
+        }
+      },
+      {
+        "id": "DB2C369E-F2F5-5E4C-AEB7-B7C43637DAE2",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0086"
+        }
+      },
+      {
+        "id": "72F5C08D-25E9-57F6-8C8E-5257B0ADFCC0",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0087"
+        }
+      },
+      {
+        "id": "8997B76D-158A-59B5-8B51-A8D0E110662F",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0091"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "C0E29242-7BD2-5870-8412-C9641BCBE980",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0099"
+        }
+      },
+      {
+        "id": "EA1E505F-66C6-5FDB-8E51-A3FE85E45E2F",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0100"
+        }
+      },
+      {
+        "id": "09A26AEE-C3F9-5395-8263-33EA2C8DB45D",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0098"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "68E075C4-7D35-5678-91E2-D8A8008484A4",
+        "type": "general",
+        "text": "CARD 04: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0102"
+        }
+      },
+      {
+        "id": "5EC64718-1BD0-5AF9-ABDA-D73090BDFFCB",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0103"
+        }
+      },
+      {
+        "id": "A1272D0E-F8F4-5802-983D-7A56C33B6ED8",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-05"
+        }
+      },
+      {
+        "id": "87F5B98C-106B-5C65-87D6-D1FCD873A7BD",
+        "type": "scene_heading",
+        "text": "INT. SIGNAL CABIN - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0104"
+        },
+        "spine_id": "S005"
+      },
+      {
+        "id": "461C59A2-0ED4-596E-92AC-35504D22977F",
+        "type": "action",
+        "text": "Mara sets a painted lever beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0105"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 13,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "B19D0CE4-EAFA-5050-95D8-A72C35E9A826",
+        "type": "shot",
+        "text": "CLOSE ON CARD 05",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0106"
+        }
+      },
+      {
+        "id": "A408B347-3301-58E8-9204-5BEA53FDC61B",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0107"
+        }
+      },
+      {
+        "id": "638837E1-96A3-5810-8F19-40AA5082FFA2",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0108"
+        }
+      },
+      {
+        "id": "5B6A706B-5582-5473-AE13-9A6A8959786C",
+        "type": "dialogue",
+        "text": "Route 05 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0109"
+        }
+      },
+      {
+        "id": "EC8CABCA-5947-5501-B918-ACB23475AEBF",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0110"
+        }
+      },
+      {
+        "id": "30515B0A-DB9D-5118-BD94-C11E66AB2EDD",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0111"
+        }
+      },
+      {
+        "id": "016F1860-8C0B-54AD-9364-45A1E70CEC98",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0112"
+        }
+      },
+      {
+        "id": "5AB0331C-1012-5533-8B62-2361C2D8DB6D",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0116"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "9A0A158D-3963-56A6-B28A-F4CC1EDAC6CA",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0124"
+        }
+      },
+      {
+        "id": "85C3E5BB-9DD4-52C1-A720-1F2F71F942FA",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0125"
+        }
+      },
+      {
+        "id": "696366D4-A796-5784-B8AB-42F36D4A552B",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0123"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "C36A41B0-DAD0-5E92-8045-51481546AC94",
+        "type": "general",
+        "text": "CARD 05: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0127"
+        }
+      },
+      {
+        "id": "74F2A08D-BD52-5113-9B29-B31645288ED1",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0128"
+        }
+      },
+      {
+        "id": "E365389C-A7DB-5277-A0F0-06B9F920619F",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-06"
+        }
+      },
+      {
+        "id": "292790A9-BF85-5A2D-A29D-C2EDC927E1F3",
+        "type": "scene_heading",
+        "text": "INT. CLOCK GALLERY - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0129"
+        },
+        "spine_id": "S006"
+      },
+      {
+        "id": "2E58839D-8C9D-5594-BAFF-447F3F548EA5",
+        "type": "action",
+        "text": "Mara sets a paper clock beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0130"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 11,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "2C6554DB-A219-5634-AA51-568B1A09CED3",
+        "type": "shot",
+        "text": "CLOSE ON CARD 06",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0131"
+        }
+      },
+      {
+        "id": "C4D90E1B-075B-5947-854E-F53D71079758",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0132"
+        }
+      },
+      {
+        "id": "467B5EEE-8849-5246-8AB6-1A581929D712",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0133"
+        }
+      },
+      {
+        "id": "C5A96DE3-04D3-516F-B1E6-4E4A92E07C5E",
+        "type": "dialogue",
+        "text": "Route 06 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0134"
+        }
+      },
+      {
+        "id": "1FF1F2ED-A593-5895-BAB3-C10F1EB87E06",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0135"
+        }
+      },
+      {
+        "id": "54A70E18-E4C0-5812-B2B2-37192227ABD2",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0136"
+        }
+      },
+      {
+        "id": "B926F243-03D2-5EA3-8302-E6F24FAACA23",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0137"
+        }
+      },
+      {
+        "id": "6DCA52F9-FEF5-56FF-A406-B2E8EEAA456F",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0141"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "9E0149F6-6724-5370-87F6-8E3622101650",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0149"
+        }
+      },
+      {
+        "id": "F67981DD-B456-5CD1-B361-FD401F60FE4E",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0150"
+        }
+      },
+      {
+        "id": "A038DBDF-DF8B-53C8-8DC1-0B19FD400CC6",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0148"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "CC4DA262-B0EE-5040-81B1-3EF9C4BF4649",
+        "type": "general",
+        "text": "CARD 06: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0152"
+        }
+      },
+      {
+        "id": "C9A20823-EE4C-5537-889C-0DE3F545C561",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0153"
+        }
+      },
+      {
+        "id": "A6EB09BE-C264-56E5-B9E9-B037CDD32EEA",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-07"
+        }
+      },
+      {
+        "id": "16F26464-6386-534B-B8AE-3340F9E29573",
+        "type": "scene_heading",
+        "text": "INT. PARCEL DEPOT - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0155"
+        },
+        "spine_id": "S007"
+      },
+      {
+        "id": "5EF42198-DA52-56EE-99D4-FF62C2B9D31F",
+        "type": "action",
+        "text": "Mara sets a empty parcel beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0156"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 12,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "E49E8507-2D9F-5257-8AC1-67CA7A0E564C",
+        "type": "shot",
+        "text": "CLOSE ON CARD 07",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0157"
+        }
+      },
+      {
+        "id": "C525E060-E38B-582B-ABC7-15F4560D3670",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0158"
+        }
+      },
+      {
+        "id": "BAA55AD9-4D54-579F-9851-50EDBF88A47A",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0159"
+        }
+      },
+      {
+        "id": "D09D1B24-C722-595C-8277-30AB8BD776E0",
+        "type": "dialogue",
+        "text": "Route 07 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0160"
+        }
+      },
+      {
+        "id": "D989563E-B98C-51E1-BDDB-B6A03902130D",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0161"
+        }
+      },
+      {
+        "id": "8DF8A028-DF13-58C0-BD99-0CCA30B2A753",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0162"
+        }
+      },
+      {
+        "id": "B23102B1-41D0-5BEC-A9A3-4300BF3263FF",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0163"
+        }
+      },
+      {
+        "id": "F6767DD2-AEC8-59D9-8C43-546DFDDA176E",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0167"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "9C22B23C-A341-57D4-94F5-B1A00189340B",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0175"
+        }
+      },
+      {
+        "id": "20E47A3F-C736-5D9A-8332-5953D541B0DB",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0176"
+        }
+      },
+      {
+        "id": "64C49B3B-C711-53E3-B81A-09F92E09885F",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0174"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "3D3B08B2-2609-5215-8A69-14CAD4670BBE",
+        "type": "general",
+        "text": "CARD 07: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0178"
+        }
+      },
+      {
+        "id": "DDD22FEF-B39C-50A1-9922-E1069C8C2249",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0179"
+        }
+      },
+      {
+        "id": "01A2FCFC-074D-574D-A1D8-300CCA2AB762",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-08"
+        }
+      },
+      {
+        "id": "73C78A58-C659-5F96-84DE-791014F3F2E6",
+        "type": "scene_heading",
+        "text": "INT. OBSERVATION DECK - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0180"
+        },
+        "spine_id": "S008"
+      },
+      {
+        "id": "57A7EB53-822F-58E1-B2D4-D890FF89BC17",
+        "type": "action",
+        "text": "Mara sets a viewing lens beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0181"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 12,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "CD41A633-8814-593F-9492-0F6C93666582",
+        "type": "shot",
+        "text": "CLOSE ON CARD 08",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0182"
+        }
+      },
+      {
+        "id": "B1FB75F8-C088-573D-83C5-2472B6C998A8",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0183"
+        }
+      },
+      {
+        "id": "E7586A3A-D820-53EB-97EC-883568F05166",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0184"
+        }
+      },
+      {
+        "id": "C254E05A-0FDD-57EA-96A4-C1985082BA8E",
+        "type": "dialogue",
+        "text": "Route 08 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0185"
+        }
+      },
+      {
+        "id": "DECE007B-951A-51D2-B677-984ADEC868E0",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0186"
+        }
+      },
+      {
+        "id": "4826A995-23E3-59B7-B1C0-F85E4E15BB2F",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0187"
+        }
+      },
+      {
+        "id": "D4427429-0FCE-5AD3-A51B-1187EB2BDF1E",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0188"
+        }
+      },
+      {
+        "id": "BFB256AA-C128-51C3-9AF3-392B43E64D38",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0192"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "3CBD5F3A-BB33-5745-92F6-2FC86FCE2BDB",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0200"
+        }
+      },
+      {
+        "id": "92FACFB2-A2D9-50D0-8B09-D18516C193FB",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0201"
+        }
+      },
+      {
+        "id": "54DD03C8-8A2A-5B27-B231-A9B601A6BE8E",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0199"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "382B0C59-CB22-555E-BA74-B325C6FF3138",
+        "type": "general",
+        "text": "CARD 08: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0203"
+        }
+      },
+      {
+        "id": "39FE0423-397B-5606-9414-0D69D65D945B",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0204"
+        }
+      },
+      {
+        "id": "5906DC18-FF3D-5C92-9324-86889D9968EB",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-09"
+        }
+      },
+      {
+        "id": "A3459E00-C750-5640-903F-4A2D0C992667",
+        "type": "scene_heading",
+        "text": "INT. REPAIR BAY - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0205"
+        },
+        "spine_id": "S009"
+      },
+      {
+        "id": "9B83CCA7-4D96-576D-ACF2-EBC20FF60501",
+        "type": "action",
+        "text": "Mara sets a wooden axle beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0206"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 11,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "11BC7BD0-CF24-54FD-B51F-31F9341D7237",
+        "type": "shot",
+        "text": "CLOSE ON CARD 09",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0207"
+        }
+      },
+      {
+        "id": "03CE140C-978F-5DA3-B18A-AC22BEDD9BC2",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0208"
+        }
+      },
+      {
+        "id": "FDABC6CB-ED98-5306-841B-D0A673AEC378",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0209"
+        }
+      },
+      {
+        "id": "3481C553-F2A2-54DC-9CDD-53295BAB439A",
+        "type": "dialogue",
+        "text": "Route 09 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0210"
+        }
+      },
+      {
+        "id": "70E3F462-5965-5B14-AE7C-86186CE45162",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0211"
+        }
+      },
+      {
+        "id": "0A830DC7-6D09-56AA-8D69-31620AD34C6A",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0212"
+        }
+      },
+      {
+        "id": "C39A8BB9-F512-5410-BAF9-52DED6E432DA",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0213"
+        }
+      },
+      {
+        "id": "600BD336-BC14-5A09-B0B7-F266582B92F6",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0217"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "D1806AC1-3FEE-5130-A472-280068F7AAF9",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0225"
+        }
+      },
+      {
+        "id": "87E0C157-A2FB-5CAA-89BC-4495B1A7C176",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0226"
+        }
+      },
+      {
+        "id": "CD73C03B-849C-5D9D-9EBA-ACC336A87099",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0224"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "448827CC-EC5B-5818-923F-328D363D8F13",
+        "type": "general",
+        "text": "CARD 09: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0228"
+        }
+      },
+      {
+        "id": "2D7D0AB6-C205-5631-A0D3-3E0A482DD21E",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0229"
+        }
+      },
+      {
+        "id": "13D80D82-82A3-52EE-B81E-C5D7F0C2001C",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-10"
+        }
+      },
+      {
+        "id": "8829A05C-85E1-5888-B49E-55E153460A8F",
+        "type": "scene_heading",
+        "text": "INT. TEST TRACK - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0231"
+        },
+        "spine_id": "S010"
+      },
+      {
+        "id": "36BDEBFE-5E97-5A81-9372-499258261205",
+        "type": "action",
+        "text": "Mara sets a chalk marker beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0232"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 12,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "93BF8249-65E8-55EC-BC74-1717392F6BCF",
+        "type": "shot",
+        "text": "CLOSE ON CARD 10",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0233"
+        }
+      },
+      {
+        "id": "728D4D30-F5C6-5688-BF2B-652E41199107",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0234"
+        }
+      },
+      {
+        "id": "F84B02E7-8981-52B8-941D-3D387EFD4D98",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0235"
+        }
+      },
+      {
+        "id": "138DF706-6570-58E0-AFA0-7FF561487BC0",
+        "type": "dialogue",
+        "text": "Route 10 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0236"
+        }
+      },
+      {
+        "id": "AC6A2838-B253-5562-AD65-FD1436FB3575",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0237"
+        }
+      },
+      {
+        "id": "02F31F2C-5896-59B5-9CED-EDA3C2055F15",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0238"
+        }
+      },
+      {
+        "id": "F0EAB636-BA39-5507-AE1D-AC54CC4DD4D9",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0239"
+        }
+      },
+      {
+        "id": "E5016977-820B-58EC-98F0-811CF0BCA7DA",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0243"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "A3DE3751-6EAC-5F34-8FE2-BE77D3144620",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0251"
+        }
+      },
+      {
+        "id": "41FD6F34-D3B6-5F0F-9D3D-6F2B61CB7CB9",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0252"
+        }
+      },
+      {
+        "id": "51347B51-6C0D-59CC-96CB-51F450B1A12C",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0250"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "5F59A49C-C67C-5454-8698-5AE712354320",
+        "type": "general",
+        "text": "CARD 10: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0254"
+        }
+      },
+      {
+        "id": "4C38B0B2-2B31-599C-9D3F-2C6CB6069F83",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0255"
+        }
+      },
+      {
+        "id": "05035277-7985-55EB-BBD1-56B47739A4D7",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-11"
+        }
+      },
+      {
+        "id": "0E549B23-2AF7-5316-8593-9F7F474DA957",
+        "type": "scene_heading",
+        "text": "INT. DISPATCH OFFICE - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0256"
+        },
+        "spine_id": "S011"
+      },
+      {
+        "id": "A2F1A031-3C5A-5EA4-9B73-904504FBAB8E",
+        "type": "action",
+        "text": "Mara sets a rubber stamp beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0257"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 12,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "32AEE7D5-B5BB-59DA-B28E-0C0C9C84138F",
+        "type": "shot",
+        "text": "CLOSE ON CARD 11",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0258"
+        }
+      },
+      {
+        "id": "62072913-A12C-509C-BE37-C273C6C8BB4B",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0259"
+        }
+      },
+      {
+        "id": "C74AD6A9-D36A-5EE6-9262-887BEDEC47FA",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0260"
+        }
+      },
+      {
+        "id": "C0CAEFDC-8CC6-5F50-82EB-5BF85C52D688",
+        "type": "dialogue",
+        "text": "Route 11 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0261"
+        }
+      },
+      {
+        "id": "2884950E-D489-5F18-BBC6-79D7175A9A26",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0262"
+        }
+      },
+      {
+        "id": "5B8AE3AF-C11F-53F4-B6D9-A6A09FD5177E",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0263"
+        }
+      },
+      {
+        "id": "262B15C7-66FD-502A-88F7-5F2CC68DD831",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0264"
+        }
+      },
+      {
+        "id": "78C3E90F-4027-5A98-9D06-1A6277308314",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0268"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "F38B29FE-8DD9-58D1-9CE2-E6DD683D2A70",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0276"
+        }
+      },
+      {
+        "id": "6F6EE375-4723-5ACF-BA90-E8BA59E52203",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0277"
+        }
+      },
+      {
+        "id": "A5D2A0BC-59FD-5BF6-80D1-89E8B7FB9794",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0275"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "F539D105-AD60-554A-91A5-6B610D5A9B80",
+        "type": "general",
+        "text": "CARD 11: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0279"
+        }
+      },
+      {
+        "id": "694FB812-9946-585D-A9D6-9D74341CF951",
+        "type": "transition",
+        "text": "CUT TO:",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0280"
+        }
+      },
+      {
+        "id": "4A83291F-7CC1-5A5F-9EF9-EA153F1A7981",
+        "type": "page_break",
+        "text": "",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-break-12"
+        }
+      },
+      {
+        "id": "2A6B3A2B-884B-5A10-99DF-1EFD0D625D55",
+        "type": "scene_heading",
+        "text": "INT. EXHIBITION HALL - DAY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0281"
+        },
+        "spine_id": "S012"
+      },
+      {
+        "id": "ED1B2EF9-7199-5261-8861-5E0053CB2663",
+        "type": "action",
+        "text": "Mara sets a silver bell beside the tram.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0282"
+        },
+        "runs": [
+          {
+            "start": 12,
+            "length": 11,
+            "style": {
+              "bold": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "4C0611F5-BF06-5823-8C68-A83F1DE90F29",
+        "type": "shot",
+        "text": "CLOSE ON CARD 12",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0283"
+        }
+      },
+      {
+        "id": "3DC8EA84-C012-5087-80DC-54F949A64112",
+        "type": "character",
+        "text": "MARA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0284"
+        }
+      },
+      {
+        "id": "9EC616A1-3A88-596F-AA9E-3C7C7A362A06",
+        "type": "parenthetical",
+        "text": "(reading the card)",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0285"
+        }
+      },
+      {
+        "id": "071839D2-DC64-5555-89D2-4375FF6990D0",
+        "type": "dialogue",
+        "text": "Route 12 is ready.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0286"
+        }
+      },
+      {
+        "id": "0927A179-3302-597D-BF83-B8F1590B5031",
+        "type": "action",
+        "text": "Ivo turns the dial once.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0287"
+        }
+      },
+      {
+        "id": "E5DA8A3F-763C-58C4-BFFC-F42715D1C250",
+        "type": "character",
+        "text": "IVO",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0288"
+        }
+      },
+      {
+        "id": "09626418-D880-5879-A633-EDB9C7F163D8",
+        "type": "dialogue",
+        "text": "The paper bridge is level.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0289"
+        }
+      },
+      {
+        "id": "CC4BA9A7-864D-5E8F-9811-4A9437FFFA8D",
+        "type": "action",
+        "text": "A café label reads é. 🚀",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0293"
+        },
+        "runs": [
+          {
+            "start": 2,
+            "length": 4,
+            "style": {
+              "italic": true
+            }
+          },
+          {
+            "start": 23,
+            "length": 1,
+            "style": {
+              "underline": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "A70BD7C3-26EB-5E34-A5DB-82169158C143",
+        "type": "character",
+        "text": "UMA",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0301"
+        }
+      },
+      {
+        "id": "3FEA351E-21ED-531C-BA76-24318882BE98",
+        "type": "dialogue",
+        "text": "Keep the ruler in the frame.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0302"
+        }
+      },
+      {
+        "id": "E1E0424E-B3AF-5B50-B9D6-3F37C87FDCE9",
+        "type": "action",
+        "text": "Uma replaces “pending” with “checked.”",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0300"
+        },
+        "runs": [
+          {
+            "start": 14,
+            "length": 7,
+            "style": {
+              "strikethrough": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "1CF658DF-8F04-5E63-A517-3482E81B5B7F",
+        "type": "general",
+        "text": "CARD 12: READY",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0304"
+        }
+      },
+      {
+        "id": "62154884-B01F-57B7-9DB6-814F7AC8CF84",
+        "type": "transition",
+        "text": "FADE OUT.",
+        "external_ids": {
+          "fdx_paragraph_id": "synthetic-paragraph-0305"
+        }
+      }
+    ],
+    "revision": 0,
+    "revision_settings": {
+      "mode_enabled": false,
+      "label": "Blue Revision",
+      "color": "blue"
+    }
+  },
+  "title_page": {
+    "title": "The Paper Bridge",
+    "subtitle": "Original synthetic test material",
+    "author": "Synthetic Test Writer",
+    "contact": "",
+    "draft_date": "2026-01-01"
+  },
+  "production_context": {
+    "context_enabled": true,
+    "entities": [
+      {
+        "id": "8908A323-FA61-53C2-89F4-8380E7141769",
+        "kind": "location",
+        "name": "MODEL WORKSHOP",
+        "status": "accepted",
+        "source_element_ids": [
+          "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB"
+        ],
+        "notes": "A tabletop model set."
+      },
+      {
+        "id": "299C7CCC-1340-5135-A478-6A8C5A443BF9",
+        "kind": "character",
+        "name": "MARA",
+        "status": "suggested",
+        "source_element_ids": [
+          "0184AF25-7382-5A9A-A206-489FFA82841B"
+        ],
+        "notes": "Checks the route cards."
+      },
+      {
+        "id": "23974527-B1D8-51B4-90A8-02E1279EDB62",
+        "kind": "prop",
+        "name": "folded map",
+        "status": "accepted",
+        "source_element_ids": [
+          "A41CC738-5555-57E1-A157-4A86A36F3610"
+        ],
+        "notes": "Paper, with no production markings."
+      }
+    ],
+    "notes": [
+      {
+        "id": "53A7B617-9C79-5416-9AEF-BBCCBF7B418E",
+        "title": "Model scale",
+        "body": "Keep the ruler visible during comparison shots.",
+        "status": "suggested",
+        "source_element_ids": [
+          "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB"
+        ]
+      }
+    ],
+    "generated_at": "2026-01-01T00:00:00Z"
+  },
+  "ai_settings": {
+    "writing_enabled": false,
+    "outline_enabled": false,
+    "directing_enabled": false,
+    "boards_enabled": false,
+    "production_enabled": false,
+    "edit_enabled": false
+  },
+  "proposals": [
+    {
+      "id": "0C9BE3AC-D29B-5F49-B362-9441F7032F14",
+      "workflow": "writing",
+      "title": "Check the route card",
+      "body": "Make sure the first card can be read in the establishing shot.",
+      "status": "suggested",
+      "target": {
+        "screenplay_element_id": "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB",
+        "scene_spine_id": "S001",
+        "outline_beat_id": "EA474229-1753-5BAB-9724-D032EF839945"
+      },
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "activity": [
+    {
+      "id": "99894494-99C8-59FD-9210-3B8BBD895E55",
+      "actor": "manual",
+      "action": "Created synthetic fixture",
+      "detail": "Original data for offline regression tests.",
+      "target": {
+        "screenplay_element_id": "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB",
+        "scene_spine_id": "S001",
+        "outline_beat_id": "EA474229-1753-5BAB-9724-D032EF839945"
+      },
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "outline": [
+    {
+      "id": "EA474229-1753-5BAB-9724-D032EF839945",
+      "template": "Three-stage test",
+      "order": 1,
+      "name": "Prepare",
+      "purpose": "Lay out the model and record a starting position.",
+      "notes": "Entirely synthetic planning material.",
+      "linked_scene_spine_ids": [
+        "S001",
+        "S002",
+        "S003",
+        "S004"
+      ]
+    },
+    {
+      "id": "38F569FE-1FB5-5CC2-8FE9-24B0FF74420E",
+      "template": "Three-stage test",
+      "order": 2,
+      "name": "Measure",
+      "purpose": "Compare each crossing against its route card.",
+      "notes": "Entirely synthetic planning material.",
+      "linked_scene_spine_ids": [
+        "S005",
+        "S006",
+        "S007",
+        "S008"
+      ]
+    },
+    {
+      "id": "26914E71-C73A-51D7-A312-732981906F3C",
+      "template": "Three-stage test",
+      "order": 3,
+      "name": "Present",
+      "purpose": "Arrange the completed cards beside the working model.",
+      "notes": "Entirely synthetic planning material.",
+      "linked_scene_spine_ids": [
+        "S009",
+        "S010",
+        "S011",
+        "S012"
+      ]
+    }
+  ],
+  "script_notes": [
+    {
+      "id": "07C8C246-1963-570E-9AE6-99DBA0D7375E",
+      "screenplay_element_id": "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB",
+      "scene_spine_id": "S001",
+      "body": "Confirm that the ruler remains in the opening frame.",
+      "status": "open",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "shots": [
+    {
+      "id": "31BF1AF7-2DC8-5ED3-803D-201A88B75107",
+      "scene_spine_id": "S001",
+      "shot_number": 1,
+      "label": "S001-SH001 Inspect route 01",
+      "setup": "establishing",
+      "status": "selected",
+      "source_refs": [
+        {
+          "screenplay_element_id": "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB",
+          "start_offset": 0,
+          "end_offset": 25
+        }
+      ],
+      "notes": "Use a fixed camera position for the scale model."
+    },
+    {
+      "id": "8132098C-8AC1-54B3-BA23-55EC7F1B0465",
+      "scene_spine_id": "S002",
+      "shot_number": 1,
+      "label": "S002-SH001 Inspect route 02",
+      "setup": "insert",
+      "status": "selected",
+      "source_refs": [
+        {
+          "screenplay_element_id": "685E6602-6AF3-5BC4-B70C-639FC69F4169",
+          "start_offset": 0,
+          "end_offset": 23
+        }
+      ],
+      "notes": "Use a fixed camera position for the scale model."
+    }
+  ],
+  "board_frames": [
+    {
+      "id": "5D60C87B-EAC8-5617-9734-55C4B95BE66D",
+      "shot_id": "31BF1AF7-2DC8-5ED3-803D-201A88B75107",
+      "scene_spine_id": "S001",
+      "frame_number": 1,
+      "label": "S001-SH001 Inspect route 01",
+      "prompt": "Tabletop model tram beside a paper route card. Keep the ruler visible.",
+      "duration_seconds": 4.5,
+      "status": "suggested",
+      "notes": "Synthetic planning frame; no media is attached.",
+      "source_refs": [
+        {
+          "screenplay_element_id": "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB",
+          "start_offset": 0,
+          "end_offset": 25
+        }
+      ]
+    },
+    {
+      "id": "128F69BF-62F6-5EED-BE17-1A73AC1F7F30",
+      "shot_id": "8132098C-8AC1-54B3-BA23-55EC7F1B0465",
+      "scene_spine_id": "S002",
+      "frame_number": 1,
+      "label": "S002-SH001 Inspect route 02",
+      "prompt": "Tabletop model tram beside a paper route card. Keep the ruler visible.",
+      "duration_seconds": 4.5,
+      "status": "suggested",
+      "notes": "Synthetic planning frame; no media is attached.",
+      "source_refs": [
+        {
+          "screenplay_element_id": "685E6602-6AF3-5BC4-B70C-639FC69F4169",
+          "start_offset": 0,
+          "end_offset": 23
+        }
+      ]
+    }
+  ],
+  "editorial_spine": {
+    "sequences": [
+      {
+        "id": "CE42531A-5AFA-5AA9-BD42-BF18A4DC8703",
+        "name": "Main Sequence",
+        "order": 1,
+        "beats": [
+          {
+            "id": "2DC05AE0-EBFA-515E-9A5C-909D3B2BC2F5",
+            "order": 1,
+            "scene_spine_id": "S001",
+            "title": "INT. MODEL WORKSHOP - DAY",
+            "source_element_ids": [
+              "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB"
+            ],
+            "shot_ids": [
+              "31BF1AF7-2DC8-5ED3-803D-201A88B75107"
+            ],
+            "board_frame_ids": [
+              "5D60C87B-EAC8-5617-9734-55C4B95BE66D"
+            ],
+            "edit_clips": [
+              {
+                "id": "DCF50475-5CA3-5C6D-9056-9F31017D5297",
+                "scene_spine_id": "S001",
+                "shot_id": "31BF1AF7-2DC8-5ED3-803D-201A88B75107",
+                "board_frame_id": "5D60C87B-EAC8-5617-9734-55C4B95BE66D",
+                "source_element_ids": [
+                  "2D8D95C5-0A0E-5512-843F-FB6ED1FAF9DB"
+                ],
+                "label": "S001-SH001 Inspect route 01",
+                "source_kind": "board_frame",
+                "timeline_start_seconds": 0.0,
+                "timeline_duration_seconds": 4.5,
+                "source_start_seconds": 0,
+                "status": "planned",
+                "notes": ""
+              }
+            ],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "DA51208F-C4AF-54B6-8C58-FD4CFA745E85",
+            "order": 2,
+            "scene_spine_id": "S002",
+            "title": "INT. SORTING ROOM - DAY",
+            "source_element_ids": [
+              "685E6602-6AF3-5BC4-B70C-639FC69F4169"
+            ],
+            "shot_ids": [
+              "8132098C-8AC1-54B3-BA23-55EC7F1B0465"
+            ],
+            "board_frame_ids": [
+              "128F69BF-62F6-5EED-BE17-1A73AC1F7F30"
+            ],
+            "edit_clips": [
+              {
+                "id": "8B265B35-6532-5FD9-A871-2FE4129CC64F",
+                "scene_spine_id": "S002",
+                "shot_id": "8132098C-8AC1-54B3-BA23-55EC7F1B0465",
+                "board_frame_id": "128F69BF-62F6-5EED-BE17-1A73AC1F7F30",
+                "source_element_ids": [
+                  "685E6602-6AF3-5BC4-B70C-639FC69F4169"
+                ],
+                "label": "S002-SH001 Inspect route 02",
+                "source_kind": "board_frame",
+                "timeline_start_seconds": 4.5,
+                "timeline_duration_seconds": 4.5,
+                "source_start_seconds": 0,
+                "status": "planned",
+                "notes": ""
+              }
+            ],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "A48CCBA5-2C46-5D75-9D69-86086534BB21",
+            "order": 3,
+            "scene_spine_id": "S003",
+            "title": "INT. TRAM PLATFORM - DAY",
+            "source_element_ids": [
+              "D295762E-3922-5EEF-87DD-FB27E862B973"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "BB741869-D6EA-54BC-A645-08A07C7ED028",
+            "order": 4,
+            "scene_spine_id": "S004",
+            "title": "INT. GLASS CORRIDOR - DAY",
+            "source_element_ids": [
+              "B9514C2E-76E5-5F96-AD2F-1E7529325945"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "9AE972F5-6FA4-589B-A93F-B46909929073",
+            "order": 5,
+            "scene_spine_id": "S005",
+            "title": "INT. SIGNAL CABIN - DAY",
+            "source_element_ids": [
+              "87F5B98C-106B-5C65-87D6-D1FCD873A7BD"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "0A0556C0-08FB-511E-B976-5FBE4A788DA5",
+            "order": 6,
+            "scene_spine_id": "S006",
+            "title": "INT. CLOCK GALLERY - DAY",
+            "source_element_ids": [
+              "292790A9-BF85-5A2D-A29D-C2EDC927E1F3"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "0F6534C7-3E40-55AB-AF7A-86064188C60D",
+            "order": 7,
+            "scene_spine_id": "S007",
+            "title": "INT. PARCEL DEPOT - DAY",
+            "source_element_ids": [
+              "16F26464-6386-534B-B8AE-3340F9E29573"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "4966E323-3183-5404-B819-B6A36484FBCC",
+            "order": 8,
+            "scene_spine_id": "S008",
+            "title": "INT. OBSERVATION DECK - DAY",
+            "source_element_ids": [
+              "73C78A58-C659-5F96-84DE-791014F3F2E6"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "338F6A1B-389F-5E94-88A1-326214CD7005",
+            "order": 9,
+            "scene_spine_id": "S009",
+            "title": "INT. REPAIR BAY - DAY",
+            "source_element_ids": [
+              "A3459E00-C750-5640-903F-4A2D0C992667"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "758E5327-A70A-5B22-A6DE-553D2D46F852",
+            "order": 10,
+            "scene_spine_id": "S010",
+            "title": "INT. TEST TRACK - DAY",
+            "source_element_ids": [
+              "8829A05C-85E1-5888-B49E-55E153460A8F"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "CF74CAAD-67A5-5A7B-A799-79A0BE5B4FDD",
+            "order": 11,
+            "scene_spine_id": "S011",
+            "title": "INT. DISPATCH OFFICE - DAY",
+            "source_element_ids": [
+              "0E549B23-2AF7-5316-8593-9F7F474DA957"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          },
+          {
+            "id": "4E70AFCF-254B-5642-9D7A-959C168EB759",
+            "order": 12,
+            "scene_spine_id": "S012",
+            "title": "INT. EXHIBITION HALL - DAY",
+            "source_element_ids": [
+              "2A6B3A2B-884B-5A10-99DF-1EFD0D625D55"
+            ],
+            "shot_ids": [],
+            "board_frame_ids": [],
+            "edit_clips": [],
+            "edit_notes": "",
+            "marker_category": "scene",
+            "status": "planned"
+          }
+        ]
+      }
+    ]
+  }
+}

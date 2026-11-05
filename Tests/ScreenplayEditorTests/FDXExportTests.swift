@@ -48,11 +48,11 @@ import ScreenplayFDX
             #expect(throws: (any Error).self) { try FDXExporter.export(elements: elements, titlePage: nil) }
         }
     }
-    @Test func defendersFixtureRoundTripsWithoutChangingSource() throws {
+    @Test func syntheticFixtureRoundTripsWithoutChangingSource() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let source = root.appendingPathComponent("Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx")
+        let source = root.appendingPathComponent("Tests/Fixtures/Synthetic_Final_Draft.fdx")
         let bytes = try Data(contentsOf: source)
-        let document = try FDXImporter().importData(bytes, title: "Defenders").document
+        let document = try FDXImporter().importData(bytes, title: "Synthetic").document
         let result = try FDXExporter.export(elements: document.screenplay.elements, titlePage: document.titlePage)
         let reopened = try FDXImporter().importData(result.data, title: "Export").document
         #expect(reopened.screenplay.elements.map(\.type) == document.screenplay.elements.map(\.type))

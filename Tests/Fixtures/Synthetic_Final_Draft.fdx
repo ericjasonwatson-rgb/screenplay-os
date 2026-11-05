@@ -1,0 +1,667 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Entirely original synthetic test material: 193 script paragraphs, 12 short scenes, 11 authored page breaks. Each scene fits on one script page across supported font modes; the title page is separate. -->
+<FinalDraft DocumentType="Script" Template="No" Version="1">
+  <Content>
+    <Paragraph Type="Action" id="synthetic-paragraph-0001">
+      <Text>THE PAPER BRIDGE</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0002">
+      <Text>A synthetic routing exercise</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0003">
+      <Text>INT. MODEL WORKSHOP - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0004">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">folded map</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0005">
+      <Text>CLOSE ON CARD 01</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0006">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0007">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0008">
+      <Text>Route 01 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0009">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0010">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0011">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0015">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0023">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0024">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0022">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0026">
+      <Text>CARD 01: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0027">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-02" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0028">
+      <SceneProperties>
+        <Summary>
+          <Paragraph Type="Action">
+            <Text>METADATA ONLY: exclude from screenplay.</Text>
+          </Paragraph>
+        </Summary>
+      </SceneProperties>
+      <Text>INT. SORTING ROOM - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0029">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">brass token</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0030">
+      <Text>CLOSE ON CARD 02</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0031">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0032">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0033">
+      <Text>Route 02 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0034">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0035">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0036">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0040">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0048">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0049">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0047">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0051">
+      <Text>CARD 02: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0052">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-03" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0053">
+      <Text>INT. TRAM PLATFORM - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0054">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">red spool</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0055">
+      <Text>CLOSE ON CARD 03</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0056">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0057">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0058">
+      <Text>Route 03 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0059">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0060">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0061">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0065">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0073">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0074">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0072">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0076">
+      <Text>CARD 03: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0077">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-04" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0079">
+      <Text>INT. GLASS CORRIDOR - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0080">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">route card</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0081">
+      <Text>CLOSE ON CARD 04</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0082">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0083">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0084">
+      <Text>Route 04 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0085">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0086">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0087">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0091">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0099">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0100">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0098">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0102">
+      <Text>CARD 04: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0103">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-05" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0104">
+      <Text>INT. SIGNAL CABIN - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0105">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">painted lever</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0106">
+      <Text>CLOSE ON CARD 05</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0107">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0108">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0109">
+      <Text>Route 05 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0110">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0111">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0112">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0116">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0124">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0125">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0123">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0127">
+      <Text>CARD 05: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0128">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-06" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0129">
+      <Text>INT. CLOCK GALLERY - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0130">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">paper clock</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0131">
+      <Text>CLOSE ON CARD 06</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0132">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0133">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0134">
+      <Text>Route 06 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0135">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0136">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0137">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0141">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0149">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0150">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0148">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0152">
+      <Text>CARD 06: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0153">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-07" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0155">
+      <Text>INT. PARCEL DEPOT - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0156">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">empty parcel</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0157">
+      <Text>CLOSE ON CARD 07</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0158">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0159">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0160">
+      <Text>Route 07 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0161">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0162">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0163">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0167">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0175">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0176">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0174">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0178">
+      <Text>CARD 07: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0179">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-08" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0180">
+      <Text>INT. OBSERVATION DECK - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0181">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">viewing lens</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0182">
+      <Text>CLOSE ON CARD 08</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0183">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0184">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0185">
+      <Text>Route 08 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0186">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0187">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0188">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0192">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0200">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0201">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0199">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0203">
+      <Text>CARD 08: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0204">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-09" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0205">
+      <Text>INT. REPAIR BAY - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0206">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">wooden axle</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0207">
+      <Text>CLOSE ON CARD 09</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0208">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0209">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0210">
+      <Text>Route 09 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0211">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0212">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0213">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0217">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0225">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0226">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0224">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0228">
+      <Text>CARD 09: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0229">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-10" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0231">
+      <Text>INT. TEST TRACK - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0232">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">chalk marker</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0233">
+      <Text>CLOSE ON CARD 10</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0234">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0235">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0236">
+      <Text>Route 10 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0237">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0238">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0239">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0243">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0251">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0252">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0250">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0254">
+      <Text>CARD 10: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0255">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-11" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0256">
+      <Text>INT. DISPATCH OFFICE - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0257">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">rubber stamp</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0258">
+      <Text>CLOSE ON CARD 11</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0259">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0260">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0261">
+      <Text>Route 11 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0262">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0263">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0264">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0268">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0276">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0277">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0275">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0279">
+      <Text>CARD 11: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0280">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Page Break" id="synthetic-break-12" />
+    <Paragraph Type="Scene Heading" id="synthetic-paragraph-0281">
+      <Text>INT. EXHIBITION HALL - DAY</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0282">
+      <Text>Mara sets a </Text>
+      <Text Style="Bold">silver bell</Text>
+      <Text> beside the tram.</Text>
+    </Paragraph>
+    <Paragraph Type="Shot" id="synthetic-paragraph-0283">
+      <Text>CLOSE ON CARD 12</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0284">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical" id="synthetic-paragraph-0285">
+      <Text>(reading the card)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0286">
+      <Text>Route 12 is ready.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0287">
+      <Text>Ivo turns the dial once.</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0288">
+      <Text>IVO</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0289">
+      <Text>The paper bridge is level.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0293">
+      <Text>A </Text>
+      <Text Style="Italic">café</Text>
+      <Text> label reads é. </Text>
+      <Text Style="Underline">🚀</Text>
+    </Paragraph>
+    <Paragraph Type="Character" id="synthetic-paragraph-0301">
+      <Text>UMA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue" id="synthetic-paragraph-0302">
+      <Text>Keep the ruler in the frame.</Text>
+    </Paragraph>
+    <Paragraph Type="Action" id="synthetic-paragraph-0300">
+      <Text>Uma replaces “</Text>
+      <Text Style="Strikeout">pending</Text>
+      <Text>” with “checked.”</Text>
+    </Paragraph>
+    <Paragraph Type="General" id="synthetic-paragraph-0304">
+      <Text>CARD 12: READY</Text>
+    </Paragraph>
+    <Paragraph Type="Transition" id="synthetic-paragraph-0305">
+      <Text>FADE OUT.</Text>
+    </Paragraph>
+  </Content>
+  <TitlePage>
+    <Content>
+      <Paragraph Type="General">
+        <Text>The Paper Bridge</Text>
+      </Paragraph>
+      <Paragraph Type="General">
+        <Text>Original synthetic test material</Text>
+      </Paragraph>
+      <Paragraph Type="General">
+        <Text>Synthetic Test Writer</Text>
+      </Paragraph>
+    </Content>
+  </TitlePage>
+</FinalDraft>

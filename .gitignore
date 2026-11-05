@@ -10,3 +10,5 @@ dist/
 Website/downloads/
 Scripts/.license-*.key
 Config/production-license-private-key*
+# Private source fixtures must not be reintroduced into current checkouts.
+/Tests/Fixtures/Defenders_of_Cat_Island*

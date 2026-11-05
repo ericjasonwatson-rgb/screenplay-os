@@ -22,12 +22,12 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
 func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
     let screenplay = Screenplay(
         id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
-        metadata: ScreenplayMetadata(title: "Defenders of Cat Island"),
+        metadata: ScreenplayMetadata(title: "The Paper Bridge"),
         elements: [
             ScreenplayElement(
                 id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
                 type: .sceneHeading,
-                text: "EXT. CAT ISLAND - MORNING",
+                text: "INT. MODEL WORKSHOP - DAY",
                 spineID: "S001",
                 externalIDs: ["fdx_paragraph_id": "source-1"],
                 revisionMark: RevisionMark(
@@ -42,8 +42,8 @@ func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
     let project = Project(
         id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
         metadata: ProjectMetadata(
-            title: "Defenders of Cat Island",
-            author: "Eric Watson",
+            title: "The Paper Bridge",
+            author: "Synthetic Test Writer",
             createdAt: Date(timeIntervalSince1970: 0),
             modifiedAt: Date(timeIntervalSince1970: 0)
         ),
@@ -53,7 +53,7 @@ func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
         id: UUID(uuidString: "66666666-6666-6666-6666-666666666666")!,
         sceneSpineID: "S001",
         shotNumber: 1,
-        label: "S001-SH001 Establish Cat Island",
+        label: "S001-SH001 Inspect the model",
         setup: .establishing,
         status: .suggested,
         sourceRefs: [ShotSourceRef(screenplayElementID: screenplay.elements[0].id)],
@@ -64,8 +64,8 @@ func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
         shotID: shot.id,
         sceneSpineID: "S001",
         frameNumber: 1,
-        label: "S001-SH001 Establish Cat Island",
-        prompt: "Wide establishing frame over Cat Island.",
+        label: "S001-SH001 Inspect the model",
+        prompt: "Tabletop tram beside a folded map.",
         durationSeconds: 4.5,
         status: .suggested,
         notes: "Use as the first board frame.",
@@ -77,7 +77,7 @@ func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
         order: 1,
         name: "Ordinary World",
         purpose: "Show the hero's normal life.",
-        notes: "Open on Cat Island.",
+        notes: "Begin with a route card beside the model tram.",
         linkedSceneSpineIDs: ["S001"]
     )
     let proposal = AIProposal(
@@ -134,7 +134,7 @@ func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
     try expect(json.contains("\"spine_id\" : \"S001\""), "Missing persistent scene spine ID.")
     try expect(json.contains("\"screenplay_id\""), "Missing screenplay_id coding key.")
     try expect(json.contains("\"title_page\""), "Missing title page contract.")
-    try expect(json.contains("\"author\" : \"Eric Watson\""), "Missing title page author.")
+    try expect(json.contains("\"author\" : \"Synthetic Test Writer\""), "Missing title page author.")
     try expect(json.contains("\"revision_settings\""), "Missing revision settings contract.")
     try expect(json.contains("\"revision_mark\""), "Missing revision mark contract.")
     try expect(json.contains("\"mode_enabled\" : true"), "Missing revision mode state.")
@@ -165,7 +165,7 @@ func testScreenplayOSDocumentEncodesStableTopLevelContract() throws {
     try expect(json.contains("\"board_frames\""), "Missing board frame contract.")
     try expect(json.contains("\"shot_id\""), "Missing board frame shot link.")
     try expect(json.contains("\"frame_number\""), "Missing board frame number.")
-    try expect(json.contains("\"prompt\" : \"Wide establishing frame over Cat Island.\""), "Missing board prompt.")
+    try expect(json.contains("\"prompt\" : \"Tabletop tram beside a folded map.\""), "Missing board prompt.")
     try expect(json.contains("\"duration_seconds\" : 4.5"), "Missing board duration.")
     try expect(json.contains("\"editorial_spine\""), "Missing editorial spine contract.")
     try expect(json.contains("\"sequences\""), "Missing editorial sequence contract.")
@@ -190,7 +190,7 @@ func testProductionContextEncodesReviewableEntities() throws {
     let entity = ProductionEntity(
         id: UUID(uuidString: "44444444-4444-4444-4444-444444444444")!,
         kind: .location,
-        name: "CAT ISLAND MEWSEUM",
+        name: "MODEL WORKSHOP",
         status: .suggested,
         sourceElementIDs: [UUID(uuidString: "55555555-5555-5555-5555-555555555555")!]
     )
@@ -361,7 +361,7 @@ func testEditorialSpineSyncsEditReferences() throws {
             name: "Main Sequence",
             order: 1,
             beats: [
-                EditorialBeat(order: 1, sceneSpineID: "S001", title: "EXT. CAT ISLAND - MORNING", sourceElementIDs: [sceneID])
+                EditorialBeat(order: 1, sceneSpineID: "S001", title: "INT. MODEL WORKSHOP - DAY", sourceElementIDs: [sceneID])
             ]
         )
     ])
@@ -399,7 +399,7 @@ func testEditorialSpineCreatesShotPlaceholdersBeforeBoards() throws {
             name: "Main Sequence",
             order: 1,
             beats: [
-                EditorialBeat(order: 1, sceneSpineID: "S001", title: "EXT. CAT ISLAND - MORNING", sourceElementIDs: [sceneID])
+                EditorialBeat(order: 1, sceneSpineID: "S001", title: "INT. MODEL WORKSHOP - DAY", sourceElementIDs: [sceneID])
             ]
         )
     ])
@@ -424,7 +424,7 @@ func testShotCanReferenceScreenplayElement() throws {
     let shot = Shot(
         sceneSpineID: "S004",
         shotNumber: 1,
-        label: "4.1 ESTABLISHING - Mewseum",
+        label: "4.1 INSERT - ROUTE CARD",
         setup: .establishing,
         status: .selected,
         sourceRefs: [
@@ -447,10 +447,10 @@ func testImportsMinimalFDXParagraphs() throws {
     <?xml version="1.0" encoding="UTF-8"?>
     <FinalDraft>
       <Content>
-        <Paragraph Type="Scene Heading" id="scene-1"><Text>EXT. CAT ISLAND - MORNING</Text></Paragraph>
-        <Paragraph Type="Action" id="action-1"><Text>A sparkling blue sea.</Text></Paragraph>
-        <Paragraph Type="Character" id="character-1"><Text>STARGAZER</Text></Paragraph>
-        <Paragraph Type="Dialogue" id="dialogue-1"><Text>Three stars. One moon.</Text></Paragraph>
+        <Paragraph Type="Scene Heading" id="scene-1"><Text>INT. MODEL WORKSHOP - DAY</Text></Paragraph>
+        <Paragraph Type="Action" id="action-1"><Text>A receipt printer feeds a blank ticket.</Text></Paragraph>
+        <Paragraph Type="Character" id="character-1"><Text>MARA</Text></Paragraph>
+        <Paragraph Type="Dialogue" id="dialogue-1"><Text>The next route is ready.</Text></Paragraph>
       </Content>
     </FinalDraft>
     """
@@ -459,7 +459,7 @@ func testImportsMinimalFDXParagraphs() throws {
     let elements = result.document.screenplay.elements
 
     try expect(elements.map(\.type) == [.sceneHeading, .action, .character, .dialogue], "FDX paragraph types mapped incorrectly.")
-    try expect(elements.first?.text == "EXT. CAT ISLAND - MORNING", "First imported paragraph text was incorrect.")
+    try expect(elements.first?.text == "INT. MODEL WORKSHOP - DAY", "First imported paragraph text was incorrect.")
     try expect(elements.first?.externalIDs["fdx_paragraph_id"] == "scene-1", "FDX paragraph ID was not preserved.")
     try expect(result.document.titlePage.title == "Fixture", "FDX import did not seed title page.")
 }
@@ -482,33 +482,78 @@ func testImportsExplicitFDXPageBreaks() throws {
     try expect(elements[1].externalIDs["fdx_paragraph_id"] == "page-break-1", "FDX page break ID was not preserved.")
 }
 
-func testImportsDefendersFixture() throws {
+// Original synthetic data. Page counts are defined by short scene blocks and
+// explicit breaks, not by comparison with any production screenplay.
+func testImportsSyntheticFixture() throws {
     let fixture = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        .appendingPathComponent("Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx")
-
-    guard FileManager.default.fileExists(atPath: fixture.path) else {
-        throw SelfTestError.failed("Could not locate Defenders fixture.")
-    }
+        .appendingPathComponent("Tests/Fixtures/Synthetic_Final_Draft.fdx")
 
     let result = try FDXImporter().importFile(at: fixture)
     let elements = result.document.screenplay.elements
-    let scenes = elements.filter { $0.type == ElementType.sceneHeading }
-    let characters = Set(elements.filter { $0.type == ElementType.character }.map { $0.text })
+    let scenes = elements.filter { $0.type == .sceneHeading }
+    let characters = Set(elements.filter { $0.type == .character }.map { $0.text })
     let sceneIDs = scenes.compactMap(\.spineID)
     let editorialBeats = result.document.editorialSpine.sequences.flatMap(\.beats)
 
-    try expect(elements.count == 353, "Defenders import element count changed.")
-    try expect(scenes.count == 21, "Defenders import scene count changed.")
-    try expect(sceneIDs.count == scenes.count, "Defenders scenes are missing spine IDs.")
-    try expect(Set(sceneIDs).count == scenes.count, "Defenders scene spine IDs are not unique.")
-    try expect(sceneIDs.first == "S001", "Defenders first scene spine ID changed.")
-    try expect(editorialBeats.count == scenes.count, "Defenders editorial spine did not seed one beat per scene.")
-    try expect(editorialBeats.first?.sceneSpineID == "S001", "Defenders first editorial beat lost scene spine ID.")
-    try expect(characters.contains("STARGAZER"), "Character index did not include STARGAZER.")
-    try expect(characters.contains("BEAM"), "Character index did not include BEAM.")
-    try expect(elements.first?.text == "DEFENDERS OF CAT ISLAND", "First fixture element text changed.")
-    try expect(scenes.dropFirst().first?.text == "EXT. DEFENDERS' PRACTICE HILL - CONTINUOUS", "Nested FDX metadata interfered with scene heading import.")
-    try expect(elements.first?.externalIDs["fdx_paragraph_id"] != nil, "Fixture paragraph IDs were not preserved.")
+    try expect(elements.count == 193, "Synthetic import element count changed.")
+    try expect(scenes.count == 12, "Synthetic import scene count changed.")
+    try expect(elements.filter { $0.type == .pageBreak }.count == 11, "Authored page boundaries were lost.")
+    try expect(sceneIDs == (1...12).map { String(format: "S%03d", $0) }, "Synthetic scene spine IDs changed.")
+    try expect(editorialBeats.map(\.sceneSpineID) == sceneIDs, "Editorial spine did not seed every scene in order.")
+    try expect(characters == Set(["MARA", "IVO", "UMA"]), "Synthetic character index changed.")
+    try expect(elements.first?.text == "THE PAPER BRIDGE", "First synthetic element text changed.")
+    try expect(scenes[1].text == "INT. SORTING ROOM - DAY", "Nested FDX metadata changed a scene heading.")
+    try expect(!elements.contains { $0.text.contains("METADATA ONLY") }, "Nested metadata became screenplay text.")
+    try expect(Set(elements.map { $0.type.rawValue }) == Set(ElementType.allCases.map(\.rawValue)), "Synthetic fixture lost an element type.")
+    let paragraphIDs = elements.compactMap { $0.externalIDs["fdx_paragraph_id"] }
+    try expect(paragraphIDs.count == elements.count && Set(paragraphIDs).count == elements.count, "FDX paragraph IDs are missing or duplicated.")
+    try expect(elements.contains { $0.text.unicodeScalars.contains(where: { $0.value == 0x0301 }) }, "Combining Unicode scalar was lost.")
+    try expect(elements.contains { $0.text.contains("🚀") }, "Non-BMP Unicode text was lost.")
+    let styles = elements.flatMap { ($0.runs ?? []).map(\.style) }
+    try expect(styles.contains { $0.bold == true }, "Bold fixture style was lost.")
+    try expect(styles.contains { $0.italic == true }, "Italic fixture style was lost.")
+    try expect(styles.contains { $0.underline == true }, "Underline fixture style was lost.")
+    try expect(styles.contains { $0.strikethrough == true }, "Strikeout fixture style was lost.")
+    try expect(result.document.formatVersion == "1.1", "Styled import did not select format 1.1.")
+    try expect(result.document.titlePage.title == "The Paper Bridge", "Separate FDX title page was lost.")
+}
+
+func testSyntheticJSONMatchesFDXAndPreservesProductionLinks() throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Tests/Fixtures")
+    let data = try Data(contentsOf: root.appendingPathComponent("Synthetic.open-screenplay.json"))
+    let document = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data)
+    let imported = try FDXImporter().importFile(at: root.appendingPathComponent("Synthetic_Final_Draft.fdx")).document
+    let elements = document.screenplay.elements
+
+    try expect(document.format == "screenplayos", "Legacy fixture format was not migrated.")
+    try expect(document.project.screenplayID == document.screenplay.id, "Fixture project references the wrong screenplay.")
+    try expect(elements.map(\.type) == imported.screenplay.elements.map(\.type), "JSON and FDX element types differ.")
+    try expect(elements.map(\.styledText) == imported.screenplay.elements.map(\.styledText), "JSON and FDX text or styles differ.")
+    try expect(elements.map(\.externalIDs) == imported.screenplay.elements.map(\.externalIDs), "JSON and FDX paragraph links differ.")
+    try expect(LegacyRoundTrip.droppedPaths(original: data, document: document).isEmpty, "Synthetic JSON loses fields when saved.")
+    let elementIDs = Set(elements.map(\.id))
+    let sceneIDs = Set(elements.compactMap(\.spineID))
+    try expect(elementIDs.count == elements.count, "Fixture element IDs are duplicated.")
+    try expect(document.productionContext.entities.count == 3, "Production entity coverage changed.")
+    for entity in document.productionContext.entities {
+        try expect(entity.sourceElementIDs.allSatisfy { elementIDs.contains($0) }, "Production entity has a dangling source reference.")
+    }
+    try expect(document.shots.count == 2 && document.boardFrames.count == 2, "Fixture shot and board coverage changed.")
+    for shot in document.shots {
+        try expect(sceneIDs.contains(shot.sceneSpineID), "Shot has a dangling scene reference.")
+        try expect(shot.sourceRefs.allSatisfy { elementIDs.contains($0.screenplayElementID) }, "Shot has a dangling element reference.")
+    }
+    let shotIDs = Set(document.shots.map(\.id))
+    for board in document.boardFrames {
+        try expect(shotIDs.contains(board.shotID) && sceneIDs.contains(board.sceneSpineID), "Board has a dangling shot or scene reference.")
+    }
+    for beat in document.outline {
+        try expect(beat.linkedSceneSpineIDs.allSatisfy { sceneIDs.contains($0) }, "Outline has a dangling scene reference.")
+    }
+    try expect(document.editorialSpine.sequences.flatMap(\.beats).count == 12, "JSON fixture lost editorial beats.")
+    let reopened = try JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: JSONEncoder.screenplayOSEncoder().encode(document))
+    try expect(reopened == document, "Synthetic fixture changed after JSON round trip.")
 }
 
 let tests: [(String, () throws -> Void)] = [
@@ -525,7 +570,8 @@ let tests: [(String, () throws -> Void)] = [
     ("Shot source references", testShotCanReferenceScreenplayElement),
     ("Minimal FDX import", testImportsMinimalFDXParagraphs),
     ("Explicit FDX page breaks", testImportsExplicitFDXPageBreaks),
-    ("Defenders fixture import", testImportsDefendersFixture)
+    ("Synthetic fixture import", testImportsSyntheticFixture),
+    ("Synthetic fixture JSON and production links", testSyntheticJSONMatchesFDXAndPreservesProductionLinks)
 ]
 
 do {

@@ -25,7 +25,7 @@ struct FormatRenameTests {
 
     @Test func oldDocumentOpensInPlaceAndAutosavesToItsOriginalPath() throws {
         try environment { root, model in
-            let fixture = fixture("Defenders_of_Cat_Island.open-screenplay.json")
+            let fixture = fixture("Synthetic.open-screenplay.json")
             let original = try Data(contentsOf: fixture)
             let url = root.appendingPathComponent("Legacy.open-screenplay.json")
             try original.write(to: url)

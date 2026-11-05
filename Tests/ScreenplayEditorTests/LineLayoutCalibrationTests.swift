@@ -10,7 +10,7 @@ import ScreenplayFDX
 struct LineLayoutCalibrationTests {
     private func compare(_ name: String, mode: ScreenplayLineLayout = .twelvePointExperiment, locked: Bool = false, fontSize: Double? = nil, fontFamily: String? = nil, dialogueText: String? = nil, speakerText: String? = nil, editing: Bool = false, body: (ScreenplayViewModel, ScreenplayViewModel, URL) throws -> Void) throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let path = name == "Defenders" ? "Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx" : "Docs/AuditEvidence/pagination-2026-10-08/\(name).fdx"
+        let path = name == "Synthetic" ? "Tests/Fixtures/Synthetic_Final_Draft.fdx" : "Docs/AuditEvidence/pagination-2026-10-08/\(name).fdx"
         let data = try Data(contentsOf: root.appendingPathComponent(path))
         var document = try FDXImporter().importData(data, title: name).document
         if let dialogueText {
@@ -47,10 +47,18 @@ struct LineLayoutCalibrationTests {
     }
 
     @Test func fixturesRetainSourceAndProduceConsistentPrintPlans() throws {
-        for (name, oldCount) in [("Action-heavy", 24), ("Dialogue-heavy", 30), ("Defenders", 18)] {
+        for (name, oldCount) in [("Action-heavy", 24), ("Dialogue-heavy", 30), ("Synthetic", 12)] {
             try compare(name) { legacy, candidate, _ in
                 #expect(legacy.printedPages.count == oldCount)
-                #expect(candidate.printedPages.count < oldCount)
+                if name == "Synthetic" {
+                    // Twelve short authored pages with eleven explicit breaks.
+                    // This is a new source-defined oracle, not a historical corpus count.
+                    #expect(candidate.elements.filter { $0.type == .sceneHeading }.count == 12)
+                    #expect(candidate.elements.filter { $0.type == .pageBreak }.count == 11)
+                    #expect(candidate.printedPages.count == 12)
+                } else {
+                    #expect(candidate.printedPages.count < oldCount)
+                }
                 #expect(candidate.elements == legacy.elements)
                 #expect(candidate.printedLayout.unmappedElementIDs.isEmpty)
                 let writing = ScreenplayWritingProjection(elements: candidate.elements, casing: candidate.screenplayCasing)
@@ -71,7 +79,7 @@ struct LineLayoutCalibrationTests {
 
     @Test func speechAndPageTopTrialsPreserveAllTextAndFitPages() throws {
         for mode: ScreenplayLineLayout in [.twelvePointFlowExperiment, .twelvePointPageTopExperiment, .sevenPointGridExperiment, .footerContinuationExperiment, .sentenceAlignedLineExperiment, .sentenceBoundaryExperiment, .headerContinuationExperiment] {
-            for name in ["Action-heavy", "Dialogue-heavy", "Defenders"] {
+            for name in ["Action-heavy", "Dialogue-heavy", "Synthetic"] {
                 try compare(name, mode: mode) { legacy, candidate, _ in
                     @MainActor func fragments(_ model: ScreenplayViewModel) -> [UUID: String] {
                         var result: [UUID: String] = [:]
@@ -82,8 +90,8 @@ struct LineLayoutCalibrationTests {
                     }
                     #expect(fragments(candidate) == fragments(legacy))
                     #expect(candidate.printedLayout.unmappedElementIDs.isEmpty)
-                    let expected = name == "Action-heavy" ? 18 : name == "Defenders" ? 15 : mode.removesPageTopSpacing ? 20 : 21
-                    if !mode.usesCharacterGrid { #expect(candidate.printedPages.count == expected) }
+                    let expected = name == "Action-heavy" ? 18 : name == "Synthetic" ? 12 : mode.removesPageTopSpacing ? 20 : 21
+                    if name == "Synthetic" || !mode.usesCharacterGrid { #expect(candidate.printedPages.count == expected) }
                     for (index, page) in candidate.printedPages.enumerated() {
                         if page.elements.last?.text == "(MORE)" {
                             #expect(index + 1 < candidate.printedPages.count)

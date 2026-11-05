@@ -9,7 +9,7 @@ Siri head, composed tree, configuration and CI run reported by the runner.
 
 - Campaign remains a contextual sheet, not a sixth workspace. Its sheet, menu,
   project binding, persistence, source navigation and command guards are retained.
-- Siri PR3 is pinned to `a45d29182535e5a90bdab9cb23096d3e4376fb26`. Its five
+- Siri PR3 is pinned to `c20b136622cc752cc350335824bcd0de33a846a0`. Its five
   choices remain Outline, Script, Shot, Boards and Edit. Only a mode name enters
   the pending preference; no screenplay, campaign, source text, path, media,
   approval record or provider credential enters the intent payload.
@@ -42,9 +42,12 @@ outdated version. The runner itself does not fetch or access the network.
 
 ```sh
 git fetch --no-tags origin pull/3/head
-python3 -m unittest discover -s Tests/Integration -v
+siri_head=$(git rev-parse FETCH_HEAD)
 python3 Scripts/validate-campaign-siri-integration.py \
-  --campaign-ref HEAD --siri-ref FETCH_HEAD --configuration debug
+  --campaign-ref HEAD --siri-ref "$siri_head" --prepare-only
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/Integration -v
+python3 Scripts/validate-campaign-siri-integration.py \
+  --campaign-ref HEAD --siri-ref "$siri_head" --configuration debug
 ```
 
 Repeat with `--configuration release`. The runner uses the complete, unfiltered
@@ -67,8 +70,14 @@ feature branch or release build.
 
 ## How the composition is bounded
 
-The runner requires a descendant of Campaign's reviewed `d09cd41587b3bf2637e3a33f8febb55eecbde77e`, the exact Siri pin, the original five-file Siri
-change inventory, and exactly the known conflict in `ScreenplayOSApp.swift`.
+The runner requires a descendant of Campaign's sanitized
+`d8ad69259d7ca04011fb683f189d0cc29b983c0a`, the exact Siri pin, shared merge base
+`f995ee1d2fe383b1159e0fa9dddd9b76f777696b`, and exactly the known conflict in
+`ScreenplayOSApp.swift`. The Siri inventory matches exact paths and statuses:
+its original five source/workflow/test changes plus two private-fixture deletions.
+The current Siri pin differs from the previous reviewed pin only by those two
+deletions; implementation and original Siri tests are unchanged. A deleted path
+is not permission to reintroduce its content.
 It uses `git merge-tree` plumbing to write a candidate tree, then materializes it
 in a **new detached worktree**. No `git merge`, merge commit, reset of the source
 checkout, branch update, push or deploy occurs. The Campaign app source replaces
@@ -79,8 +88,19 @@ If PR3 moves, review its new diff and update the pin and patch deliberately. If
 Siri is already in Campaign history, retire this temporary integration runner.
 Do not keep replaying a pre-merge patch after integration becomes ordinary code.
 
+Before composition can succeed, including `--prepare-only`, the runner invokes
+`Scripts/check-fixture-hygiene.py` from inside the materialized combined worktree.
+A missing checker, symlinked checker, or nonzero result fails closed before native
+tests. The checker must be included in the committed Campaign synthetic baseline;
+an uncommitted source-checkout copy cannot satisfy this requirement. It scans
+current tracked `Sources` and `Tests` paths and supported text types for known
+private-source markers. This is a narrow regression guard, not a confidentiality
+classifier, history purge, documentation scan, or substitute for fixture review.
+No removed fixture is restored as part of composition.
+
 The output manifest records both source commit IDs, merge base, combined Git tree,
-patch/test SHA-256, build configuration and native test result. It is printed to
+patch/test SHA-256, hygiene status/checker SHA-256/summary, build configuration and
+native test result. It is printed to
 CI and written to `.build/campaign-siri-integration.json` in the temporary tree.
 The three original Siri tests plus six integration test functions (19 parameter
 cases) run inside the full Swift suite. The latter cover all five modes; exact
@@ -90,13 +110,19 @@ presentations; deterministic native-modal rejection; malformed and latest reques
 
 ## Evidence and remaining gates
 
-Local source checks on 2026-11-05: eight Python composition checks passed, including
-pin expiry, wrong/missing refs, destination protection, exact original Siri test
-preservation, detached history, unchanged source app/ref state, bounded composed
-file inventory and modal-guard ordering. The pinned combined source tree prepares
-and passes `git diff --cached --check` on Linux. No Swift toolchain or AppKit is
-available there, so native compilation and runtime tests were **not run locally**.
-Use the exact CI manifests for native outcomes; this note is not a green-CI claim.
+The updated suite has fourteen Python checks covering pin expiry, the sanitized
+Campaign ancestry floor, fixed merge base, exact deletion statuses, wrong/missing
+refs, destination protection, original Siri test preservation, detached history,
+unchanged source app/ref state, bounded composed inventory, modal-guard ordering,
+and missing/failing hygiene checks. A prepare-only hygiene failure must return a
+failure and clean up its detached worktree. The positive composition check also
+verifies the deleted fixtures remain absent and records the actual checker hash.
+
+Source checks and prepared trees are not native test passes. Native results for
+older source heads do not establish readiness of the repaired synthetic baseline.
+Use the exact new CI manifests for native outcomes. No Swift toolchain or AppKit
+is available in the Linux repair environment, so native compilation/runtime tests
+must run separately on macOS.
 
 Native unit tests inject the presence of a native modal window to remain
 repeatable. They do not prove actual macOS sheet notification timing, Siri speech,

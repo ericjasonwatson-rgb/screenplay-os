@@ -244,7 +244,7 @@ struct NativeEditorTests {
             prefs.removePersistentDomain(forName: suite)
         }
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx")
+            .appendingPathComponent("Fixtures/Synthetic_Final_Draft.fdx")
         let copy = folder.appendingPathComponent("fixture.fdx")
         try FileManager.default.copyItem(at: fixture, to: copy)
         let model = ScreenplayViewModel(loadInitialDocument: false, autosaveDirectory: folder, preferences: prefs)

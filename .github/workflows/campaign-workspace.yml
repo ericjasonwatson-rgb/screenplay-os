@@ -16,6 +16,10 @@ on:
       - 'Scripts/Integration/**'
       - 'Scripts/validate-campaign-siri-integration.py'
       - 'Scripts/test.sh'
+      - 'Scripts/check-fixture-hygiene.py'
+      - 'Scripts/test-fixture-hygiene.py'
+      - 'Tests/Fixtures/Synthetic*'
+      - 'Tests/Fixtures/Minimal.screenplayos.json'
       - '.github/workflows/campaign-workspace.yml'
   workflow_dispatch:
 
@@ -57,7 +61,7 @@ jobs:
         run: |
           status=0
           swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-self-test || status=1
-          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island.open-screenplay.json --json >/dev/null || status=1
+          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Synthetic.open-screenplay.json --json >/dev/null || status=1
           swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Minimal.screenplayos.json --json >/dev/null || status=1
           exit "$status"
   campaign-siri-integration:
@@ -80,6 +84,8 @@ jobs:
         run: python3 -m pip install --user --break-system-packages jsonschema
       - name: Fetch actual Siri source for fail-closed validation
         run: git fetch --no-tags origin pull/3/head
+      - name: Preflight fetched Siri head and current-tree hygiene
+        run: python3 Scripts/validate-campaign-siri-integration.py --campaign-ref HEAD --siri-ref FETCH_HEAD --prepare-only
       - name: Verify detached composition safeguards
         run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/Integration -v
       - name: Full isolated Campaign and Siri regression suite
