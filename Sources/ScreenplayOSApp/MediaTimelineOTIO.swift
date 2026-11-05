@@ -54,7 +54,11 @@ enum MediaTimelineOTIO {
                     "shot_id": item.shotID.uuidString,
                     "board_id": item.boardID?.uuidString as Any? ?? NSNull(),
                     "timeline_start_frame": item.startFrame,
-                    "note": item.note
+                    "note": item.note,
+                    "take_id": item.takeID?.uuidString as Any? ?? NSNull(),
+                    "generation_job_id": item.generationJobID?.uuidString as Any? ?? NSNull(),
+                    "media_sha256": item.mediaSHA256 as Any? ?? NSNull(),
+                    "prompt_sha256": item.promptSHA256 as Any? ?? NSNull()
                 ]]
             ]
         }
