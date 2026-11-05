@@ -32,4 +32,6 @@ jobs:
       - name: Full offline regression suite
         env:
           SCREENPLAYOS_BUILD_CONFIGURATION: ${{ matrix.configuration }}
-        run: ./Scripts/test.sh
+        # AppKit tests share process-global windows and the main actor. Run all
+        # tests serially; no tests are filtered and no assertions are relaxed.
+        run: ./Scripts/test.sh --no-parallel
