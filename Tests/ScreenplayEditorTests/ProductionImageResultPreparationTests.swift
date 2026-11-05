@@ -141,4 +141,72 @@ struct ProductionImageResultPreparationTests {
                 documentURL: f.documentURL, takeID: UUID(), now: Date())
         }
     }
+    @Test func missingOrUnfinishedDurableJobCannotCreateCandidate() async throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        let controller = try GenerationJobController(
+            projectID: f.approval.projectID,
+            storageURL: f.root.appendingPathComponent("generation-jobs.json"))
+        let payload = try response(png())
+        do {
+            _ = try await ProductionImageResultPreparation.prepareFromPersistedJob(
+                response: payload, controller: controller, staged: f.staged,
+                currentShot: f.shot, currentBoard: f.board, approval: f.approval,
+                documentURL: f.documentURL, takeID: UUID(), now: Date())
+            Issue.record("No persisted job should fail closed.")
+        } catch {
+            #expect(error as? ProductionImageResultPreparation.Failure == .missingDurableJob)
+        }
+        let service = ProductionImageConsentCoordinator(controller: controller)
+        _ = try await service.stage(f.staged)
+        do {
+            _ = try await ProductionImageResultPreparation.prepareFromPersistedJob(
+                response: payload, controller: controller, staged: f.staged,
+                currentShot: f.shot, currentBoard: f.board, approval: f.approval,
+                documentURL: f.documentURL, takeID: UUID(), now: Date())
+            Issue.record("Awaiting-consent job must not create media candidates.")
+        } catch {
+            #expect(error as? ProductionImageResultPreparation.Failure == .jobNotCompleted)
+        }
+    }
+
+    @Test func onlyControllerCompletedJobCanCreateUnselectedCandidate() async throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        let controller = try GenerationJobController(
+            projectID: f.approval.projectID,
+            storageURL: f.root.appendingPathComponent("generation-jobs.json"))
+        let service = ProductionImageConsentCoordinator(controller: controller)
+        let preview = try await service.stage(f.staged)
+        let start = f.staged.job.createdAt
+        _ = try await service.authorize(
+            staged: f.staged, displayedPreview: preview,
+            explicitSendApproval: true, approval: f.approval,
+            shot: f.shot, board: f.board, projectRoot: f.root,
+            providerAcceptsReferenceImages: true, at: start.addingTimeInterval(1))
+        try await controller.markSubmitted(
+            jobID: f.staged.job.id, at: start.addingTimeInterval(2))
+        try await controller.markSucceeded(
+            jobID: f.staged.job.id, at: start.addingTimeInterval(3))
+        let original = f.board
+        let output = try png()
+        let take = try await ProductionImageResultPreparation.prepareFromPersistedJob(
+            response: response(output), controller: controller, staged: f.staged,
+            currentShot: f.shot, currentBoard: f.board, approval: f.approval,
+            documentURL: f.documentURL, takeID: UUID(),
+            now: start.addingTimeInterval(4))
+        #expect(take.status == .candidate)
+        #expect(take.provenance.generationJobID == f.staged.job.id)
+        #expect(take.boardFrameID == f.board.id)
+        #expect(take.shotID == f.shot.id)
+        #expect(take.durationSeconds == original.durationSeconds)
+        #expect(take.sha256 == BoardImageStorage.digest(output))
+        #expect(f.board == original)
+        let recovered = try GenerationJobController(
+            projectID: f.approval.projectID,
+            storageURL: f.root.appendingPathComponent("generation-jobs.json"))
+        let recoveredLedger = await recovered.snapshot()
+        #expect(recoveredLedger.jobs[0].status == .succeeded)
+    }
+
 }
