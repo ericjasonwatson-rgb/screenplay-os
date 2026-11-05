@@ -43,6 +43,9 @@ struct NativeEditorTests {
             window.setContentSize(narrow ? NSSize(width: 1000, height: 700) : NSSize(width: 1440, height: 900))
             try await settle()
             zooms.append(scroll.magnification)
+            // Diagnostic geometry for the unresolved wide–narrow–wide round trip.
+            // Keep the existing layout and selection invariants unchanged.
+            print("SCREENPLAYOS_FIT_GEOMETRY narrow=\(narrow) zoom=\(scroll.magnification) clip=\(scroll.contentSize.width) host=\(host.bounds.width) window=\(window.contentRect(forFrameRect: window.frame).width) nav=\(model.navigationVisible) context=\(model.contextAssistantVisible)")
             #expect(abs(text.frame.width * scroll.magnification - scroll.contentSize.width) < 1)
             #expect(abs(scroll.documentVisibleRect.minX) < 1)
             #expect(text.selectedRange() == selection)
