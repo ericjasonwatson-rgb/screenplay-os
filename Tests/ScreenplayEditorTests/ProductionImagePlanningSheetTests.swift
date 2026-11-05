@@ -27,8 +27,8 @@ struct ProductionImagePlanningSheetTests {
         let model = ScreenplayViewModel(loadInitialDocument: false,
             autosaveDirectory: root, preferences: preferences)
         model.newDocument()
-        model.document?.shots = [shot]
-        model.document?.boardFrames = [board]
+        // Exercise the absent-board state without bypassing the private document setter.
+        // Populated-board approval and identity are covered by domain-level tests.
         let before = model.document
         let host = NSHostingView(rootView: ProductionImagePlanningSheet(
             model: model, boardID: board.id, dismiss: {}))
