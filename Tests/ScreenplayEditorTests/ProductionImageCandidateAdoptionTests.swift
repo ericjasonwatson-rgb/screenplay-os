@@ -106,14 +106,18 @@ struct ProductionImageCandidateAdoptionTests {
         // Shared model gate for Siri's five read-only navigation targets.
         // Changing views must not adopt the candidate or mutate the edit.
         let beforeModes = try #require(model.document)
-        for mode in [WorkflowMode.outline, .writing, .directing, .boards, .edit] {
-            model.setWorkflowMode(mode)
+        for choice in [SiriWorkspaceChoice.outline, .script, .shot, .boards, .edit] {
+            SiriWorkspaceNavigation.request(choice, preferences: defaults)
+            #expect(SiriWorkspaceNavigation.consume(model: model, preferences: defaults))
+            #expect(model.workflowMode == choice.workflowMode)
+            #expect(!SiriWorkspaceNavigation.consume(model: model, preferences: defaults))
             #expect(model.document == beforeModes)
             #expect(model.boardFrames.first?.selectedImageID == boardVersion.id)
             #expect(model.boardFrames.first?.durationSeconds == before.durationSeconds)
             #expect(model.boardFrames.first?.imageVersions.count == 2)
         }
-        model.setWorkflowMode(.boards)
+        SiriWorkspaceNavigation.request(.boards, preferences: defaults)
+        #expect(SiriWorkspaceNavigation.consume(model: model, preferences: defaults))
         let projected = try #require(model.takesForSelectedBoardFrame.first(where: { $0.id == take.id }))
         #expect(projected.status == .candidate)
         #expect(projected.provenance.generationJobID == take.provenance.generationJobID)
