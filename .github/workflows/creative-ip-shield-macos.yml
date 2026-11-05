@@ -1,0 +1,44 @@
+name: Creative IP Shield - macOS XPC validation
+
+on:
+  pull_request:
+    paths:
+      - "SecurityValidation/Native/macOS/**"
+      - ".github/workflows/creative-ip-shield-macos.yml"
+  push:
+    branches:
+      - "validation/creative-ip-shield-macos-xpc-20261105"
+    paths:
+      - "SecurityValidation/Native/macOS/**"
+      - ".github/workflows/creative-ip-shield-macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  xpc-scaffold:
+    name: XPC compile and fail-closed contracts (${{ matrix.configuration }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [debug, release]
+    defaults:
+      run:
+        working-directory: SecurityValidation/Native/macOS
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Build macOS-only XPC executable and interfaces
+        run: swift build --configuration ${{ matrix.configuration }}
+      - name: Validate all fail-closed contract tests
+        run: swift test --configuration ${{ matrix.configuration }}
+      - name: Assert there is no dispatch path in validation helper
+        run: |
+          grep -q 'native_integration_pending' Sources/ShieldNativeContract/ShieldNativeContract.swift
+          grep -q 'setCodeSigningRequirement' Sources/ShieldMacService/main.swift
+          ! grep -E -q '(https?://|URLSession|NSWorkspace\.shared\.open)' Sources/ShieldMacService/main.swift
