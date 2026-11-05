@@ -1,0 +1,52 @@
+name: FilmCraft v0.17.1 Synthetic OTIO Roundtrip
+
+on:
+  pull_request:
+    paths:
+      - 'Sources/ScreenplayOSApp/MediaTimelineOTIO.swift'
+      - 'Sources/ScreenplayOSApp/ProductionTakeEditorialBridge.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionTakeEditorialBridgeTests.swift'
+      - 'Scripts/compare_filmcraft_otio.py'
+      - 'Scripts/run_filmcraft_roundtrip.py'
+      - 'Scripts/test_filmcraft_roundtrip_review.py'
+      - '.github/workflows/filmcraft-pinned-roundtrip.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  filmcraft-otio:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate public-safe ScreenplayOS OTIO fixture
+        env:
+          SCREENPLAYOS_OTIO_CAPTURE_PATH: ${{ runner.temp }}/screenplayos-generated-take.otio
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionTakeEditorialBridge
+      - name: Install official OTIO parser
+        run: python3 -m pip install --user --break-system-packages 'opentimelineio==0.18.1'
+      - name: Download fixed FilmCraft release and verify published digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='0.17.1'
+          asset="filmcraft-cli-${version}-macos-universal.zip"
+          base="https://github.com/storytold/filmcraft/releases/download/v${version}"
+          mkdir -p "${RUNNER_TEMP}/filmcraft"
+          cd "${RUNNER_TEMP}/filmcraft"
+          curl --fail --location --silent --show-error --retry 2 "$base/$asset" --output "$asset"
+          curl --fail --location --silent --show-error --retry 2 "$base/SHA256SUMS.txt" --output SHA256SUMS.txt
+          grep -F "  $asset" SHA256SUMS.txt | shasum --algorithm 256 --check
+          unzip -q "$asset" -d unpacked
+          path="$(find unpacked -type f -name filmcraft-cli -print -quit)"
+          test -n "$path"
+          chmod +x "$path"
+          echo "FILMCRAFT_CLI=$PWD/$path" >> "$GITHUB_ENV"
+          "$PWD/$path" --version
+      - name: Test headless FilmCraft import and re-export without project mutation
+        env:
+          SCREENPLAYOS_OTIO_CAPTURE_PATH: ${{ runner.temp }}/screenplayos-generated-take.otio
+        run: |
+          python3 Scripts/run_filmcraft_roundtrip.py --filmcraft-cli "$FILMCRAFT_CLI" --input "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
