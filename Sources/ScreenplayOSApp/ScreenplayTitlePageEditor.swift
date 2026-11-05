@@ -61,7 +61,11 @@ private struct TitlePageExportPreview: View {
             }
         }
         .task(id: model.titlePage) {
+            // Do not display a stale PDF while the currently entered title
+            // information is being rendered or has overflowed the page.
             updating = true
+            document = nil
+            error = nil
             do {
                 try await Task.sleep(nanoseconds: 150_000_000)
                 try Task.checkCancellation()
