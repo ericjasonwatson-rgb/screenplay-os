@@ -7232,6 +7232,30 @@ extension ScreenplayViewModel {
         autosave()
         return true
     }
+    /// Adds a validated production-image Take to the authoritative project
+    /// without changing the approved board selection or editorial timing.
+    /// The caller must use the persisted completed-job result preparation path.
+    @discardableResult
+    func appendProductionImageCandidate(_ take: Take) throws -> Bool {
+        guard requireEntitlement(.takes) else { return false }
+        guard document != nil, saveURL != nil else {
+            throw ProductionImageCandidateAdoption.Failure.boardNotFound
+        }
+        // Always validate stored bytes and digest, not just caller metadata.
+        let readVersion = BoardImageVersion(
+            id: take.id, fileURL: take.mediaURL,
+            sha256: take.sha256, prompt: take.provenance.prompt ?? "",
+            model: take.provenance.modelID ?? "")
+        _ = try BoardImageStorage.read(readVersion)
+        let updated = try ProductionImageCandidateAdoption.appending(take, to: boardFrames)
+        rememberUndoState()
+        document?.boardFrames = updated
+        document?.project.metadata.modifiedAt = Date()
+        autosave()
+        generationActivityStatus = "Production image added as an unselected Take. Review it in Boards before choosing Use."
+        return true
+    }
+
     func selectBoardImage(_ id: UUID, for frameID: UUID) {
         guard requireEntitlement(.takes) else { return }
         guard let index = document?.boardFrames.firstIndex(where: { $0.id == frameID }),
