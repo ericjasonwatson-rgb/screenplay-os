@@ -134,18 +134,27 @@ final class ScreenplayChromeState: ObservableObject {
         let projection = model.printedLayout
         // Each entry corresponds to displayed writing chrome or a bound control.
         // Keep text/selection offsets out: commands read the live model when invoked.
-        let values: [String?] = [model.documentDisplayName, model.documentLocation,
-            model.saveProblem, String(model.hasUnsavedChanges), String(model.saveURL != nil),
-            String(!model.recoveryCopies.isEmpty), model.sourceNavigationProblem,
+        // Split large expressions to keep Swift 6.1's type checker responsive.
+        let documentValues: [String?] = [
+            model.documentDisplayName, model.documentLocation, model.saveProblem,
+            String(model.hasUnsavedChanges), String(model.saveURL != nil),
+            String(!model.recoveryCopies.isEmpty), model.sourceNavigationProblem
+        ]
+        let navigationValues: [String?] = [
             String(model.canUndo), String(model.canRedo), model.sidebarMode.rawValue,
-            String(model.focusMode), String(model.darkPageMode), String(model.pageZoom), String(model.fitWritingPageWidth),
-            String(model.pagesAreLocked), String(model.writingPageLayoutAvailable),
+            String(model.focusMode), String(model.darkPageMode), String(model.pageZoom),
+            String(model.fitWritingPageWidth), String(model.pagesAreLocked),
+            String(model.writingPageLayoutAvailable)
+        ]
+        let selectedValues: [String?] = [
             model.errorMessage, model.selectedElementPosition, model.currentPrintedPageStatus,
             model.revisionStatusText, model.currentSceneTitle, selected?.id.uuidString ?? "",
             selected?.type.rawValue ?? "", selected?.revisionMark?.label ?? "",
             String(describing: selected?.revisionMark?.color),
-            String(selected.map { model.openNoteCount(for: $0.id) } ?? 0)]
-            + (selected.map { model.characterSuggestions(for: $0) } ?? [])
+            String(selected.map { model.openNoteCount(for: $0.id) } ?? 0)
+        ]
+        let suggestions: [String] = selected.map { model.characterSuggestions(for: $0) } ?? []
+        let values: [String?] = documentValues + navigationValues + selectedValues + suggestions
         return .writing(Writing(documentID: model.document?.screenplay.id, typography: model.writingTypography,
             labels: projection.pages.map(\.label),
             enabledPages: projection.pages.indices.map { projection.firstSourceCaret(onPage: $0) != nil },
