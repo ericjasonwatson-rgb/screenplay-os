@@ -57,6 +57,34 @@ enum MediaInterchangeManifest {
     }
 
 
+
+    /// Resolve a packaged media path without allowing symlinks to escape the package.
+    /// This does not copy, decode, upload, or modify the media.
+    static func containedMediaURL(_ path: String, projectRoot: URL) throws -> URL {
+        guard safeRelativePath(path) else { throw ValidationError.unsafePath }
+        let root = projectRoot.standardizedFileURL.resolvingSymlinksInPath()
+        let candidate = root.appendingPathComponent(path).standardizedFileURL.resolvingSymlinksInPath()
+        let prefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        guard candidate.path.hasPrefix(prefix) else { throw ValidationError.unsafePath }
+        return candidate
+    }
+
+    /// Check references on disk without inventing links to absent assets.
+    /// The project root must be a trusted local directory selected by the caller.
+    static func make(_ occurrences: [Occurrence], projectRoot: URL) throws -> Manifest {
+        // Validate all paths, including paths for missing files, before testing existence.
+        for item in occurrences {
+            if let path = item.mediaPath {
+                _ = try containedMediaURL(path, projectRoot: projectRoot)
+            }
+        }
+        return try make(occurrences) { path in
+            guard let url = try? containedMediaURL(path, projectRoot: projectRoot) else { return false }
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && !isDirectory.boolValue
+        }
+    }
+
     /// Explicit binding from a derived timeline segment to canonical objects.
     /// Never infer scene or shot identity from a display label.
     struct SourceBinding {
