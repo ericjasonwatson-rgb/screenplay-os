@@ -175,3 +175,26 @@ Outstanding UX: allow locating and cancelling saved awaiting-consent or
 queued jobs after the review window is closed. Existing activity history
 does not necessarily include unsent jobs; don't imply those are discoverable
 there until a dedicated pending-job view is provided.
+
+## Durable consent and pending-job recovery UI
+
+The Boards staging sheet now presents a distinct `ProductionImageConsentDecisionSheet`
+with the exact saved prompt, selected image, provider, model and cost
+disclosure. The acknowledgement control is initially unchecked. The
+filmmaker may explicitly **Authorize locally — queue only, no send**.
+Before calling the durable controller, the UI reloads the local
+approval record, checks that it matches the staged approval, and
+the coordinator revalidates the live shot, board and stored job.
+This action creates an inert queued job, not a transmission.
+
+`ProductionImagePendingJobsSheet` lists awaiting-consent and queued
+production-image jobs from the project's durable ledger, including
+jobs left by earlier sessions. Each can be cancelled without any
+provider request. A smoke test checks that rendering the view never
+mutates the screenplay; a recovery test verifies that staged jobs
+persist across controller reinitialization and are cancellable.
+
+The release still needs a deliberately named **Send now** action,
+a dedicated final confirmation with cost/access checks, the live
+adapter dispatch, robust cancellation/failure recovery and a real
+opt-in provider test. None is enabled by local queue authorization.
