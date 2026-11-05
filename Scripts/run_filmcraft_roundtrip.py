@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tempfile
 
-from compare_filmcraft_otio import snapshot, compare
+from compare_filmcraft_otio import snapshot, compare, identity_loss_report
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -52,11 +52,23 @@ def main():
         try:
             proposed = compare(baseline, snapshot(export))
         except (ValueError, KeyError, TypeError) as exc:
+            # A returned clip with no namespaced metadata is NOT the original
+            # Take. Record only loss evidence, never infer IDs by position.
+            if args.report:
+                try:
+                    loss = identity_loss_report(source, export)
+                    args.report.write_text(
+                        json.dumps(loss, sort_keys=True, indent=2) + "\\n",
+                        encoding="utf-8",
+                    )
+                except (ValueError, KeyError, TypeError, RuntimeError) as diagnostic:
+                    print(f"Provenance loss report unavailable: {type(diagnostic).__name__}",
+                          file=sys.stderr)
             print(f"FilmCraft interoperability gate failed closed: {exc}", file=sys.stderr)
             return 1
         report = {
             "status": "review_required" if proposed else "identical",
-            "provider": "FilmCraft CLI", "original_occurences": len(baseline),
+            "provider": "FilmCraft CLI", "original_occurrences": len(baseline),
             "proposed_changes": proposed, "adopted": False,
         }
         payload = json.dumps(report, sort_keys=True, indent=2)
