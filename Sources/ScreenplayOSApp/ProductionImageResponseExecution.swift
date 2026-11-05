@@ -47,26 +47,32 @@ enum ProductionImageResponseExecution {
         // transport invocation. Re-entry fails at the controller's queued gate.
         try await controller.markSubmitted(jobID: ready.jobID, at: submittedAt)
 
-        let response: Data
+        // A thrown transport call does not prove the provider rejected the
+        // request. It may have received and billed it before the connection
+        // failed. Keep the durable job RUNNING and surface it as unresolved;
+        // never automatically re-send or mark it failed on network uncertainty.
+        let response = try await transport.perform(ready)
+
+        let png: Data
         do {
-            response = try await transport.perform(ready)
-            // Preserve valid paid output before recording provider success.
-            // If later project insertion fails, recovery uses this exact PNG
-            // without a second billable API request.
-            let png = try OpenAIReferenceImageResponse.decode(response)
-            let root = try recoveryRoot ?? ProductionImageResultVault.defaultRoot()
-            try ProductionImageResultVault.store(
-                png, projectID: staged.job.projectID, jobID: ready.jobID,
-                root: root)
+            png = try OpenAIReferenceImageResponse.decode(response)
         } catch {
-            // Provider error text can contain credentials, prompts or media.
-            // Never persist arbitrary error descriptions from this boundary.
+            // A returned response with invalid image data cannot be adopted.
+            // Preserve only a sanitized error, never raw provider content.
             try? await controller.markFailed(
                 jobID: ready.jobID, at: completedAt,
-                sanitizedError: "Reference-image request or local result preservation failed. Check job status before any retry."
+                sanitizedError: "Provider returned an invalid image response. Check usage before retrying."
             )
             throw error
         }
+
+        // If vault persistence fails, leave the job RUNNING. A preserved
+        // result might exist despite a filesystem/ledger error, and charging
+        // another request is not a safe recovery mechanism.
+        let root = try recoveryRoot ?? ProductionImageResultVault.defaultRoot()
+        try ProductionImageResultVault.store(
+            png, projectID: staged.job.projectID, jobID: ready.jobID,
+            root: root)
         try await controller.markSucceeded(jobID: ready.jobID, at: completedAt)
         // This reads the actual persisted succeeded job. If project approval
         // changed in flight, it rejects the candidate without editing Boards.
