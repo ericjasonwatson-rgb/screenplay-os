@@ -75,6 +75,10 @@ struct NativeEditorTests {
         let selection = NSRange(location: 20, length: 6)
         text.setSelectedRange(selection)
         model.fitWritingPageWidth = true
+        // ScreenplayPageView gives ScriptPageWell a 760 * pageZoom fixed-width
+        // cap outside Fit Width. In this wide window, fitting must lift that cap,
+        // not only update native magnification inside the old fixed-width well.
+        let fixedPageWellWidth = CGFloat(760 * model.pageZoom)
         var zooms: [CGFloat] = []
         var geometries: [Geometry] = []
         for narrow in [false, true, false] {
@@ -85,6 +89,7 @@ struct NativeEditorTests {
                 guard let current = geometry(), find(host) === text, text.pagePlan != nil,
                       abs(current.hostBounds.width - requestedSize.width) < 1,
                       current.sidePaneWidths.count == (narrow ? 2 : 0),
+                      narrow || current.scrollFrame.width > fixedPageWellWidth,
                       abs(text.frame.width * scroll.magnification - scroll.contentSize.width) < 1,
                       abs(scroll.documentVisibleRect.minX) < 1 else { return false }
                 guard let wide = geometries.first else { return true }
