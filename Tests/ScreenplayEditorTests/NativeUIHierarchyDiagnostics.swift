@@ -35,7 +35,7 @@ func nativeUIHierarchyDiagnostic(_ stage: String, host: NSView, window: NSWindow
     var visited = Set<ObjectIdentifier>()
     var remaining = 400
     func describeAccessibility(_ value: Any, path: String, depth: Int = 0) {
-        guard depth < 30, remaining > 0, let element = value as? NSAccessibility else { return }
+        guard depth < 30, remaining > 0, let element = value as? NSAccessibilityProtocol else { return }
         let identity = ObjectIdentifier(element as AnyObject)
         guard visited.insert(identity).inserted else { return }
         remaining -= 1

@@ -12,6 +12,10 @@ on:
       - '.github/workflows/campaign-workspace.yml'
   workflow_dispatch:
 
+concurrency:
+  group: campaign-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
