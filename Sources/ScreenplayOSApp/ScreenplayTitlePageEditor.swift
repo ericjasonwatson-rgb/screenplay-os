@@ -61,7 +61,11 @@ private struct TitlePageExportPreview: View {
             }
         }
         .task(id: model.titlePage) {
+            // The previous PDF is no longer a valid preview once the title data changes.
+            // Invalidate it before the debounce so errors cannot leave stale artwork visible.
             updating = true
+            document = nil
+            error = nil
             do {
                 try await Task.sleep(nanoseconds: 150_000_000)
                 try Task.checkCancellation()
