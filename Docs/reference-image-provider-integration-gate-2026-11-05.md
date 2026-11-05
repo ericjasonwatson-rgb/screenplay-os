@@ -244,3 +244,27 @@ previously paid PNG in the local vault for manual recovery. The screen
 never offers a new paid generation as the recovery action. Media
 restoration is separate from the project's portable export and should
 be covered by a later project-package migration.
+
+## Interrupted completion: saved image, unfinished job ledger
+
+`ProductionImageInterruptedCompletionRecovery.completeFromVault` reconciles
+the case where a provider response was validated and stored in the private
+job-specific result vault, but saving `status=succeeded` to the generation
+ledger failed or the app exited. The original job remains `running`.
+The filmmaker may now choose **Reconcile saved output and restore (no send)**
+from the production-image job manager. The operation verifies that the job
+was submitted, that a real locally saved PNG exists, and that the approval,
+reference image, prompt revision, shot and board still match. Only then
+does it persist `succeeded` and call the existing offline candidate
+recovery. It never invokes network transport or retries paid generation.
+
+Queued jobs without submission and running jobs without a preserved result
+cannot be marked successful by this operation. A changed approval blocks
+automatic insertion. The result remains unselected until the user chooses
+it in Boards. Mac CI now invokes previously omitted BoardApproval and OpenAI
+reference-image suites as well as the ProductionImage suites.
+
+Known limitation: an ambiguous in-flight provider request with **no
+recoverable local output** still needs an explicit reconciliation design;
+it must not be automatically retried. End-to-end real-provider testing is
+not part of this change.
