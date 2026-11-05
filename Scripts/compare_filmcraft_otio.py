@@ -18,9 +18,11 @@ TRACKED = (
 )
 
 def safe_relative_media_path(value):
-    if not isinstance(value, str) or not value or value.startswith(("/", "\\\\")):
+    if not isinstance(value, str) or not value or value.startswith("/"):
         return False
-    if "\\\\" in value or "://" in value or ":" in value:
+    # All Windows paths and separators are rejected, including a single
+    # leading backslash. Use the ASCII code to avoid escaping ambiguity.
+    if chr(92) in value or "://" in value or ":" in value:
         return False
     if any(ord(character) < 32 or ord(character) == 127 for character in value):
         return False
@@ -36,7 +38,7 @@ def snapshot(path):
     entries = []
     for index, clip in enumerate(clips):
         namespace = clip.metadata.get("screenplayos")
-        if not isinstance(namespace, dict):
+        if namespace is None or not hasattr(namespace, "get"):
             raise ValueError(f"Clip {index} has no ScreenplayOS provenance namespace")
         missing = [field for field in TRACKED if not namespace.get(field)]
         if missing:
