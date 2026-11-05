@@ -6,9 +6,11 @@ on:
       - 'Sources/ScreenplayDomain/ProductionImagePlanning.swift'
       - 'Sources/ScreenplayDomain/ProductionImageTakeHandoff.swift'
       - 'Sources/ScreenplayDomain/ProductionImageJobPlanning.swift'
+      - 'Sources/ScreenplayDomain/ProductionImageReferencePreview.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImagePlanningTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageTakeHandoffTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageJobPlanningTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImageReferencePreviewTests.swift'
       - '.github/workflows/production-image-handoff.yml'
   workflow_dispatch:
 
