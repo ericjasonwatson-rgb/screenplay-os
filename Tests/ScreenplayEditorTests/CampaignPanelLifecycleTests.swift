@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Darwin
 import SwiftUI
 import Testing
 import ScreenplayDomain
@@ -9,6 +10,7 @@ import ScreenplayDomain
 /// audit. Exercise the real sheet, SwiftUI controls and AppKit responder chain.
 /// SwiftPM has no external AX client, so each presentation requests its own
 /// process's lazy accessibility tree before resolving controls by exact identity.
+/// The hosted test process completes AppKit launch once before making that request.
 @Suite("Campaign panel lifecycle", .serialized)
 @MainActor
 struct CampaignPanelLifecycleTests {
@@ -262,6 +264,18 @@ private struct CampaignPanelHost: View {
 
 @MainActor
 private final class CampaignPanelFixture {
+    private static let applicationSetup: (application: NSApplication, activationPolicySet: Bool) = {
+        // SwiftPM does not run NSApplicationMain. Complete the public AppKit
+        // launch setup once so its accessibility server can answer self-process
+        // requests. The existing native-UI wait helper services the run loop;
+        // starting a second application run loop here would block the tests.
+        // https://developer.apple.com/documentation/appkit/nsapplication/finishlaunching()
+        let application = NSApplication.shared
+        let activationPolicySet = application.setActivationPolicy(.accessory)
+        application.finishLaunching()
+        return (application, activationPolicySet)
+    }()
+
     let root: URL
     let model: ScreenplayViewModel
     let hostingController: NSHostingController<CampaignPanelHost>
@@ -272,7 +286,10 @@ private final class CampaignPanelFixture {
     private let preferencesSuite: String
 
     init(importLifecycle: CampaignAgencyImportLifecycle? = nil) throws {
-        _ = NSApplication.shared
+        let applicationSetup = Self.applicationSetup
+        try #require(applicationSetup.activationPolicySet,
+                     "The hosted AppKit process could not set its accessory activation policy.")
+        try #require(applicationSetup.application.activationPolicy() == .accessory)
         let root = try CampaignWorkspaceStore.canonicalRoot(FileManager.default.temporaryDirectory)
             .appendingPathComponent("CampaignPanel-\(UUID())", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -337,19 +354,27 @@ private final class CampaignPanelFixture {
         // SwiftUI creates virtual AX nodes lazily when an accessibility client
         // asks for this process. Make a public, read-only request off MainActor
         // so AppKit can service it. No system-wide permissions or AX preferences
-        // are changed, and the returned window metadata is never used or logged.
+        // are changed. Request only the stable application role, not a window
+        // list that other native suites can change while the request is pending.
         // https://developer.apple.com/documentation/applicationservices/axuielement_h
-        let result = await Task.detached {
-            let onMainThread = Thread.isMainThread
+        let result = await Task.detached { () -> (onMainThread: Bool, timeout: AXError, read: AXError?, role: String?) in
+            let onMainThread = pthread_main_np() != 0
             let application = AXUIElementCreateApplication(ProcessInfo.processInfo.processIdentifier)
             let timeout = AXUIElementSetMessagingTimeout(application, 2)
-            guard timeout == .success else { return (onMainThread, timeout) }
-            var windows: CFTypeRef?
-            return (onMainThread, AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windows))
+            guard timeout == .success else { return (onMainThread, timeout, nil, nil) }
+            var role: CFTypeRef?
+            let read = AXUIElementCopyAttributeValue(application, kAXRoleAttribute as CFString, &role)
+            return (onMainThread, timeout, read, role as? String)
         }.value
-        try #require(!result.0, "The AX request must not block AppKit's main-thread reply.")
-        if result.1 != .success { diagnoseFailure("accessibility activation \(result.1.rawValue)") }
-        try #require(result.1 == .success, "Self-process AX request failed: \(result.1.rawValue).")
+        try #require(!result.onMainThread, "The AX request must not block AppKit's main-thread reply.")
+        if result.timeout != .success || result.read != .success || result.role != kAXApplicationRole as String {
+            let readStatus = result.read.map { String($0.rawValue) } ?? "not attempted"
+            diagnoseFailure("accessibility activation timeout=\(result.timeout.rawValue) roleRead=\(readStatus) role=\(String(describing: result.role))")
+        }
+        try #require(result.timeout == .success, "Self-process AX timeout setup failed: \(result.timeout.rawValue).")
+        let read = try #require(result.read, "Self-process AX role read was not attempted.")
+        try #require(read == .success, "Self-process AX role read failed: \(read.rawValue).")
+        try #require(result.role == kAXApplicationRole as String, "Self-process AX role must identify an application.")
     }
 
     func expectDismissed() async throws {
