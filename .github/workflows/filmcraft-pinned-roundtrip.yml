@@ -51,6 +51,33 @@ jobs:
           SCREENPLAYOS_OTIO_CAPTURE_PATH: ${{ runner.temp }}/screenplayos-generated-take.otio
         run: |
           python3 Scripts/run_filmcraft_roundtrip.py --filmcraft-cli "$FILMCRAFT_CLI" --input "$SCREENPLAYOS_OTIO_CAPTURE_PATH" --report "${RUNNER_TEMP}/filmcraft-loss-report.json" --candidate-report "${RUNNER_TEMP}/filmcraft-manual-candidates.json"
+      - name: Summarize synthetic provenance loss without revealing clip identities
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          path = root / "filmcraft-loss-report.json"
+          if not path.is_file():
+              print("No synthetic loss report produced.")
+          else:
+              report = json.loads(path.read_text())
+              clips = report.get("returned_clip_diagnostics", [])
+              print("FilmCraft compatibility status:", report.get("status", "unknown"))
+              print("Original occurrences:", report.get("baseline_occurrences", "?"))
+              print("Returned clips:", report.get("returned_clips", "?"))
+              print("All original UUID clip names preserved:",
+                    report.get("unique_occurrence_names_preserved", False))
+              print("Returned clips with FilmCraft namespace:",
+                    sum(bool(c.get("has_filmcraft_namespace")) for c in clips))
+              print("Returned clips with ScreenplayOS namespace:",
+                    sum(bool(c.get("has_screenplayos_namespace")) for c in clips))
+              print("Returned clips with safe relative media:",
+                    sum(bool(c.get("media_reference_safe")) for c in clips))
+              print("Auto-adoption disabled:", report.get("adopted") is False)
+          PY
       - name: Preserve synthetic-only provenance-loss diagnostics
         if: always()
         uses: actions/upload-artifact@v4
