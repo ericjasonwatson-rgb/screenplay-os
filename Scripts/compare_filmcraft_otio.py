@@ -6,6 +6,7 @@ their own export. No files are modified, no provider connection is made, and no
 external edit is ever imported into a ScreenplayOS document.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -89,6 +90,46 @@ def compare(original, returned):
     if set(by_occurrence) != observed:
         raise ValueError("Returned timeline omitted original occurrences")
     return proposed
+
+def identity_loss_report(original_path, returned_path):
+    """Summarize lost identities without aligning clips by index or media name.
+
+    Positional matching is unsafe when an editor can split, trim, reorder or
+    duplicate clips. This is diagnostic evidence only, never an import plan.
+    """
+    baseline = snapshot(original_path)
+    returned = otio.adapters.read_from_file(str(returned_path))
+    if not isinstance(returned, otio.schema.Timeline):
+        raise ValueError("External output is not an OTIO Timeline")
+    clips = list(returned.find_clips())
+    losses = []
+    for index, clip in enumerate(clips):
+        namespace = clip.metadata.get("screenplayos")
+        fields = namespace if namespace is not None and hasattr(namespace, "get") else {}
+        missing = [key for key in TRACKED if not fields.get(key)]
+        reference = clip.media_reference
+        safe_path = (
+            isinstance(reference, otio.schema.ExternalReference) and
+            safe_relative_media_path(reference.target_url)
+        )
+        losses.append({
+            "returned_clip_index": index,
+            "lost_fields": missing,
+            "media_reference_safe": safe_path,
+            "has_screenplayos_namespace": bool(fields),
+        })
+    return {
+        "status": "blocked_identity_loss",
+        "adopted": False,
+        "matching_performed": False,
+        "baseline_occurrences": len(baseline),
+        "returned_clips": len(clips),
+        "baseline_sha256": hashlib.sha256(original_path.read_bytes()).hexdigest(),
+        "returned_sha256": hashlib.sha256(returned_path.read_bytes()).hexdigest(),
+        "returned_clip_diagnostics": losses,
+        "reason": "External editorial output cannot be trusted without original occurrence and Take provenance.",
+    }
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
