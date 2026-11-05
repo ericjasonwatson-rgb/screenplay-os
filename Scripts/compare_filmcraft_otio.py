@@ -44,6 +44,7 @@ def snapshot(path):
             "source_start": [time.start_time.value, time.start_time.rate],
             "duration": [time.duration.value, time.duration.rate],
             "media": reference.target_url,
+            "note": namespace.get("note", ""),
         })
     return entries
 
@@ -66,7 +67,7 @@ def compare(original, returned):
         if baseline["ids"] != entry["ids"]:
             changed = [k for k in TRACKED if baseline["ids"][k] != entry["ids"][k]]
             raise ValueError(f"Identity/provenance drift in {occurrence_id}: {changed}")
-        for key in ("index", "source_start", "duration", "media"):
+        for key in ("index", "source_start", "duration", "media", "note"):
             if baseline[key] != entry[key]:
                 proposed.append({
                     "occurrence_id": occurrence_id, "field": key,
