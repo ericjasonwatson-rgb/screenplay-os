@@ -15,6 +15,7 @@ struct ProductionImagePlanningSheet: View {
     @State private var style = ""
     @State private var brief: ProductionImageBrief?
     @State private var problem: String?
+    @State private var showStaging = false
     @State private var referencePreview: LocalReferencePreview?
 
     private struct LocalReferencePreview: Identifiable {
@@ -82,6 +83,8 @@ struct ProductionImagePlanningSheet: View {
                         .disabled(!approvalIsCurrent)
                     Button("Inspect exact storyboard image and request…") { prepareLocalPreview() }
                         .disabled(!approvalIsCurrent || brief == nil)
+                    Button("Stage OpenAI request for review (no send)…") { showStaging = true }
+                        .disabled(!approvalIsCurrent || brief == nil || model.saveURL == nil)
                 } else {
                     Text("The storyboard or shot is no longer available.")
                         .foregroundStyle(.orange)
@@ -103,6 +106,11 @@ struct ProductionImagePlanningSheet: View {
         }
         .frame(minWidth: 620, idealWidth: 740, minHeight: 540)
         .onAppear(perform: restoreApproval)
+        .sheet(isPresented: $showStaging) {
+            ProductionImageJobStagingSheet(model: model, boardID: boardID) {
+                showStaging = false
+            }
+        }
         .sheet(item: $referencePreview) { preview in
             ProductionImageReviewSheet(review: preview.review) {
                 referencePreview = nil
