@@ -58,3 +58,23 @@ Cross-branch acceptance is still needed for:
 
 Do not merge stacked PR #5 directly into main: review and merge its base
 PR #4 or rebase deliberately after the full regression status is known.
+
+## Full regression results and integration blockers
+
+The first full macOS run on the image branch surfaced three existing
+native-editor UI failures unrelated to the image contract:
+`NativeEditorTests.fitWidthTracksPanelsWithoutChangingScriptOrSelection`,
+`NativeEditorTests.titleEditorPreviewUpdatesAndRecoversFromOverflow`, and
+`ChromeObservationTests.windowChangesModesAndReturnsToCurrentText`.
+These failures were already noted in the native-editor stabilization
+workstream and must be addressed and reverified before merging the
+editorial branch. The same run exposed a stale test assertion on the
+new uncertain-transport status; this has been corrected to expect a
+persisted `running` job (not `failed`) when the provider outcome
+cannot be established. A new CI run will determine whether the focused
+image suite is clean after that correction.
+
+Do not relax or delete native rendering tests solely to achieve a green
+badge. Investigate runtime view lifecycle, zoom state and title overflow
+on macOS, then repeat the full suite. Avoid merging any of the stacked
+branches until the cross-branch acceptance gates pass.
