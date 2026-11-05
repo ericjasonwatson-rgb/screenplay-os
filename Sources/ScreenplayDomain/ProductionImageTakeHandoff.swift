@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import ImageIO
 
 /// Bridges an approved storyboard brief to an unselected production-image take.
 /// The caller must validate the image with its decoder, store it durably, and
@@ -30,11 +31,22 @@ public enum ProductionImageTakeHandoff {
             approvedBoardIDs: approvedBoardIDs
         )
         guard !output.isEmpty else { throw Failure.missingOutput }
-        // An image adapter is responsible for fully decoding and validating
-        // pixels. This lightweight signature check is not a replacement.
+        // Verify a fully decodable PNG and the immutable bytes already written
+        // to local storage. A signature-only mock must never become a Take.
         guard output.count <= 20_000_000,
               output.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]),
-              storedMediaURL.isFileURL, !storedMediaURL.path.isEmpty
+              let source = CGImageSourceCreateWithData(output as CFData, nil),
+              CGImageSourceGetCount(source) == 1,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0, width <= 4096, height <= 4096,
+              CGImageSourceCreateImageAtIndex(source, 0, nil) != nil,
+              storedMediaURL.isFileURL, !storedMediaURL.path.isEmpty,
+              let attributes = try? storedMediaURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]),
+              attributes.isRegularFile == true, attributes.isSymbolicLink != true,
+              let onDisk = try? Data(contentsOf: storedMediaURL),
+              onDisk == output
         else { throw Failure.invalidOutput }
         guard !providerID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
