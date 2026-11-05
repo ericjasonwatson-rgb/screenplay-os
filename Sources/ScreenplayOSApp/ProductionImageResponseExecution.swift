@@ -31,6 +31,7 @@ enum ProductionImageResponseExecution {
         takeID: UUID,
         submittedAt: Date,
         completedAt: Date,
+        recoveryRoot: URL? = nil,
         transport: any ProductionImageResponseTransport
     ) async throws -> Take {
         // Everything before submission is local; an expired preview or
@@ -49,14 +50,20 @@ enum ProductionImageResponseExecution {
         let response: Data
         do {
             response = try await transport.perform(ready)
-            // Validate the provider result before marking it successful.
-            _ = try OpenAIReferenceImageResponse.decode(response)
+            // Preserve valid paid output before recording provider success.
+            // If later project insertion fails, recovery uses this exact PNG
+            // without a second billable API request.
+            let png = try OpenAIReferenceImageResponse.decode(response)
+            let root = try recoveryRoot ?? ProductionImageResultVault.defaultRoot()
+            try ProductionImageResultVault.store(
+                png, projectID: staged.job.projectID, jobID: ready.jobID,
+                root: root)
         } catch {
             // Provider error text can contain credentials, prompts or media.
             // Never persist arbitrary error descriptions from this boundary.
             try? await controller.markFailed(
                 jobID: ready.jobID, at: completedAt,
-                sanitizedError: "Reference-image request failed or returned invalid image data."
+                sanitizedError: "Reference-image request or local result preservation failed. Check job status before any retry."
             )
             throw error
         }
