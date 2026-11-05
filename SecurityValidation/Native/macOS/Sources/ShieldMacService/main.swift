@@ -90,7 +90,7 @@ do {
     ]
     for requirement in requirements {
         var parsed: SecRequirement?
-        guard SecRequirementCreateWithString(requirement as CFString, 0, &parsed) == errSecSuccess,
+        guard SecRequirementCreateWithString(requirement as CFString, SecCSFlags(rawValue: 0), &parsed) == errSecSuccess,
               parsed != nil else {
             fputs("code-signing requirement failed OS parsing; service disabled\n", stderr)
             exit(78)
