@@ -226,3 +226,21 @@ Never claim these behaviors are verified solely from offline CI. A
 live paid integration test requires an intentional user Send click.
 This work remains unmerged and is not an instruction to run such
 a test during development.
+
+## Completed-image recovery in the Boards request manager
+
+The **Production Image Jobs & Recovery** screen now shows both unsent
+requests and previously completed image jobs whose local output vault is
+readable but whose generated Take has not yet been added to the canonical
+board. The filmmaker can select **Restore as unselected Take (no send)**.
+This uses `ProductionImageCompletedResultRecovery`, reloads the job and
+approval from durable storage, checks the current board/shot/revision and
+local saved PNG, then adds a new canonical image version only if the
+project remains unchanged. It performs no authenticated request, does
+not automatically select the new version and preserves edit timing.
+
+A changed or missing approval blocks automatic adoption, leaving the
+previously paid PNG in the local vault for manual recovery. The screen
+never offers a new paid generation as the recovery action. Media
+restoration is separate from the project's portable export and should
+be covered by a later project-package migration.
