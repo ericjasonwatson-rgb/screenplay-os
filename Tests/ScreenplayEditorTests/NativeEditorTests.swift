@@ -279,17 +279,21 @@ struct NativeEditorTests {
             host.layoutSubtreeIfNeeded()
         }
         try await settle()
+        nativeUIHierarchyDiagnostic("title initial", host: host, window: window, model: model)
         #expect(findPDF(host)?.document?.pageCount == 1)
         model.titlePageBinding(.title).wrappedValue = "An obsolete title"
         model.titlePageBinding(.title).wrappedValue = "The Revised Title"
         try await settle()
+        nativeUIHierarchyDiagnostic("title revised", host: host, window: window, model: model)
         #expect(findPDF(host)?.document?.string?.contains("The Revised Title") == true)
         #expect(findPDF(host)?.document?.string?.contains("obsolete") == false)
         model.titlePageBinding(.contact).wrappedValue = String(repeating: "Too much contact information\n", count: 100)
         try await settle()
+        nativeUIHierarchyDiagnostic("title overflow", host: host, window: window, model: model)
         #expect(findPDF(host) == nil)
         model.titlePageBinding(.contact).wrappedValue = "writer@example.com"
         try await settle()
+        nativeUIHierarchyDiagnostic("title recovered", host: host, window: window, model: model)
         #expect(findPDF(host)?.document?.string?.contains("writer@example.com") == true)
         if let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_TITLE_PREVIEW_CAPTURE"],
            let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
