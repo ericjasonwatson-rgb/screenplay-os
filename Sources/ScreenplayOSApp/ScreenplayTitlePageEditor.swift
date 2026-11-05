@@ -60,6 +60,14 @@ private struct TitlePageExportPreview: View {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .onChange(of: model.titlePage) { _ in
+            // Clear only when the *source changes*, not on the first render.
+            // A previous export page must not remain visible while an
+            // overflowing or edited title page awaits its debounced render.
+            document = nil
+            error = nil
+            updating = true
+        }
         .task(id: model.titlePage) {
             updating = true
             do {
