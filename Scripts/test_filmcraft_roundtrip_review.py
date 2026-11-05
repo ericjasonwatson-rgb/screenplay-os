@@ -50,6 +50,10 @@ def main():
         assert len(proposals) == 1 and proposals[0]["field"] == "media"
         assert proposals[0]["after"] == "Board Images/alternate.mov"
 
+        unsafe = copy.deepcopy(original_json)
+        unsafe["tracks"]["children"][0]["children"][0]["media_references"]["DEFAULT_MEDIA"]["target_url"] = "../private/generated.png"
+        check_fail(baseline, unsafe, path, "unsafe/absolute media path")
+
         changed_note = copy.deepcopy(original_json)
         changed_note["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"]["note"] = "Outside editor note"
         path.write_text(json.dumps(changed_note), encoding="utf-8")
