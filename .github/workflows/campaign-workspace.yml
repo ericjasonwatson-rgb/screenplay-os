@@ -27,5 +27,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Swift toolchain
         run: swift --version
-      - name: Test campaign domain, local storage and commands
-        run: swift test --configuration ${{ matrix.configuration }} --disable-sandbox --filter Campaign
+      - name: Install regression-test dependency
+        run: python3 -m pip install --user --break-system-packages jsonschema
+      - name: Full offline regression suite
+        env:
+          SCREENPLAYOS_BUILD_CONFIGURATION: ${{ matrix.configuration }}
+        run: ./Scripts/test.sh
