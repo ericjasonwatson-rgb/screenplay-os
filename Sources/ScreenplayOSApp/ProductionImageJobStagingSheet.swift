@@ -264,8 +264,7 @@ struct ProductionImageJobStagingSheet: View {
                 authorization: authorization, approval: currentApproval,
                 shot: originalShot, board: originalBoard, projectRoot: projectRoot,
                 documentURL: documentURL, takeID: UUID(),
-                submittedAt: submittedAt, completedAt: submittedAt.addingTimeInterval(1),
-                transport: transport)
+                submittedAt: submittedAt, transport: transport)
             // The request may take time. Refuse to insert a candidate when
             // the UI has switched projects or board/shot has changed.
             guard model.document?.screenplay.id == projectID,
