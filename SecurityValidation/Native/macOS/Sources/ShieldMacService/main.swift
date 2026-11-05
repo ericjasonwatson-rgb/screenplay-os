@@ -96,6 +96,24 @@ do {
             exit(78)
         }
     }
+    // Deployment preflight: independently check the helper's OWN dynamic signature
+    // before exposing the agent/reviewer Mach services. A CI build does not test
+    // successful production signing; unsigned/ad-hoc helpers must fail closed.
+    var helperRequirement: SecRequirement?
+    guard SecRequirementCreateWithString(
+            config.helperRequirement() as CFString, SecCSFlags(rawValue: 0), &helperRequirement
+          ) == errSecSuccess,
+          let helperRequirement else {
+        fputs("helper requirement failed validation; service disabled\n", stderr)
+        exit(78)
+    }
+    var runningCode: SecCode?
+    guard SecCodeCopySelf(SecCSFlags(rawValue: 0), &runningCode) == errSecSuccess,
+          let runningCode,
+          SecCodeCheckValidity(runningCode, SecCSFlags(rawValue: 0), helperRequirement) == errSecSuccess else {
+        fputs("helper code-signing identity is not trusted; service disabled\n", stderr)
+        exit(78)
+    }
     SignedListenerDelegate(config).serve()
 } catch {
     fputs("invalid signed helper configuration\n", stderr)
