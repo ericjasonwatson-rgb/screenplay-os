@@ -1,0 +1,25 @@
+name: Production Image Handoff
+
+on:
+  pull_request:
+    paths:
+      - 'Sources/ScreenplayDomain/ProductionImagePlanning.swift'
+      - 'Sources/ScreenplayDomain/ProductionImageTakeHandoff.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImagePlanningTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImageTakeHandoffTests.swift'
+      - '.github/workflows/production-image-handoff.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image-handoff:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: swift --version
+      - name: Test storyboard approval and candidate handoff
+        run: swift test --configuration debug --disable-sandbox --filter ProductionImage
