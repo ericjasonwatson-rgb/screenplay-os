@@ -120,6 +120,7 @@ struct ProductionImageJobStagingSheet: View {
 
     private func stage() async {
         guard !busy, stagedPreview == nil else { return }
+        guard model.requireEntitlement(.aiGeneration) else { return }
         busy = true
         defer { busy = false }
         guard let board, let shot, let projectID = model.document?.screenplay.id,
@@ -229,6 +230,7 @@ struct ProductionImageJobStagingSheet: View {
             message = "This request is no longer available for sending."
             return
         }
+        guard model.requireEntitlement(.aiGeneration) else { return }
         busy = true
         defer { busy = false }
         do {
