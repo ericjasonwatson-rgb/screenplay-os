@@ -64,3 +64,24 @@ the exact submitted job and handle retries and provider errors. The returned
 `Take` is not yet adopted into the canonical document or persisted as a
 separate managed candidate. Implement that adoption through an undoable
 shared command, not by silently replacing the selected storyboard.
+
+## Canonical Boards candidate addition and Undo
+
+`ProductionImageCandidateAdoption.appending` maps a validated `Take` to a
+new `BoardImageVersion` on the existing `BoardFrame`, without changing
+`selectedImageID`, shot IDs or duration. `ScreenplayViewModel.appendProductionImageCandidate`
+checks the media is in the project's Board Images directory, verifies the
+image's stored bytes and digest, records a document Undo snapshot, appends the
+candidate to the canonical document and autosaves. The existing `TakeStrip`
+projects these canonical versions and lets the filmmaker explicitly select
+the candidate via `selectBoardImage`, a second undoable operation.
+
+The underlying board remains authoritative and the Take sidecar continues to
+be a derived projection. This avoids a competing take ledger being able to
+silently change the edit. Tests cover non-selection, canonical encode/decode,
+projected candidate status and two independent Undo/Redo steps.
+
+Current release restriction: no live provider response handler invokes this
+command. A future result handler must retrieve the succeeded job from the
+persisted controller and use `prepareFromPersistedJob` before asking the
+model to append the candidate.
