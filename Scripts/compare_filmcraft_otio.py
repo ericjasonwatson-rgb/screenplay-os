@@ -121,11 +121,18 @@ def identity_loss_report(original_path, returned_path):
             isinstance(reference, otio.schema.ExternalReference) and
             safe_relative_media_path(reference.target_url)
         )
+        filmcraft = clip.metadata.get("filmcraft")
         losses.append({
             "returned_clip_index": index,
             "lost_fields": missing,
             "media_reference_safe": safe_path,
             "has_screenplayos_namespace": bool(fields),
+            "has_filmcraft_namespace": (
+                filmcraft is not None and hasattr(filmcraft, "get")
+            ),
+            "returned_name_matches_any_original_occurrence": (
+                str(clip.name or "") in baseline_names
+            ),
         })
     return {
         "status": "blocked_identity_loss",
