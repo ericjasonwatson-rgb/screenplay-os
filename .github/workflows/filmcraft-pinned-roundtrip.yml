@@ -9,6 +9,7 @@ on:
       - 'Scripts/compare_filmcraft_otio.py'
       - 'Scripts/run_filmcraft_roundtrip.py'
       - 'Scripts/test_filmcraft_roundtrip_review.py'
+      - 'Scripts/filmcraft_manual_relink_candidates.py'
       - '.github/workflows/filmcraft-pinned-roundtrip.yml'
   workflow_dispatch:
 
@@ -49,12 +50,14 @@ jobs:
         env:
           SCREENPLAYOS_OTIO_CAPTURE_PATH: ${{ runner.temp }}/screenplayos-generated-take.otio
         run: |
-          python3 Scripts/run_filmcraft_roundtrip.py --filmcraft-cli "$FILMCRAFT_CLI" --input "$SCREENPLAYOS_OTIO_CAPTURE_PATH" --report "${RUNNER_TEMP}/filmcraft-loss-report.json"
+          python3 Scripts/run_filmcraft_roundtrip.py --filmcraft-cli "$FILMCRAFT_CLI" --input "$SCREENPLAYOS_OTIO_CAPTURE_PATH" --report "${RUNNER_TEMP}/filmcraft-loss-report.json" --candidate-report "${RUNNER_TEMP}/filmcraft-manual-candidates.json"
       - name: Preserve synthetic-only provenance-loss diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: filmcraft-v0171-identity-loss-report
-          path: ${{ runner.temp }}/filmcraft-loss-report.json
+          path: |
+            ${{ runner.temp }}/filmcraft-loss-report.json
+            ${{ runner.temp }}/filmcraft-manual-candidates.json
           if-no-files-found: ignore
           retention-days: 7
