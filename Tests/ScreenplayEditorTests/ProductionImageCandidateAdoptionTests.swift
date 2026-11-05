@@ -103,6 +103,17 @@ struct ProductionImageCandidateAdoptionTests {
         #expect(candidateBoard.selectedImageID == boardVersion.id)
         #expect(candidateBoard.durationSeconds == before.durationSeconds)
         #expect(model.takesForSelectedBoardFrame.count == 2)
+        // Shared model gate for Siri's five read-only navigation targets.
+        // Changing views must not adopt the candidate or mutate the edit.
+        let beforeModes = try #require(model.document)
+        for mode in [WorkflowMode.outline, .writing, .directing, .boards, .edit] {
+            model.setWorkflowMode(mode)
+            #expect(model.document == beforeModes)
+            #expect(model.boardFrames.first?.selectedImageID == boardVersion.id)
+            #expect(model.boardFrames.first?.durationSeconds == before.durationSeconds)
+            #expect(model.boardFrames.first?.imageVersions.count == 2)
+        }
+        model.setWorkflowMode(.boards)
         let projected = try #require(model.takesForSelectedBoardFrame.first(where: { $0.id == take.id }))
         #expect(projected.status == .candidate)
         #expect(projected.provenance.generationJobID == take.provenance.generationJobID)
