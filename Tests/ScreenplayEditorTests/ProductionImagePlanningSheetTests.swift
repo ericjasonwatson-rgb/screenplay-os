@@ -16,11 +16,25 @@ struct ProductionImagePlanningSheetTests {
                                          prompt: "board", model: "fixture")
         board.imageVersions = [selected]
         board.selectedImageID = selected.id
-        let before = board
-        let host = NSHostingView(rootView: ProductionImagePlanningSheet(shot: shot, board: board, dismiss: {}))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let suite = "ProductionPlanningUI.\(UUID().uuidString)"
+        let preferences = try #require(UserDefaults(suiteName: suite))
+        defer {
+            preferences.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: root)
+        }
+        let model = ScreenplayViewModel(loadInitialDocument: false,
+            autosaveDirectory: root, preferences: preferences)
+        model.newDocument()
+        model.document?.shots = [shot]
+        model.document?.boardFrames = [board]
+        let before = model.document
+        let host = NSHostingView(rootView: ProductionImagePlanningSheet(
+            model: model, boardID: board.id, dismiss: {}))
         host.frame = NSRect(x: 0, y: 0, width: 740, height: 620)
         host.layoutSubtreeIfNeeded()
         #expect(host.fittingSize.width > 0)
-        #expect(board == before)
+        #expect(model.document == before)
     }
 }
