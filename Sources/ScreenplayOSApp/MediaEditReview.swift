@@ -23,6 +23,7 @@ enum MediaEditReview {
         case missingOccurrence(UUID)
         case addedOccurrence(UUID)
         case sourceIdentityChanged(UUID)
+        case sourceTakeChanged(UUID)
     }
 
     /// An external edit may change order, timing, media and notes, but not canonical identities.
@@ -49,6 +50,15 @@ enum MediaEditReview {
             guard item.sceneID == previous.sceneID, item.shotID == previous.shotID,
                   item.boardID == previous.boardID else {
                 throw ReviewError.sourceIdentityChanged(item.occurrenceID)
+            }
+            // A new video or alternate image is a reviewable media substitution,
+            // not permission to silently rewrite the original Take's identity
+            // or historical generation provenance.
+            guard item.takeID == previous.takeID,
+                  item.generationJobID == previous.generationJobID,
+                  item.promptSHA256 == previous.promptSHA256,
+                  item.mediaSHA256 == previous.mediaSHA256 else {
+                throw ReviewError.sourceTakeChanged(item.occurrenceID)
             }
             let countBefore = changes.count
             if oldIndex != newIndex {
