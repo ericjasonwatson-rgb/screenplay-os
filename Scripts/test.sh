@@ -4,6 +4,7 @@ cd "$(dirname "$0")/.."
 
 PYTHONDONTWRITEBYTECODE=1 python3 Scripts/test-fixture-hygiene.py
 python3 Scripts/check-fixture-hygiene.py
+
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/LegacyInspector
 node --test LicenseWorker/test/*.test.mjs
 
