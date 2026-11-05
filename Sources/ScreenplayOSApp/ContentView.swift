@@ -2379,7 +2379,7 @@ private struct BoardDetailsPane: View {
                         if let shot = model.shots.first(where: { $0.id == frame.shotID }) {
                             Button("Generate board image…") { model.presentBoardGenerator(for: shot) }
                                 .buttonStyle(StudioButtonStyle(ai: true))
-                            ProductionImagePlanningLauncher(shot: shot, board: frame)
+                            ProductionImagePlanningLauncher(model: model, boardID: frame.id)
                         }
                         if !frame.imageVersions.isEmpty {
                             if !model.comparedBoardTakes.isEmpty {
