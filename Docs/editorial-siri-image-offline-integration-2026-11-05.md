@@ -144,3 +144,33 @@ do not upload real film timelines or reveal sensitive clip names.
 The comparator's negative tests check metadata stripping, changed
 names, forged identities and unsafe paths. Any external edit remains
 unadopted.
+
+## Manual sidecar triage for FilmCraft v0.17.1
+
+The optional `filmcraft_manual_relink_candidates.py` builds **non-authoritative,
+read-only** hints from the original ScreenplayOS OTIO and returned external
+OTIO. This is not an importer or automatic identity recovery.
+
+It requires exactly the same clip count and a unique set of unchanged
+occurrence UUID clip names. A missing, renamed, duplicated or unknown
+name aborts the entire hint list. It also rejects missing source ranges,
+unsupported media references, and unsafe/absolute returned asset paths.
+Each hint includes the original Take and generation job association
+only from the trusted baseline, plus the returned clip's timing and media
+for human review. Every hint is explicitly marked
+`verified=false`, `approved=false`, and the report declares
+`safe_to_auto_import=false`, `adopted=false` and
+`authoritative=false`.
+
+**Untrusted clip names do not substitute for immutable provenance.**
+Even when a name survives intact, FilmCraft's output does not become
+verified or safe to import: a filmmaker would need to validate original
+media and each proposed edit before a future explicit acceptance step.
+The strict FilmCraft executable gate remains red on metadata loss.
+The manual report is a separate, short-lived synthetic CI artifact when
+the optional name evidence exists, never a successful interoperability
+result.
+
+Negative tests check metadata loss with matching names and refusal to
+make hints when a name changes. FilmCraft release compatibility is not
+yet certified.
