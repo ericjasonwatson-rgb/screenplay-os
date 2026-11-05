@@ -1,5 +1,8 @@
 import Foundation
 import XCTest
+#if os(macOS)
+import Security
+#endif
 @testable import ShieldNativeContract
 
 final class ContractTests: XCTestCase {
@@ -72,4 +75,21 @@ final class ContractTests: XCTestCase {
         let result = FailClosedCommandHandler.response(to: Data(#"{"op":"approve"}"#.utf8), role: .reviewer, requestedOperation: "approve")
         XCTAssertEqual(try JSONDecoder().decode(DenialResponse.self, from: result).error, .nativeIntegrationPending)
     }
+    #if os(macOS)
+    func testGeneratedRequirementsCompileWithMacSecurityFramework() throws {
+        let value = try config()
+        for item in [value.requirement(for: .agent), value.requirement(for: .reviewer), value.helperRequirement()] {
+            var parsed: SecRequirement?
+            let result = SecRequirementCreateWithString(item as CFString, kSecCSDefaultFlags, &parsed)
+            XCTAssertEqual(result, errSecSuccess, "macOS rejected code-signing requirement: \(item)")
+            XCTAssertNotNil(parsed)
+        }
+    }
+    func testMalformedRequirementCannotBeInstalled() {
+        var parsed: SecRequirement?
+        let status = SecRequirementCreateWithString("identifier \"unfinished" as CFString, kSecCSDefaultFlags, &parsed)
+        XCTAssertNotEqual(status, errSecSuccess)
+    }
+    #endif
+
 }
