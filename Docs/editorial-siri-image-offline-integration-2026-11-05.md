@@ -39,3 +39,27 @@ automatically. Do not merge the integration branch until the parent
 branches, license/NOTICE obligations and real NLE interoperability are
 reviewed. Public-safe regression testing excludes only 12 tests that
 require intentionally private, removed Cat Island source files.
+
+## Official OTIO parser test result
+
+GitHub Actions run #42047172579 passed the macOS editorial/Siri/image
+integration gate. The synthetic two-appearance Take timeline, exported by
+the actual ScreenplayOS Swift writer, was successfully parsed by the
+official `opentimelineio==0.18.1` Python adapter and survived native
+OTIO JSON serialization/deserialization with all namespaced identities
+and content fingerprints intact. The same run passed the existing
+MediaInterchangeManifest, MediaEditReview, MediaTimelineOTIO,
+ProductionTakeEditorialBridge, SiriWorkspace and ProductionImage suites.
+
+The first official-parser run failed because the exporter used the
+Clip.1 singular `media_reference` field while labeling clips
+`Clip.2`. This was fixed to use the Clip.2 keyed
+`media_references["DEFAULT_MEDIA"]` and
+`active_media_reference_key`. The official parser gate is now mandatory
+in the dedicated integration CI workflow.
+
+This result demonstrates native OTIO JSON compatibility for the
+synthetic fixture only. It is **not** a FilmCraft import/export
+round-trip, and does not verify rate-aware trimming, audio,
+multi-track editorial, real media relinking, external API transport,
+or an undoable adoption of externally changed edits.
