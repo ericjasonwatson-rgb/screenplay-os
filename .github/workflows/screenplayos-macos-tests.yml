@@ -24,6 +24,8 @@ jobs:
           swift --version
           xcodebuild -version
           python3 --version
+      - name: Install Python test dependencies
+        run: python3 -m pip install --user --break-system-packages 'jsonschema>=4.20,<5'
       - name: Run project regression suite
         run: ./Scripts/test.sh
       - name: Run optimized regression suite
