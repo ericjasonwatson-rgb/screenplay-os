@@ -37,11 +37,20 @@ Full editor regression tests depend on the exact files:
 - `Tests/Fixtures/Defenders_of_Cat_Island_Pilot_Final_Draft.fdx`
 
 Both expected paths returned NOT_FOUND on `main` and the
-production-image branch as checked on 2026-11-05. The user's Library
-contains a pilot-script PDF, which is not a lossless substitute for
-either the JSON or the FDX file. Do not fabricate them or weaken the
-original-fidelity assertions. Restore the real authored fixtures via
-a separately reviewed artifact/import step when available.
+production-image branch. GitHub commit
+`a0b19bfd96559263a46d1392945b13c8e7204966`, titled
+"Remove private screenplay fixtures from public tree," explicitly
+deleted those exact files. Respect the deliberate privacy boundary:
+**do not restore private scripts to a public repository.** A pilot
+PDF available in the user's Library is not equivalent to either
+authored JSON or FDX source.
+
+Public CI now uses SwiftPM's `--skip` option for the 12 precisely
+identified tests requiring the private source files, logs a warning,
+and runs the other tests without changes to their assertions. When
+both originals are privately available, CI invokes the full suite
+without skips. Do not call public-safe CI "all tests passed" or claim
+private source-fidelity certification.
 
 ## Remaining gates
 
