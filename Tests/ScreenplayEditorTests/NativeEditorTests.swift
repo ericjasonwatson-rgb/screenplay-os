@@ -23,14 +23,52 @@ struct NativeEditorTests {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host; window.orderFront(nil)
         defer { window.close() }
-        func find(_ view: NSView) -> WritingTextView? {
+        @MainActor func find(_ view: NSView) -> WritingTextView? {
             if let text = view as? WritingTextView { return text }
             return view.subviews.lazy.compactMap { find($0) }.first
         }
-        func settle() async throws {
-            host.layoutSubtreeIfNeeded()
-            try await Task.sleep(nanoseconds: 100_000_000)
-            host.layoutSubtreeIfNeeded()
+        struct Geometry: Equatable {
+            let hostBounds: NSRect
+            let scrollFrame: NSRect
+            let viewportSize: NSSize
+            let documentSize: NSSize
+            let zoom: CGFloat
+            let sidePaneWidths: [CGFloat]
+        }
+        @MainActor func geometry() -> Geometry? {
+            guard let text = find(host), let scroll = text.enclosingScrollView else { return nil }
+            var sidePaneWidths: [CGFloat] = []
+            var child: NSView = text
+            while let parent = child.superview {
+                if let split = parent as? NSSplitView, split.isVertical {
+                    for sibling in split.arrangedSubviews where sibling !== child
+                        && !split.isSubviewCollapsed(sibling) && !sibling.isHiddenOrHasHiddenAncestor
+                        && sibling.frame.width > 1 {
+                        sidePaneWidths.append(sibling.frame.width)
+                    }
+                }
+                child = parent
+            }
+            return Geometry(hostBounds: host.bounds, scrollFrame: scroll.convert(scroll.bounds, to: host),
+                viewportSize: scroll.contentSize, documentSize: text.frame.size, zoom: scroll.magnification,
+                sidePaneWidths: sidePaneWidths)
+        }
+        @MainActor func settle(until condition: @MainActor () -> Bool = { true }) async throws {
+            var previous: Geometry?
+            var stableSince = ProcessInfo.processInfo.systemUptime
+            // Fit can be correct for a transient pane width. Service native commits
+            // until both the requested state and geometry have stopped changing.
+            let settled = try await waitForNativeUI(host) {
+                let current = geometry()
+                let now = ProcessInfo.processInfo.systemUptime
+                guard current != nil, current == previous, condition() else {
+                    previous = current
+                    stableSince = now
+                    return false
+                }
+                return now - stableSince >= 0.1
+            }
+            #expect(settled, "Native fit geometry did not settle: \(String(describing: previous))")
         }
         try await settle()
         let text = try #require(find(host)), scroll = try #require(text.enclosingScrollView)
@@ -38,11 +76,23 @@ struct NativeEditorTests {
         text.setSelectedRange(selection)
         model.fitWritingPageWidth = true
         var zooms: [CGFloat] = []
+        var geometries: [Geometry] = []
         for narrow in [false, true, false] {
             model.navigationVisible = narrow; model.contextAssistantVisible = narrow
-            window.setContentSize(narrow ? NSSize(width: 1000, height: 700) : NSSize(width: 1440, height: 900))
-            try await settle()
+            let requestedSize = narrow ? NSSize(width: 1000, height: 700) : NSSize(width: 1440, height: 900)
+            window.setContentSize(requestedSize)
+            try await settle {
+                guard let current = geometry(), find(host) === text, text.pagePlan != nil,
+                      abs(current.hostBounds.width - requestedSize.width) < 1,
+                      current.sidePaneWidths.count == (narrow ? 2 : 0),
+                      abs(text.frame.width * scroll.magnification - scroll.contentSize.width) < 1,
+                      abs(scroll.documentVisibleRect.minX) < 1 else { return false }
+                guard let wide = geometries.first else { return true }
+                return narrow ? scroll.contentSize.width < wide.viewportSize.width
+                    : abs(scroll.contentSize.width - wide.viewportSize.width) < 1
+            }
             zooms.append(scroll.magnification)
+            geometries.append(try #require(geometry()))
             #expect(abs(text.frame.width * scroll.magnification - scroll.contentSize.width) < 1)
             #expect(abs(scroll.documentVisibleRect.minX) < 1)
             #expect(text.selectedRange() == selection)
@@ -57,16 +107,18 @@ struct NativeEditorTests {
             }
         }
         #expect(zooms[1] < zooms[0])
-        #expect(abs(zooms[2] - zooms[0]) < 0.01)
+        #expect(abs(geometries[2].viewportSize.width - geometries[0].viewportSize.width) < 1,
+            "Wide viewport geometry: \(geometries)")
+        #expect(abs(zooms[2] - zooms[0]) < 0.01, "Fit zoom geometry: \(geometries)")
         let fitted = scroll.magnification
         model.adjustPageZoom(by: -0.05)
-        try await settle()
+        try await settle { abs(scroll.magnification - (fitted - 0.05)) < 0.001 }
         #expect(!model.fitWritingPageWidth)
         #expect(abs(scroll.magnification - (fitted - 0.05)) < 0.001)
         model.fitWritingPageWidth = true
-        try await settle()
+        try await settle { abs(text.frame.width * scroll.magnification - scroll.contentSize.width) < 1 }
         model.pageZoom = 1.25
-        try await settle()
+        try await settle { abs(scroll.magnification - 1.25) < 0.001 }
         #expect(!model.fitWritingPageWidth)
         #expect(abs(scroll.magnification - 1.25) < 0.001)
         #expect(text.selectedRange() == selection)
@@ -75,12 +127,15 @@ struct NativeEditorTests {
         model.pageZoom = 0.25
         let preview = NSHostingView(rootView: SceneScreenplayPreview(model: model))
         window.contentView = preview
-        preview.layoutSubtreeIfNeeded()
-        try await Task.sleep(nanoseconds: 100_000_000)
-        func findScroll(_ view: NSView) -> NSScrollView? {
+        @MainActor func findScroll(_ view: NSView) -> NSScrollView? {
             if let scroll = view as? NSScrollView { return scroll }
             return view.subviews.lazy.compactMap { findScroll($0) }.first
         }
+        let previewSettled = try await waitForNativeUI(preview) {
+            guard let scroll = findScroll(preview) else { return false }
+            return abs(scroll.magnification - 0.25) < 0.001
+        }
+        #expect(previewSettled)
         #expect(abs(try #require(findScroll(preview)).magnification - 0.25) < 0.001)
         #expect(model.document == original)
     }

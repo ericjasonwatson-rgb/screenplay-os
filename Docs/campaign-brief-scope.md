@@ -110,8 +110,13 @@ interval without driving the host's display cycle. The new test harness waits fo
 the actual hierarchy condition while servicing native layout/display and the run
 loop. Original assertions remain, with added first-responder/command isolation
 checks. Full-suite outcomes belong to the final PR head and CI logs; source changes
-alone are not proof these failures are resolved. An earlier fit-width failure was
-not reproduced in that complete head/control run and is not claimed fixed.
+alone are not proof these failures are resolved. A fit-width roundtrip timing
+failure later recurred in isolated Siri Debug: each sampled fit equation passed,
+but the two wide viewport geometries differed. That test now waits for consecutive
+stable geometry while servicing native commits, checks the viewport roundtrip, and
+retains its original zoom tolerances and document/selection assertions. This is a
+test-harness correction, not a production zoom change or a claim that all possible
+rendering flakes have been eliminated.
 
 A separate matrix composes the exact Campaign head with reviewed Siri PR3 in a new
 detached worktree and runs the complete regression suite. It preserves the Campaign
