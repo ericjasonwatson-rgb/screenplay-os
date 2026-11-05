@@ -113,8 +113,14 @@ struct ProductionImageResultPreparationTests {
                 currentShot: f.shot, currentBoard: f.board, approval: f.approval,
                 documentURL: f.documentURL, takeID: UUID(), now: Date())
         }
-        var wrong = f.succeeded
-        wrong.modelID = "different-model"
+        let wrong = GenerationJobRecord(
+            id: f.succeeded.id, projectID: f.succeeded.projectID,
+            capability: .image, providerID: f.succeeded.providerID,
+            modelID: "different-model", target: f.succeeded.target,
+            request: f.succeeded.request, requestSHA256: f.succeeded.requestSHA256,
+            status: .succeeded, createdAt: f.succeeded.createdAt,
+            updatedAt: f.succeeded.updatedAt, consentedAt: f.succeeded.consentedAt,
+            submittedAt: f.succeeded.submittedAt, completedAt: f.succeeded.completedAt)
         #expect(throws: ProductionImageResultPreparation.Failure.mismatchedJob) {
             try ProductionImageResultPreparation.prepare(
                 response: bytes, job: wrong, staged: f.staged,
