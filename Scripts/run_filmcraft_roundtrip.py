@@ -14,12 +14,14 @@ import sys
 import tempfile
 
 from compare_filmcraft_otio import snapshot, compare, identity_loss_report
+from filmcraft_manual_relink_candidates import manual_candidates
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--filmcraft-cli", type=Path, required=True)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--candidate-report", type=Path)
     args = parser.parse_args()
     executable = args.filmcraft_cli.resolve(strict=True)
     source = args.input.resolve(strict=True)
@@ -64,6 +66,16 @@ def main():
                 except (ValueError, KeyError, TypeError, RuntimeError) as diagnostic:
                     print(f"Provenance loss report unavailable: {type(diagnostic).__name__}",
                           file=sys.stderr)
+            if args.candidate_report:
+                try:
+                    hints = manual_candidates(source, export)
+                    args.candidate_report.write_text(
+                        json.dumps(hints, sort_keys=True, indent=2) + "\n",
+                        encoding="utf-8",
+                    )
+                except (ValueError, KeyError, TypeError, RuntimeError):
+                    # No sidecar hint at all when clip names are ambiguous.
+                    pass
             print(f"FilmCraft interoperability gate failed closed: {exc}", file=sys.stderr)
             return 1
         report = {
