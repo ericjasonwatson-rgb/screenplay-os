@@ -78,6 +78,20 @@ def main():
         assert all(len(item["lost_fields"]) == 8 for item in loss["returned_clip_diagnostics"])
         assert all(not item["has_screenplayos_namespace"]
                    for item in loss["returned_clip_diagnostics"])
+        assert all(item["returned_name_matches_any_original_occurrence"]
+                   for item in loss["returned_clip_diagnostics"])
+        assert all(not item["has_filmcraft_namespace"]
+                   for item in loss["returned_clip_diagnostics"])
+        # A FilmCraft export creates its own metadata while losing ours.
+        filmcraft_only = copy.deepcopy(metadata_stripped)
+        for returned_clip in filmcraft_only["tracks"]["children"][0]["children"]:
+            returned_clip["metadata"] = {"filmcraft": {"source_in_ticks": 0}}
+        path.write_text(json.dumps(filmcraft_only), encoding="utf-8")
+        filmcraft_loss = identity_loss_report(source, path)
+        assert all(item["has_filmcraft_namespace"]
+                   and not item["has_screenplayos_namespace"]
+                   for item in filmcraft_loss["returned_clip_diagnostics"])
+        assert filmcraft_loss["adopted"] is False
 
         changed = copy.deepcopy(original_json)
         changed["tracks"]["children"][0]["children"][0]["media_references"]["DEFAULT_MEDIA"]["target_url"] = "Board Images/alternate.mov"
