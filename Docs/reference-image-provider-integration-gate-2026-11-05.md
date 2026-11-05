@@ -132,3 +132,23 @@ implied by this documentation.
 request requires explicit connection/consent, model verification, suitable
 billing disclosure and an opt-in integration test. Responses are not assumed
 to be billable at a known fixed amount.
+
+## Boards UI: durable staging without send
+
+`ProductionImagePlanningSheet` now offers **Stage OpenAI request for review
+(no send)** after a revision-bound board approval and local brief have been
+prepared. The new `ProductionImageJobStagingSheet` reads the current
+approval sidecar, checks shot/board identity, restricts the media to the
+project's own Board Images folder, verifies the selected image bytes through
+`ApprovedProductionImageFlow`, and adds an awaiting-consent job to the
+existing `GenerationJobController` via
+`ProductionImageConsentCoordinator.stage`. The sheet displays the reference
+image, exact prompt, model, provider, unknown-cost disclosure and saved job ID.
+The user may cancel the staged job. Closing the sheet does not submit anything.
+
+This is **not** a Send action or a paid generation integration. It deliberately
+does not grant consent, advance the job to queued/running, or construct an
+authenticated transport instance. An explicit per-job consent screen and
+provider availability checks remain required before release. A job left
+awaiting consent is inert; a user should be able to find/cancel it from the
+generation activity interface before the live feature is launched.
