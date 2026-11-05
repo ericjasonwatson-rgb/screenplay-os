@@ -49,6 +49,11 @@ struct ProductionTakeEditorialBridgeTests {
         })
 
         let exported = try MediaTimelineOTIO.export(restored, projectName: "Offline Film")
+        // Opt-in CI artifact produced by the real ScreenplayOS exporter.
+        // Synthetic identifiers only; never a user's screenplay or media.
+        if let capture = ProcessInfo.processInfo.environment["SCREENPLAYOS_OTIO_CAPTURE_PATH"] {
+            try exported.write(to: URL(fileURLWithPath: capture), options: .atomic)
+        }
         let json = try #require(JSONSerialization.jsonObject(with: exported) as? [String: Any])
         let stack = try #require(json["tracks"] as? [String: Any])
         let tracks = try #require(stack["children"] as? [[String: Any]])
