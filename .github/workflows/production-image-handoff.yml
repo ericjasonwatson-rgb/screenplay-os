@@ -75,3 +75,13 @@ jobs:
           swift test --configuration debug --disable-sandbox --filter ProductionBoardApproval
           swift test --configuration debug --disable-sandbox --filter OpenAIReferenceImage
           swift test --configuration debug --disable-sandbox --filter OpenAIProductionImage
+
+  full-regression:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: swift --version
+      - name: Run full ScreenplayOS editor and domain regression suite
+        run: swift test --configuration debug --disable-sandbox
