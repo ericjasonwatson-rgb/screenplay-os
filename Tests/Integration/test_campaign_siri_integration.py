@@ -112,15 +112,24 @@ class CampaignSiriCompositionTests(unittest.TestCase):
     def test_prepare_only_hygiene_failure_returns_failure_and_removes_worktree(self):
         refs = integration.git(ROOT, "show-ref").stdout
         with tempfile.TemporaryDirectory(prefix="campaign-hygiene-gate-") as folder:
-            destination = Path(folder) / "combined"
+            root = Path(folder)
+            canonical_parent = root / "canonical"
+            canonical_parent.mkdir()
+            alias = root / "alias"
+            alias.symlink_to(canonical_parent, target_is_directory=True)
+            destination = alias / "combined"
+            # The CLI resolves symlinks, including macOS /var -> /private/var.
+            # Exercise that path on Linux too rather than comparing spellings.
+            canonical_destination = destination.resolve()
             with mock.patch.object(integration, "check_fixture_hygiene",
                                    side_effect=integration.IntegrationError("Synthetic hygiene rejection")) as hygiene:
                 with contextlib.redirect_stderr(io.StringIO()) as output:
                     result = integration.main(["--prepare-only", "--worktree", str(destination)])
             self.assertEqual(result, 1)
             self.assertIn("Synthetic hygiene rejection", output.getvalue())
-            hygiene.assert_called_once_with(destination)
+            hygiene.assert_called_once_with(canonical_destination)
             self.assertFalse(destination.exists())
+            self.assertFalse(canonical_destination.exists())
             self.assertEqual(integration.git(ROOT, "show-ref").stdout, refs)
 
     def test_patch_clears_a_request_before_applying_the_modal_guard(self):
