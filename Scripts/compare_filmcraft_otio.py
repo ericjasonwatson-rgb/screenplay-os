@@ -102,6 +102,15 @@ def identity_loss_report(original_path, returned_path):
     if not isinstance(returned, otio.schema.Timeline):
         raise ValueError("External output is not an OTIO Timeline")
     clips = list(returned.find_clips())
+    # Clip names may or may not survive the external editor. Measure only
+    # whether original UUID names survive uniquely; do not trust or adopt
+    # positional matches when provenance metadata is missing.
+    baseline_names = {entry["ids"]["occurrence_id"] for entry in baseline}
+    returned_names = [str(clip.name or "") for clip in clips]
+    uniquely_preserved_names = (
+        len(returned_names) == len(set(returned_names)) and
+        set(returned_names) == baseline_names
+    )
     losses = []
     for index, clip in enumerate(clips):
         namespace = clip.metadata.get("screenplayos")
@@ -122,6 +131,7 @@ def identity_loss_report(original_path, returned_path):
         "status": "blocked_identity_loss",
         "adopted": False,
         "matching_performed": False,
+        "unique_occurrence_names_preserved": uniquely_preserved_names,
         "baseline_occurrences": len(baseline),
         "returned_clips": len(clips),
         "baseline_sha256": hashlib.sha256(original_path.read_bytes()).hexdigest(),
