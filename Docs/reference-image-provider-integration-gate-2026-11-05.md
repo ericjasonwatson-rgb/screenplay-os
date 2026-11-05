@@ -108,3 +108,27 @@ recovered jobs carefully, then append the result through the existing undoable
 model command. A succeeded provider job whose local candidate storage fails
 needs a recoverable result-asset handoff rather than an automatic retry that
 might create additional charges.
+
+## Isolated opt-in OpenAI HTTPS transport
+
+`OpenAIProductionImageTransport` implements the injected transport interface
+but is **not instantiated by the app's Boards UI or any background agent**.
+Its request builder pins `https://api.openai.com/v1/images/edits`, checks
+the exact serialized payload SHA-256, refuses unknown endpoints, and appends
+the bearer token only to an ephemeral outgoing HTTP request. The transport
+uses an ephemeral URLSession with the existing redirect-rejection delegate,
+disables cookies/cache, caps response bytes before buffering, checks task
+cancellation, refuses non-200 responses and never persists raw provider
+errors. Offline tests verify the origin, request body, absence of API tokens
+from the body, tamper rejection and invalid destination rejection.
+
+API contract checked against:
+https://developers.openai.com/api/reference/resources/images/methods/edit
+The documented JSON request accepts `images: [{ "image_url": "data:image/png;base64,..." }]`
+plus `model` and `prompt`. Account access and model availability are not
+implied by this documentation.
+
+**Still disabled:** No user-facing Send button calls this adapter. A live
+request requires explicit connection/consent, model verification, suitable
+billing disclosure and an opt-in integration test. Responses are not assumed
+to be billable at a known fixed amount.
