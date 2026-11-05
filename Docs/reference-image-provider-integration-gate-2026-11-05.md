@@ -152,3 +152,26 @@ authenticated transport instance. An explicit per-job consent screen and
 provider availability checks remain required before release. A job left
 awaiting consent is inert; a user should be able to find/cancel it from the
 generation activity interface before the live feature is launched.
+
+## Separate consent review in Boards (2026-11-05)
+
+The staged request now opens `ProductionImageConsentDecisionSheet`, which
+displays the frozen approved image, exact text, provider/model, fingerprints,
+and unknown-or-estimated cost. It requires an explicit acknowledgement of
+future external transfer and potential charges. A user-initiated click on
+**Authorize locally — queue only, no send** invokes the same
+`ProductionImageConsentCoordinator.authorize` and durable
+`GenerationJobController.grantConsent` as the offline regression tests.
+The caller reloads the saved approval record and checks that it has not
+changed before proceeding. No Send button or paid provider call is attached.
+
+This local queue is deliberately inert. Leaving or reopening the screen
+does not dispatch it. A production Send button will require a new,
+single-action check of the job's queued state, selected reference, exact
+payload and user intent before invoking `OpenAIProductionImageTransport`.
+Queued jobs restored after relaunch also require explicit recovery review.
+
+Outstanding UX: allow locating and cancelling saved awaiting-consent or
+queued jobs after the review window is closed. Existing activity history
+does not necessarily include unsent jobs; don't imply those are discoverable
+there until a dedicated pending-job view is provided.
