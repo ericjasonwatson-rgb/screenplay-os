@@ -15,6 +15,7 @@ on:
       - 'Tests/ScreenplayEditorTests/MediaTimelineOTIOTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionTakeEditorialBridgeTests.swift'
       - '.github/workflows/editorial-siri-image-integration.yml'
+      - 'Scripts/validate_otio_export.py'
   workflow_dispatch:
 
 permissions:
@@ -28,11 +29,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Swift toolchain
         run: swift --version
+      - name: Install official OpenTimelineIO parser
+        run: python3 -m pip install --user --break-system-packages 'opentimelineio==0.18.1'
       - name: Validate editorial interchange and generated Take provenance
+        env:
+          SCREENPLAYOS_OTIO_CAPTURE_PATH: ${{ runner.temp }}/screenplayos-synthetic-take.otio
         run: |
           swift test --configuration debug --disable-sandbox --no-parallel --filter MediaInterchangeManifest
           swift test --configuration debug --disable-sandbox --no-parallel --filter MediaEditReview
           swift test --configuration debug --disable-sandbox --no-parallel --filter MediaTimelineOTIO
           swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionTakeEditorialBridge
+          python3 Scripts/validate_otio_export.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
           swift test --configuration debug --disable-sandbox --no-parallel --filter SiriWorkspace
           swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionImage
