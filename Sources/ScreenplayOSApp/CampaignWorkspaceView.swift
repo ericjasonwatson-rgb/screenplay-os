@@ -3,6 +3,7 @@ import ScreenplayDomain
 
 /// A contextual production panel, not a sixth creative workspace. The screenplay,
 /// shots and boards remain the only editable source objects.
+@MainActor
 struct CampaignWorkspaceView: View {
     @ObservedObject var model: ScreenplayViewModel
     @StateObject private var session: CampaignWorkspaceSession

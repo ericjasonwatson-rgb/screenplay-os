@@ -28,7 +28,7 @@ struct CampaignDomainTests {
         let changes = try ledger.compare(baselineID: baseline.id, document: document)
         #expect(changes.contains { $0.sourceKind == .brief })
         #expect(changes.contains { $0.sourceKind == .script })
-        #expect(changes.allSatisfy(\.requiresHumanReview))
+        #expect(changes.allSatisfy { $0.requiresHumanReview })
         #expect(changes.allSatisfy { $0.affectedDeliverableIDs == ledger.draft.deliverables.map(\.id) })
     }
 

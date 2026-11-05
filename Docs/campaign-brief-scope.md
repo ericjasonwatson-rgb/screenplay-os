@@ -68,6 +68,8 @@ selected image identity/hash metadata. Local media paths and generation costs ar
 excluded. Actual image bytes are **not rehashed**, and unselected image versions,
 edit occurrences/audio, external agency decks and bid documents are not compared.
 Missing selected images/shot/script links are warnings that block new approval.
+Legacy ranged source references also require review and block new approval because
+their offset unit is not established; existing whole-element links are supported.
 A referenced media file changing behind unchanged metadata is outside this slice.
 
 Impact uses the union of baseline/current shot relationships. A shared shot change
@@ -99,7 +101,8 @@ JSON preservation, wrong-project isolation, atomic replacement, leases, symlinks
 permissions, size limits and command persistence/undo/failures.
 
 Local Linux checks: Python LegacyInspector 42 tests, 31 passed / 11 skipped;
-Node LicenseWorker 6 passed; git diff --check passed. Swift is unavailable locally.
+Node LicenseWorker 6 passed; git diff --check passed. Swift is unavailable locally. Scripts/test.sh was attempted and stopped at the
+missing xcode-select command after those Python and Node checks passed.
 Record final CI results in the PR; do not treat these local checks as native proof.
 
 Before release, verify the native panel at laptop size, keyboard/text editing,
