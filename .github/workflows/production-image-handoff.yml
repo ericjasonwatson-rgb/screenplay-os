@@ -84,4 +84,4 @@ jobs:
       - name: Show toolchain
         run: swift --version
       - name: Run full ScreenplayOS editor and domain regression suite
-        run: swift test --configuration debug --disable-sandbox
+        run: swift test --configuration debug --disable-sandbox --no-parallel
