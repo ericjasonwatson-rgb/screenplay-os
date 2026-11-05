@@ -1,5 +1,6 @@
 #if os(macOS)
 import Foundation
+import Security
 import ShieldNativeContract
 import ShieldMacXPCInterfaces
 
@@ -82,6 +83,19 @@ do {
         agentMachService: requireSignedBundleValue("CIPSAgentMachService"),
         reviewerMachService: requireSignedBundleValue("CIPSReviewerMachService")
     )
+    let requirements = [
+        config.requirement(for: .agent),
+        config.requirement(for: .reviewer),
+        config.helperRequirement()
+    ]
+    for requirement in requirements {
+        var parsed: SecRequirement?
+        guard SecRequirementCreateWithString(requirement as CFString, kSecCSDefaultFlags, &parsed) == errSecSuccess,
+              parsed != nil else {
+            fputs("code-signing requirement failed OS parsing; service disabled\n", stderr)
+            exit(78)
+        }
+    }
     SignedListenerDelegate(config).serve()
 } catch {
     fputs("invalid signed helper configuration\n", stderr)
