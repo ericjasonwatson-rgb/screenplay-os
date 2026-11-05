@@ -54,6 +54,10 @@ def main():
         unsafe["tracks"]["children"][0]["children"][0]["media_references"]["DEFAULT_MEDIA"]["target_url"] = "../private/generated.png"
         check_fail(baseline, unsafe, path, "unsafe/absolute media path")
 
+        windows = copy.deepcopy(original_json)
+        windows["tracks"]["children"][0]["children"][0]["media_references"]["DEFAULT_MEDIA"]["target_url"] = chr(92) + "private" + chr(92) + "generated.png"
+        check_fail(baseline, windows, path, "unsafe/absolute media path")
+
         changed_note = copy.deepcopy(original_json)
         changed_note["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"]["note"] = "Outside editor note"
         path.write_text(json.dumps(changed_note), encoding="utf-8")
