@@ -1,0 +1,32 @@
+name: ScreenplayOS macOS regression tests
+
+on:
+  pull_request:
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Scripts/**'
+      - 'Package.swift'
+      - '.github/workflows/screenplayos-macos-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  swift-regressions:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain and environment
+        run: |
+          swift --version
+          xcodebuild -version
+          python3 --version
+      - name: Run project regression suite
+        run: ./Scripts/test.sh
+      - name: Run optimized regression suite
+        env:
+          SCREENPLAYOS_BUILD_CONFIGURATION: release
+        run: ./Scripts/test.sh
