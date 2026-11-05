@@ -16,6 +16,9 @@ on:
       - 'Tests/ScreenplayEditorTests/ProductionTakeEditorialBridgeTests.swift'
       - '.github/workflows/editorial-siri-image-integration.yml'
       - 'Scripts/validate_otio_export.py'
+      - 'Scripts/compare_filmcraft_otio.py'
+      - 'Scripts/run_filmcraft_roundtrip.py'
+      - 'Scripts/test_filmcraft_roundtrip_review.py'
   workflow_dispatch:
 
 permissions:
@@ -40,5 +43,7 @@ jobs:
           swift test --configuration debug --disable-sandbox --no-parallel --filter MediaTimelineOTIO
           swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionTakeEditorialBridge
           python3 Scripts/validate_otio_export.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
+          python3 Scripts/compare_filmcraft_otio.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH" "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
+          python3 Scripts/test_filmcraft_roundtrip_review.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
           swift test --configuration debug --disable-sandbox --no-parallel --filter SiriWorkspace
           swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionImage
