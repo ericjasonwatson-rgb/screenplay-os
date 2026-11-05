@@ -8,11 +8,14 @@ on:
       - 'Sources/ScreenplayDomain/ProductionImageJobPlanning.swift'
       - 'Sources/ScreenplayDomain/ProductionImageReferencePreview.swift'
       - 'Sources/ScreenplayOSApp/ProductionImageReviewSheet.swift'
+      - 'Sources/ScreenplayOSApp/ProductionImagePlanningSheet.swift'
+      - 'Sources/ScreenplayOSApp/ContentView.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImagePlanningTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageTakeHandoffTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageJobPlanningTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageReferencePreviewTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageReviewSheetTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImagePlanningSheetTests.swift'
       - '.github/workflows/production-image-handoff.yml'
   workflow_dispatch:
 
