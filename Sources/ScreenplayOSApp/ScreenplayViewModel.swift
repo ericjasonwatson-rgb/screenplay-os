@@ -7242,6 +7242,7 @@ extension ScreenplayViewModel {
             throw ProductionImageCandidateAdoption.Failure.boardNotFound
         }
         let expectedDirectory = documentURL.deletingLastPathComponent()
+            .resolvingSymlinksInPath()
             .appendingPathComponent(BoardImageStorage.folder).standardizedFileURL
         guard take.mediaURL.isFileURL,
               take.mediaURL.standardizedFileURL.deletingLastPathComponent() == expectedDirectory,
