@@ -15,6 +15,12 @@ struct ProductionImagePlanningSheet: View {
     @State private var style = ""
     @State private var brief: ProductionImageBrief?
     @State private var problem: String?
+    @State private var referencePreview: LocalReferencePreview?
+
+    private struct LocalReferencePreview: Identifiable {
+        let id = UUID()
+        let review: ProductionImageReferenceReview
+    }
 
     private var board: BoardFrame? { model.boardFrames.first(where: { $0.id == boardID }) }
     private var shot: Shot? { board.flatMap { b in model.shots.first(where: { $0.id == b.shotID }) } }
@@ -74,6 +80,8 @@ struct ProductionImagePlanningSheet: View {
                         .onChange(of: style) { _ in brief = nil }
                     Button("Prepare production-image brief") { prepare() }
                         .disabled(!approvalIsCurrent)
+                    Button("Inspect exact storyboard image and request…") { prepareLocalPreview() }
+                        .disabled(!approvalIsCurrent || brief == nil)
                 } else {
                     Text("The storyboard or shot is no longer available.")
                         .foregroundStyle(.orange)
@@ -95,6 +103,11 @@ struct ProductionImagePlanningSheet: View {
         }
         .frame(minWidth: 620, idealWidth: 740, minHeight: 540)
         .onAppear(perform: restoreApproval)
+        .sheet(item: $referencePreview) { preview in
+            ProductionImageReviewSheet(review: preview.review) {
+                referencePreview = nil
+            }
+        }
     }
 
     private func restoreApproval() {
@@ -118,6 +131,45 @@ struct ProductionImagePlanningSheet: View {
             approval = nil
             brief = nil
             problem = "The approval could not be stored locally. No approval was recorded."
+        }
+    }
+
+    private func prepareLocalPreview() {
+        guard let projectID, let shot, let board, let approval,
+              let brief, let documentURL = model.saveURL,
+              let selected = board.selectedImage else {
+            problem = "Prepare and approve the current storyboard first."
+            return
+        }
+        do {
+            try ProductionBoardApprovals.validate(
+                approval, projectID: projectID, shot: shot, board: board)
+            try ProductionImagePlanning.validateCurrent(
+                brief, shot: shot, board: board, approvedBoardIDs: [board.id])
+            let projectRoot = documentURL.deletingLastPathComponent().standardizedFileURL
+            let imageFolder = projectRoot.appendingPathComponent(BoardImageStorage.folder)
+            guard selected.fileURL.isFileURL,
+                  selected.fileURL.deletingLastPathComponent().standardizedFileURL == imageFolder,
+                  selected.fileURL.pathExtension.lowercased() == "png" else {
+                problem = "The selected image must be stored in this project's Board Images folder."
+                return
+            }
+            let relativePath = BoardImageStorage.folder + "/" + selected.fileURL.lastPathComponent
+            // Local-only rendering supports a PNG reference; the fake provider
+            // metadata is never considered an external provider capability.
+            // Sending remains unavailable until a real adapter is verified.
+            let staged = try ApprovedProductionImageFlow.prepare(
+                approval: approval, projectID: projectID, shot: shot, board: board,
+                instruction: brief.directingInstruction, style: brief.styleInstruction,
+                boardRelativePath: relativePath, projectRoot: projectRoot,
+                providerID: "local-preview-only", modelID: "not-selected",
+                providerAcceptsReferenceImages: true,
+                jobID: UUID(), at: Date())
+            referencePreview = LocalReferencePreview(review: staged.reference)
+            problem = nil
+        } catch {
+            referencePreview = nil
+            problem = "Cannot verify the approved reference. Recheck the current board and locally stored PNG."
         }
     }
 
