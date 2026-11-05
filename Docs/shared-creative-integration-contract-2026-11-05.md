@@ -116,3 +116,19 @@ To separate genuine product failures from shared-main-actor overload,
 the next full regression is configured with SwiftPM's no-parallel
 execution mode. No assertions were deleted or weakened. The
 fit-width and title-page tests remain required release gates.
+
+## Preliminary Siri/Boards compatibility gate
+
+The canonical candidate-adoption regression now changes the same
+ScreenplayViewModel through the five workspace modes exposed by draft
+Siri PR #3 (Outline, Script, Shot, Boards and Edit), without routing any
+creative text or images through Siri. It checks that mode changes leave
+the screenplay document, selected board image, Take version count and
+duration unchanged. This is a shared-model acceptance check, not a
+claim that the two PRs have merged or that Siri can generate imagery.
+
+Siri PR #3 remains a distinct draft; it exposes only a mode request and
+never invokes image generation. Before merging, run its App Intents
+tests against the integrated target, ensure one-time intent consumption,
+and prohibit shortcut payloads containing project content, credentials,
+image bytes or unsanctioned generation commands.
