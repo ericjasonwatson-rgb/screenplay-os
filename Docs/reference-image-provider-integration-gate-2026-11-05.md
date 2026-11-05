@@ -85,3 +85,26 @@ Current release restriction: no live provider response handler invokes this
 command. A future result handler must retrieve the succeeded job from the
 persisted controller and use `prepareFromPersistedJob` before asking the
 model to append the candidate.
+
+## Injected transport lifecycle (offline; no live adapter)
+
+`ProductionImageResponseExecution.execute` now accepts an injected
+`ProductionImageResponseTransport`, performs the durable queued-job preflight,
+marks the job submitted immediately before the single transport call, validates
+the returned PNG before marking the job succeeded, then retrieves the persisted
+success record to construct an unselected candidate Take. A rejected response
+or provider error records a generic sanitized failure without exposing prompt,
+media or API credentials. No retry is performed; attempts to reuse a completed
+job fail through preflight. Tests exercise success, invalid response, transport
+failure, and rejection of a second dispatch.
+
+**Release blockers:** No live transport is registered in the app and this
+executor is not attached to a Send button. A production transport must use
+ephemeral URLSession, prohibit non-HTTPS redirects, cap response bytes before
+allocation, add credentials only after explicit user action, and propagate
+provider errors without leaking input. The UI must bind its Send button to the
+same frozen review and durable consent record, handle cancellations and
+recovered jobs carefully, then append the result through the existing undoable
+model command. A succeeded provider job whose local candidate storage fails
+needs a recoverable result-asset handoff rather than an automatic retry that
+might create additional charges.
