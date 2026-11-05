@@ -11,6 +11,30 @@ enum MediaInterchangeManifest {
         let startFrame: Int
         let durationFrames: Int
         let note: String
+        /// Optional, immutable Take provenance for new export manifests.
+        /// Older manifest files omit these fields and continue to decode.
+        let takeID: UUID?
+        let generationJobID: UUID?
+        let mediaSHA256: String?
+        let promptSHA256: String?
+
+        init(occurrenceID: UUID, sceneID: UUID, shotID: UUID, boardID: UUID?,
+             mediaPath: String?, startFrame: Int, durationFrames: Int, note: String,
+             takeID: UUID? = nil, generationJobID: UUID? = nil,
+             mediaSHA256: String? = nil, promptSHA256: String? = nil) {
+            self.occurrenceID = occurrenceID
+            self.sceneID = sceneID
+            self.shotID = shotID
+            self.boardID = boardID
+            self.mediaPath = mediaPath
+            self.startFrame = startFrame
+            self.durationFrames = durationFrames
+            self.note = note
+            self.takeID = takeID
+            self.generationJobID = generationJobID
+            self.mediaSHA256 = mediaSHA256
+            self.promptSHA256 = promptSHA256
+        }
     }
 
     struct MissingMedia: Codable, Equatable {
@@ -48,6 +72,16 @@ enum MediaInterchangeManifest {
             guard ids.insert(item.occurrenceID).inserted else { throw ValidationError.duplicateOccurrence }
             guard item.startFrame >= 0, item.durationFrames > 0,
                   item.startFrame <= Int.max - item.durationFrames else { throw ValidationError.invalidTiming }
+            for digest in [item.mediaSHA256, item.promptSHA256] {
+                if let digest {
+                    guard digest.count == 64,
+                          digest.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) })
+                    else { throw ValidationError.unsafePath }
+                }
+            }
+            if item.generationJobID != nil && item.takeID == nil {
+                throw ValidationError.unsafePath
+            }
             if let path = item.mediaPath {
                 guard safeRelativePath(path) else { throw ValidationError.unsafePath }
                 if !mediaExists(path) { missing.append(MissingMedia(occurrenceID: item.occurrenceID, path: path)) }
