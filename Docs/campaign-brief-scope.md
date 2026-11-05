@@ -1,6 +1,6 @@
 # Campaign brief, bid basis and change review
 
-Status: initial native macOS implementation, draft pending native CI and manual acceptance.
+Status: native macOS draft implementation with local agency-text evidence. Manual UI acceptance remains required; exact CI evidence belongs to the PR head.
 This is a bounded extension to the existing filmmaking document, not a new primary
 workspace, client portal, accounting system, or AI document-reconciliation service.
 
@@ -12,8 +12,9 @@ The experimental writing-only package editor is not supported.
 1. Enter the brand, objective, audience, key message and mandatory requirements.
 2. Add deliverables with duration, aspect ratio, market and language. Expand Shot
    coverage to link the existing canonical shot IDs used by each version.
-3. Record bid assumptions and manual document/version/page references. These are
-   references for a producer to verify, not ingested or authenticated documents.
+3. Record bid assumptions and manual document/version/page references. Optionally
+   import agency UTF-8 text through Agency Sources, review it, then cite inclusive
+   line ranges against a deliverable or assumption. See the workflow below.
 4. Freeze a named baseline. Brand, objective and at least one named deliverable
    with an aspect ratio are required. A baseline is a snapshot, **not approval**.
 5. Close the panel, revise the actual script, shots or boards, then reopen it.
@@ -62,11 +63,12 @@ proof. Readback/fault-injection and real disk-full testing remain release gates.
 
 ## Source and approval boundaries
 
-Domain commands are Foundation-only. Captured sources cover exact screenplay
+Domain commands use Foundation and CryptoKit, with no platform UI or network dependency. Captured sources cover exact screenplay
 text/style/order, shot intent/source references, board intent/order/timing and
 selected image identity/hash metadata. Local media paths and generation costs are
 excluded. Actual image bytes are **not rehashed**, and unselected image versions,
-edit occurrences/audio, external agency decks and bid documents are not compared.
+edit occurrences/audio, original agency PDFs/decks/Word files and their formatting
+are not compared. Imported UTF-8 text is tracked separately as exact evidence.
 Missing selected images/shot/script links are warnings that block new approval.
 Legacy ranged source references also require review and block new approval because
 their offset unit is not established; existing whole-element links are supported.
@@ -94,7 +96,10 @@ existing Mac app. It carries exactly the existing chrome compiler-expression fix
 from 642f44e (also in PRs #3/#4) rather than changing other workstreams. It does not
 stack on, modify or merge the image-generation branches.
 
-Focused CI runs Campaign tests in Debug and Release on macOS 15. Tests cover
+CI runs full Debug and Release `Scripts/test.sh` on macOS 15, including Python
+LegacyInspector, Node LicenseWorker, all Swift tests, the domain self-test and
+two inspector fixtures. The first aggregate run exposed the existing macOS Bash
+3.2 empty-array expansion failure; the runner now guards the optional flags. Tests cover
 immutable snapshots, Codable roundtrip, exact Unicode, source changes, impact
 union, dangling references, scope separation/stale approvals, validation, unknown
 JSON preservation, wrong-project isolation, atomic replacement, leases, symlinks,
@@ -108,4 +113,68 @@ Record final CI results in the PR; do not treat these local checks as native pro
 Before release, verify the native panel at laptop size, keyboard/text editing,
 repeated add/remove, Undo after removal, Close/Escape/reopen, Go to Source,
 missing sources, failed write, stale writer, backup/restore and cancellation,
-then run full Debug/Release Scripts/test.sh. No live provider calls are needed.
+and the agency import/review flows below. No live provider calls are needed.
+
+
+## Agency text import and reconciliation
+
+This slice imports **local UTF-8 `.txt`, `.md` and `.fountain` files only**. It does
+not extract PDF or Office documents, render decks, OCR images, contact an agency,
+fetch URLs, infer deliverables, rewrite scripts or calculate change-order prices.
+Export the relevant text from an agency document first and verify that text against
+the original. An exported `.txt` file's provenance is its imported filename and
+bytes, not proof of the original document's author, authenticity, pages or layout.
+No user agency documents or private project content are in automated fixtures.
+
+1. In Agency Sources, choose a new source. A bounded native file reader accepts a
+   regular local file, rejects a symlink/FIFO/directory/unsupported extension, and
+   previews exact UTF-8 text before anything is saved. Cancel Import or Close leaves
+   the campaign unchanged. Source files are never modified.
+2. Import Exact Text Locally saves original bytes, decoded exact text, SHA-256,
+   import time, a filename without its directory path, stable document identity
+   and an immutable revision identity. SHA-256 identifies bytes, not a sender.
+3. Read numbered text and record a reviewer name plus a specific review note.
+   Review is local evidence, **not creative approval or spending authorization**.
+4. Link a reviewed inclusive source-line range to an existing deliverable or bid
+   assumption, with a reconciliation note. The citation pins both source revision
+   and the target's exact authored state. No target is silently rewritten.
+5. Choose Revised Text for an existing document to append its next revision.
+   The prior version stays available for comparison. Review does not carry forward.
+   Superseded citations, changed targets and removed targets remain visible and
+   block approval, even after freezing another baseline. Explicitly remove and
+   recreate those citations after reconciling current source and scope.
+6. Freeze a new baseline only when the reviewed scope is appropriate. Historical
+   baselines retain the exact imported evidence and decisions they were frozen with.
+   Undo Draft Change can restore the prior working draft, including source/citation
+   state, without deleting baseline history. The undo history itself is session-local.
+
+Line coordinates are 1-based LF/CRLF text lines, not PDF pages, screenplay element
+ranges, Unicode offsets or semantic paragraphs. Terminal newline adds an empty
+final line. BOM, combining sequences, CRLF and original bytes are retained. Source
+hashes and stored text are revalidated on load. No Markdown/HTML is interpreted,
+remote resource loaded, or embedded link followed by the source viewer.
+
+Limits are 256 KiB per source revision, 1 MiB of total retained source bytes,
+32 revisions and 256 reviews/citations each per working draft. Baselines duplicate
+pinned evidence, so the existing 16 MiB ledger cap can be reached earlier with many
+snapshots. Failed writes/limits leave saved state untouched; this is a bounded
+prototype, not a large production document archive. Main-thread persistence and
+revalidation latency require native performance acceptance before release.
+
+The optional `agency` field is omitted for untouched old v1 campaigns, preserving
+old draft, baseline and decision JSON. New builds read old campaign-v1 ledgers
+without rewriting their shape. Older builds reject the new field rather than
+silently discard imported evidence. This is not a screenplay-format migration.
+The local campaign backup includes full source text and historical revisions.
+Reports may contain source excerpts/full text. There are no dedicated private
+working-budget/margin fields, but user-imported text can contain confidential bid
+or budget information: inspect every backup/report before any later sharing.
+No source-import operation grants sharing, AI egress or spend authority.
+
+Additional manual gates: cancel the picker and preview; reselect a source; switch
+tabs and close with a pending preview; reopen persisted sources; review a revision;
+try invalid line ranges; cite then edit/remove its target; import a revision and
+reconcile old citations; Undo; navigate source warnings; compare before/after;
+read long multiline/Unicode text at laptop size using keyboard and screen reader;
+verify backup/restore retains exact source history. These flows are not claimed
+as interactively verified by CI unit tests.

@@ -27,16 +27,52 @@ final class CampaignWorkspaceSession: ObservableObject {
     }
 
     func updateDraft(_ edit: (inout CampaignDraft) -> Void) {
-        var next = ledger
-        edit(&next.draft)
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        guard (try? encoder.encode(next.draft)) != (try? encoder.encode(ledger.draft)) else { return }
-        let previous = ledger.draft
-        if commit(next) {
+        _ = mutateDraft(edit)
+    }
+
+    @discardableResult
+    private func mutateDraft(_ edit: (inout CampaignDraft) throws -> Void) -> Bool {
+        do {
+            var next = ledger
+            try edit(&next.draft)
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+            guard try encoder.encode(next.draft) != encoder.encode(ledger.draft) else { return true }
+            let previous = ledger.draft
+            guard commit(next) else { return false }
             history.append(previous)
             if history.count > 50 { history.removeFirst() }
             canUndoDraft = true
+            return true
+        } catch { problem = error.localizedDescription; return false }
+    }
+
+    @discardableResult
+    func importAgencyText(_ preview: CampaignAgencyImport.Preview, revisingDocumentID: UUID?) -> Bool {
+        mutateDraft { draft in
+            guard Data(preview.text.utf8) == preview.bytes else {
+                throw CampaignError.invalid("Import preview no longer matches the selected bytes. Choose the source again.")
+            }
+            _ = try draft.importAgencyText(data: preview.bytes, filename: preview.filename,
+                                          revisingDocumentID: revisingDocumentID)
         }
+    }
+
+    @discardableResult
+    func reviewAgencyRevision(_ id: UUID, reviewer: String, note: String) -> Bool {
+        mutateDraft { draft in _ = try draft.reviewAgencyRevision(revisionID: id, reviewer: reviewer, note: note) }
+    }
+
+    @discardableResult
+    func citeAgencyRevision(_ id: UUID, firstLine: Int, lastLine: Int,
+                            targetKind: CampaignAgencyTargetKind, targetID: UUID, note: String) -> Bool {
+        mutateDraft { draft in
+            _ = try draft.citeAgencyRevision(revisionID: id, firstLine: firstLine, lastLine: lastLine,
+                                            targetKind: targetKind, targetID: targetID, note: note)
+        }
+    }
+
+    func removeAgencyCitation(_ id: UUID) {
+        _ = mutateDraft { draft in try draft.removeAgencyCitation(id: id) }
     }
 
     func undoDraft() {
@@ -121,7 +157,7 @@ final class CampaignWorkspaceSession: ObservableObject {
             var lines = ["CAMPAIGN CHANGE REVIEW", "Project: \(document.project.metadata.title)",
                          "Baseline: \(baseline.name) [\(baseline.id)]", "Frozen: \(baseline.createdAt.formatted())",
                          "Human review required. This is not a quote, approval, or authorization to spend.",
-                         "Scope: campaign brief, deliverables, assumptions, script, shots, board timing and selected image metadata. Media bytes and external documents were not inspected.", ""]
+                         "Scope: campaign brief, deliverables, assumptions, script, shots, board timing and selected image metadata. Imported UTF-8 agency text is tracked exactly, with manual review and line citations. PDF, Word, images, media bytes and the external originals were not inspected.", ""]
             if changes.isEmpty { lines.append("No tracked changes or unresolved source links detected.") }
             for change in changes {
                 lines += [change.title, "Source: \(change.sourceKind.rawValue) \(change.sourceID)",

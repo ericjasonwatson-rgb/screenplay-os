@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CampaignSourceKind: String, Codable, CaseIterable { case brief, deliverable, assumption, script, shot, board }
+public enum CampaignSourceKind: String, Codable, CaseIterable { case brief, deliverable, assumption, script, shot, board, agencyDocument, agencyCitation }
 
 /// Narrow local snapshot. No media URL, prompt-provider payload, or estimated/actual generation cost is captured.
 public struct CampaignSourceSnapshot: Codable, Equatable, Identifiable {
@@ -126,6 +126,7 @@ public struct CampaignSourceSnapshot: Codable, Equatable, Identifiable {
                 "Order": String(index + 1), "Assumption": item.text, "Source label": item.sourceLabel, "Source reference": item.sourceReference
             ], linkedShotIDs: [], linkedElementIDs: []))
         }
+        rows += try agency(draft)
         return rows
     }
 }
@@ -148,12 +149,17 @@ public struct CampaignChange: Codable, Equatable, Identifiable {
         let newMap = Dictionary(uniqueKeysWithValues: new.map { ($0.id, $0) })
         let deliverables = baseline.draft.deliverables + draft.deliverables
         func affected(_ snapshots: [CampaignSourceSnapshot]) -> [UUID] {
-            if snapshots.contains(where: { $0.sourceKind == .brief || $0.sourceKind == .assumption }) {
+            if snapshots.contains(where: {
+                $0.sourceKind == .brief || $0.sourceKind == .assumption || $0.sourceKind == .agencyDocument ||
+                ($0.sourceKind == .agencyCitation && $0.fields["Target kind"] == CampaignAgencyTargetKind.assumption.rawValue)
+            }) {
                 return Array(Set(deliverables.map(\.id))).sorted(by: uuidOrder)
             }
             let shotIDs = Set(snapshots.flatMap(\.linkedShotIDs))
-            let directIDs = Set(snapshots.filter { $0.sourceKind == .deliverable }.map(\.sourceID))
-            return Array(Set(deliverables.filter { directIDs.contains($0.id) || !shotIDs.isDisjoint(with: $0.linkedShotIDs) }.map(\.id))).sorted(by: uuidOrder)
+            let citedIDs = snapshots.filter { $0.sourceKind == .agencyCitation && $0.fields["Target kind"] == CampaignAgencyTargetKind.deliverable.rawValue }
+                .compactMap { $0.fields["Target ID"].flatMap(UUID.init(uuidString:)) }
+            let directIDs = Set(snapshots.filter { $0.sourceKind == .deliverable }.map(\.sourceID) + citedIDs)
+            return Array(directIDs.union(deliverables.filter { !shotIDs.isDisjoint(with: $0.linkedShotIDs) }.map(\.id))).sorted(by: uuidOrder)
         }
         var changes: [Self] = []
         for key in Set(oldMap.keys).union(newMap.keys).sorted() {
@@ -179,6 +185,13 @@ public struct CampaignChange: Codable, Equatable, Identifiable {
             changes.append(Self(id: source.id + ":unresolved", sourceKind: source.sourceKind, sourceID: source.sourceID,
                 title: "Unresolved source links", before: oldMap[source.id]?.summary ?? "Not present", after: missing.sorted().joined(separator: "\n"),
                 affectedDeliverableIDs: affected([oldMap[source.id], source].compactMap { $0 }), unresolved: true))
+        }
+        for warning in draft.agency?.warnings(draft: draft) ?? [] {
+            let sourceKey = warning.sourceKind.rawValue + ":" + warning.sourceID.uuidString
+            let related = [oldMap[sourceKey], newMap[sourceKey]].compactMap { $0 }
+            changes.append(Self(id: warning.id, sourceKind: warning.sourceKind, sourceID: warning.sourceID,
+                title: "Unresolved agency evidence", before: oldMap[sourceKey]?.summary ?? "Not present", after: warning.message,
+                affectedDeliverableIDs: Array(Set(warning.affectedDeliverableIDs + affected(related))).sorted(by: uuidOrder), unresolved: true))
         }
         return changes.sorted { $0.id < $1.id }
     }

@@ -45,10 +45,12 @@ public struct CampaignDraft: Codable, Equatable {
     public var brief: CampaignBrief
     public var deliverables: [CampaignDeliverable]
     public var assumptions: [CampaignAssumption]
-    public init(brief: CampaignBrief = .init(), deliverables: [CampaignDeliverable] = [], assumptions: [CampaignAssumption] = []) {
-        self.brief = brief; self.deliverables = deliverables; self.assumptions = assumptions
+    public var agency: CampaignAgencyWorkspace?
+    public init(brief: CampaignBrief = .init(), deliverables: [CampaignDeliverable] = [], assumptions: [CampaignAssumption] = [], agency: CampaignAgencyWorkspace? = nil) {
+        self.brief = brief; self.deliverables = deliverables; self.assumptions = assumptions; self.agency = agency
     }
     public func validate() throws {
+        try agency?.validate()
         try campaignUnique(deliverables.map(\.id), "deliverables")
         try campaignUnique(assumptions.map(\.id), "assumptions")
         for item in deliverables {

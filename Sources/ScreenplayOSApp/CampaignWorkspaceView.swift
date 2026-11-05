@@ -11,6 +11,8 @@ struct CampaignWorkspaceView: View {
     private let projectID: UUID
     @State private var baselineName = ""
     @State private var selectedBaselineID: UUID?
+    @State private var selectedTab = 1
+    @State private var selectedAgencyDocumentID: UUID?
     @State private var scope: CampaignApprovalScope = .creative
     @State private var approver = ""
     @State private var evidence = ""
@@ -46,13 +48,15 @@ struct CampaignWorkspaceView: View {
             }
             Text("Keep the agreed scope connected to the script, shots and boards. All changes require producer review.")
                 .font(.callout).foregroundStyle(.secondary)
-            TabView {
+            TabView(selection: $selectedTab) {
+                CampaignAgencySourcesView(session: session, selectedDocumentID: $selectedAgencyDocumentID)
+                    .tabItem { Label("Agency Sources", systemImage: "doc.text.magnifyingglass") }.tag(0)
                 ScrollView { briefAndDeliverables.padding(.vertical, 12) }
-                    .tabItem { Label("Brief & Deliverables", systemImage: "list.bullet.rectangle") }
+                    .tabItem { Label("Brief & Deliverables", systemImage: "list.bullet.rectangle") }.tag(1)
                 ScrollView { assumptions.padding(.vertical, 12) }
-                    .tabItem { Label("Bid Assumptions", systemImage: "text.badge.checkmark") }
+                    .tabItem { Label("Bid Assumptions", systemImage: "text.badge.checkmark") }.tag(2)
                 ScrollView { review.padding(.vertical, 12) }
-                    .tabItem { Label("Baseline & Changes", systemImage: "arrow.triangle.branch") }
+                    .tabItem { Label("Baseline & Changes", systemImage: "arrow.triangle.branch") }.tag(3)
             }
             .disabled(session.isReadOnly || document == nil)
             if let problem = session.problem {
@@ -67,7 +71,7 @@ struct CampaignWorkspaceView: View {
                 Button("Private Backup…", action: session.exportBackup).disabled(session.isReadOnly)
             }
             Text(session.status).font(.caption).foregroundStyle(.secondary)
-            Text("Campaign records stay on this Mac and are not included in screenplay or portable-project exports. Back them up separately. Private working budgets and margins are not stored here.")
+            Text("Campaign records stay on this Mac and are not included in screenplay or portable-project exports. Back them up separately. There are no dedicated working-budget or margin fields. Imported text and notes may be confidential; inspect backups and reports before sharing.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
@@ -162,7 +166,7 @@ struct CampaignWorkspaceView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Record the bid basis, not the private working budget. Include exclusions, shoot days, locations, post, talent usage and delivery requirements.")
                 .foregroundStyle(.secondary)
-            Text("Source references are manual citations, such as ‘Agency script v3, page 4’ or ‘Bid letter, exclusions’. No external document is uploaded or verified.")
+            Text("Source references can be manual citations, such as ‘Agency script v3, page 4’. Use Agency Sources to import local text and link reviewed lines to these assumptions. Original documents and sender identities are not verified.")
                 .font(.caption).foregroundStyle(.secondary)
             Button("Add Assumption") {
                 session.updateDraft { $0.assumptions.append(CampaignAssumption()) }
@@ -215,7 +219,7 @@ struct CampaignWorkspaceView: View {
                             if let document { session.exportReport(baselineID: baseline.id, document: document) }
                         }
                     }
-                    Text("Exact tracked changes only. Coverage, costs, schedule and external documents still need human review. No automatic repricing or spend authorization.")
+                    Text("Exact tracked changes only. Coverage, costs, schedule and original documents still need human review. No automatic repricing or spend authorization.")
                         .font(.caption).foregroundStyle(.secondary)
                     ForEach(changes) { change in changeRow(change) }
                     approvalEditor(baseline, current: changes.isEmpty)
@@ -329,16 +333,27 @@ struct CampaignWorkspaceView: View {
         let all = session.ledger.draft.deliverables + (baseline?.draft.deliverables ?? [])
         return change.affectedDeliverableIDs.map { id in all.first { $0.id == id }?.name ?? id.uuidString }
     }
+    private func agencyDocumentID(for change: CampaignChange) -> UUID? {
+        if change.sourceKind == .agencyDocument { return change.sourceID }
+        let citations = (session.ledger.draft.agency?.citations ?? []) + (baseline?.draft.agency?.citations ?? [])
+        return citations.first { $0.id == change.sourceID }?.documentID
+    }
     private func canNavigate(_ change: CampaignChange) -> Bool {
         switch change.sourceKind {
         case .script: return document?.screenplay.elements.contains { $0.id == change.sourceID } ?? false
         case .shot: return document?.shots.contains { $0.id == change.sourceID } ?? false
         case .board: return document?.boardFrames.contains { $0.id == change.sourceID } ?? false
+        case .agencyDocument, .agencyCitation:
+            guard let id = agencyDocumentID(for: change) else { return false }
+            return session.ledger.draft.agency?.latestRevision(documentID: id) != nil
         default: return false
         }
     }
     private func navigate(_ change: CampaignChange) {
         switch change.sourceKind {
+        case .agencyDocument, .agencyCitation:
+            selectedAgencyDocumentID = agencyDocumentID(for: change); selectedTab = 0
+            return
         case .script:
             model.setWorkflowMode(.writing); model.selectElement(id: change.sourceID)
             model.scrollTargetElementID = change.sourceID
