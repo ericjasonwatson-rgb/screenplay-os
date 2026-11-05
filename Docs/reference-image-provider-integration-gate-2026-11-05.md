@@ -32,3 +32,17 @@ and rely on the durable controller to record submission.
 Next work: authenticated transport behind an explicitly user-triggered
 command, safe response parsing and durable output storage, then candidate
 Take creation and separate filmmaker adoption. Keep network tests opt-in.
+
+## Added offline result validation and candidate storage
+
+`OpenAIReferenceImageResponse.decode` accepts exactly one Base64 PNG
+and rejects oversized bodies, remote URLs, malformed images and unsupported
+response shapes. `ProductionImageResultPreparation.prepare` requires a
+completed job record whose request, provider, model and board target match the
+staged approval. It then writes immutable, hash-named local media using
+`BoardImageStorage` and constructs an **unselected** generated-image `Take`.
+This does not insert that Take into the canonical document or change the
+selected board image. The calling service must still obtain the completed job
+record from the persisted `GenerationJobController` rather than trusting an
+unverified caller-provided record; the end-to-end integration test will verify
+this link and adoption/Undo.
