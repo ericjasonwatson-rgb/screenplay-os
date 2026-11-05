@@ -18,6 +18,7 @@ struct ProductionImageJobStagingSheet: View {
     @State private var stagedApproval: ProductionBoardApproval?
     @State private var authorization: ProductionImageSendAuthorization?
     @State private var showingConsentReview = false
+    @State private var showingPendingJobs = false
     @State private var busy = false
     @State private var message = ""
 
@@ -42,6 +43,7 @@ struct ProductionImageJobStagingSheet: View {
                     .disabled(busy || stagedPreview != nil)
                 TextField("Visual style", text: $style)
                     .disabled(busy || stagedPreview != nil)
+                Button("Manage saved unsent requests…") { showingPendingJobs = true }
                 Button("Stage exact request for review (no send)") {
                     Task { await stage() }
                 }
@@ -81,6 +83,11 @@ struct ProductionImageJobStagingSheet: View {
             .padding(20)
         }
         .frame(minWidth: 640, idealWidth: 760, minHeight: 560)
+        .sheet(isPresented: $showingPendingJobs) {
+            ProductionImagePendingJobsSheet(model: model) {
+                showingPendingJobs = false
+            }
+        }
         .sheet(isPresented: $showingConsentReview) {
             if let stagedPreview, let preview {
                 ProductionImageConsentDecisionSheet(
