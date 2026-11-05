@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import SwiftUI
 import Testing
 import ScreenplayDomain
@@ -6,6 +7,8 @@ import ScreenplayDomain
 
 /// Hosted native acceptance, not an installed-app/Shortcuts launch or a VoiceOver
 /// audit. Exercise the real sheet, SwiftUI controls and AppKit responder chain.
+/// SwiftPM has no external AX client, so each presentation requests its own
+/// process's lazy accessibility tree before resolving controls by exact identity.
 @Suite("Campaign panel lifecycle", .serialized)
 @MainActor
 struct CampaignPanelLifecycleTests {
@@ -34,7 +37,7 @@ struct CampaignPanelLifecycleTests {
                 try await fixture.expectLedger { $0.draft.brief.brand == "Synthetic campaign" }
             } else {
                 let brand = try await fixture.control("campaign.field.Brand")
-                #expect(brand.accessibilityValue() as? String == "Synthetic campaign")
+                #expect(brand.accessibilityValue?() as? String == "Synthetic campaign")
             }
             #expect(fixture.model.document == document)
             #expect(try Data(contentsOf: screenplayURL) == screenplayBytes)
@@ -95,7 +98,7 @@ struct CampaignPanelLifecycleTests {
                     && $0.draft.deliverables.first?.name == name
             }
             let restored = try await fixture.control("campaign.deliverable.name.\(item.id)")
-            #expect(restored.accessibilityValue() as? String == name)
+            #expect(restored.accessibilityValue?() as? String == name)
             try await fixture.press("campaign.deliverable.remove.\(item.id)")
             try await fixture.expectLedger { $0.draft.deliverables.isEmpty }
             #expect(fixture.model.document == original)
@@ -107,7 +110,7 @@ struct CampaignPanelLifecycleTests {
         #expect(try fixture.ledger().draft.brief.brand == previousBrand)
         #expect(try fixture.ledger().draft.deliverables.isEmpty)
         let undo = try await fixture.control("campaign.undo")
-        #expect(!undo.isAccessibilityEnabled(), "A reopened session must not retain the dismissed draft undo stack.")
+        #expect(undo.isAccessibilityEnabled?() == false, "A reopened session must not retain the dismissed draft undo stack.")
         #expect(fixture.model.document == original)
     }
 
@@ -133,7 +136,7 @@ struct CampaignPanelLifecycleTests {
 
         _ = try await fixture.open()
         let brand = try await fixture.control("campaign.field.Brand")
-        #expect(brand.accessibilityValue() as? String == "")
+        #expect(brand.accessibilityValue?() as? String == "")
         try await fixture.replaceText("campaign.field.Brand", with: "Second project")
         try await fixture.expectLedger { $0.projectID == replacementID && $0.draft.brief.brand == "Second project" }
         try await fixture.press("campaign.close")
@@ -142,7 +145,7 @@ struct CampaignPanelLifecycleTests {
         #expect(fixture.model.document?.project.id == originalID)
         _ = try await fixture.open()
         let restored = try await fixture.control("campaign.field.Brand")
-        #expect(restored.accessibilityValue() as? String == "First project")
+        #expect(restored.accessibilityValue?() as? String == "First project")
         #expect(try Data(contentsOf: fixture.campaignURL(projectID: originalID)) == originalCampaign)
     }
 
@@ -165,7 +168,7 @@ struct CampaignPanelLifecycleTests {
             await reading.value
             let content = try #require(fixture.window.attachedSheet?.contentView)
             let previewShown = try await waitForNativeUI(content) {
-                campaignAXElement(in: content) { $0.accessibilityLabel() == "Cancel Import" } != nil
+                campaignAXElement(in: content) { $0.accessibilityLabel?() == "Cancel Import" } != nil
             }
             #expect(previewShown)
             #expect(lifecycle.preview != nil)
@@ -204,7 +207,7 @@ struct CampaignPanelLifecycleTests {
             do {
                 let content = try #require(fixture.window.attachedSheet?.contentView)
                 let readingShown = try await waitForNativeUI(content) {
-                    campaignAXElement(in: content) { $0.accessibilityLabel() == "Cancel Reading" } != nil
+                    campaignAXElement(in: content) { $0.accessibilityLabel?() == "Cancel Reading" } != nil
                 }
                 #expect(readingShown)
                 #expect(lifecycle.isReading)
@@ -325,8 +328,28 @@ private final class CampaignPanelFixture {
         if !attached { diagnoseFailure("sheet attachment") }
         try #require(attached, "Campaign binding=\(model.campaignPresented); native sheet attached=\(window.attachedSheet != nil); host belongs to window=\(host.window === window).")
         let sheet = try #require(window.attachedSheet)
+        try await requestAccessibilityTree()
         _ = try await control("campaign.close")
         return sheet
+    }
+
+    private func requestAccessibilityTree() async throws {
+        // SwiftUI creates virtual AX nodes lazily when an accessibility client
+        // asks for this process. Make a public, read-only request off MainActor
+        // so AppKit can service it. No system-wide permissions or AX preferences
+        // are changed, and the returned window metadata is never used or logged.
+        // https://developer.apple.com/documentation/applicationservices/axuielement_h
+        let result = await Task.detached {
+            let onMainThread = Thread.isMainThread
+            let application = AXUIElementCreateApplication(ProcessInfo.processInfo.processIdentifier)
+            let timeout = AXUIElementSetMessagingTimeout(application, 2)
+            guard timeout == .success else { return (onMainThread, timeout) }
+            var windows: CFTypeRef?
+            return (onMainThread, AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &windows))
+        }.value
+        try #require(!result.0, "The AX request must not block AppKit's main-thread reply.")
+        if result.1 != .success { diagnoseFailure("accessibility activation \(result.1.rawValue)") }
+        try #require(result.1 == .success, "Self-process AX request failed: \(result.1.rawValue).")
     }
 
     func expectDismissed() async throws {
@@ -334,27 +357,28 @@ private final class CampaignPanelFixture {
         try #require(dismissed, "Campaign's binding and native sheet must both be dismissed.")
     }
 
-    func control(_ identifier: String) async throws -> any NSAccessibilityProtocol {
+    func control(_ identifier: String) async throws -> AnyObject {
         let content = try #require(window.attachedSheet?.contentView)
         let appeared = try await waitForNativeUI(content) {
-            campaignAXElement(in: content) { $0.accessibilityIdentifier() == identifier } != nil
+            campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier } != nil
         }
         if !appeared { diagnoseFailure("control \(identifier)") }
         try #require(appeared, "Missing native Campaign control: \(identifier)")
-        return try #require(campaignAXElement(in: content) { $0.accessibilityIdentifier() == identifier })
+        return try #require(campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier })
     }
 
     func press(_ identifier: String) async throws {
         let button = try await control(identifier)
-        try #require(button.isAccessibilityEnabled(), "Disabled Campaign control: \(identifier)")
-        try #require(button.accessibilityPerformPress(), "Campaign control rejected its native action: \(identifier)")
+        try #require(button.isAccessibilityEnabled?() == true, "Disabled or unavailable Campaign control: \(identifier)")
+        try #require(button.accessibilityPerformPress?() == true, "Campaign control rejected its native action: \(identifier)")
     }
 
     func replaceText(_ identifier: String, with value: String) async throws {
         let field = try await control(identifier)
         let sheet = try #require(window.attachedSheet)
         let content = try #require(sheet.contentView)
-        field.setAccessibilityFocused(true)
+        let focus = try #require(field.setAccessibilityFocused, "Campaign field has no native focus setter: \(identifier)")
+        focus(true)
         let focused = try await waitForNativeUI(content) {
             guard let text = sheet.firstResponder as? NSTextView else { return false }
             return text.isEditable && !(text is WritingTextView)
@@ -397,7 +421,7 @@ private final class CampaignPanelFixture {
 
     private static var diagnosedFailure = false
 
-    /// One bounded dump of this synthetic fixture, only after a wait has failed.
+    /// One bounded dump of this synthetic fixture, only after a native probe fails.
     /// Passing tests never enter this diagnostic path.
     private func diagnoseFailure(_ stage: String) {
         guard !Self.diagnosedFailure else { return }
@@ -406,15 +430,16 @@ private final class CampaignPanelFixture {
         print("binding=\(model.campaignPresented) visible=\(window.isVisible) key=\(window.isKeyWindow) active=\(NSApp.isActive) running=\(NSApp.isRunning) hostMatches=\(host.window === window) controller=\(String(describing: window.contentViewController)) attachedSheet=\(String(describing: window.attachedSheet))")
         var remaining = 200
         var seen = Set<ObjectIdentifier>()
-        func describe(_ value: Any, path: String, depth: Int = 0) {
-            guard depth < 24, remaining > 0, let element = value as? any NSAccessibilityProtocol,
-                  seen.insert(ObjectIdentifier(element as AnyObject)).inserted else { return }
+        func describe(_ element: AnyObject, path: String, depth: Int = 0) {
+            guard depth < 24, remaining > 0,
+                  seen.insert(ObjectIdentifier(element)).inserted else { return }
             remaining -= 1
-            print("CAMPAIGN_AX \(path) type=\(type(of: element)) identifier=\(String(describing: element.accessibilityIdentifier()).prefix(120)) role=\(String(describing: element.accessibilityRole())) label=\(String(describing: element.accessibilityLabel()).prefix(120)) frame=\(element.accessibilityFrame())")
-            for (index, child) in (element.accessibilityChildren() ?? []).enumerated() {
-                describe(child, path: "\(path).ax\(index)", depth: depth + 1)
+            let children = element.accessibilityChildren?() ?? []
+            print("CAMPAIGN_AX \(path) type=\(type(of: element)) identifier=\(String(describing: element.accessibilityIdentifier?()).prefix(120)) role=\(String(describing: element.accessibilityRole?())) label=\(String(describing: element.accessibilityLabel?()).prefix(120)) frame=\(String(describing: element.accessibilityFrame?())) children=\(children.count) fullProtocol=\(element is any NSAccessibilityProtocol)")
+            for (index, child) in children.enumerated() {
+                describe(child as AnyObject, path: "\(path).ax\(index)", depth: depth + 1)
             }
-            if let view = value as? NSView {
+            if let view = element as? NSView {
                 for (index, child) in view.subviews.enumerated() {
                     describe(child, path: "\(path).view\(index)", depth: depth + 1)
                 }
@@ -438,20 +463,23 @@ private func campaignNativeView<T: NSView>(_ type: T.Type, in view: NSView) -> T
 
 @MainActor
 private func campaignAXElement(in root: NSView,
-                               matching predicate: (any NSAccessibilityProtocol) -> Bool) -> (any NSAccessibilityProtocol)? {
+                               matching predicate: (AnyObject) -> Bool) -> AnyObject? {
     var seen = Set<ObjectIdentifier>()
     var remaining = 400
-    func search(_ value: Any, depth: Int = 0) -> (any NSAccessibilityProtocol)? {
+    func search(_ element: AnyObject, depth: Int = 0) -> AnyObject? {
         // Virtual accessibility children can manufacture new wrapper identities.
         // Bound both depth and work even when object-identity cycle detection misses them.
-        guard depth < 30, remaining > 0, let element = value as? any NSAccessibilityProtocol,
-              seen.insert(ObjectIdentifier(element as AnyObject)).inserted else { return nil }
+        guard depth < 30, remaining > 0,
+              seen.insert(ObjectIdentifier(element)).inserted else { return nil }
         remaining -= 1
         if predicate(element) { return element }
-        for child in element.accessibilityChildren() ?? [] {
-            if let found = search(child, depth: depth + 1) { return found }
+        // SwiftUI's virtual nodes implement public ObjC AX selectors without
+        // necessarily declaring conformance to the entire NSAccessibilityProtocol.
+        // A protocol cast silently drops those nodes and their stable identifiers.
+        for child in element.accessibilityChildren?() ?? [] {
+            if let found = search(child as AnyObject, depth: depth + 1) { return found }
         }
-        if let view = value as? NSView {
+        if let view = element as? NSView {
             for child in view.subviews {
                 if let found = search(child, depth: depth + 1) { return found }
             }
