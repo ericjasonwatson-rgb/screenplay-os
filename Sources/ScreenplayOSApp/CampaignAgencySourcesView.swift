@@ -17,6 +17,8 @@ struct CampaignAgencySourcesView: View {
     @State private var targetKind: CampaignAgencyTargetKind = .deliverable
     @State private var targetID: UUID?
     @State private var citationNote = ""
+    @State private var readTask: Task<CampaignAgencyImport.Preview, Error>?
+    @State private var readingToken: UUID?
 
     private var workspace: CampaignAgencyWorkspace? { session.ledger.draft.agency }
     private var selected: CampaignAgencyRevision? {
@@ -31,14 +33,22 @@ struct CampaignAgencySourcesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Import an agency script, brief or bid letter as UTF-8 text. Verify exported text against the original before using it. Nothing is uploaded and the screenplay is not changed.")
+                Text("Import an agency script, brief or bid letter as text or a supported Word DOCX. Verify extracted text against the original before using it. Nothing is uploaded and the screenplay is not changed.")
                     .font(.callout).foregroundStyle(.secondary)
-                Text("Supported: .txt, .md and .fountain, up to 256 KiB each; 1 MiB / 32 retained revisions total. No PDF, Word, image or OCR extraction. Imported source text can contain confidential material and will be included in your private campaign backup.")
+                Text("Text: .txt, .md, .fountain, up to 256 KiB. DOCX: up to 2 MiB, with bounded text extraction. PDF remains disabled pending parser isolation; no legacy .doc or OCR. Originals and extracted text are retained in private campaign backups and may contain confidential material.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    Button("Choose New Source…") { chooseSource(revising: nil) }.disabled(preview != nil)
+                    Button("Choose New Source…") { chooseSource(revising: nil) }.disabled(preview != nil || readingToken != nil)
                     if let selected {
-                        Button("Choose Revised Text…") { chooseSource(revising: selected.documentID) }.disabled(preview != nil)
+                        Button("Choose Revised Source…") { chooseSource(revising: selected.documentID) }.disabled(preview != nil || readingToken != nil)
+                    }
+                }
+                if readingToken != nil {
+                    HStack {
+                        ProgressView().controlSize(.small)
+                        Text("Reading local document…").font(.callout)
+                        Spacer()
+                        Button("Cancel Reading", action: cancelReading)
                     }
                 }
                 if let preview { importPreview(preview) }
@@ -72,23 +82,47 @@ struct CampaignAgencySourcesView: View {
             reviewer = ""; reviewNote = ""; firstLine = "1"; lastLine = "1"; citationNote = ""
         }
         .onChange(of: targetKind) { _ in targetID = nil }
+        .onDisappear(perform: cancelReading)
+    }
+
+    private func cancelReading() {
+        readTask?.cancel(); readTask = nil; readingToken = nil
     }
 
     private func chooseSource(revising documentID: UUID?) {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType.plainText, UTType(filenameExtension: "md"), UTType(filenameExtension: "fountain")].compactMap { $0 }
+        panel.allowedContentTypes = [UTType.plainText, UTType(filenameExtension: "md"), UTType(filenameExtension: "fountain"), UTType(filenameExtension: "docx")].compactMap { $0 }
         panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
-        panel.message = "Choose local UTF-8 text for preview. Nothing is imported until you confirm the preview."
+        panel.message = "Choose local text or DOCX for preview. Nothing is imported until you confirm the extraction and its limits."
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            preview = try CampaignAgencyImport.read(url); previewDocumentID = documentID; problem = nil
-        } catch { problem = error.localizedDescription }
+        let token = UUID(); readingToken = token; problem = nil
+        let task = Task.detached(priority: .userInitiated) { try CampaignAgencyImport.read(url) }
+        readTask = task
+        Task { @MainActor in
+            do {
+                let loaded = try await task.value
+                guard readingToken == token, !Task.isCancelled else { return }
+                preview = loaded; previewDocumentID = documentID
+                readTask = nil; readingToken = nil
+            } catch {
+                guard readingToken == token else { return }
+                if !(error is CancellationError) { problem = error.localizedDescription }
+                readTask = nil; readingToken = nil
+            }
+        }
     }
 
     private func importPreview(_ preview: CampaignAgencyImport.Preview) -> some View {
         GroupBox("Preview before importing") {
             VStack(alignment: .leading, spacing: 8) {
-                Text("\(preview.filename) · \(preview.bytes.count) bytes")
+                Text("\(preview.filename) · \(preview.bytes.count) extracted UTF-8 bytes")
+                if let origin = preview.origin {
+                    Text("Original: \(origin.originalBytes.count) bytes · SHA-256 \(origin.originalSHA256)")
+                        .font(.caption.monospaced()).textSelection(.enabled)
+                    ForEach(origin.notices, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) }
+                    Text("Both the exact original file and this extracted text will be retained locally. Extraction is not proof that every meaningful part of the original was captured.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 if let documentID = previewDocumentID {
                     Text("New revision of \(workspace?.latestRevision(documentID: documentID)?.filename ?? documentID.uuidString). Prior evidence remains saved. Existing review and citations will need reconciliation.")
                         .font(.caption).foregroundStyle(.orange)
@@ -97,7 +131,7 @@ struct CampaignAgencySourcesView: View {
                 HStack {
                     Button("Cancel Import") { self.preview = nil; previewDocumentID = nil; problem = nil }
                     Spacer()
-                    Button("Import Exact Text Locally") {
+                    Button("Import Preview Locally") {
                         if session.importAgencyText(preview, revisingDocumentID: previewDocumentID) {
                             selectedDocumentID = previewDocumentID ?? session.ledger.draft.agency?.latestRevisions.last?.documentID
                             self.preview = nil; previewDocumentID = nil; problem = nil
@@ -113,8 +147,15 @@ struct CampaignAgencySourcesView: View {
             Text("\(revision.filename) · imported \(revision.importedAt.formatted())").font(.headline)
             Text("Revision \(revision.id.uuidString)\nSHA-256 \(revision.sha256)")
                 .font(.caption.monospaced()).textSelection(.enabled)
-            Text("\(revision.lines.count) lines. Line numbers use LF/CRLF text lines, not the original document’s pages. The hash identifies imported bytes, not the sender or authenticity of the source.")
+            Text("\(revision.lines.count) extracted lines. Line numbers use LF/CRLF text lines. The text hash identifies retained text, not the sender or authenticity of the original.")
                 .font(.caption).foregroundStyle(.secondary)
+            if let origin = revision.origin {
+                Text("Original \(origin.format.uppercased()) · \(origin.originalBytes.count) bytes · \(origin.extractor)")
+                    .font(.caption)
+                Text("Original SHA-256 \(origin.originalSHA256)").font(.caption.monospaced()).textSelection(.enabled)
+                ForEach(origin.notices, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
+                Button("Save Retained Original…") { session.exportAgencyOriginal(revision.id) }
+            }
             sourceText(numberedText(revision), height: 200)
             if let priorID = revision.priorRevisionID,
                let previous = workspace.revisions.first(where: { $0.id == priorID }) {

@@ -128,6 +128,13 @@ enum CampaignWorkspaceStore {
         return bytes
     }
 
+    /// Used by explicit backup restore. The selected pathname is opened once,
+    /// without following a final symlink, and never read beyond the ledger cap.
+    static func readBackup(_ url: URL) throws -> Data {
+        guard url.isFileURL, let bytes = try readBytes(url) else { throw Failure.unreadable }
+        return bytes
+    }
+
     private static func readBytes(_ url: URL) throws -> Data? {
         let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
         guard fd >= 0 else {
@@ -138,9 +145,37 @@ enum CampaignWorkspaceStore {
         var info = stat()
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
               info.st_size >= 0, info.st_size <= Int64(maximumBytes) else { throw Failure.unreadable }
-        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
-        let bytes = try handle.readToEnd() ?? Data()
-        guard bytes.count <= maximumBytes else { throw Failure.unreadable }
+        var buffer = [UInt8](repeating: 0, count: 32_768)
+        let bytes = try readBounded(limit: maximumBytes) { allowance in
+            while true {
+                let count = Darwin.read(fd, &buffer, allowance)
+                if count < 0 && errno == EINTR { continue }
+                guard count >= 0 else { throw Failure.unreadable }
+                return Data(buffer.prefix(count))
+            }
+        }
+        var after = stat()
+        guard fstat(fd, &after) == 0, info.st_size == after.st_size,
+              info.st_mtimespec.tv_sec == after.st_mtimespec.tv_sec,
+              info.st_mtimespec.tv_nsec == after.st_mtimespec.tv_nsec,
+              info.st_ctimespec.tv_sec == after.st_ctimespec.tv_sec,
+              info.st_ctimespec.tv_nsec == after.st_ctimespec.tv_nsec else { throw Failure.unreadable }
+        return bytes
+    }
+
+    /// The callback is always given the remaining byte allowance. This seam lets
+    /// tests simulate a growing file without a timing-dependent racing writer.
+    static func readBounded(limit: Int, readChunk: (Int) throws -> Data) throws -> Data {
+        guard (0...maximumBytes).contains(limit) else { throw Failure.unreadable }
+        var bytes = Data()
+        while bytes.count <= limit {
+            let allowance = min(32_768, limit + 1 - bytes.count)
+            let chunk = try readChunk(allowance)
+            guard chunk.count <= allowance else { throw Failure.unreadable }
+            if chunk.isEmpty { break }
+            bytes.append(chunk)
+        }
+        guard bytes.count <= limit else { throw Failure.unreadable }
         return bytes
     }
 

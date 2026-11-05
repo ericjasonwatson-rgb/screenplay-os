@@ -52,8 +52,16 @@ final class CampaignWorkspaceSession: ObservableObject {
             guard Data(preview.text.utf8) == preview.bytes else {
                 throw CampaignError.invalid("Import preview no longer matches the selected bytes. Choose the source again.")
             }
-            _ = try draft.importAgencyText(data: preview.bytes, filename: preview.filename,
-                                          revisingDocumentID: revisingDocumentID)
+            if let origin = preview.origin {
+                guard Data(origin.text.utf8) == preview.bytes else {
+                    throw CampaignError.invalid("Document extraction no longer matches its preview.")
+                }
+                _ = try draft.importAgencyDocument(origin: origin, filename: preview.filename,
+                                                  revisingDocumentID: revisingDocumentID)
+            } else {
+                _ = try draft.importAgencyText(data: preview.bytes, filename: preview.filename,
+                                              revisingDocumentID: revisingDocumentID)
+            }
         }
     }
 
@@ -124,6 +132,16 @@ final class CampaignWorkspaceSession: ObservableObject {
         }
     }
 
+    func exportAgencyOriginal(_ revisionID: UUID) {
+        guard let revision = ledger.draft.agency?.revisions.first(where: { $0.id == revisionID }),
+              let origin = revision.origin else { return }
+        do {
+            try origin.validate()
+            let type = UTType(filenameExtension: "docx") ?? .data
+            try export(origin.originalBytes, name: revision.filename, type: type)
+        } catch { problem = error.localizedDescription }
+    }
+
     func exportBackup() {
         do { try export(try CampaignWorkspaceStore.encoded(ledger), name: "Campaign-private-backup.json", type: .json) }
         catch { problem = error.localizedDescription }
@@ -138,12 +156,7 @@ final class CampaignWorkspaceSession: ObservableObject {
         panel.message = "Restore a campaign backup for this project. This does not restore screenplay text or media."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-            guard values.isRegularFile == true, values.isSymbolicLink != true,
-                  let size = values.fileSize, size <= CampaignWorkspaceStore.maximumBytes else {
-                throw CampaignWorkspaceStore.Failure.unreadable
-            }
-            let imported = try CampaignWorkspaceStore.decode(Data(contentsOf: url), projectID: ledger.projectID)
+            let imported = try CampaignWorkspaceStore.decode(CampaignWorkspaceStore.readBackup(url), projectID: ledger.projectID)
             _ = commit(imported)
         } catch { problem = error.localizedDescription }
     }
@@ -157,7 +170,7 @@ final class CampaignWorkspaceSession: ObservableObject {
             var lines = ["CAMPAIGN CHANGE REVIEW", "Project: \(document.project.metadata.title)",
                          "Baseline: \(baseline.name) [\(baseline.id)]", "Frozen: \(baseline.createdAt.formatted())",
                          "Human review required. This is not a quote, approval, or authorization to spend.",
-                         "Scope: campaign brief, deliverables, assumptions, script, shots, board timing and selected image metadata. Imported UTF-8 agency text is tracked exactly, with manual review and line citations. PDF, Word, images, media bytes and the external originals were not inspected.", ""]
+                         "Scope: campaign brief, deliverables, assumptions, script, shots, board timing and selected image metadata. Imported text and bounded DOCX extraction are tracked with retained original hashes, manual review and line citations. PDF import is not enabled. Extraction may omit layout or nontext content; originals must be checked by a person. No OCR or media analysis.", ""]
             if changes.isEmpty { lines.append("No tracked changes or unresolved source links detected.") }
             for change in changes {
                 lines += [change.title, "Source: \(change.sourceKind.rawValue) \(change.sourceID)",

@@ -126,6 +126,33 @@ struct CampaignAgencyImportTests {
         #expect(throws: (any Error).self) { try CampaignWorkspaceStore.decode(altered, projectID: id) }
     }
 
+    @Test func pdfEntryPointIsDisabledBeforeAnyFileReadOrParsing() throws {
+        do {
+            _ = try CampaignAgencyImport.read(URL(fileURLWithPath: "/not-present.pdf"))
+            Issue.record("PDF entry point unexpectedly accepted input")
+        } catch {
+            #expect(error.localizedDescription.contains("PDF import is not enabled"))
+        }
+    }
+
+    @MainActor @Test func docxFilePreviewAndCommandRetainExactOriginalLocally() throws {
+        let root = try temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let bytes = try #require(Data(base64Encoded: "UEsDBBQAAAAIAAAAIVCsbhJangAAANwAAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbF2PsQ7CMBBDf6XKitqrGBhQ24UdGPiBU3JtI5pLlBwF/p4EpA6Mlu1nubu9A6Xq5RZOvZpFwhEg6ZkcpsYH4uyMPjqULOMEAfUdJ4J92x5AexZiqaUw1NBdVorRGqquGOWMjnoFTx8NGK8fLiebTFPV6Vcry73CEBarUaxnWNn8bdZ+HK2mrV9oIXpNKVme3NJsjkPLu4KHoYPvqeEDUEsDBBQAAAAIAAAAIVBhey9DiQAAAPIAAAALAAAAX3JlbHMvLnJlbHONzzsOAiEQBuCrEA6ws1pYGKCy2dZ4AQLDIy6PDBj19lJYrMbCcuaffH9GnHHVPZbcQqyNPdKam+Sh93oEaCZg0m0qFfNIXKGk+xjJQ9Xmqj3Cfp4PQFuDK7E12WIlp8XuOLs8K/5jF+eiwVMxt4S5/6j4uhiyJo9d8nshC/a9ngbLQQn4eFG9AFBLAwQUAAAACAAAACFQdb9S5IQAAACiAAAAEQAAAHdvcmQvZG9jdW1lbnQueG1ssym3SslPLs1NzStRqMjNySu2KrdVyigpKbDS1y9OzkjNTSzWyy9IzQPKpeUX5SaWALlF6frl+UUpBUX5yanFxZl56bk5+kYGBmb6uYmZeUp2NuVWSfkplSC6AEQUgYgSO6eizNQ0heTEtMMrFT7Mn9Vgow8SBZFFYLIATEJ06iNcZQcAUEsBAhQDFAAAAAgAAAAhUKxuElqeAAAA3AAAABMAAAAAAAAAAAAAAKSBAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAMUAAAACAAAACFQYXsvQ4kAAADyAAAACwAAAAAAAAAAAAAApIHPAAAAX3JlbHMvLnJlbHNQSwECFAMUAAAACAAAACFQdb9S5IQAAACiAAAAEQAAAAAAAAAAAAAApIGBAQAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAMAAwC5AAAANAIAAAAA"))
+        let url = root.appendingPathComponent("Agency.docx"); try bytes.write(to: url)
+        let preview = try CampaignAgencyImport.read(url)
+        #expect(preview.origin?.format == "docx")
+        #expect(preview.origin?.originalBytes == bytes)
+        #expect(preview.bytes == Data(preview.text.utf8))
+        #expect(preview.text.contains("Brief"))
+        let projectID = UUID()
+        let session = CampaignWorkspaceSession(projectID: projectID, root: root)
+        #expect(session.importAgencyText(preview, revisingDocumentID: nil))
+        let reopened = CampaignWorkspaceSession(projectID: projectID, root: root)
+        #expect(reopened.problem == nil)
+        #expect(reopened.ledger.draft.agency?.revisions.first?.origin?.originalBytes == bytes)
+        #expect(try Data(contentsOf: url) == bytes)
+    }
+
     @Test func oldLedgerWithBaselineAndApprovalStillDecodesWithoutAgencyFields() throws {
         let screenplay = Screenplay(metadata: .init(title: "Legacy"))
         let document = ScreenplayOSDocument(project: .init(metadata: .init(title: "Legacy", author: ""), screenplayID: screenplay.id), screenplay: screenplay)

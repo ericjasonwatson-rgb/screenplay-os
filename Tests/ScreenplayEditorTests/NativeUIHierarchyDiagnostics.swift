@@ -1,6 +1,29 @@
 import AppKit
 @testable import ScreenplayOSApp
 
+/// Wait for an observable native result rather than assuming a task suspension
+/// committed SwiftUI's AppKit hierarchy. Layout, display, and run-loop observers
+/// all participate in that commit. The deadline is a failure bound, not a delay.
+@MainActor
+func waitForNativeUI(_ host: NSView, timeout: TimeInterval = 3,
+                     until condition: @MainActor () -> Bool) async throws -> Bool {
+    let deadline = ProcessInfo.processInfo.systemUptime + timeout
+    repeat {
+        nativeUILayoutPass(host)
+        if condition() { return true }
+        try await Task.sleep(nanoseconds: 10_000_000)
+    } while ProcessInfo.processInfo.systemUptime < deadline
+    nativeUILayoutPass(host)
+    return condition()
+}
+
+@MainActor
+private func nativeUILayoutPass(_ host: NSView) {
+    host.layoutSubtreeIfNeeded()
+    host.displayIfNeeded()
+    _ = RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
+}
+
 /// Opt-in evidence for hosted SwiftUI/AppKit lifecycle failures. This does not
 /// change layout, wait for a result, or filter the assertions under investigation.
 @MainActor

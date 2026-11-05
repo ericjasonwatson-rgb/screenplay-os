@@ -1,6 +1,6 @@
 # Campaign brief, bid basis and change review
 
-Status: native macOS draft implementation with local agency-text evidence. Manual UI acceptance remains required; exact CI evidence belongs to the PR head.
+Status: native macOS draft implementation with local agency-text and DOCX evidence. Manual UI acceptance remains required; exact CI evidence belongs to the PR head.
 This is a bounded extension to the existing filmmaking document, not a new primary
 workspace, client portal, accounting system, or AI document-reconciliation service.
 
@@ -13,7 +13,7 @@ The experimental writing-only package editor is not supported.
 2. Add deliverables with duration, aspect ratio, market and language. Expand Shot
    coverage to link the existing canonical shot IDs used by each version.
 3. Record bid assumptions and manual document/version/page references. Optionally
-   import agency UTF-8 text through Agency Sources, review it, then cite inclusive
+   import agency UTF-8 text or supported DOCX through Agency Sources, review it, then cite inclusive
    line ranges against a deliverable or assumption. See the workflow below.
 4. Freeze a named baseline. Brand, objective and at least one named deliverable
    with an aspect ratio are required. A baseline is a snapshot, **not approval**.
@@ -67,8 +67,9 @@ Domain commands use Foundation and CryptoKit, with no platform UI or network dep
 text/style/order, shot intent/source references, board intent/order/timing and
 selected image identity/hash metadata. Local media paths and generation costs are
 excluded. Actual image bytes are **not rehashed**, and unselected image versions,
-edit occurrences/audio, original agency PDFs/decks/Word files and their formatting
-are not compared. Imported UTF-8 text is tracked separately as exact evidence.
+edit occurrences/audio, original agency PDF/deck content and document formatting are not compared.
+Imported UTF-8 text and bounded DOCX body extraction are tracked as exact evidence;
+DOCX originals are retained separately for human review.
 Missing selected images/shot/script links are warnings that block new approval.
 Legacy ranged source references also require review and block new approval because
 their offset unit is not established; existing whole-element links are supported.
@@ -128,19 +129,20 @@ and the agency import/review flows below. No live provider calls are needed.
 
 ## Agency text import and reconciliation
 
-This slice imports **local UTF-8 `.txt`, `.md` and `.fountain` files only**. It does
-not extract PDF or Office documents, render decks, OCR images, contact an agency,
-fetch URLs, infer deliverables, rewrite scripts or calculate change-order prices.
-Export the relevant text from an agency document first and verify that text against
-the original. An exported `.txt` file's provenance is its imported filename and
-bytes, not proof of the original document's author, authenticity, pages or layout.
-No user agency documents or private project content are in automated fixtures.
+This slice imports local UTF-8 `.txt`, `.md`, `.fountain` and a bounded Word `.docx`
+subset. See [Local agency document import](campaign-agency-document-import.md) for
+its exact supported content, limits, original-file retention and safety boundaries.
+PDF import remains disabled pending parser isolation. There is no deck rendering,
+OCR, agency contact, URL fetch, inferred deliverables, screenplay rewrite or automatic
+change-order pricing. Verify extracted text against the original. A filename and
+hash are not proof of author, authenticity, pages or layout. Automated fixtures are
+synthetic; no user agency documents or private project content are published.
 
 1. In Agency Sources, choose a new source. A bounded native file reader accepts a
    regular local file, rejects a symlink/FIFO/directory/unsupported extension, and
-   previews exact UTF-8 text before anything is saved. Cancel Import or Close leaves
+   previews exact UTF-8 text or bounded DOCX extraction before anything is saved. Cancel Import or Close leaves
    the campaign unchanged. Source files are never modified.
-2. Import Exact Text Locally saves original bytes, decoded exact text, SHA-256,
+2. Import Preview Locally saves source bytes, extracted exact text, SHA-256,
    import time, a filename without its directory path, stable document identity
    and an immutable revision identity. SHA-256 identifies bytes, not a sender.
 3. Read numbered text and record a reviewer name plus a specific review note.
@@ -148,7 +150,7 @@ No user agency documents or private project content are in automated fixtures.
 4. Link a reviewed inclusive source-line range to an existing deliverable or bid
    assumption, with a reconciliation note. The citation pins both source revision
    and the target's exact authored state. No target is silently rewritten.
-5. Choose Revised Text for an existing document to append its next revision.
+5. Choose Revised Source for an existing document to append its next revision.
    The prior version stays available for comparison. Review does not carry forward.
    Superseded citations, changed targets and removed targets remain visible and
    block approval, even after freezing another baseline. Explicitly remove and
@@ -164,8 +166,8 @@ final line. BOM, combining sequences, CRLF and original bytes are retained. Sour
 hashes and stored text are revalidated on load. No Markdown/HTML is interpreted,
 remote resource loaded, or embedded link followed by the source viewer.
 
-Limits are 256 KiB per source revision, 1 MiB of total retained source bytes,
-32 revisions and 256 reviews/citations each per working draft. Baselines duplicate
+Limits are 256 KiB extracted text per revision, 1 MiB total extracted source bytes,
+2 MiB per DOCX original, 4 MiB total retained originals, 32 revisions and 256 reviews/citations each per working draft. Baselines duplicate
 pinned evidence, so the existing 16 MiB ledger cap can be reached earlier with many
 snapshots. Failed writes/limits leave saved state untouched; this is a bounded
 prototype, not a large production document archive. Main-thread persistence and
@@ -175,7 +177,7 @@ The optional `agency` field is omitted for untouched old v1 campaigns, preservin
 old draft, baseline and decision JSON. New builds read old campaign-v1 ledgers
 without rewriting their shape. Older builds reject the new field rather than
 silently discard imported evidence. This is not a screenplay-format migration.
-The local campaign backup includes full source text and historical revisions.
+The local campaign backup includes full source text, retained DOCX originals and historical revisions.
 Reports may contain source excerpts/full text. There are no dedicated private
 working-budget/margin fields, but user-imported text can contain confidential bid
 or budget information: inspect every backup/report before any later sharing.

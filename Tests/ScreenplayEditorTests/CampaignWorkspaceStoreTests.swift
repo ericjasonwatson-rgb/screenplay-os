@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import Testing
 import ScreenplayDomain
 @testable import ScreenplayOSApp
@@ -213,4 +214,46 @@ struct CampaignWorkspaceStoreTests {
         #expect(throws: CampaignWorkspaceStore.Failure.self) { try CampaignWorkspaceStore.load(projectID: projectID, from: oversizedURL) }
         #expect(try Data(contentsOf: oversizedURL) == oversized)
     }
+    @Test func backupReaderPreservesExactLimitAndRejectsOversizedBytes() throws {
+        let root = try temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("Backup.json")
+        var bytes = try CampaignWorkspaceStore.encoded(CampaignLedger(projectID: UUID()))
+        bytes.append(Data(repeating: 32, count: CampaignWorkspaceStore.maximumBytes - bytes.count))
+        try bytes.write(to: url)
+        #expect(try CampaignWorkspaceStore.readBackup(url) == bytes)
+        bytes.append(32); try bytes.write(to: url)
+        #expect(throws: (any Error).self) { try CampaignWorkspaceStore.readBackup(url) }
+        #expect(try Data(contentsOf: url) == bytes)
+    }
+
+    @Test func backupReaderRejectsUnsafeAndNonregularSourcesWithoutBlocking() throws {
+        let root = try temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let real = root.appendingPathComponent("Real.json"); try Data("{}".utf8).write(to: real)
+        let link = root.appendingPathComponent("Link.json")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+        let missing = root.appendingPathComponent("Missing.json")
+        let dangling = root.appendingPathComponent("Dangling.json")
+        try FileManager.default.createSymbolicLink(at: dangling, withDestinationURL: missing)
+        let fifo = root.appendingPathComponent("Pipe.json"); #expect(mkfifo(fifo.path, 0o600) == 0)
+        for url in [root, link, dangling, fifo, missing, URL(string: "https://example.invalid/backup.json")!] {
+            #expect(throws: (any Error).self) { try CampaignWorkspaceStore.readBackup(url) }
+        }
+        #expect(try Data(contentsOf: real) == Data("{}".utf8))
+    }
+
+    @Test func growingBackupReaderNeverRequestsOrRetainsMoreThanLimitPlusOne() throws {
+        var allowances: [Int] = []
+        var supplied = 0
+        #expect(throws: (any Error).self) {
+            try CampaignWorkspaceStore.readBounded(limit: 8) { allowance in
+                allowances.append(allowance)
+                let count = min(3, allowance); supplied += count
+                return Data(repeating: 65, count: count)
+            }
+        }
+        #expect(allowances == [9, 6, 3])
+        #expect(supplied == 9)
+        #expect(throws: (any Error).self) { try CampaignWorkspaceStore.readBounded(limit: 8) { _ in Data(repeating: 65, count: 10) } }
+    }
+
 }

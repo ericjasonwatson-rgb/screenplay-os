@@ -16,6 +16,7 @@ public struct CampaignAgencyRevision: Codable, Equatable, Identifiable {
     public let text: String
     public let sha256: String
     public let importedAt: Date
+    public let origin: CampaignAgencyDocumentOrigin?
 
     /// One-based citation coordinates. Only LF and CRLF delimit lines. A terminal
     /// newline creates a final empty line; lone CR and Unicode separators stay literal.
@@ -34,7 +35,7 @@ public struct CampaignAgencyRevision: Codable, Equatable, Identifiable {
         return rows[(firstLine - 1)...(lastLine - 1)].joined(separator: "\n")
     }
 
-    enum CodingKeys: String, CodingKey { case id, documentID, priorRevisionID, filename, bytes, text, sha256, importedAt }
+    enum CodingKeys: String, CodingKey { case id, documentID, priorRevisionID, filename, bytes, text, sha256, importedAt, origin }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)
@@ -45,21 +46,28 @@ public struct CampaignAgencyRevision: Codable, Equatable, Identifiable {
         text = try c.decode(String.self, forKey: .text)
         sha256 = try c.decode(String.self, forKey: .sha256)
         importedAt = try c.decode(Date.self, forKey: .importedAt)
+        origin = try c.decodeIfPresent(CampaignAgencyDocumentOrigin.self, forKey: .origin)
         try validate()
     }
 
-    fileprivate init(documentID: UUID, priorRevisionID: UUID?, filename: String, bytes: Data, at date: Date) throws {
+    fileprivate init(documentID: UUID, priorRevisionID: UUID?, filename: String, bytes: Data, origin: CampaignAgencyDocumentOrigin? = nil, at date: Date) throws {
         guard !bytes.isEmpty, bytes.count <= CampaignAgencyWorkspace.maximumSourceBytes else {
             throw CampaignError.invalid("Agency text must contain 1–262144 bytes.")
         }
         id = UUID(); self.documentID = documentID; self.priorRevisionID = priorRevisionID
-        self.filename = filename; self.bytes = bytes
+        self.filename = filename; self.bytes = bytes; self.origin = origin
         text = String(decoding: bytes, as: UTF8.self)
         sha256 = campaignAgencyDigest(bytes); importedAt = date
         try validate()
     }
 
     fileprivate func validate() throws {
+        if let origin {
+            try origin.validate()
+            guard Data(origin.text.utf8) == bytes else {
+                throw CampaignError.invalid("Extracted agency text no longer matches its retained provenance.")
+            }
+        }
         guard !bytes.isEmpty, bytes.count <= CampaignAgencyWorkspace.maximumSourceBytes,
               Data(text.utf8) == bytes,
               !text.unicodeScalars.contains(where: { $0.value == 0 }),
@@ -155,9 +163,14 @@ public struct CampaignAgencyWorkspace: Codable, Equatable {
         try campaignUnique(citations.map(\.id), "agency citations")
         var heads: [UUID: UUID] = [:]
         var totalBytes = 0
+        var totalOriginalBytes = 0
         for revision in revisions {
             try revision.validate()
             totalBytes += revision.bytes.count
+            totalOriginalBytes += revision.origin?.originalBytes.count ?? 0
+            guard totalOriginalBytes <= CampaignAgencyDocumentOrigin.maximumTotalOriginalBytes else {
+                throw CampaignError.invalid("Retained original agency documents exceed the 4 MiB workspace limit.")
+            }
             guard totalBytes <= Self.maximumTotalSourceBytes,
                   revision.priorRevisionID == heads[revision.documentID] else {
                 throw CampaignError.invalid("Agency history must be a retained, ordered revision chain per document, totaling at most 1 MiB.")
@@ -233,11 +246,11 @@ public struct CampaignAgencyWorkspace: Codable, Equatable {
         return result.sorted { $0.id < $1.id }
     }
 
-    fileprivate mutating func importText(data: Data, filename: String, revisingDocumentID: UUID?, at date: Date) throws -> CampaignAgencyRevision {
+    fileprivate mutating func importText(data: Data, filename: String, revisingDocumentID: UUID?, origin: CampaignAgencyDocumentOrigin? = nil, at date: Date) throws -> CampaignAgencyRevision {
         try validate()
         let prior = revisingDocumentID.flatMap { latestRevision(documentID: $0) }
         if revisingDocumentID != nil && prior == nil { throw CampaignError.invalid("Choose an existing agency document to import its next revision.") }
-        let revision = try CampaignAgencyRevision(documentID: prior?.documentID ?? UUID(), priorRevisionID: prior?.id, filename: filename, bytes: data, at: date)
+        let revision = try CampaignAgencyRevision(documentID: prior?.documentID ?? UUID(), priorRevisionID: prior?.id, filename: filename, bytes: data, origin: origin, at: date)
         var candidate = self; candidate.revisions.append(revision); try candidate.validate()
         self = candidate
         return revision
@@ -275,6 +288,16 @@ extension CampaignDraft {
         try validate()
         var workspace = agency ?? .init()
         let revision = try workspace.importText(data: data, filename: filename, revisingDocumentID: revisingDocumentID, at: date)
+        agency = workspace
+        return revision
+    }
+
+    @discardableResult public mutating func importAgencyDocument(origin: CampaignAgencyDocumentOrigin, filename: String, revisingDocumentID: UUID? = nil, at date: Date = Date()) throws -> CampaignAgencyRevision {
+        try validate()
+        try origin.validate()
+        var workspace = agency ?? .init()
+        let revision = try workspace.importText(data: Data(origin.text.utf8), filename: filename,
+            revisingDocumentID: revisingDocumentID, origin: origin, at: date)
         agency = workspace
         return revision
     }
@@ -339,7 +362,13 @@ extension CampaignSourceSnapshot {
                 "Imported at": try campaignJSON(revision.importedAt),
                 "Bytes": String(revision.bytes.count), "SHA256": revision.sha256,
                 "Text": revision.text,
-                "Human review": try campaignJSON(workspace.currentReview(revisionID: revision.id))
+                "Human review": try campaignJSON(workspace.currentReview(revisionID: revision.id)),
+                "Original format": revision.origin?.format ?? "plain UTF-8",
+                "Original SHA256": revision.origin?.originalSHA256 ?? revision.sha256,
+                "Original bytes": String(revision.origin?.originalBytes.count ?? revision.bytes.count),
+                "Extractor": revision.origin?.extractor ?? "exact-utf8-v1",
+                "Extraction sections": String(revision.origin?.sections.count ?? 1),
+                "Extraction notices": (revision.origin?.notices ?? []).joined(separator: "\n")
             ], linkedShotIDs: [], linkedElementIDs: []))
         }
         for citation in workspace.citations {

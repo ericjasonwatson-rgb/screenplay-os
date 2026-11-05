@@ -1,0 +1,69 @@
+diff --git a/Sources/ScreenplayOSApp/ScreenplayOSApp.swift b/Sources/ScreenplayOSApp/ScreenplayOSApp.swift
+--- a/Sources/ScreenplayOSApp/ScreenplayOSApp.swift
++++ b/Sources/ScreenplayOSApp/ScreenplayOSApp.swift
+@@ -30,7 +30,14 @@
+                         CampaignWorkspaceView(model: model, projectID: projectID)
+                     }
+                 }
+-                .onAppear { appDelegate.model = model; model.enablePackageWindows() }
++                .onAppear {
++                    appDelegate.model = model
++                    model.enablePackageWindows()
++                    SiriWorkspaceNavigation.consume(model: model)
++                }
++                .onReceive(NotificationCenter.default.publisher(for: SiriWorkspaceNavigation.notification)) { _ in
++                    SiriWorkspaceNavigation.consume(model: model)
++                }
+                 .background(DocumentCloseGuard(model: model))
+                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
+         }
+diff --git a/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift b/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift
+--- a/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift
++++ b/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift
+@@ -1,4 +1,5 @@
+ import AppIntents
++import AppKit
+ import Foundation
+ 
+ /// A deliberately narrow first Siri/Shortcuts surface. It exposes workspace
+@@ -35,8 +36,23 @@
+         NotificationCenter.default.post(name: notification, object: nil)
+     }
+ 
++    /// A blocked command is discarded, not deferred. Replaying it on dismissal
++    /// could override the user's newer Campaign "Go to Source" navigation.
++    /// The native override makes modal-window checks deterministic in unit tests.
++    static func navigationIsBlocked(model: ScreenplayViewModel, nativeModalIsOpen: Bool? = nil) -> Bool {
++        let nativeBlocked = nativeModalIsOpen ?? (
++            NSApp?.modalWindow != nil || NSApp?.windows.contains(where: { $0.attachedSheet != nil }) == true
++        )
++        return nativeBlocked || model.campaignPresented || model.packageSheetOpen ||
++            model.titlePagePresented || model.dialogueAssistantPresented || model.continuityBiblePresented ||
++            model.boardGenerationSnapshot != nil || model.generationConsentPreview != nil ||
++            model.generationCostLedger != nil || model.convertedCopyReceipt != nil ||
++            model.sourceNavigationProblem != nil
++    }
++
+     @discardableResult
+-    static func consume(model: ScreenplayViewModel, preferences: UserDefaults = .standard) -> Bool {
++    static func consume(model: ScreenplayViewModel, preferences: UserDefaults = .standard,
++                        nativeModalIsOpen: Bool? = nil) -> Bool {
+         guard let raw = preferences.string(forKey: pendingKey),
+               let choice = SiriWorkspaceChoice(rawValue: raw) else {
+             // Clear malformed requests so an old command cannot run unexpectedly.
+@@ -44,6 +60,7 @@
+             return false
+         }
+         preferences.removeObject(forKey: pendingKey)
++        guard !navigationIsBlocked(model: model, nativeModalIsOpen: nativeModalIsOpen) else { return false }
+         model.setWorkflowMode(choice.workflowMode)
+         return true
+     }
+@@ -61,6 +78,6 @@
+ 
+     func perform() async throws -> some IntentResult & ProvidesDialog {
+         await SiriWorkspaceNavigation.request(workspace)
+-        return .result(dialog: "Opening the ScreenplayOS \(workspace.rawValue) workspace.")
++        return .result(dialog: "Requested the ScreenplayOS \(workspace.rawValue) workspace. If a panel is open, close it and try again.")
+     }
+ }

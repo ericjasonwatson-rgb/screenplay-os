@@ -273,27 +273,30 @@ struct NativeEditorTests {
             if let pdf = view as? TitlePagePDFCanvas { return pdf }
             return view.subviews.lazy.compactMap { findPDF($0) }.first
         }
-        @MainActor func settle() async throws {
-            host.layoutSubtreeIfNeeded()
-            try await Task.sleep(nanoseconds: 350_000_000)
-            host.layoutSubtreeIfNeeded()
-        }
-        try await settle()
+        let initialPreview = try await waitForNativeUI(host) { findPDF(host)?.document?.pageCount == 1 }
         nativeUIHierarchyDiagnostic("title initial", host: host, window: window, model: model)
+        #expect(initialPreview)
         #expect(findPDF(host)?.document?.pageCount == 1)
         model.titlePageBinding(.title).wrappedValue = "An obsolete title"
         model.titlePageBinding(.title).wrappedValue = "The Revised Title"
-        try await settle()
+        let revisedPreview = try await waitForNativeUI(host) {
+            findPDF(host)?.document?.string?.contains("The Revised Title") == true
+        }
         nativeUIHierarchyDiagnostic("title revised", host: host, window: window, model: model)
+        #expect(revisedPreview)
         #expect(findPDF(host)?.document?.string?.contains("The Revised Title") == true)
         #expect(findPDF(host)?.document?.string?.contains("obsolete") == false)
         model.titlePageBinding(.contact).wrappedValue = String(repeating: "Too much contact information\n", count: 100)
-        try await settle()
+        let invalidPreviewRemoved = try await waitForNativeUI(host) { findPDF(host) == nil }
         nativeUIHierarchyDiagnostic("title overflow", host: host, window: window, model: model)
+        #expect(invalidPreviewRemoved)
         #expect(findPDF(host) == nil)
         model.titlePageBinding(.contact).wrappedValue = "writer@example.com"
-        try await settle()
+        let recoveredPreview = try await waitForNativeUI(host) {
+            findPDF(host)?.document?.string?.contains("writer@example.com") == true
+        }
         nativeUIHierarchyDiagnostic("title recovered", host: host, window: window, model: model)
+        #expect(recoveredPreview)
         #expect(findPDF(host)?.document?.string?.contains("writer@example.com") == true)
         if let path = ProcessInfo.processInfo.environment["SCREENPLAYOS_TITLE_PREVIEW_CAPTURE"],
            let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
