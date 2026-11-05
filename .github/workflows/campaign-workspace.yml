@@ -35,3 +35,26 @@ jobs:
         # AppKit tests share process-global windows and the main actor. Run all
         # tests serially; no tests are filtered and no assertions are relaxed.
         run: ./Scripts/test.sh --no-parallel
+      - name: Run downstream smoke checks if the aggregate suite failed
+        if: failure()
+        env:
+          CONFIGURATION: ${{ matrix.configuration }}
+        run: |
+          status=0
+          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-self-test || status=1
+          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island.open-screenplay.json --json >/dev/null || status=1
+          swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Minimal.screenplayos.json --json >/dev/null || status=1
+          exit "$status"
+      - name: Diagnose native failures against pinned main control
+        if: failure()
+        env:
+          CONFIGURATION: ${{ matrix.configuration }}
+        run: |
+          # Read-only control: no branch is changed. Apply only the known Swift
+          # expression compiler fix shared with PRs #3/#4 so main can compile.
+          git fetch --depth=1 origin f995ee1d2fe383b1159e0fa9dddd9b76f777696b
+          baseline="$RUNNER_TEMP/campaign-main-control"
+          git worktree add --detach "$baseline" f995ee1d2fe383b1159e0fa9dddd9b76f777696b
+          cp Sources/ScreenplayOSApp/ScreenplayChromeState.swift "$baseline/Sources/ScreenplayOSApp/ScreenplayChromeState.swift"
+          cd "$baseline"
+          swift test --configuration "$CONFIGURATION" --disable-sandbox --no-parallel --filter 'windowChangesModesAndReturnsToCurrentText|fitWidthTracksPanelsWithoutChangingScriptOrSelection|titleEditorPreviewUpdatesAndRecoversFromOverflow'

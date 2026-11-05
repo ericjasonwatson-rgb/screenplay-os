@@ -96,10 +96,17 @@ existing Mac app. It carries exactly the existing chrome compiler-expression fix
 from 642f44e (also in PRs #3/#4) rather than changing other workstreams. It does not
 stack on, modify or merge the image-generation branches.
 
-CI runs full Debug and Release `Scripts/test.sh` on macOS 15, including Python
+CI runs full Debug and Release `Scripts/test.sh --no-parallel` on macOS 15, including Python
 LegacyInspector, Node LicenseWorker, all Swift tests, the domain self-test and
 two inspector fixtures. The first aggregate run exposed the existing macOS Bash
-3.2 empty-array expansion failure; the runner now guards the optional flags. Tests cover
+3.2 empty-array expansion failure; the runner now guards the optional flags.
+All tests execute serially because AppKit tests share process-global native state.
+Serial execution resolved a recovery timeout but three existing editor assertions
+still failed (fit-width roundtrip, title-preview overflow, writing-view removal).
+The workflow records downstream smoke checks independently after a suite failure
+and runs those exact tests against pinned main f995ee1 with only the existing
+chrome compiler-expression split. This control does not merge or alter main.
+See the PR for terminal control results; no full green regression claim is implied. Tests cover
 immutable snapshots, Codable roundtrip, exact Unicode, source changes, impact
 union, dangling references, scope separation/stale approvals, validation, unknown
 JSON preservation, wrong-project isolation, atomic replacement, leases, symlinks,
