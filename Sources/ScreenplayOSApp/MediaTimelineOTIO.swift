@@ -47,7 +47,11 @@ enum MediaTimelineOTIO {
                 "OTIO_SCHEMA": "Clip.2",
                 "name": item.occurrenceID.uuidString,
                 "source_range": range(0, item.durationFrames),
-                "media_reference": reference,
+                // Clip.2 requires a keyed media_references map and an active
+                // media reference key (Clip.1 used the singular field).
+                // Using Clip.2 with a Clip.1 field silently loses media.
+                "media_references": ["DEFAULT_MEDIA": reference],
+                "active_media_reference_key": "DEFAULT_MEDIA",
                 "metadata": ["screenplayos": [
                     "occurrence_id": item.occurrenceID.uuidString,
                     "scene_id": item.sceneID.uuidString,
