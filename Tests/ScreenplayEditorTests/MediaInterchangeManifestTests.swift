@@ -99,4 +99,30 @@ struct MediaInterchangeManifestTests {
         }
     }
 
+
+    @Test func localMediaResolutionReportsMissingFilesAndRejectsSymlinkEscape() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: root)
+            try? FileManager.default.removeItem(at: outside)
+        }
+        let mediaDir = root.appendingPathComponent("attachments", isDirectory: true)
+        try FileManager.default.createDirectory(at: mediaDir, withIntermediateDirectories: true)
+        let file = mediaDir.appendingPathComponent("take.mov")
+        try Data([0x00, 0x01]).write(to: file)
+        let present = try MediaInterchangeManifest.make([occurrence()], projectRoot: root)
+        #expect(present.missingMedia.isEmpty)
+        try FileManager.default.removeItem(at: file)
+        let missing = try MediaInterchangeManifest.make([occurrence()], projectRoot: root)
+        #expect(missing.missingMedia.count == 1)
+        let link = mediaDir.appendingPathComponent("outside")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: outside)
+        #expect(throws: MediaInterchangeManifest.ValidationError.self) {
+            try MediaInterchangeManifest.containedMediaURL("attachments/outside/secret.mov", projectRoot: root)
+        }
+    }
+
 }
