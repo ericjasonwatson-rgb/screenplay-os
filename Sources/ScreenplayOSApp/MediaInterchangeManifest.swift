@@ -105,6 +105,30 @@ enum MediaInterchangeManifest {
         return try make(occurrences, mediaExists: mediaExists)
     }
 
+
+    enum ImportError: Error, Equatable {
+        case unsupportedVersion
+        case invalidMissingMediaReport
+    }
+
+    /// Validates an interchange snapshot without modifying project data.
+    /// This is not an editorial round-trip importer.
+    static func read(_ data: Data) throws -> Manifest {
+        let decoded = try JSONDecoder().decode(Manifest.self, from: data)
+        guard decoded.formatVersion == 1 else { throw ImportError.unsupportedVersion }
+        let verified = try make(decoded.occurrences, mediaExists: { _ in true })
+        let known = Dictionary(uniqueKeysWithValues:
+            verified.occurrences.map { ($0.occurrenceID, $0.mediaPath) })
+        var reported = Set<UUID>()
+        for item in decoded.missingMedia {
+            guard reported.insert(item.occurrenceID).inserted,
+                  known[item.occurrenceID] == item.path else {
+                throw ImportError.invalidMissingMediaReport
+            }
+        }
+        return decoded
+    }
+
     static func json(_ manifest: Manifest) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
