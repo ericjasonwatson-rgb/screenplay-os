@@ -28,9 +28,29 @@ enum CampaignWorkspaceStore {
         let base = try root ?? FileManager.default.url(for: .applicationSupportDirectory,
                                                      in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("ScreenplayOS", isDirectory: true)
-        return base.resolvingSymlinksInPath().appendingPathComponent("Campaigns", isDirectory: true)
+        return try canonicalRoot(base).appendingPathComponent("Campaigns", isDirectory: true)
             .appendingPathComponent(projectID.uuidString, isDirectory: true)
             .appendingPathComponent("campaign-v1.json")
+    }
+
+    /// Resolve only the trusted storage root, never an existing campaign hierarchy.
+    /// Foundation's resolvingSymlinksInPath can reintroduce /var after resolving it;
+    /// POSIX realpath retains the literal /private/var path needed by lstat checks.
+    static func canonicalRoot(_ root: URL) throws -> URL {
+        guard root.isFileURL else { throw Failure.unsafePath }
+        var existing = root
+        var suffix: [String] = []
+        while !FileManager.default.fileExists(atPath: existing.path) {
+            suffix.insert(existing.lastPathComponent, at: 0)
+            let parent = existing.deletingLastPathComponent()
+            guard parent.path != existing.path else { throw Failure.unsafePath }
+            existing = parent
+        }
+        guard let resolved = realpath(existing.path, nil) else { throw Failure.unsafePath }
+        defer { free(resolved) }
+        var result = URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
+        for component in suffix { result.appendPathComponent(component, isDirectory: true) }
+        return result
     }
 
     static func load(projectID: UUID, from url: URL) throws -> Loaded {

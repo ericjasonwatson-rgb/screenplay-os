@@ -7,7 +7,7 @@ import ScreenplayDomain
 struct CampaignWorkspaceStoreTests {
     private func temporaryRoot() throws -> URL {
         // macOS temporaryDirectory commonly begins with the /var system alias.
-        let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
+        let root = try CampaignWorkspaceStore.canonicalRoot(FileManager.default.temporaryDirectory)
             .appendingPathComponent("CampaignStoreTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         return root

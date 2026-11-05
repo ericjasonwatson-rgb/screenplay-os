@@ -5,13 +5,13 @@ import ScreenplayDomain
 
 @Suite("Campaign workspace commands")
 struct CampaignWorkspaceSessionTests {
-    private func temporaryRoot() -> URL {
-        FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
+    private func temporaryRoot() throws -> URL {
+        try CampaignWorkspaceStore.canonicalRoot(FileManager.default.temporaryDirectory)
             .appendingPathComponent(UUID().uuidString)
     }
 
     @MainActor @Test func draftPersistsBeforePublishAndUndoDoesNotRemoveBaselines() throws {
-        let root = temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let root = try temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let screenplay = Screenplay(metadata: .init(title: "Campaign"))
         let document = ScreenplayOSDocument(project: .init(metadata: .init(title: "Campaign", author: ""), screenplayID: screenplay.id), screenplay: screenplay)
         let session = CampaignWorkspaceSession(projectID: document.project.id, root: root)
@@ -32,7 +32,7 @@ struct CampaignWorkspaceSessionTests {
     }
 
     @MainActor @Test func conflictingWriteDoesNotPublishOrDiscardPriorState() throws {
-        let root = temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let root = try temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let id = UUID()
         let first = CampaignWorkspaceSession(projectID: id, root: root)
         let second = CampaignWorkspaceSession(projectID: id, root: root)
@@ -46,7 +46,7 @@ struct CampaignWorkspaceSessionTests {
     }
 
     @MainActor @Test func unsupportedCampaignIsReadOnlyAndNeverReset() throws {
-        let root = temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let root = try temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let id = UUID(), bytes = Data("{broken".utf8)
         let url = try CampaignWorkspaceStore.url(projectID: id, root: root)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -60,7 +60,7 @@ struct CampaignWorkspaceSessionTests {
     }
 
     @MainActor @Test func normalizationOnlyDraftChangesAreNotDropped() throws {
-        let root = temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
+        let root = try temporaryRoot(); defer { try? FileManager.default.removeItem(at: root) }
         let session = CampaignWorkspaceSession(projectID: UUID(), root: root)
         session.updateDraft { $0.brief.brand = "Caf\u{00E9}" }
         session.updateDraft { $0.brief.brand = "Cafe\u{0301}" }
