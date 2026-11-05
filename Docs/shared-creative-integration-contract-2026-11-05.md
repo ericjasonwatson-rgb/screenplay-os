@@ -35,3 +35,26 @@ Existing focused CI reported success for PR #3 Siri navigation and PR #4 board p
 End-to-end must use a Defenders of Cat Island fixture: approve board, prepare brief, explicitly authorize fixed request, generate deterministic fixture via mock, decode and persist media, add candidate take, choose it with Undo, update Boardomatic without changing timing, export OTIO, re-import review proposals, and verify all IDs and provenance. Also test interrupted writes, missing files, stale result, revoked consent, and offline operation. No vendor payments or accounts in CI.
 
 Do not label a mock signature-only buffer as a valid PNG. The pure handoff's byte signature is a coarse guard; the caller MUST use the real image decoder and durable file store before passing the bytes.
+
+## Regression gate refresh — 2026-11-05
+
+The production-image branch now runs a full macOS Swift package test job
+alongside the focused ProductionImage, ProductionBoardApproval and OpenAI
+reference-image request suites. This is a **pre-merge verification** of
+shared model behavior, not a claim that PR #1, #3, #4 or #5 have merged.
+
+Image generation now uses a persistent job state and a local result vault;
+the user-facing final Send action remains explicitly gated and no network
+calls are made during CI. Real request completion timestamps are recorded
+when the provider response has actually arrived and been stored, rather
+than estimating a fixed latency. Ambiguous transport failures are not
+automatically retried.
+
+Cross-branch acceptance is still needed for:
+- canonical board and Take projection, selection/Undo and editorial timing;
+- OTIO interchange and import review with stable shot/take IDs;
+- Siri/App Intent navigation against the resulting shared project schema;
+- end-to-end application packaging and manual live-provider authorization.
+
+Do not merge stacked PR #5 directly into main: review and merge its base
+PR #4 or rebase deliberately after the full regression status is known.
