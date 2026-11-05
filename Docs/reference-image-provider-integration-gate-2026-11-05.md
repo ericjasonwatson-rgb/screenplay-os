@@ -46,3 +46,21 @@ selected board image. The calling service must still obtain the completed job
 record from the persisted `GenerationJobController` rather than trusting an
 unverified caller-provided record; the end-to-end integration test will verify
 this link and adoption/Undo.
+
+## Persistent job provenance gate (latest)
+
+The production candidate path now exposes
+`ProductionImageResultPreparation.prepareFromPersistedJob`. It reads a
+validated terminal `GenerationJobRecord` directly from the existing durable
+`GenerationJobController` actor before decoding or storing an output.
+An unpersisted success record, awaiting-consent job, failed job or missing
+job cannot create a candidate through this entrypoint. A successful test
+runs the controller through stage, consent, submission and completion using
+offline fixtures and verifies that the candidate remains unselected.
+
+This still **does not** prove that an HTTP response belongs to a
+particular provider request: a trusted transport must bind its response to
+the exact submitted job and handle retries and provider errors. The returned
+`Take` is not yet adopted into the canonical document or persisted as a
+separate managed candidate. Implement that adoption through an undoable
+shared command, not by silently replacing the selected storyboard.
