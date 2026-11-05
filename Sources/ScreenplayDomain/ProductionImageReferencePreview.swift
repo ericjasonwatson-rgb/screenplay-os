@@ -19,6 +19,25 @@ public struct ProductionImageReferenceReview: Sendable {
     /// an additional authoritative copy of the storyboard.
     public let imageBytes: Data
 
+    public init(
+        jobID: UUID, requestSHA256: String, providerID: String, modelID: String,
+        prompt: String, imageSHA256: String, imageSizeBytes: Int, width: Int,
+        height: Int, expectedCost: GenerationCost?, imageBytes: Data
+    ) {
+        self.jobID = jobID
+        self.requestSHA256 = requestSHA256
+        self.providerID = providerID
+        self.modelID = modelID
+        self.prompt = prompt
+        self.imageSHA256 = imageSHA256
+        self.imageSizeBytes = imageSizeBytes
+        self.width = width
+        self.height = height
+        self.expectedCost = expectedCost
+        self.imageBytes = imageBytes
+    }
+
+
     public var costDisclosure: String {
         guard let expectedCost else { return "Estimated provider cost unavailable. Charges may apply." }
         return "\(expectedCost.amountMicros) micros \(expectedCost.currency) (estimate; provider may charge differently)."
