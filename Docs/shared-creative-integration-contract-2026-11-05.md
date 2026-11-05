@@ -99,3 +99,20 @@ not inferred from a successful code commit.
 The fit-width round-trip case remains open pending its independent
 macOS result and diagnosis of split-view width restoration. Preserve
 the no-mutation and selection invariants in NativeEditorTests.
+
+## Follow-up on native rendering CI
+
+Run #122 completed with the focused image suite passing. The full
+editor suite still reported title-PDF initial-render timing and
+fit-width zoom round-trip failures, together with one package-recovery
+test timeout under heavy concurrent UI testing. The prior
+workflow-switching failure did not reproduce after scoped Chrome
+signals were refreshed immediately by `setWorkflowMode`.
+
+The attempted title-PDF revision-bound rendering change made the
+first preview load less reliable under the full suite and has been
+reverted. The original title-preview behavior remains a blocker.
+To separate genuine product failures from shared-main-actor overload,
+the next full regression is configured with SwiftPM's no-parallel
+execution mode. No assertions were deleted or weakened. The
+fit-width and title-page tests remain required release gates.
