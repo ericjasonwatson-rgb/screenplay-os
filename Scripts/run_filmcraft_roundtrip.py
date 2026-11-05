@@ -58,7 +58,7 @@ def main():
                 try:
                     loss = identity_loss_report(source, export)
                     args.report.write_text(
-                        json.dumps(loss, sort_keys=True, indent=2) + "\\n",
+                        json.dumps(loss, sort_keys=True, indent=2) + "\n",
                         encoding="utf-8",
                     )
                 except (ValueError, KeyError, TypeError, RuntimeError) as diagnostic:
