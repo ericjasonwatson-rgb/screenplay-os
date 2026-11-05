@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 import tempfile
 import opentimelineio as otio
-from compare_filmcraft_otio import snapshot, compare
+from compare_filmcraft_otio import snapshot, compare, identity_loss_report
 
 def check_fail(baseline, data, path, expected):
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -42,6 +42,21 @@ def main():
         lost = copy.deepcopy(original_json)
         del lost["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"]["prompt_sha256"]
         check_fail(baseline, lost, path, "lost required metadata")
+
+        # FilmCraft v0.17.1 drops the ScreenplayOS namespace. Diagnose
+        # precisely, but never reconstruct identities by sequence or timing.
+        metadata_stripped = copy.deepcopy(original_json)
+        for exported_clip in metadata_stripped["tracks"]["children"][0]["children"]:
+            exported_clip["metadata"] = {}
+        check_fail(baseline, metadata_stripped, path, "no ScreenplayOS provenance")
+        loss = identity_loss_report(source, path)
+        assert loss["status"] == "blocked_identity_loss"
+        assert loss["adopted"] is False and loss["matching_performed"] is False
+        assert loss["baseline_occurrences"] == 2 and loss["returned_clips"] == 2
+        assert len(loss["baseline_sha256"]) == 64
+        assert all(len(item["lost_fields"]) == 8 for item in loss["returned_clip_diagnostics"])
+        assert all(not item["has_screenplayos_namespace"]
+                   for item in loss["returned_clip_diagnostics"])
 
         changed = copy.deepcopy(original_json)
         changed["tracks"]["children"][0]["children"][0]["media_references"]["DEFAULT_MEDIA"]["target_url"] = "Board Images/alternate.mov"
