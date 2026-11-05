@@ -37,7 +37,7 @@ struct CampaignPanelLifecycleTests {
                 try await fixture.expectLedger { $0.draft.brief.brand == "Synthetic campaign" }
             } else {
                 let brand = try await fixture.control("campaign.field.Brand")
-                #expect(brand.accessibilityValue?() as? String == "Synthetic campaign")
+                #expect(try campaignAXValue(brand) as? String == "Synthetic campaign")
             }
             #expect(fixture.model.document == document)
             #expect(try Data(contentsOf: screenplayURL) == screenplayBytes)
@@ -98,7 +98,7 @@ struct CampaignPanelLifecycleTests {
                     && $0.draft.deliverables.first?.name == name
             }
             let restored = try await fixture.control("campaign.deliverable.name.\(item.id)")
-            #expect(restored.accessibilityValue?() as? String == name)
+            #expect(try campaignAXValue(restored) as? String == name)
             try await fixture.press("campaign.deliverable.remove.\(item.id)")
             try await fixture.expectLedger { $0.draft.deliverables.isEmpty }
             #expect(fixture.model.document == original)
@@ -136,7 +136,7 @@ struct CampaignPanelLifecycleTests {
 
         _ = try await fixture.open()
         let brand = try await fixture.control("campaign.field.Brand")
-        #expect(brand.accessibilityValue?() as? String == "")
+        #expect(try campaignAXValue(brand) as? String == "")
         try await fixture.replaceText("campaign.field.Brand", with: "Second project")
         try await fixture.expectLedger { $0.projectID == replacementID && $0.draft.brief.brand == "Second project" }
         try await fixture.press("campaign.close")
@@ -145,7 +145,7 @@ struct CampaignPanelLifecycleTests {
         #expect(fixture.model.document?.project.id == originalID)
         _ = try await fixture.open()
         let restored = try await fixture.control("campaign.field.Brand")
-        #expect(restored.accessibilityValue?() as? String == "First project")
+        #expect(try campaignAXValue(restored) as? String == "First project")
         #expect(try Data(contentsOf: fixture.campaignURL(projectID: originalID)) == originalCampaign)
     }
 
@@ -453,6 +453,15 @@ private final class CampaignPanelFixture {
         }
         print("CAMPAIGN_UI_DIAGNOSTIC END \(stage)")
     }
+}
+
+@MainActor
+private func campaignAXValue(_ element: AnyObject) throws -> Any? {
+    // AppKit declares this ObjC selector with several covariant return types.
+    // Supply the general AX signature before invoking it on a virtual node.
+    let getter: (() -> Any?)? = element.accessibilityValue
+    let read = try #require(getter, "Campaign control has no native accessibility value getter.")
+    return read()
 }
 
 @MainActor
