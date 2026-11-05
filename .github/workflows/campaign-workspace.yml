@@ -45,8 +45,9 @@ jobs:
           swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Defenders_of_Cat_Island.open-screenplay.json --json >/dev/null || status=1
           swift run --configuration "$CONFIGURATION" --disable-sandbox --skip-build screenplay-inspect Tests/Fixtures/Minimal.screenplayos.json --json >/dev/null || status=1
           exit "$status"
-      - name: Diagnose native failures against pinned main control
+      - name: Diagnose native failures against full pinned main control
         if: failure()
+        timeout-minutes: 15
         env:
           CONFIGURATION: ${{ matrix.configuration }}
         run: |
@@ -57,4 +58,4 @@ jobs:
           git worktree add --detach "$baseline" f995ee1d2fe383b1159e0fa9dddd9b76f777696b
           cp Sources/ScreenplayOSApp/ScreenplayChromeState.swift "$baseline/Sources/ScreenplayOSApp/ScreenplayChromeState.swift"
           cd "$baseline"
-          swift test --configuration "$CONFIGURATION" --disable-sandbox --no-parallel --filter 'windowChangesModesAndReturnsToCurrentText|fitWidthTracksPanelsWithoutChangingScriptOrSelection|titleEditorPreviewUpdatesAndRecoversFromOverflow'
+          swift test --configuration "$CONFIGURATION" --disable-sandbox --no-parallel

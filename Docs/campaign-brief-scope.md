@@ -104,8 +104,11 @@ All tests execute serially because AppKit tests share process-global native stat
 Serial execution resolved a recovery timeout but three existing editor assertions
 still failed (fit-width roundtrip, title-preview overflow, writing-view removal).
 The workflow records downstream smoke checks independently after a suite failure
-and runs those exact tests against pinned main f995ee1 with only the existing
-chrome compiler-expression split. This control does not merge or alter main.
+and runs the full original 369 tests against pinned main f995ee1 with only the
+existing chrome compiler-expression split. A prior focused three-test control
+reproduced title-preview and writing-view failures but not fit-width, so the full
+control distinguishes shared-suite state from campaign behavior. These controls
+do not merge or alter main.
 See the PR for terminal control results; no full green regression claim is implied. Tests cover
 immutable snapshots, Codable roundtrip, exact Unicode, source changes, impact
 union, dangling references, scope separation/stale approvals, validation, unknown
