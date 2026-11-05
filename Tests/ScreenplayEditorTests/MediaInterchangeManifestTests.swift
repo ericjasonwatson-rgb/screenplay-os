@@ -80,4 +80,23 @@ struct MediaInterchangeManifestTests {
         }
     }
 
+
+    @Test func snapshotReadValidatesVersionAndMissingMedia() throws {
+        let item = occurrence()
+        let original = try MediaInterchangeManifest.make([item], mediaExists: { _ in false })
+        let restored = try MediaInterchangeManifest.read(MediaInterchangeManifest.json(original))
+        #expect(restored == original)
+        let unsupported = MediaInterchangeManifest.Manifest(
+            formatVersion: 2, occurrences: [item], missingMedia: [])
+        #expect(throws: MediaInterchangeManifest.ImportError.self) {
+            try MediaInterchangeManifest.read(MediaInterchangeManifest.json(unsupported))
+        }
+        let forged = MediaInterchangeManifest.Manifest(
+            formatVersion: 1, occurrences: [item],
+            missingMedia: [.init(occurrenceID: UUID(), path: "attachments/take.mov")])
+        #expect(throws: MediaInterchangeManifest.ImportError.self) {
+            try MediaInterchangeManifest.read(MediaInterchangeManifest.json(forged))
+        }
+    }
+
 }
