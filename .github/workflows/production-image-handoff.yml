@@ -55,6 +55,9 @@ on:
       - 'Tests/ScreenplayEditorTests/ProductionImageReferencePreviewTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImageReviewSheetTests.swift'
       - 'Tests/ScreenplayEditorTests/ProductionImagePlanningSheetTests.swift'
+      - 'Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift'
+      - 'Tests/ScreenplayEditorTests/SiriWorkspaceIntentsTests.swift'
+      - '.github/workflows/siri-image-integration-smoke.yml'
       - '.github/workflows/production-image-handoff.yml'
   workflow_dispatch:
 
@@ -71,6 +74,7 @@ jobs:
         run: swift --version
       - name: Test storyboard approval and candidate handoff
         run: |
+          swift test --configuration debug --disable-sandbox --filter SiriWorkspace
           swift test --configuration debug --disable-sandbox --filter ProductionImage
           swift test --configuration debug --disable-sandbox --filter ProductionBoardApproval
           swift test --configuration debug --disable-sandbox --filter OpenAIReferenceImage
