@@ -11,6 +11,7 @@ import sys
 import tempfile
 import opentimelineio as otio
 from compare_filmcraft_otio import snapshot, compare, identity_loss_report
+from filmcraft_manual_relink_candidates import manual_candidates
 
 def check_fail(baseline, data, path, expected):
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -49,6 +50,12 @@ def main():
         for exported_clip in metadata_stripped["tracks"]["children"][0]["children"]:
             exported_clip["metadata"] = {}
         check_fail(baseline, metadata_stripped, path, "no ScreenplayOS provenance")
+        hints = manual_candidates(source, path)
+        assert hints["status"] == "manual_identity_review_required"
+        assert hints["adopted"] is False
+        assert hints["safe_to_auto_import"] is False
+        assert all(not candidate["verified"] and not candidate["approved"]
+                   for candidate in hints["candidates"])
         loss = identity_loss_report(source, path)
         assert loss["status"] == "blocked_identity_loss"
         assert loss["adopted"] is False and loss["matching_performed"] is False
@@ -59,6 +66,12 @@ def main():
         path.write_text(json.dumps(name_drift), encoding="utf-8")
         changed_names = identity_loss_report(source, path)
         assert changed_names["unique_occurrence_names_preserved"] is False
+        try:
+            manual_candidates(source, path)
+        except ValueError as error:
+            assert "changed clip names" in str(error)
+        else:
+            raise AssertionError("Renamed clip must not produce identity hints")
         assert changed_names["adopted"] is False and changed_names["matching_performed"] is False
         assert loss["baseline_occurrences"] == 2 and loss["returned_clips"] == 2
         assert len(loss["baseline_sha256"]) == 64
