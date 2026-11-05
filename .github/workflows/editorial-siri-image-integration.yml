@@ -19,6 +19,7 @@ on:
       - 'Scripts/compare_filmcraft_otio.py'
       - 'Scripts/run_filmcraft_roundtrip.py'
       - 'Scripts/test_filmcraft_roundtrip_review.py'
+      - 'Scripts/filmcraft_manual_relink_candidates.py'
   workflow_dispatch:
 
 permissions:
