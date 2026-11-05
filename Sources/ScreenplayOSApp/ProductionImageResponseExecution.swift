@@ -30,7 +30,7 @@ enum ProductionImageResponseExecution {
         documentURL: URL,
         takeID: UUID,
         submittedAt: Date,
-        completedAt: Date,
+        completedAt: Date? = nil,
         recoveryRoot: URL? = nil,
         transport: any ProductionImageResponseTransport
     ) async throws -> Take {
@@ -60,7 +60,7 @@ enum ProductionImageResponseExecution {
             // A returned response with invalid image data cannot be adopted.
             // Preserve only a sanitized error, never raw provider content.
             try? await controller.markFailed(
-                jobID: ready.jobID, at: completedAt,
+                jobID: ready.jobID, at: completedAt ?? Date(),
                 sanitizedError: "Provider returned an invalid image response. Check usage before retrying."
             )
             throw error
@@ -73,14 +73,15 @@ enum ProductionImageResponseExecution {
         try ProductionImageResultVault.store(
             png, projectID: staged.job.projectID, jobID: ready.jobID,
             root: root)
-        try await controller.markSucceeded(jobID: ready.jobID, at: completedAt)
+        let resultCompletedAt = completedAt ?? Date()
+        try await controller.markSucceeded(jobID: ready.jobID, at: resultCompletedAt)
         // This reads the actual persisted succeeded job. If project approval
         // changed in flight, it rejects the candidate without editing Boards.
         return try await ProductionImageResultPreparation.prepareFromPersistedJob(
             response: response, controller: controller,
             staged: staged, currentShot: shot, currentBoard: board,
             approval: approval, documentURL: documentURL,
-            takeID: takeID, now: completedAt
+            takeID: takeID, now: resultCompletedAt
         )
     }
 }
