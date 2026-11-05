@@ -1,0 +1,38 @@
+name: Editorial Siri Image Integration Smoke
+
+on:
+  push:
+    branches:
+      - integration/editorial-siri-image-smoke-20261105
+  pull_request:
+    paths:
+      - 'Sources/ScreenplayOSApp/MediaInterchangeManifest.swift'
+      - 'Sources/ScreenplayOSApp/MediaEditReview.swift'
+      - 'Sources/ScreenplayOSApp/MediaTimelineOTIO.swift'
+      - 'Sources/ScreenplayOSApp/ProductionTakeEditorialBridge.swift'
+      - 'Tests/ScreenplayEditorTests/MediaInterchangeManifestTests.swift'
+      - 'Tests/ScreenplayEditorTests/MediaEditReviewTests.swift'
+      - 'Tests/ScreenplayEditorTests/MediaTimelineOTIOTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionTakeEditorialBridgeTests.swift'
+      - '.github/workflows/editorial-siri-image-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  editorial-image:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift toolchain
+        run: swift --version
+      - name: Validate editorial interchange and generated Take provenance
+        run: |
+          swift test --configuration debug --disable-sandbox --no-parallel --filter MediaInterchangeManifest
+          swift test --configuration debug --disable-sandbox --no-parallel --filter MediaEditReview
+          swift test --configuration debug --disable-sandbox --no-parallel --filter MediaTimelineOTIO
+          swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionTakeEditorialBridge
+          swift test --configuration debug --disable-sandbox --no-parallel --filter SiriWorkspace
+          swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionImage
