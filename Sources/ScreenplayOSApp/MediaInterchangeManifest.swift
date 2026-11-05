@@ -63,7 +63,17 @@ enum MediaInterchangeManifest {
     static func containedMediaURL(_ path: String, projectRoot: URL) throws -> URL {
         guard safeRelativePath(path) else { throw ValidationError.unsafePath }
         let root = projectRoot.standardizedFileURL.resolvingSymlinksInPath()
-        let candidate = root.appendingPathComponent(path).standardizedFileURL.resolvingSymlinksInPath()
+        let components = path.split(separator: "/").map(String.init)
+        var current = root
+        // Reject symlinks at every component. Resolving only the final URL is
+        // insufficient when a missing leaf follows a symlinked directory.
+        for component in components {
+            current.appendPathComponent(component)
+            if (try? FileManager.default.destinationOfSymbolicLink(atPath: current.path)) != nil {
+                throw ValidationError.unsafePath
+            }
+        }
+        let candidate = current.standardizedFileURL
         let prefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
         guard candidate.path.hasPrefix(prefix) else { throw ValidationError.unsafePath }
         return candidate
