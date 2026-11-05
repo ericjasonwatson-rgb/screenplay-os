@@ -198,3 +198,31 @@ The release still needs a deliberately named **Send now** action,
 a dedicated final confirmation with cost/access checks, the live
 adapter dispatch, robust cancellation/failure recovery and a real
 opt-in provider test. None is enabled by local queue authorization.
+
+## Explicit final Send action (development branch only)
+
+The Boards staging sheet now has a separate **Review and Send now…**
+action that becomes available only after local queue consent. The final
+`ProductionImageSendConfirmationSheet` displays the exact reference
+image, prompt, request hash, provider/model and unknown-cost warning,
+and requires a fresh unchecked acknowledgement before the filmmaker can
+press **Send now (may incur charges)**. Rendering the screen cannot
+submit a request.
+
+The click handler reloads the saved board approval, checks current
+project identity, uses the app's existing AI-generation entitlement,
+loads the OpenAI credential from Keychain only at dispatch, invokes
+`ProductionImageResponseExecution` through the authenticated
+`OpenAIProductionImageTransport`, and appends the verified result
+as an unselected canonical Board Take only if the project/shot/board
+still match. Provider errors are not shown raw. A failed or potentially
+billable request is not automatically retried.
+
+**Not yet release-certified:** live API credentials/account/model
+capabilities, actual provider response compatibility, pricing, retry
+and cancellation outcomes, and recovery of an output if local
+candidate storage fails after the provider job is marked succeeded.
+Never claim these behaviors are verified solely from offline CI. A
+live paid integration test requires an intentional user Send click.
+This work remains unmerged and is not an instruction to run such
+a test during development.
