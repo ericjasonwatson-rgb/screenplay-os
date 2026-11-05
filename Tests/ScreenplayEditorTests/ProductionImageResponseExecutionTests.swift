@@ -171,8 +171,10 @@ struct ProductionImageResponseExecutionTests {
             #expect(error is FixtureFailure)
         }
         let ledger = await f.controller.snapshot()
-        #expect(ledger.jobs[0].status == .failed)
-        #expect(ledger.jobs[0].sanitizedError == "Reference-image request or local result preservation failed. Check job status before any retry.")
+        #expect(ledger.jobs[0].status == .running)
+        #expect(ledger.jobs[0].sanitizedError == nil)
+        #expect(ProductionImageUncertainSubmission.isUnresolved(
+            ledger.jobs[0], hasPreservedImage: false))
         #expect(transport.calls == 1)
         // An ambiguous request must fail preflight on any attempted reuse.
         do {
