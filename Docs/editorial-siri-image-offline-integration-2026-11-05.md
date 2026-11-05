@@ -92,3 +92,28 @@ FilmCraft round-trip has passed until this command is executed on a
 Current public FilmCraft documentation describes these command IDs
 and a separately distributed macOS CLI. Its rapid release cadence
 makes a floating binary unsuitable as an acceptance gate.
+
+## Pinned FilmCraft executable smoke (new CI gate)
+
+The branch now includes a separate macOS workflow, 
+`.github/workflows/filmcraft-pinned-roundtrip.yml`, that targets
+FilmCraft **v0.17.1** rather than a floating release. It uses the
+vendor's published `SHA256SUMS.txt` to check the corresponding macOS
+CLI archive before running it. Because the checksum file comes from
+the same release host as the archive, this is a basic integrity
+check, **not an independently anchored, immutable supply-chain pin**.
+A follow-up should record and independently verify the archive digest
+before treating the binary as release-certified.
+
+The test exports a synthetic, two-occurrence image timeline through
+ScreenplayOS, loads it with the headless
+`filmcraft-cli run` command (`file.import` with `replace: true`),
+then calls `file.exportOtio` in the same isolated session. Its
+returned OTIO is decoded by the official parser and compared against
+the original, fail-closed on missing metadata/identity/media paths.
+Changed timing, media, ordering and notes are reported as **proposals
+only**, never imported into the canonical project.
+
+The workflow has not yet established a pass at the time of authoring
+this section. A failed or missing-media import is an interoperability
+finding, not permission to remove checks or reconstruct identity.
