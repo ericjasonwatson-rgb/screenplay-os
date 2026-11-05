@@ -80,14 +80,14 @@ final class ContractTests: XCTestCase {
         let value = try config()
         for item in [value.requirement(for: .agent), value.requirement(for: .reviewer), value.helperRequirement()] {
             var parsed: SecRequirement?
-            let result = SecRequirementCreateWithString(item as CFString, 0, &parsed)
+            let result = SecRequirementCreateWithString(item as CFString, SecCSFlags(rawValue: 0), &parsed)
             XCTAssertEqual(result, errSecSuccess, "macOS rejected code-signing requirement: \(item)")
             XCTAssertNotNil(parsed)
         }
     }
     func testMalformedRequirementCannotBeInstalled() {
         var parsed: SecRequirement?
-        let status = SecRequirementCreateWithString("identifier \"unfinished" as CFString, 0, &parsed)
+        let status = SecRequirementCreateWithString("identifier \"unfinished" as CFString, SecCSFlags(rawValue: 0), &parsed)
         XCTAssertNotEqual(status, errSecSuccess)
     }
     #endif
