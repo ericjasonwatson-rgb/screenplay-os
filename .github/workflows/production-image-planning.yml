@@ -1,0 +1,24 @@
+name: Production Image Planning
+
+on:
+  pull_request:
+    paths:
+      - 'Sources/ScreenplayDomain/ProductionImagePlanning.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionImagePlanningTests.swift'
+      - 'Sources/ScreenplayOSApp/ScreenplayChromeState.swift'
+      - '.github/workflows/production-image-planning.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-image-planning:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift toolchain
+        run: swift --version
+      - name: Test approved-board image planning
+        run: swift test --configuration debug --disable-sandbox --filter ProductionImagePlanning
