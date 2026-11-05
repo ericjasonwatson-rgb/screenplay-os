@@ -268,3 +268,27 @@ Known limitation: an ambiguous in-flight provider request with **no
 recoverable local output** still needs an explicit reconciliation design;
 it must not be automatically retried. End-to-end real-provider testing is
 not part of this change.
+
+## Submitted requests with no locally preserved result
+
+The jobs manager now distinguishes an unresolved submitted request from
+queued-unsent jobs and from completed jobs with locally recoverable media.
+A `running` job with a recorded submission and no verified local
+image is shown as **Submitted requests — outcome unconfirmed**, with
+provider/model, job ID, submission time and request fingerprint. There is
+no retry, resubmit, or automatic status-change button in this section.
+
+A transport exception or interrupted connection is not reliable evidence
+that the provider rejected or refunded the request. The executor now keeps
+such a job `running` (instead of marking it failed), so it is visible in
+the uncertain-submission section after restart. Missing/failed local
+result storage also preserves a `running` job for explicit reconciliation.
+A returned but invalid image response may still be marked failed, with
+sanitized wording that warns the filmmaker to review usage before any
+new request.
+
+The user must inspect provider usage/history independently when no
+recoverable output exists. Do not claim that a provider has charged the
+account, that the job completed, or that it is safe to send it again.
+No automatic polling, duplicate request, or provider-side cancellation
+is performed by this UI.
