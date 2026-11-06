@@ -156,8 +156,14 @@ public final class DurableApprovalClaimLedger {
               url.pathExtension == "sqlite",
               !url.lastPathComponent.isEmpty else { throw DurableClaimError.unsafePath }
         let parent = url.deletingLastPathComponent().path
-        guard url.standardizedFileURL.path == url.path,
-              !containsSymlinkAncestor(parent) else { throw DurableClaimError.unsafePath }
+        guard url.standardizedFileURL.path == url.path else {
+            fputs("[CI diagnostic] nonstandard path; refused\n", stderr)
+            throw DurableClaimError.unsafePath
+        }
+        guard !containsSymlinkAncestor(parent) else {
+            fputs("[CI diagnostic] symlink or non-directory ancestor; refused\n", stderr)
+            throw DurableClaimError.unsafePath
+        }
         var st = stat()
         guard lstat(parent, &st) == 0,
               (st.st_mode & mode_t(S_IFMT)) == mode_t(S_IFDIR),
@@ -170,11 +176,14 @@ public final class DurableApprovalClaimLedger {
         guard absoluteParent.hasPrefix("/") else { return true }
         let components = (absoluteParent as NSString).pathComponents
         var current = "/"
-        for component in components where component != "/" && component != "" {
+        for (index, component) in components.enumerated()
+            where component != "/" && component != "" {
             current = (current as NSString).appendingPathComponent(component)
             var status = stat()
-            guard lstat(current, &status) == 0,
+            let result = lstat(current, &status)
+            guard result == 0,
                   (status.st_mode & mode_t(S_IFMT)) == mode_t(S_IFDIR) else {
+                fputs("[CI diagnostic] ancestor component index=\(index) lstat=\(result) filetype=\(status.st_mode & mode_t(S_IFMT))\n", stderr)
                 return true
             }
         }
