@@ -18,6 +18,14 @@ public enum DurableClaimError: Error, Equatable {
     case invalidApproval(ApprovalVerificationError)
 }
 
+/// Unkeyed commitment to the SQLite ledger. Only a separately trusted,
+/// independently maintained expected value can make this useful for rollback
+/// detection. Never accept the expected value from an AI agent.
+public struct LedgerStateCommitment: Equatable, Codable {
+    public let claimCount: Int64
+    public let sha256Hex: String
+}
+
 public final class DurableApprovalClaimLedger {
     private static let schemaVersion: Int32 = 1
     private let fileURL: URL
@@ -149,6 +157,70 @@ public final class DurableApprovalClaimLedger {
         if result == SQLITE_ROW { return true }
         if result == SQLITE_DONE { return false }
         throw DurableClaimError.storageFailure
+    }
+
+    /// Read a serialized database snapshot and hash every claim in stable
+    /// order. Does NOT anchor or persist a trusted checkpoint by itself.
+    public func stateCommitment() throws -> LedgerStateCommitment {
+        let db = try Self.openValidated(fileURL)
+        defer { sqlite3_close(db) }
+        try Self.execute("BEGIN IMMEDIATE TRANSACTION;", db)
+        var statement: OpaquePointer?
+        do {
+            let sql = """
+                SELECT project_id, request_id, binding_sha256,
+                       reviewer_key_id, claimed_at_seconds, outcome
+                FROM approval_claims ORDER BY project_id, request_id;
+                """
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK,
+                  let stmt = statement else { throw DurableClaimError.storageFailure }
+            var hasher = SHA256()
+            hasher.update(data: Data("CIPS-APPROVAL-LEDGER-STATE-V1\n".utf8))
+            var count: Int64 = 0
+            while true {
+                let result = sqlite3_step(stmt)
+                if result == SQLITE_DONE { break }
+                guard result == SQLITE_ROW, count < Int64.max else {
+                    throw DurableClaimError.storageFailure
+                }
+                count += 1
+                for column in Int32(0)..<Int32(6) {
+                    let type = sqlite3_column_type(stmt, column)
+                    guard type != SQLITE_NULL else { throw DurableClaimError.storageFailure }
+                    let length = Int(sqlite3_column_bytes(stmt, column))
+                    guard length > 0, length <= 2048,
+                          let bytes = sqlite3_column_blob(stmt, column) else {
+                        throw DurableClaimError.storageFailure
+                    }
+                    if column == 2 && (type != SQLITE_BLOB || length != 32) {
+                        throw DurableClaimError.storageFailure
+                    }
+                    hasher.update(data: Data("\(length):".utf8))
+                    hasher.update(data: Data(bytes: bytes, count: length))
+                }
+            }
+            guard sqlite3_finalize(stmt) == SQLITE_OK else {
+                statement = nil
+                throw DurableClaimError.storageFailure
+            }
+            statement = nil
+            try Self.execute("COMMIT;", db)
+            return LedgerStateCommitment(
+                claimCount: count,
+                sha256Hex: hasher.finalize().map { String(format: "%02x", $0) }.joined()
+            )
+        } catch {
+            if let statement { sqlite3_finalize(statement) }
+            try? Self.execute("ROLLBACK;", db)
+            throw error
+        }
+    }
+
+    /// A missing or inconsistent independently maintained checkpoint fails
+    /// closed. This method cannot verify who supplied the expected checkpoint.
+    public func matchesTrustedCheckpoint(_ trusted: LedgerStateCommitment) -> Bool {
+        guard let current = try? stateCommitment() else { return false }
+        return current == trusted
     }
 
     private static func validatedPath(_ url: URL) throws -> String {
