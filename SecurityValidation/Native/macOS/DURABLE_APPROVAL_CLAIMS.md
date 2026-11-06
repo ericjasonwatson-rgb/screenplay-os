@@ -14,9 +14,13 @@ automatic resend under that identity.
    opening cannot create a missing database or reset an existing history.
 3. Parent directory must belong to the running UID, not be a symlink and have
    mode 0700; existing database must be regular, owner-matched and mode 0600.
-   SQLite opens with NOFOLLOW and READWRITE, never CREATE, with busy timeout.
-   All ancestors must be free of symlinks: for example, canonicalize macOS's
-   OS-managed `/var` -> `/private/var` path before trusted installer setup.
+   SQLite opens READWRITE (never CREATE), with a busy timeout. Apple's SQLite
+   3.43.2 on the macOS runner rejected OPEN_NOFOLLOW even for a private
+   regular file, while a comparison open without it succeeded. Instead the
+   adapter explicitly lstat-checks every directory component, uses POSIX
+   O_NOFOLLOW to open and fstat-check the file, and checks its inode before
+   and after SQLite opens it. This does NOT eliminate same-UID races. Tests
+   use a canonical physical temp path (not macOS's `/var` symlink).
 4. Each claim uses an independent connection, BEGIN IMMEDIATE + a unique
    project/request primary key and synchronous=FULL before returning success.
    Unknown outcomes cannot be automatically retried. Same ID cannot be
