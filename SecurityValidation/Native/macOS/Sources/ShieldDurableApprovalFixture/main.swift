@@ -81,22 +81,15 @@ private func execute() throws {
     }
 }
 
-@main
-private enum DurableApprovalFixtureMain {
-    static func main() {
-        do {
-            try execute()
-        } catch {
-            // Never emit secrets or paths in the CI failure path.
-            fputs("DENIED\n", stderr)
-            exit(42)
-        }
-    }
+// SwiftPM treats main.swift as the executable entrypoint without @main.
+do {
+    try execute()
+} catch {
+    // Never emit secrets or paths in the CI failure path.
+    fputs("DENIED\n", stderr)
+    exit(42)
 }
 #else
 import Foundation
-@main
-private enum UnsupportedPlatform {
-    static func main() { exit(78) }
-}
+exit(78)
 #endif
