@@ -1,10 +1,12 @@
 #if os(macOS)
 import CryptoKit
 import Foundation
+import Security
 import XCTest
 import ShieldApprovalContract
 import ShieldNativeContract
 import ShieldReviewerReview
+import ShieldApprovalVerification
 @testable import ShieldReviewerKeychain
 
 final class ReviewerSigningContractTests: XCTestCase {
@@ -98,5 +100,57 @@ final class ReviewerSigningContractTests: XCTestCase {
             trustedNowSeconds: original.binding.issuedAtSeconds + 1
         ))
     }
+    /// This test-only key is explicitly SOFTWARE-HELD and nonpermanent.
+    /// Its only purpose is interoperability: Security.framework's DER ECDSA
+    /// signature must be understood by the independent CryptoKit verifier.
+    /// Production ReviewerKeyStore rejects non-Secure Enclave private keys.
+    func testSecurityFrameworkP256DERSignatureMatchesIndependentVerifier() throws {
+        let request = try preview().binding
+        let attributes: [String: Any] = [
+            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+            kSecAttrKeySizeInBits as String: 256,
+            kSecAttrIsPermanent as String: false
+        ]
+        var keyError: Unmanaged<CFError>?
+        let signingKey = try XCTUnwrap(
+            SecKeyCreateRandomKey(attributes as CFDictionary, &keyError)
+        )
+        let publicKey = try XCTUnwrap(SecKeyCopyPublicKey(signingKey))
+        var publicError: Unmanaged<CFError>?
+        let publicBytes = try XCTUnwrap(
+            SecKeyCopyExternalRepresentation(publicKey, &publicError) as Data?
+        )
+        XCTAssertEqual(publicBytes.count, 65)
+        XCTAssertEqual(publicBytes.first, 0x04)
+        let id = SHA256.hash(data: publicBytes).map {
+            String(format: "%02x", $0)
+        }.joined()
+        let message = ReviewerApprovalMessage.bytes(for: request)
+        var signatureError: Unmanaged<CFError>?
+        let der = try XCTUnwrap(
+            SecKeyCreateSignature(
+                signingKey,
+                .ecdsaSignatureMessageX962SHA256,
+                message as CFData,
+                &signatureError
+            ) as Data?
+        )
+        let verifier = try EphemeralApprovalVerifier(
+            trustedReviewerKeys: [id: publicBytes]
+        )
+        let approval = ReviewerApprovalSignature(
+            reviewerKeyID: id, signatureDER: der
+        )
+        switch verifier.verifySignature(
+            approval, for: request,
+            atTrustedTime: request.issuedAtSeconds + 1
+        ) {
+        case .success: break
+        case .failure(let error):
+            XCTFail("Security.framework DER signature rejected: \(error)")
+        }
+    }
+
+
 }
 #endif
