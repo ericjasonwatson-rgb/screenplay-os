@@ -158,6 +158,43 @@ fn screenplayos_namespace_survives_native_project_and_otio_roundtrip() {
         let item = &reimported.project.sequence(seq).unwrap().video_tracks[0].items[0];
         assert!(item.otio_screenplayos.is_none(), "invalid provenance must not be persisted");
     }
+
+    // Multiple timeline occurrences may refer to the same generated Take.
+    // The Take and generation fingerprints remain shared, but each
+    // occurrence retains a separate stable editorial identity.
+    let mut multi = doc.clone();
+    let first = multi["tracks"]["children"][0]["children"][0].clone();
+    let mut second = first.clone();
+    second["name"] = serde_json::json!("generated second occurrence");
+    second["metadata"]["screenplayos"]["occurrence_id"] =
+        serde_json::json!("00000000-0000-0000-0000-000000000021");
+    multi["tracks"]["children"][0]["children"].as_array_mut().unwrap().push(second);
+    let (multi_import, _) =
+        import(&serde_json::to_vec(&multi).unwrap(), Format::Otio, None).unwrap();
+    let multi_seq = multi_import.sequences[0];
+    let multi_items = &multi_import.project.sequence(multi_seq).unwrap().video_tracks[0].items;
+    assert_eq!(multi_items.len(), 2);
+    let left = multi_items[0].otio_screenplayos.as_ref().unwrap();
+    let right = multi_items[1].otio_screenplayos.as_ref().unwrap();
+    assert_ne!(left["occurrence_id"], right["occurrence_id"]);
+    assert_eq!(left["take_id"], right["take_id"]);
+    assert_eq!(left["generation_job_id"], right["generation_job_id"]);
+    assert_eq!(left["media_sha256"], right["media_sha256"]);
+    assert_eq!(left["prompt_sha256"], right["prompt_sha256"]);
+
+    let (multi_export, _) =
+        filmcraft_interchange::export(&multi_import.project, multi_seq, Format::Otio, &ExportOptions::default()).unwrap();
+    let multi_return: serde_json::Value = serde_json::from_slice(&multi_export).unwrap();
+    let returned_clips = multi_return["tracks"]["children"][0]["children"].as_array().unwrap();
+    assert_eq!(returned_clips.len(), 2);
+    assert_ne!(
+        returned_clips[0]["metadata"]["screenplayos"]["occurrence_id"],
+        returned_clips[1]["metadata"]["screenplayos"]["occurrence_id"]
+    );
+    assert_eq!(
+        returned_clips[0]["metadata"]["screenplayos"]["take_id"],
+        returned_clips[1]["metadata"]["screenplayos"]["take_id"]
+    );
 }
 ''')
     print("Applied narrow ScreenplayOS OTIO provenance experiment to FilmCraft source.")
