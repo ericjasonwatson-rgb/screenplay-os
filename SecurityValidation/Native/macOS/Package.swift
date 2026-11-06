@@ -35,7 +35,7 @@ let package = Package(
         .executableTarget(name: "ShieldReviewerDemoApp", dependencies: ["ShieldReviewerReview", "ShieldApprovalContract"]),
         .testTarget(name: "ShieldNativeContractTests", dependencies: ["ShieldNativeContract"]),
         .testTarget(name: "ShieldReviewerKeychainTests", dependencies: ["ShieldReviewerKeychain", "ShieldNativeContract"]),
-        .testTarget(name: "ShieldReviewerSigningTests", dependencies: ["ShieldReviewerKeychain", "ShieldReviewerReview", "ShieldApprovalContract", "ShieldNativeContract"]),
+        .testTarget(name: "ShieldReviewerSigningTests", dependencies: ["ShieldReviewerKeychain", "ShieldReviewerReview", "ShieldApprovalContract", "ShieldNativeContract", "ShieldApprovalVerification"]),
         .testTarget(name: "ShieldApprovalContractTests", dependencies: ["ShieldApprovalContract"]),
         .testTarget(name: "ShieldApprovalVerificationTests", dependencies: ["ShieldApprovalVerification", "ShieldApprovalContract"]),
         .testTarget(name: "ShieldDurableApprovalTests", dependencies: ["ShieldDurableApproval", "ShieldApprovalVerification", "ShieldApprovalContract"]),
