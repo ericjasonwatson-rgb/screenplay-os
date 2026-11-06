@@ -175,8 +175,17 @@ public final class DurableApprovalClaimLedger {
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW
         let openCode = sqlite3_open_v2(path, &handle, flags, nil)
         guard openCode == SQLITE_OK, let db = handle else {
-            fputs("[test-only] ledger SQLite open code=\(openCode)\n", stderr)
+            // TEMPORARY CI DIAGNOSTIC: comparison never returns a usable DB.
+            // No credentials, contents, signing data or file paths are logged.
+            let sqliteVersion = sqlite3_libversion_number()
+            let primary = handle.map { String(cString: sqlite3_errmsg($0)) } ?? "no handle"
             if let handle { sqlite3_close(handle) }
+            var probe: OpaquePointer?
+            let probeCode = sqlite3_open_v2(path, &probe,
+                SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
+            if let probe { sqlite3_close(probe) }
+            fputs("[test-only] SQLite version=\(sqliteVersion) guardedOpen=\(openCode) " +
+                "error=\(primary) nonguardedProbe=\(probeCode) (probe closed)\n", stderr)
             throw DurableClaimError.storageFailure
         }
         sqlite3_busy_timeout(db, 5_000)
