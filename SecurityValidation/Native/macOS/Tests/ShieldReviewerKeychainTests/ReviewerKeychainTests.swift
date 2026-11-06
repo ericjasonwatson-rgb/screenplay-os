@@ -34,7 +34,7 @@ final class ReviewerKeychainTests: XCTestCase {
         let keys = try XCTUnwrap(attrs[kSecPrivateKeyAttrs as String] as? [String: Any])
         XCTAssertEqual(keys[kSecAttrApplicationTag as String] as? Data, store.applicationTag)
         XCTAssertEqual(keys[kSecAttrIsPermanent as String] as? Bool, true)
-        XCTAssertNotNil(keys[kSecAttrAccessControl as String] as? SecAccessControl)
+        XCTAssertNotNil(keys[kSecAttrAccessControl as String])
         XCTAssertNil(keys[kSecValueData as String])
         XCTAssertNil(attrs[kSecValueData as String])
     }
