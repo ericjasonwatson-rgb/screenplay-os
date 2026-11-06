@@ -1,0 +1,41 @@
+name: Experimental FilmCraft OTIO Provenance Patch
+
+on:
+  pull_request:
+    paths:
+      - 'Scripts/apply_filmcraft_otio_provenance_experiment.py'
+      - '.github/workflows/filmcraft-provenance-patch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  patch-filmcraft:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Check out ScreenplayOS experiment
+        uses: actions/checkout@v4
+      - name: Check out tagged FilmCraft source
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/filmcraft
+          ref: v0.17.1
+          path: filmcraft-source
+          persist-credentials: false
+      - name: Install pinned FilmCraft Rust compiler
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+      - name: Apply narrowly scoped patch
+        run: |
+          python3 Scripts/apply_filmcraft_otio_provenance_experiment.py filmcraft-source
+          git -C filmcraft-source diff --check
+          git -C filmcraft-source diff --stat
+      - name: Validate native FilmCraft interchange test
+        working-directory: filmcraft-source
+        run: cargo test --locked -p filmcraft-interchange --test it screenplayos_namespace_survives_native_project_and_otio_roundtrip -- --exact --nocapture
+      - name: Run existing FilmCraft OTIO regressions
+        working-directory: filmcraft-source
+        run: cargo test --locked -p filmcraft-interchange --test it otio::
