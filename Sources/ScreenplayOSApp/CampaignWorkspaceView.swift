@@ -10,18 +10,25 @@ struct CampaignWorkspaceView: View {
     @Environment(\.dismiss) private var dismiss
     private let importLifecycle: CampaignAgencyImportLifecycle?
     private let reportExportLifecycle: CampaignReportExportLifecycle?
+    private let backupRestoreLifecycle: CampaignBackupRestoreLifecycle?
+    private let privateExportLifecycle: CampaignPrivateExportLifecycle?
     @State private var baselineName = ""
     @State private var selectedBaselineID: UUID?
     @State private var selectedTab = 1
     @State private var selectedAgencyDocumentID: UUID?
     @State private var dismissalConsumed = false
+    @State private var presentationID = UUID()
 
     init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
          importLifecycle: CampaignAgencyImportLifecycle? = nil,
-         reportExportLifecycle: CampaignReportExportLifecycle? = nil) {
+         reportExportLifecycle: CampaignReportExportLifecycle? = nil,
+         backupRestoreLifecycle: CampaignBackupRestoreLifecycle? = nil,
+         privateExportLifecycle: CampaignPrivateExportLifecycle? = nil) {
         self.model = model
         self.importLifecycle = importLifecycle
         self.reportExportLifecycle = reportExportLifecycle
+        self.backupRestoreLifecycle = backupRestoreLifecycle
+        self.privateExportLifecycle = privateExportLifecycle
         _session = StateObject(wrappedValue: CampaignWorkspaceSession(projectID: projectID, root: root))
     }
 
@@ -54,7 +61,12 @@ struct CampaignWorkspaceView: View {
                 .font(.callout).foregroundStyle(.secondary)
             TabView(selection: $selectedTab) {
                 CampaignAgencySourcesView(session: session, selectedDocumentID: $selectedAgencyDocumentID,
-                                          importLifecycle: importLifecycle)
+                                          importLifecycle: importLifecycle,
+                                          privateExportLifecycle: privateExportLifecycle,
+                                          currentContext: {
+                    guard selectedTab == 0 else { return nil }
+                    return recoveryContext()
+                })
                     .tabItem { Label("Agency Sources", systemImage: "doc.text.magnifyingglass") }.tag(0)
                 ScrollView { briefAndDeliverables.padding(.vertical, 12) }
                     .tabItem { Label("Brief & Deliverables", systemImage: "list.bullet.rectangle") }.tag(1)
@@ -63,7 +75,16 @@ struct CampaignWorkspaceView: View {
                 ScrollView { review.padding(.vertical, 12) }
                     .tabItem { Label("Baseline & Changes", systemImage: "arrow.triangle.branch") }.tag(3)
             }
-            .disabled(session.isReadOnly || document == nil)
+            .disabled(session.isReadOnly || document == nil || session.isPerformingRecoveryCommand)
+            if let preview = session.restorePreview {
+                CampaignBackupReviewView(preview: preview,
+                    isRestoring: session.isPerformingRecoveryCommand,
+                    cancel: session.discardRestorePreview,
+                    confirm: {
+                        _ = session.confirmBackupRestore(preview, lifecycle: backupRestoreLifecycle,
+                                                         currentContext: recoveryContext)
+                    })
+            }
             if let problem = session.problem {
                 Label(problem, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange).font(.callout).textSelection(.enabled)
@@ -73,8 +94,24 @@ struct CampaignWorkspaceView: View {
                 Button("Undo Draft Change", action: session.undoDraft).disabled(!session.canUndoDraft)
                     .accessibilityIdentifier("campaign.undo")
                 Spacer()
-                Button("Restore Backup…", action: session.importBackup).disabled(!session.canImport)
-                Button("Private Backup…", action: session.exportBackup).disabled(session.isReadOnly)
+                Button("Restore Backup…") {
+                    let tab = selectedTab
+                    _ = session.previewBackupRestore(lifecycle: backupRestoreLifecycle, currentContext: {
+                        guard selectedTab == tab else { return nil }
+                        return recoveryContext()
+                    })
+                }
+                .disabled(!session.canImport || session.restorePreview != nil || session.isPerformingRecoveryCommand)
+                .accessibilityIdentifier("campaign.backup.restore")
+                Button("Private Backup…") {
+                    let tab = selectedTab
+                    _ = session.exportBackup(lifecycle: privateExportLifecycle, currentContext: {
+                        guard selectedTab == tab else { return nil }
+                        return recoveryContext()
+                    })
+                }
+                .disabled(session.isReadOnly || session.restorePreview != nil || session.isPerformingRecoveryCommand)
+                .accessibilityIdentifier("campaign.backup.export")
             }
             .disabled(document == nil)
             Text(session.status).font(.caption).foregroundStyle(.secondary)
@@ -88,7 +125,7 @@ struct CampaignWorkspaceView: View {
             if selectedBaselineID == nil { selectedBaselineID = session.ledger.baselines.last?.id }
         }
         .onChange(of: selectedBaselineID) { _ in discardApprovalEntry() }
-        .onChange(of: selectedTab) { _ in discardApprovalEntry() }
+        .onChange(of: selectedTab) { _ in discardApprovalEntry(); session.discardRestorePreview() }
         .onChange(of: model.document?.project.id) { _ in
             if document == nil { requestDismissal() }
             else { discardApprovalEntry() }
@@ -98,6 +135,7 @@ struct CampaignWorkspaceView: View {
             // must not dismiss a later sheet when another project is loaded.
             dismissalConsumed = true
             discardApprovalEntry()
+            session.discardRestorePreview()
         }
     }
 
@@ -288,7 +326,18 @@ struct CampaignWorkspaceView: View {
         guard !dismissalConsumed else { return }
         dismissalConsumed = true
         discardApprovalEntry()
+        session.discardRestorePreview()
         dismiss()
+    }
+
+    private func recoveryContext() -> CampaignRecoveryContext? {
+        // Read the live model and presentation after the chooser's nested event
+        // loop, rather than authorizing the project that opened it earlier.
+        guard !dismissalConsumed, model.campaignPresented,
+              let projectID = model.document?.project.id,
+              projectID == session.ledger.projectID else { return nil }
+        return CampaignRecoveryContext(projectID: projectID, presentationID: presentationID,
+                                       sourceURL: model.saveURL)
     }
 
     private func discardApprovalEntry() {

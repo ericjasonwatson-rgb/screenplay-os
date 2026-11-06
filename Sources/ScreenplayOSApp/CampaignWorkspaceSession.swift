@@ -8,7 +8,9 @@ final class CampaignWorkspaceSession: ObservableObject {
     @Published private(set) var ledger: CampaignLedger
     @Published private(set) var problem: String?
     @Published private(set) var reportPreview: CampaignChangeReportPreview?
-    private var isSavingReport = false
+    @Published private(set) var isPerformingRecoveryCommand = false
+    @Published private(set) var restorePreview: CampaignBackupRestorePreview?
+    private var recoveryGeneration = UUID()
     @Published private(set) var decisionPreview: CampaignDecisionPreview?
     @Published private(set) var status = "Changes save locally. Nothing is sent to anyone."
     @Published private(set) var isReadOnly = false
@@ -170,6 +172,7 @@ final class CampaignWorkspaceSession: ObservableObject {
             let saved = try CampaignWorkspaceStore.save(next, to: storageURL, expected: bytes)
             // A failed write never becomes the visible canonical campaign state.
             bytes = saved; ledger = next; problem = nil
+            discardRestorePreview()
             status = "Saved locally at \(Date().formatted(date: .omitted, time: .standard)). Nothing was sent."
             return true
         } catch {
@@ -178,36 +181,176 @@ final class CampaignWorkspaceSession: ObservableObject {
         }
     }
 
-    func exportAgencyOriginal(_ revisionID: UUID) {
-        guard let revision = ledger.draft.agency?.revisions.first(where: { $0.id == revisionID }),
-              let origin = revision.origin else { return }
-        do {
-            try origin.validate()
-            let type = UTType(filenameExtension: "docx") ?? .data
-            try export(origin.originalBytes, name: revision.filename, type: type)
-        } catch { problem = error.localizedDescription }
-    }
-
-    func exportBackup() {
-        do { try export(try CampaignWorkspaceStore.encoded(ledger), name: "Campaign-private-backup.json", type: .json) }
-        catch { problem = error.localizedDescription }
-    }
-
-    /// Backup restore is explicit and only allowed before a local campaign exists.
-    /// Existing baselines/decisions are never replaced by an imported older copy.
-    func importBackup() {
-        guard bytes == nil, !isReadOnly else { return }
-        let panel = NSOpenPanel(); panel.allowedContentTypes = [.json]
-        panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
-        panel.message = "Restore a campaign backup for this project. This does not restore screenplay text or media."
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let imported = try CampaignWorkspaceStore.decode(CampaignWorkspaceStore.readBackup(url), projectID: ledger.projectID)
-            _ = commit(imported)
-        } catch { problem = error.localizedDescription }
+    /// Dismissal and tab changes revoke even a chooser which has not returned yet.
+    func discardRestorePreview() {
+        recoveryGeneration = UUID()
+        if restorePreview != nil { restorePreview = nil }
     }
 
     var canImport: Bool { bytes == nil && !isReadOnly }
+
+    private func recoveryContext(_ currentContext: () -> CampaignRecoveryContext?) throws -> CampaignRecoveryContext {
+        guard !isReadOnly, storageURL != nil, let context = currentContext(),
+              context.projectID == ledger.projectID else {
+            throw CampaignError.invalid("Campaign's project or presentation changed. Reopen Campaign and try again.")
+        }
+        return context
+    }
+
+    private func validateAbsentRestore() throws {
+        guard bytes == nil, !isReadOnly, let storageURL else {
+            throw CampaignError.invalid("Restore is available only before a local Campaign exists. Existing Campaign history was left untouched.")
+        }
+        let current = try CampaignWorkspaceStore.load(projectID: ledger.projectID, from: storageURL)
+        guard current.bytes == nil else { throw CampaignWorkspaceStore.Failure.conflict }
+    }
+
+    @discardableResult
+    func previewBackupRestore(lifecycle: CampaignBackupRestoreLifecycle? = nil,
+                              currentContext: () -> CampaignRecoveryContext?) -> CampaignBackupRestorePreview? {
+        guard !isPerformingRecoveryCommand else { return nil }
+        isPerformingRecoveryCommand = true
+        defer { isPerformingRecoveryCommand = false }
+        discardRestorePreview()
+        let generation = recoveryGeneration
+        let lifecycle = lifecycle ?? .live
+        do {
+            let context = try recoveryContext(currentContext)
+            func validate() throws {
+                guard context.matches(try recoveryContext(currentContext)),
+                      recoveryGeneration == generation else {
+                    throw CampaignError.invalid("The restore preview was cancelled. Choose the backup again.")
+                }
+                try validateAbsentRestore()
+            }
+            try validate()
+            guard let url = lifecycle.chooseSource() else { return nil }
+            try validate()
+            let selectedBytes = try lifecycle.read(url)
+            let preview = try CampaignBackupRestorePreview(filename: url.lastPathComponent,
+                bytes: selectedBytes, context: context)
+            try validate()
+            restorePreview = preview
+            problem = nil
+            return preview
+        } catch { problem = error.localizedDescription; return nil }
+    }
+
+    /// Preview and confirmation both require an absent local ledger. The writer
+    /// receives expected:nil even if a nested event creates new local history.
+    @discardableResult
+    func confirmBackupRestore(_ preview: CampaignBackupRestorePreview,
+                              lifecycle: CampaignBackupRestoreLifecycle? = nil,
+                              currentContext: () -> CampaignRecoveryContext?) -> Bool {
+        guard !isPerformingRecoveryCommand else { return false }
+        isPerformingRecoveryCommand = true
+        defer { isPerformingRecoveryCommand = false }
+        let lifecycle = lifecycle ?? .live
+        let generation = recoveryGeneration
+        var persistenceContext: CampaignRecoveryContext?
+        do {
+            guard restorePreview?.id == preview.id else {
+                throw CampaignError.invalid("Choose the backup and preview it again before confirming restore.")
+            }
+            let context = try recoveryContext(currentContext)
+            try validateAbsentRestore()
+            let imported = try preview.validatedLedger(in: context)
+            // Recheck the live context and exact nil lease immediately before the
+            // persistence call. Do not route through commit's mutable bytes lease.
+            guard context.matches(try recoveryContext(currentContext)),
+                  restorePreview?.id == preview.id, recoveryGeneration == generation, let storageURL else {
+                throw CampaignError.invalid("The restore preview was cancelled. Choose the backup again.")
+            }
+            try validateAbsentRestore()
+            persistenceContext = context
+            let saved = try lifecycle.restore(imported, storageURL)
+            bytes = saved
+            ledger = imported
+            history.removeAll()
+            canUndoDraft = false
+            reportPreview = nil
+            decisionPreview = nil
+            discardRestorePreview()
+            problem = nil
+            status = "Restored Campaign records locally. Screenplay and project media were not changed. Nothing was sent."
+            return true
+        } catch {
+            // Keep a failed-write proposal only while its exact context and nil
+            // lease remain valid. Context/conflict failures revoke stale review.
+            if restorePreview?.id == preview.id {
+                let retryIsValid: Bool
+                if let persistenceContext {
+                    do {
+                        let current = try recoveryContext(currentContext)
+                        guard persistenceContext.matches(current), recoveryGeneration == generation else {
+                            throw CampaignWorkspaceStore.Failure.conflict
+                        }
+                        try validateAbsentRestore()
+                        retryIsValid = true
+                    } catch { retryIsValid = false }
+                } else { retryIsValid = false }
+                if !retryIsValid { discardRestorePreview() }
+            }
+            problem = error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func exportBackup(lifecycle: CampaignPrivateExportLifecycle? = nil,
+                      currentContext: () -> CampaignRecoveryContext?) -> Bool {
+        exportPrivateCopy(lifecycle: lifecycle, currentContext: currentContext) {
+            (try CampaignWorkspaceStore.encoded(ledger), "Campaign-private-backup.json", .json)
+        }
+    }
+
+    @discardableResult
+    func exportAgencyOriginal(_ revisionID: UUID, lifecycle: CampaignPrivateExportLifecycle? = nil,
+                              currentContext: () -> CampaignRecoveryContext?) -> Bool {
+        exportPrivateCopy(lifecycle: lifecycle, currentContext: currentContext) {
+            guard let revision = ledger.draft.agency?.revisions.first(where: { $0.id == revisionID }),
+                  let origin = revision.origin else {
+                throw CampaignError.invalid("The selected retained original is no longer available.")
+            }
+            try origin.validate()
+            return (origin.originalBytes, revision.filename, UTType(filenameExtension: "docx") ?? .data)
+        }
+    }
+
+    private func exportPrivateCopy(lifecycle: CampaignPrivateExportLifecycle?,
+                                   currentContext: () -> CampaignRecoveryContext?,
+                                   content: () throws -> (data: Data, filename: String, type: UTType)) -> Bool {
+        guard !isPerformingRecoveryCommand else { return false }
+        isPerformingRecoveryCommand = true
+        defer { isPerformingRecoveryCommand = false }
+        do {
+            let generation = recoveryGeneration
+            let context = try recoveryContext(currentContext)
+            let ledgerData = try CampaignWorkspaceStore.encoded(ledger), lease = bytes
+            let selected = try content()
+            func validate() throws {
+                guard context.matches(try recoveryContext(currentContext)),
+                      recoveryGeneration == generation, bytes == lease,
+                      try CampaignWorkspaceStore.encoded(ledger) == ledgerData else {
+                    throw CampaignError.invalid("Campaign changed while choosing a destination. Review it and export again.")
+                }
+                try validateReportLease()
+            }
+            try validate()
+            let lifecycle = lifecycle ?? .live(filename: selected.filename, type: selected.type)
+            guard let url = lifecycle.chooseDestination() else { return false }
+            try validate()
+            let protected = [storageURL, context.sourceURL].compactMap { $0 }
+            try CampaignReportExportLifecycle.validateDestination(url, protecting: protected)
+            let previous = try CampaignReportExportLifecycle.destinationBytes(url)
+            try validate()
+            try CampaignReportExportLifecycle.validateDestination(url, protecting: protected)
+            try lifecycle.write(selected.data, url, previous)
+            problem = nil
+            status = "Saved \(url.lastPathComponent). Nothing was sent."
+            return true
+        } catch { problem = error.localizedDescription; return false }
+    }
 
     func discardReportPreview() { reportPreview = nil }
 
@@ -246,10 +389,10 @@ final class CampaignWorkspaceSession: ObservableObject {
     func saveReviewedReport(_ preview: CampaignChangeReportPreview,
                             lifecycle: CampaignReportExportLifecycle? = nil,
                             currentContext: () -> (baselineID: UUID, document: ScreenplayOSDocument, sourceURL: URL?)?) -> Bool {
-        guard !isSavingReport else { return false }
-        isSavingReport = true
+        guard !isPerformingRecoveryCommand else { return false }
+        isPerformingRecoveryCommand = true
         let lifecycle = lifecycle ?? .live
-        defer { isSavingReport = false }
+        defer { isPerformingRecoveryCommand = false }
         do {
             func validate() throws -> Data {
                 guard reportPreview?.id == preview.id, let context = currentContext() else {
@@ -279,14 +422,4 @@ final class CampaignWorkspaceSession: ObservableObject {
         } catch { problem = error.localizedDescription; return false }
     }
 
-    private func export(_ data: Data, name: String, type: UTType) throws {
-        let panel = NSSavePanel(); panel.allowedContentTypes = [type]
-        panel.nameFieldStringValue = name
-        panel.message = "Save a private local copy. Review its contents before sharing it."
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let exists = FileManager.default.fileExists(atPath: url.path)
-        let previous = exists ? try Data(contentsOf: url) : nil
-        try DocumentFileWriter.write(data, to: url, overwriteExisting: exists, expectedExistingData: previous)
-        status = "Saved \(url.lastPathComponent). Nothing was sent."
-    }
 }

@@ -8,6 +8,8 @@ struct CampaignAgencySourcesView: View {
     @ObservedObject var session: CampaignWorkspaceSession
     @Binding var selectedDocumentID: UUID?
     @StateObject private var importLifecycle: CampaignAgencyImportLifecycle
+    private let privateExportLifecycle: CampaignPrivateExportLifecycle?
+    private let currentContext: () -> CampaignRecoveryContext?
     @State private var reviewer = ""
     @State private var reviewNote = ""
     @State private var firstLine = "1"
@@ -18,10 +20,14 @@ struct CampaignAgencySourcesView: View {
     @State private var reconciliation: CampaignAgencyReconciliationContext?
 
     init(session: CampaignWorkspaceSession, selectedDocumentID: Binding<UUID?>,
-         importLifecycle: CampaignAgencyImportLifecycle? = nil) {
+         importLifecycle: CampaignAgencyImportLifecycle? = nil,
+         privateExportLifecycle: CampaignPrivateExportLifecycle? = nil,
+         currentContext: @escaping () -> CampaignRecoveryContext?) {
         self.session = session
         _selectedDocumentID = selectedDocumentID
         _importLifecycle = StateObject(wrappedValue: importLifecycle ?? CampaignAgencyImportLifecycle())
+        self.privateExportLifecycle = privateExportLifecycle
+        self.currentContext = currentContext
     }
 
     private var workspace: CampaignAgencyWorkspace? { session.ledger.draft.agency }
@@ -145,7 +151,15 @@ struct CampaignAgencySourcesView: View {
                     .font(.caption)
                 Text("Original SHA-256 \(origin.originalSHA256)").font(.caption.monospaced()).textSelection(.enabled)
                 ForEach(origin.notices, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
-                Button("Save Retained Original…") { session.exportAgencyOriginal(revision.id) }
+                Button("Save Retained Original…") {
+                    _ = session.exportAgencyOriginal(revision.id, lifecycle: privateExportLifecycle,
+                                                    currentContext: {
+                        guard selected?.id == revision.id else { return nil }
+                        return currentContext()
+                    })
+                }
+                .disabled(session.isPerformingRecoveryCommand)
+                .accessibilityIdentifier("campaign.agency.exportOriginal.\(revision.id)")
             }
             sourceText(numberedText(revision), height: 200)
             if let priorID = revision.priorRevisionID,

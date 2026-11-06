@@ -251,13 +251,17 @@ private struct CampaignPanelHost: View {
     let root: URL
     let importLifecycle: CampaignAgencyImportLifecycle?
     let reportExportLifecycle: CampaignReportExportLifecycle?
+    let backupRestoreLifecycle: CampaignBackupRestoreLifecycle?
+    let privateExportLifecycle: CampaignPrivateExportLifecycle?
 
     var body: some View {
         ContentView(model: model)
             .sheet(isPresented: $model.campaignPresented) {
                 if let projectID = model.document?.project.id {
                     CampaignWorkspaceView(model: model, projectID: projectID, root: root,
-                                          importLifecycle: importLifecycle, reportExportLifecycle: reportExportLifecycle)
+                                          importLifecycle: importLifecycle, reportExportLifecycle: reportExportLifecycle,
+                                          backupRestoreLifecycle: backupRestoreLifecycle,
+                                          privateExportLifecycle: privateExportLifecycle)
                 }
             }
     }
@@ -287,7 +291,9 @@ final class CampaignPanelFixture {
     private let preferencesSuite: String
 
     init(importLifecycle: CampaignAgencyImportLifecycle? = nil,
-         reportExportLifecycle: CampaignReportExportLifecycle? = nil) throws {
+         reportExportLifecycle: CampaignReportExportLifecycle? = nil,
+         backupRestoreLifecycle: CampaignBackupRestoreLifecycle? = nil,
+         privateExportLifecycle: CampaignPrivateExportLifecycle? = nil) throws {
         let applicationSetup = Self.applicationSetup
         try #require(applicationSetup.activationPolicySet,
                      "The hosted AppKit process could not set its accessory activation policy.")
@@ -308,7 +314,9 @@ final class CampaignPanelFixture {
         // window does, before testing SwiftUI's real sheet presentation chain.
         let hostingController = NSHostingController(rootView: CampaignPanelHost(
             model: model, root: root, importLifecycle: importLifecycle,
-            reportExportLifecycle: reportExportLifecycle))
+            reportExportLifecycle: reportExportLifecycle,
+            backupRestoreLifecycle: backupRestoreLifecycle,
+            privateExportLifecycle: privateExportLifecycle))
         let host = hostingController.view
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),
                           styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)

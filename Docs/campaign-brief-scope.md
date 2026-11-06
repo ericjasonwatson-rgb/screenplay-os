@@ -50,10 +50,50 @@ Mac. Duplicate-as-new-work semantics are not added by this increment.
 
 Use **Private Backup…** to save the full campaign ledger separately, including
 baseline text/source snapshots and approval evidence. This backup is confidential
-working material, not a client-ready publication. Restore Backup accepts the same
-project ID only and is available only before a local campaign exists; it cannot
-replace existing history. Backups do not include screenplay/media restoration.
+working material, not a client-ready publication. **Restore Backup…** first shows
+a summary of the selected file's project identity and retained records. Confirm
+that review explicitly to restore. It accepts the same project ID only and is
+available only before a local campaign exists; it cannot replace existing history.
+Backups do not include screenplay/media restoration.
 No existing document bytes, schema, format version, or migration behavior changes.
+
+### Review and verify a private recovery copy
+
+Backup export and **Save Retained Original…** bind the operation to the active
+project and Campaign presentation. They recheck the current local ledger after
+the file picker returns and before writing. A changed project, closed panel,
+changed ledger or conflicting disk writer cancels the stale operation rather than
+saving an unnoticed older copy. Output cannot replace the active campaign ledger
+or screenplay, including resolved aliases and hardlinks. Existing destinations
+are read through the bounded 16 MiB regular-file reader. The app performs no
+upload; a user-selected synced folder can still sync independently.
+
+Restore reads and validates a bounded local backup without changing storage. Its
+summary identifies the project, selected filename and record counts; it is not
+an authenticity check or a complete content viewer. The retained bytes can contain
+private agency documents, script snapshots, notes and historical approvals. A
+project ID or digest does not verify who authored or approved them. Review the
+backup's origin before confirming. Restoring historical decisions does not create
+new creative approval or spending authority.
+
+Confirmation checks that the presentation and project remain active and that no
+campaign has appeared either in this session or on disk. The restore write always
+expects an absent ledger; it never adopts a newer lease to replace existing data.
+Cancel, tab change, Close/Escape and project replacement discard pending review.
+A failed write leaves prior data untouched and permits an explicit retry only
+while the proposal remains valid. Success consumes the proposal. Restored
+baselines, decisions, agency revisions and original DOCX bytes retain their
+identities and content. JSON formatting is written in the existing canonical
+campaign encoding, not preserved as arbitrary input whitespace. Session-local
+draft Undo is not backed up; later edits can be undone without deleting restored
+history.
+
+These are local recovery safeguards, not cross-device sync, encryption, a signed
+archive, or a complete film backup. Exported files inherit the existing file
+writer's filesystem permissions and concurrency limits. Imported originals'
+directory paths are not retained, so inspect the output filename before replacing
+an unrelated file. Real disk-full, power-loss and installed-app recovery remain
+release gates; injected failures do not establish full crash durability.
 
 The store rejects malformed JSON, duplicate keys, unsupported versions/fields,
 wrong-project data, oversized files and symlink paths. An unsupported file opens
@@ -206,6 +246,17 @@ argument; a project change disables the old panel and dismisses it before reopen
 These tests do not launch the installed app, discover Shortcuts, drive a real file
 picker or certify VoiceOver/physical-keyboard behavior. Preserve those manual gates;
 passing hosted tests is not complete interactive acceptance.
+
+Recovery tests exercise the production local file writer and absent-ledger restore
+with synthetic DOCX/text revisions, explicit reconciliation, frozen baselines and
+separate creative/spend evidence. The full-ledger rehearsal exports a file,
+previews and restores it into a fresh storage root, reopens it, and checks exact
+encoded campaign bytes, original documents, identities and later edit/Undo.
+Command tests cover local history appearing inside a picker, external writers,
+revocation, corrupt/wrong-project input, bounded/protected destinations and
+failed-write retry. Hosted tests use native Campaign controls with injected
+chooser results; they do not drive the system file panels. These are authored
+acceptance cases; use the exact PR head's Mac CI result for execution evidence.
 
 
 ## Agency text import and reconciliation
