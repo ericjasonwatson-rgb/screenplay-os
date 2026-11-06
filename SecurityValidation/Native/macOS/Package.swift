@@ -13,7 +13,8 @@ let package = Package(
         .library(name: "ShieldDurableApproval", targets: ["ShieldDurableApproval"]),
         .executable(name: "ShieldMacService", targets: ["ShieldMacService"]),
         .executable(name: "ShieldXPCProbeServer", targets: ["ShieldXPCProbeServer"]),
-        .executable(name: "ShieldXPCProbeClient", targets: ["ShieldXPCProbeClient"])
+        .executable(name: "ShieldXPCProbeClient", targets: ["ShieldXPCProbeClient"]),
+        .executable(name: "ShieldDurableApprovalFixture", targets: ["ShieldDurableApprovalFixture"])
     ],
     targets: [
         .target(name: "ShieldNativeContract"),
@@ -25,6 +26,7 @@ let package = Package(
         .executableTarget(name: "ShieldMacService", dependencies: ["ShieldNativeContract", "ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeServer", dependencies: ["ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeClient", dependencies: ["ShieldMacXPCInterfaces"]),
+        .executableTarget(name: "ShieldDurableApprovalFixture", dependencies: ["ShieldDurableApproval", "ShieldApprovalContract", "ShieldApprovalVerification"]),
         .testTarget(name: "ShieldNativeContractTests", dependencies: ["ShieldNativeContract"]),
         .testTarget(name: "ShieldReviewerKeychainTests", dependencies: ["ShieldReviewerKeychain", "ShieldNativeContract"]),
         .testTarget(name: "ShieldApprovalContractTests", dependencies: ["ShieldApprovalContract"]),

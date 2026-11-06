@@ -43,6 +43,9 @@ jobs:
       - name: Verify live launchd XPC peer signature rejection
         run: |
           python3 Scripts/launchd_xpc_probe.py "$(swift build --show-bin-path --configuration ${{ matrix.configuration }})"
+      - name: Verify cross-process durable approval claims (synthetic only)
+        run: |
+          python3 Scripts/cross_process_approval.py "$(swift build --show-bin-path --configuration ${{ matrix.configuration }})"
       - name: Assert there is no dispatch path in validation helper
         run: |
           grep -q 'native_integration_pending' Sources/ShieldNativeContract/ShieldNativeContract.swift
