@@ -173,8 +173,9 @@ public final class DurableApprovalClaimLedger {
               st.st_uid == geteuid() else { throw DurableClaimError.unsafePath }
         var handle: OpaquePointer?
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW
-        guard sqlite3_open_v2(path, &handle, flags, nil) == SQLITE_OK,
-              let db = handle else {
+        let openCode = sqlite3_open_v2(path, &handle, flags, nil)
+        guard openCode == SQLITE_OK, let db = handle else {
+            fputs("[test-only] ledger SQLite open code=\(openCode)\n", stderr)
             if let handle { sqlite3_close(handle) }
             throw DurableClaimError.storageFailure
         }
@@ -199,7 +200,11 @@ public final class DurableApprovalClaimLedger {
     }
 
     private static func execute(_ sql: String, _ db: OpaquePointer) throws {
-        guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
+        let code = sqlite3_exec(db, sql, nil, nil, nil)
+        guard code == SQLITE_OK else {
+            // Safe CI diagnostic: SQL is a fixed application-owned statement.
+            // Never log content, signatures, provider credentials, or file paths.
+            fputs("[test-only] ledger SQLite SQL failed code=\(code) statement=\(sql.prefix(60))\n", stderr)
             throw DurableClaimError.storageFailure
         }
     }
