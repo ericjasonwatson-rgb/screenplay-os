@@ -75,5 +75,8 @@ jobs:
       - name: Compile and test real FilmCraft OTIO code
         working-directory: filmcraft-source
         run: |
-          cargo test --locked -p filmcraft-interchange --test it screenplayos_namespace_survives_native_project_and_otio_roundtrip -- --nocapture
-          cargo test --locked -p filmcraft-interchange --test it otio::
+          # The isolated test harness adds filmcraft-format as a dev dependency,
+          # so its generated lockfile must reflect the patched test graph.
+          # FilmCraft stays pinned to v0.17.1 and Rust to 1.95.0.
+          cargo test -p filmcraft-interchange --test it screenplayos_namespace_survives_native_project_and_otio_roundtrip -- --nocapture
+          cargo test -p filmcraft-interchange --test it otio::
