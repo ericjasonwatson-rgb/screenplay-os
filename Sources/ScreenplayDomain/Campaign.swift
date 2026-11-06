@@ -156,6 +156,36 @@ public struct CampaignLedger: Codable, Equatable {
         guard let baseline = baselines.first(where: { $0.id == baselineID }) else { throw CampaignError.invalid("Baseline not found.") }
         return try CampaignChange.compare(baseline: baseline, draft: draft, sources: CampaignSourceSnapshot.capture(document), projectID: projectID)
     }
+    /// Appends the current proposal with its immutable identity and evidence,
+    /// assigning record time only on confirmation. Its decision identity makes
+    /// replay fail after success, including after persistence and reopening.
+    @discardableResult public mutating func confirmDecision(_ preview: CampaignDecisionPreview,
+                                                            baselineID: UUID,
+                                                            document: ScreenplayOSDocument,
+                                                            at date: Date = Date()) throws -> CampaignDecision {
+        guard baselineID == preview.baseline.id,
+              try preview.contextMatches(ledger: self, document: document) else {
+            throw CampaignError.invalid("The approval context changed. Review the selected baseline and preview the local record again.")
+        }
+        guard date.timeIntervalSinceReferenceDate.isFinite else {
+            throw CampaignError.invalid("The local approval record needs a valid confirmation time.")
+        }
+        // Reuse current validation rules without replacing the preview's exact
+        // identity, evidence, or ceiling with newly captured values.
+        var checked = self
+        let proposed = preview.decision
+        _ = try checked.recordDecision(baselineID: proposed.baselineID, scope: proposed.scope,
+            approver: proposed.approver, evidence: proposed.evidence, document: document,
+            spendCeilingMinorUnits: proposed.spendCeilingMinorUnits,
+            currencyCode: proposed.currencyCode, at: date)
+        let recorded = CampaignDecision(id: proposed.id, baselineID: proposed.baselineID,
+            scope: proposed.scope, approver: proposed.approver, evidence: proposed.evidence,
+            createdAt: date, spendCeilingMinorUnits: proposed.spendCeilingMinorUnits,
+            currencyCode: proposed.currencyCode)
+        decisions.append(recorded)
+        return recorded
+    }
+
     @discardableResult public mutating func recordDecision(baselineID: UUID, scope: CampaignApprovalScope, approver: String, evidence: String, document: ScreenplayOSDocument, spendCeilingMinorUnits: Int64? = nil, currencyCode: String? = nil, at date: Date = Date()) throws -> CampaignDecision {
         guard try compare(baselineID: baselineID, document: document).isEmpty else {
             throw CampaignError.invalid("Sources changed or links are unresolved. Review and freeze a current baseline before recording approval.")

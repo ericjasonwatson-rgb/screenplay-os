@@ -7,6 +7,7 @@ import ScreenplayDomain
 final class CampaignWorkspaceSession: ObservableObject {
     @Published private(set) var ledger: CampaignLedger
     @Published private(set) var problem: String?
+    @Published private(set) var decisionPreview: CampaignDecisionPreview?
     @Published private(set) var status = "Changes save locally. Nothing is sent to anyone."
     @Published private(set) var isReadOnly = false
     @Published private(set) var canUndoDraft = false
@@ -103,18 +104,56 @@ final class CampaignWorkspaceSession: ObservableObject {
         } catch { problem = error.localizedDescription; return nil }
     }
 
+    func discardDecisionPreview() { decisionPreview = nil }
+
+    @discardableResult
+    func previewDecision(baselineID: UUID, scope: CampaignApprovalScope, approver: String, evidence: String,
+                         document: ScreenplayOSDocument, amount: String, currency: String) -> CampaignDecisionPreview? {
+        // An unsuccessful new preview must not leave an older proposal confirmable.
+        decisionPreview = nil
+        guard !isReadOnly else { return nil }
+        do {
+            let ceiling = try decisionCeiling(scope: scope, amount: amount)
+            let preview = try ledger.previewDecision(baselineID: baselineID, scope: scope,
+                approver: approver, evidence: evidence, document: document,
+                spendCeilingMinorUnits: ceiling, currencyCode: scope == .spend ? currency.uppercased() : nil)
+            decisionPreview = preview
+            problem = nil
+            return preview
+        } catch { problem = error.localizedDescription; return nil }
+    }
+
+    @discardableResult
+    func confirmDecision(_ preview: CampaignDecisionPreview, baselineID: UUID,
+                         document: ScreenplayOSDocument) -> Bool {
+        do {
+            guard decisionPreview?.id == preview.id else {
+                throw CampaignError.invalid("Preview the local approval record again before confirming it.")
+            }
+            var next = ledger
+            try next.confirmDecision(preview, baselineID: baselineID, document: document)
+            // Failed persistence preserves ledger, draft undo history and the
+            // same proposal for an explicit retry. No automatic re-preview.
+            guard commit(next) else { return false }
+            decisionPreview = nil
+            return true
+        } catch { problem = error.localizedDescription; return false }
+    }
+
+    private func decisionCeiling(scope: CampaignApprovalScope, amount: String) throws -> Int64? {
+        guard scope == .spend else { return nil }
+        guard let parsed = Int64(amount), parsed >= 0 else {
+            throw CampaignError.invalid("Enter the authorized ceiling as a nonnegative integer in minor currency units, for example 12500 for USD 125.00.")
+        }
+        return parsed
+    }
+
     @discardableResult
     func record(baselineID: UUID, scope: CampaignApprovalScope, approver: String, evidence: String,
                 document: ScreenplayOSDocument, amount: String, currency: String) -> Bool {
         do {
             var next = ledger
-            let ceiling: Int64?
-            if scope == .spend {
-                guard let parsed = Int64(amount), parsed >= 0 else {
-                    throw CampaignError.invalid("Enter the authorized ceiling as a nonnegative integer in minor currency units, for example 12500 for USD 125.00.")
-                }
-                ceiling = parsed
-            } else { ceiling = nil }
+            let ceiling = try decisionCeiling(scope: scope, amount: amount)
             try next.recordDecision(baselineID: baselineID, scope: scope, approver: approver,
                                     evidence: evidence, document: document,
                                     spendCeilingMinorUnits: ceiling,

@@ -22,7 +22,8 @@ The experimental writing-only package editor is not supported.
    affected deliverables and unresolved links. Go to Source returns to the existing
    workspace and stable object. Deleted sources remain visible in the report.
 6. Record evidence of separately received creative, production-approach or spend
-   approval. Each record binds one exact baseline; stale/unresolved baselines
+   approval. Preview the exact baseline, scope, person, evidence and any spend
+   ceiling, then explicitly confirm the local record. Each record binds one exact baseline; stale/unresolved baselines
    cannot receive new approvals. A spend record requires a ceiling and currency.
    These records do not verify identity, create signatures, authorize provider
    requests, make payments, or carry approval forward to a revised scope.
@@ -88,6 +89,26 @@ a creative decision never creates spend authority. No client/agency sharing,
 accounts, permissions, telemetry, AI egress or working-budget/margin fields exist.
 The blank text fields can still contain confidential user-entered material; all
 exports must be inspected before any later sharing.
+
+## Review an approval record before saving
+
+Approval entry belongs to the selected baseline, even when two baselines contain
+identical scope. Switching baselines, leaving the review tab, closing the panel or
+changing projects discards unconfirmed entry. Preview is read-only: it does not
+record a decision or grant authority. Check the baseline name, identity and freeze
+time alongside the scope, approver, evidence and any explicit ceiling/currency.
+
+Changing the entry or approval scope invalidates its preview. A changed baseline,
+current tracked scope, source evidence or decision history also requires a fresh
+preview. Confirmation revalidates the captured context before the existing atomic
+save; it never silently attaches the entry to another baseline. A failed save
+leaves prior records untouched and retains the proposal for an explicit retry when
+its context is still current. Successful confirmation consumes that proposal.
+
+The confirmed record is historical local evidence. **Undo Draft Change does not
+erase approval records.** It does not verify the approver, create an electronic
+signature, authorize a provider request or execute spending. Creative, production
+and spend records remain separate and do not carry forward to revised baselines.
 
 ## Integration and verification
 

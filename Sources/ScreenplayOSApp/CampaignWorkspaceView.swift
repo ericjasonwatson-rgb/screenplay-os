@@ -13,11 +13,7 @@ struct CampaignWorkspaceView: View {
     @State private var selectedBaselineID: UUID?
     @State private var selectedTab = 1
     @State private var selectedAgencyDocumentID: UUID?
-    @State private var scope: CampaignApprovalScope = .creative
-    @State private var approver = ""
-    @State private var evidence = ""
-    @State private var ceiling = ""
-    @State private var currency = "USD"
+    @State private var approvalEditorID = UUID()
 
     init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
          importLifecycle: CampaignAgencyImportLifecycle? = nil) {
@@ -48,7 +44,7 @@ struct CampaignWorkspaceView: View {
                     Text(document?.project.metadata.title ?? "Project unavailable").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Close") { discardApprovalEntry(); dismiss() }.keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("campaign.close")
             }
             Text("Keep the agreed scope connected to the script, shots and boards. All changes require producer review.")
@@ -88,7 +84,13 @@ struct CampaignWorkspaceView: View {
         .onChange(of: session.ledger.baselines.count) { _ in
             if selectedBaselineID == nil { selectedBaselineID = session.ledger.baselines.last?.id }
         }
-        .onChange(of: model.document?.project.id) { _ in if document == nil { dismiss() } }
+        .onChange(of: selectedBaselineID) { _ in discardApprovalEntry() }
+        .onChange(of: selectedTab) { _ in discardApprovalEntry() }
+        .onChange(of: model.document?.project.id) { _ in
+            discardApprovalEntry()
+            if document == nil { dismiss() }
+        }
+        .onDisappear { discardApprovalEntry() }
     }
 
     private var briefAndDeliverables: some View {
@@ -203,10 +205,12 @@ struct CampaignWorkspaceView: View {
                 .foregroundStyle(.secondary)
             HStack {
                 TextField("Baseline name, e.g. Awarded bid · 5 Nov", text: $baselineName)
+                    .accessibilityIdentifier("campaign.baseline.name")
                 Button("Freeze Baseline") {
                     guard let document, let id = session.freeze(name: baselineName, document: document) else { return }
                     selectedBaselineID = id; baselineName = ""
                 }.disabled(baselineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("campaign.baseline.freeze")
             }
             if !session.ledger.baselines.isEmpty {
                 Picker("Compare with", selection: $selectedBaselineID) {
@@ -214,7 +218,7 @@ struct CampaignWorkspaceView: View {
                         Text("\(saved.name) · \(saved.createdAt.formatted(date: .abbreviated, time: .shortened))")
                             .tag(Optional(saved.id))
                     }
-                }
+                }.accessibilityIdentifier("campaign.baseline.picker")
             }
             if let baseline {
                 Text("Baseline \(baseline.id.uuidString)").font(.caption).textSelection(.enabled)
@@ -233,7 +237,12 @@ struct CampaignWorkspaceView: View {
                     Text("Exact tracked changes only. Coverage, costs, schedule and original documents still need human review. No automatic repricing or spend authorization.")
                         .font(.caption).foregroundStyle(.secondary)
                     ForEach(changes) { change in changeRow(change) }
-                    approvalEditor(baseline, current: changes.isEmpty)
+                    if selectedTab == 3 {
+                        CampaignApprovalReviewView(session: session, model: model, baseline: baseline,
+                                                   current: changes.isEmpty)
+                            .id(baseline.id)
+                            .id(approvalEditorID)
+                    }
                 }
                 decisionHistory(baseline)
             }
@@ -262,35 +271,9 @@ struct CampaignWorkspaceView: View {
         }
     }
 
-    private func approvalEditor(_ baseline: CampaignBaseline, current: Bool) -> some View {
-        GroupBox("Record an approval already received") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(current ? "Records are local evidence, not verified identities or electronic signatures. Creative approval never authorizes spend." : "This baseline no longer matches current sources. Review the changes and freeze a new baseline before recording approval.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Picker("Scope", selection: $scope) {
-                    Text("Creative").tag(CampaignApprovalScope.creative)
-                    Text("Production approach").tag(CampaignApprovalScope.production)
-                    Text("Additional spend").tag(CampaignApprovalScope.spend)
-                }.pickerStyle(.segmented)
-                field("Approved by", text: $approver)
-                field("Evidence / message reference", text: $evidence)
-                if scope == .spend {
-                    HStack {
-                        field("Ceiling in minor units", text: $ceiling)
-                        field("Currency", text: $currency)
-                    }
-                    Text("For USD 125.00, enter 12500 and USD. This records the ceiling only; it cannot make a payment or authorize a provider request.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Button("Record \(scope.rawValue.capitalized) Approval") {
-                    guard let document else { return }
-                    if session.record(baselineID: baseline.id, scope: scope, approver: approver, evidence: evidence,
-                                      document: document, amount: ceiling, currency: currency) {
-                        approver = ""; evidence = ""; ceiling = ""
-                    }
-                }.disabled(!current || approver.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || evidence.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }.padding(6)
-        }
+    private func discardApprovalEntry() {
+        session.discardDecisionPreview()
+        approvalEditorID = UUID()
     }
 
     private func decisionHistory(_ baseline: CampaignBaseline) -> some View {
@@ -302,14 +285,15 @@ struct CampaignWorkspaceView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(decision.scope.rawValue.capitalized) · \(decision.approver) · \(decision.createdAt.formatted())")
                     Text(decision.evidence).font(.caption).textSelection(.enabled)
+                        .accessibilityIdentifier("campaign.approval.history.\(decision.id).evidence")
                     if let amount = decision.spendCeilingMinorUnits, let code = decision.currencyCode {
                         Text("Ceiling: \(amount) minor units · \(code)").font(.caption)
                     }
                 }
             }
-            Text("Historical decisions stay attached to the frozen version, even after the working scope changes.")
+            Text("Historical decisions stay attached to the frozen version, even after the working scope changes. Undo Draft Change does not erase recorded decisions.")
                 .font(.caption).foregroundStyle(.secondary)
-        }
+        }.accessibilityIdentifier("campaign.approval.history")
     }
 
     private func field(_ label: String, text: Binding<String>) -> some View {
