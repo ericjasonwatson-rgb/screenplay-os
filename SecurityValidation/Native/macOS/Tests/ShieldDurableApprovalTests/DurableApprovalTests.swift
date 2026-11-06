@@ -14,7 +14,9 @@ final class DurableApprovalTests: XCTestCase {
     private let c = String(repeating: "c", count: 64)
 
     private func directory() throws -> URL {
-        let url = FileManager.default.temporaryDirectory
+        // macOS /var is commonly a symlink to /private/var; SQLite
+        // OPEN_NOFOLLOW rejects symlinks in any path component.
+        let url = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
             .appendingPathComponent("cips-claim-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(
             at: url, withIntermediateDirectories: false,
