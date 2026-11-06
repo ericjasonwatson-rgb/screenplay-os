@@ -137,6 +137,20 @@ fn screenplayos_namespace_survives_native_project_and_otio_roundtrip() {
         returned["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"],
         external
     );
+
+    // Reject unbounded or malformed external metadata while still importing the clip.
+    for invalid in [
+        serde_json::json!({"payload": "x".repeat(4097)}),
+        serde_json::json!(["not", "an", "object"]),
+        serde_json::Value::Null,
+    ] {
+        let mut changed = doc.clone();
+        changed["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"] = invalid;
+        let (reimported, _) = import(&serde_json::to_vec(&changed).unwrap(), Format::Otio, None).unwrap();
+        let seq = reimported.sequences[0];
+        let item = &reimported.project.sequence(seq).unwrap().video_tracks[0].items[0];
+        assert!(item.otio_screenplayos.is_none(), "invalid provenance must not be persisted");
+    }
 }
 ''')
     print("Applied narrow ScreenplayOS OTIO provenance experiment to FilmCraft source.")
