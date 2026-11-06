@@ -46,6 +46,9 @@ jobs:
       - name: Verify cross-process durable approval claims (synthetic only)
         run: |
           python3 Scripts/cross_process_approval.py "$(swift build --show-bin-path --configuration ${{ matrix.configuration }})"
+      - name: Reject unsigned and ad-hoc reviewer app release packages
+        run: |
+          python3 Scripts/reviewer_bundle_smoke.py "$(swift build --show-bin-path --configuration ${{ matrix.configuration }})"
       - name: Assert there is no dispatch path in validation helper
         run: |
           grep -q 'native_integration_pending' Sources/ShieldNativeContract/ShieldNativeContract.swift
