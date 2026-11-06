@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "ShieldApprovalVerification", targets: ["ShieldApprovalVerification"]),
         .library(name: "ShieldDurableApproval", targets: ["ShieldDurableApproval"]),
         .library(name: "ShieldReviewerReview", targets: ["ShieldReviewerReview"]),
+        .library(name: "ShieldCheckpointGate", targets: ["ShieldCheckpointGate"]),
         .executable(name: "ShieldMacService", targets: ["ShieldMacService"]),
         .executable(name: "ShieldXPCProbeServer", targets: ["ShieldXPCProbeServer"]),
         .executable(name: "ShieldXPCProbeClient", targets: ["ShieldXPCProbeClient"]),
@@ -26,6 +27,7 @@ let package = Package(
         .target(name: "ShieldApprovalVerification", dependencies: ["ShieldApprovalContract"]),
         .target(name: "ShieldDurableApproval", dependencies: ["ShieldApprovalContract", "ShieldApprovalVerification"]),
         .target(name: "ShieldReviewerReview", dependencies: ["ShieldApprovalContract"]),
+        .target(name: "ShieldCheckpointGate", dependencies: ["ShieldDurableApproval", "ShieldApprovalVerification", "ShieldApprovalContract"]),
         .executableTarget(name: "ShieldMacService", dependencies: ["ShieldNativeContract", "ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeServer", dependencies: ["ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeClient", dependencies: ["ShieldMacXPCInterfaces"]),
@@ -36,6 +38,7 @@ let package = Package(
         .testTarget(name: "ShieldApprovalContractTests", dependencies: ["ShieldApprovalContract"]),
         .testTarget(name: "ShieldApprovalVerificationTests", dependencies: ["ShieldApprovalVerification", "ShieldApprovalContract"]),
         .testTarget(name: "ShieldDurableApprovalTests", dependencies: ["ShieldDurableApproval", "ShieldApprovalVerification", "ShieldApprovalContract"]),
-        .testTarget(name: "ShieldReviewerReviewTests", dependencies: ["ShieldReviewerReview", "ShieldApprovalContract"])
+        .testTarget(name: "ShieldReviewerReviewTests", dependencies: ["ShieldReviewerReview", "ShieldApprovalContract"]),
+        .testTarget(name: "ShieldCheckpointGateTests", dependencies: ["ShieldCheckpointGate", "ShieldDurableApproval", "ShieldApprovalVerification", "ShieldApprovalContract"])
     ]
 )
