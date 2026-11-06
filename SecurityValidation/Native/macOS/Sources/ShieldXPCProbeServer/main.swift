@@ -6,24 +6,31 @@ import ShieldMacXPCInterfaces
 final class Probe: NSObject, ShieldXPCValidationProbe {
     private var invocationCount = 0
     private let lock = NSLock()
+    var deniedProbe: Probe?
     func ping(_ reply: @escaping (Bool) -> Void) {
         lock.lock()
         invocationCount += 1
         lock.unlock()
         reply(true)
     }
-    func deniedInvocationCount(_ reply: @escaping (Int) -> Void) {
+    func recordedInvocationCount() -> Int {
         lock.lock()
-        let count = invocationCount
-        lock.unlock()
-        reply(count)
+        defer { lock.unlock() }
+        return invocationCount
+    }
+    func deniedInvocationCount(_ reply: @escaping (Int) -> Void) {
+        reply(deniedProbe?.recordedInvocationCount() ?? -1)
     }
 }
 final class ProbeDelegate: NSObject, NSXPCListenerDelegate {
     let control = NSXPCListener(machServiceName: "com.example.cips.validation.control")
     let denied = NSXPCListener(machServiceName: "com.example.cips.validation.denied")
-    let controlObject = Probe()
     let deniedObject = Probe()
+    lazy var controlObject: Probe = {
+        let object = Probe()
+        object.deniedProbe = deniedObject
+        return object
+    }()
 
     func listener(_ listener: NSXPCListener,
                   shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
