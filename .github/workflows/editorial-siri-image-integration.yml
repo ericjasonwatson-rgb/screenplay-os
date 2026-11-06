@@ -1,0 +1,82 @@
+name: Editorial Siri Image Integration Smoke
+
+on:
+  push:
+    branches:
+      - integration/editorial-siri-image-smoke-20261105
+  pull_request:
+    paths:
+      - 'Sources/ScreenplayOSApp/MediaInterchangeManifest.swift'
+      - 'Sources/ScreenplayOSApp/MediaEditReview.swift'
+      - 'Sources/ScreenplayOSApp/MediaTimelineOTIO.swift'
+      - 'Sources/ScreenplayOSApp/ProductionTakeEditorialBridge.swift'
+      - 'Tests/ScreenplayEditorTests/MediaInterchangeManifestTests.swift'
+      - 'Tests/ScreenplayEditorTests/MediaEditReviewTests.swift'
+      - 'Tests/ScreenplayEditorTests/MediaTimelineOTIOTests.swift'
+      - 'Tests/ScreenplayEditorTests/ProductionTakeEditorialBridgeTests.swift'
+      - '.github/workflows/editorial-siri-image-integration.yml'
+      - 'Scripts/validate_otio_export.py'
+      - 'Scripts/compare_filmcraft_otio.py'
+      - 'Scripts/run_filmcraft_roundtrip.py'
+      - 'Scripts/test_filmcraft_roundtrip_review.py'
+      - 'Scripts/filmcraft_manual_relink_candidates.py'
+      - 'Scripts/apply_filmcraft_otio_provenance_experiment.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  editorial-image:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift toolchain
+        run: swift --version
+      - name: Install official OpenTimelineIO parser
+        run: python3 -m pip install --user --break-system-packages 'opentimelineio==0.18.1'
+      - name: Validate editorial interchange and generated Take provenance
+        env:
+          SCREENPLAYOS_OTIO_CAPTURE_PATH: ${{ runner.temp }}/screenplayos-synthetic-take.otio
+        run: |
+          swift test --configuration debug --disable-sandbox --no-parallel --filter MediaInterchangeManifest
+          swift test --configuration debug --disable-sandbox --no-parallel --filter MediaEditReview
+          swift test --configuration debug --disable-sandbox --no-parallel --filter MediaTimelineOTIO
+          swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionTakeEditorialBridge
+          python3 Scripts/validate_otio_export.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
+          python3 Scripts/compare_filmcraft_otio.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH" "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
+          python3 Scripts/test_filmcraft_roundtrip_review.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
+          swift test --configuration debug --disable-sandbox --no-parallel --filter SiriWorkspace
+          swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionImage
+
+  filmcraft-provenance-experiment:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Check out ScreenplayOS
+        uses: actions/checkout@v4
+      - name: Check out FilmCraft v0.17.1
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/filmcraft
+          ref: v0.17.1
+          path: filmcraft-source
+          persist-credentials: false
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - name: Apply and review source-anchored patch
+        run: |
+          python3 Scripts/apply_filmcraft_otio_provenance_experiment.py filmcraft-source
+          git -C filmcraft-source diff --check
+          git -C filmcraft-source diff --stat
+      - name: Compile and test real FilmCraft OTIO code
+        working-directory: filmcraft-source
+        run: |
+          # The isolated test harness adds filmcraft-format as a dev dependency,
+          # so its generated lockfile must reflect the patched test graph.
+          # FilmCraft stays pinned to v0.17.1 and Rust to 1.95.0.
+          cargo test -p filmcraft-interchange --test it screenplayos_namespace_survives_native_project_and_otio_roundtrip -- --nocapture
+          cargo test -p filmcraft-interchange --test it otio::
