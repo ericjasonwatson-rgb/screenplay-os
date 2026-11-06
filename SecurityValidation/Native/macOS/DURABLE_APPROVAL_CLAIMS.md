@@ -47,3 +47,20 @@ automatic resend under that identity.
   assessment. DO NOT USE WITH CUSTOMER/STUDIO DATA.
 
 Tests use synthetic fingerprints and ephemeral test-only signing keys.
+
+## Independent expected-state commitment (experimental)
+
+The ledger now calculates a deterministic, versioned SHA-256 commitment
+over its complete ordered rows inside a SQLite transaction. When an expected
+commitment is supplied by a **separate trusted system**, a restored older
+database will disagree. A missing or corrupt database also fails comparison.
+The Mac tests restore a valid older SQLite snapshot and verify this mismatch;
+the separate-process fixture retains an expected commitment outside the DB.
+
+This is NOT an independently protected anti-rollback anchor. The fixture
+stores its checkpoint as an ordinary same-user JSON file. A same-user attacker
+can replace both records. The comparison also does not atomically update a
+trusted anchor with SQLite, so a crash between independent commits requires
+fail-closed manual reconciliation. A production implementation requires
+authenticated protected or external monotonic anchor custody and recovery
+rules before any real creative content egress. This target remains no-network.
