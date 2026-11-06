@@ -103,6 +103,31 @@ final class DurableApprovalTests: XCTestCase {
         XCTAssertTrue(one.matchesTrustedCheckpoint(changed))
     }
 
+    func testSameClaimCountButDifferentContentHasDifferentCommitment() throws {
+        let firstDir = try directory()
+        let secondDir = try directory()
+        defer {
+            try? FileManager.default.removeItem(at: firstDir)
+            try? FileManager.default.removeItem(at: secondDir)
+        }
+        let key = P256.Signing.PrivateKey()
+        let firstURL = database(firstDir)
+        let secondURL = database(secondDir)
+        try DurableApprovalClaimLedger.bootstrap(at: firstURL)
+        try DurableApprovalClaimLedger.bootstrap(at: secondURL)
+        let first = try DurableApprovalClaimLedger(databaseURL: firstURL, verifier: verifier(key))
+        let second = try DurableApprovalClaimLedger(databaseURL: secondURL, verifier: verifier(key))
+        let a = try request()
+        let b = try request(request: UUID(uuidString: "20000000-0000-0000-0000-000000000077")!)
+        XCTAssertNil(first.claim(try signed(a, by: key), for: a, atTrustedTime: 1002).failure)
+        XCTAssertNil(second.claim(try signed(b, by: key), for: b, atTrustedTime: 1002).failure)
+        let trusted = try first.stateCommitment()
+        let different = try second.stateCommitment()
+        XCTAssertEqual(trusted.claimCount, different.claimCount)
+        XCTAssertNotEqual(trusted.sha256Hex, different.sha256Hex)
+        XCTAssertFalse(second.matchesTrustedCheckpoint(trusted))
+    }
+
     func testMissingLedgerNeverMatchesCheckpoint() throws {
         let dir = try directory()
         defer { try? FileManager.default.removeItem(at: dir) }
