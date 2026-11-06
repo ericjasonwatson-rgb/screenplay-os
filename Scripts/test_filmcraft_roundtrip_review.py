@@ -40,6 +40,32 @@ def main():
         removed["tracks"]["children"][0]["children"].pop()
         check_fail(baseline, removed, path, "Clip count changed")
 
+        # A split produces an additional occurrence. Never assign it the
+        # source clip's original identity or infer its identity from timing.
+        split = copy.deepcopy(original_json)
+        split_clips = split["tracks"]["children"][0]["children"]
+        split_clips.insert(1, copy.deepcopy(split_clips[0]))
+        split_clips[1]["source_range"]["start_time"]["value"] = 24
+        split_clips[1]["source_range"]["duration"]["value"] = 24
+        check_fail(baseline, split, path, "Clip count changed")
+
+        # Duplication of an occurrence ID, even with two clips total, must
+        # fail instead of silently attributing both edits to the same Take.
+        duplicated = copy.deepcopy(original_json)
+        duplicate_clips = duplicated["tracks"]["children"][0]["children"]
+        duplicate_clips[1]["metadata"]["screenplayos"]["occurrence_id"] = (
+            duplicate_clips[0]["metadata"]["screenplayos"]["occurrence_id"]
+        )
+        check_fail(baseline, duplicated, path, "Duplicate returned occurrence")
+
+        # Reordering preserves identity but is a review proposal, not an edit.
+        reordered = copy.deepcopy(original_json)
+        reordered["tracks"]["children"][0]["children"].reverse()
+        path.write_text(json.dumps(reordered), encoding="utf-8")
+        reorder_proposals = compare(baseline, snapshot(path))
+        assert len(reorder_proposals) == 2
+        assert all(item["field"] == "index" for item in reorder_proposals)
+
         lost = copy.deepcopy(original_json)
         del lost["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"]["prompt_sha256"]
         check_fail(baseline, lost, path, "lost required metadata")
