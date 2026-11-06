@@ -18,6 +18,14 @@ struct CampaignWorkspaceView: View {
     @State private var selectedAgencyDocumentID: UUID?
     @State private var dismissalConsumed = false
     @State private var presentationID = UUID()
+    @State private var navigationRequest: SectionNavigation?
+    @State private var expandedCoverageIDs: Set<UUID> = []
+
+    private struct SectionNavigation: Equatable {
+        let id = UUID()
+        let tab: Int
+        let anchor: String
+    }
 
     init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
          importLifecycle: CampaignAgencyImportLifecycle? = nil,
@@ -41,12 +49,18 @@ struct CampaignWorkspaceView: View {
     private var baseline: CampaignBaseline? {
         session.ledger.baselines.first { $0.id == selectedBaselineID }
     }
-    private var comparison: Result<[CampaignChange], Error> {
-        guard let baseline, let document else { return .success([]) }
-        return Result { try session.ledger.compare(baselineID: baseline.id, document: document) }
+    private var reviewChecklist: Result<CampaignReviewChecklist, Error> {
+        Result {
+            guard let document else { throw CampaignError.invalid("This campaign's project is unavailable.") }
+            return try CampaignReviewChecklist(ledger: session.ledger, document: document,
+                                               selectedBaselineID: selectedBaselineID)
+        }
     }
 
     var body: some View {
+        // Capture the derived comparison once per render. The guide and change
+        // rows must describe the same selection without duplicating comparison.
+        let checklist = reviewChecklist
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -59,22 +73,16 @@ struct CampaignWorkspaceView: View {
             }
             Text("Keep the agreed scope connected to the script, shots and boards. All changes require producer review.")
                 .font(.callout).foregroundStyle(.secondary)
-            TabView(selection: $selectedTab) {
-                CampaignAgencySourcesView(session: session, selectedDocumentID: $selectedAgencyDocumentID,
-                                          importLifecycle: importLifecycle,
-                                          privateExportLifecycle: privateExportLifecycle,
-                                          currentContext: {
-                    guard selectedTab == 0 else { return nil }
-                    return recoveryContext()
-                })
-                    .tabItem { Label("Agency Sources", systemImage: "doc.text.magnifyingglass") }.tag(0)
-                ScrollView { briefAndDeliverables.padding(.vertical, 12) }
-                    .tabItem { Label("Brief & Deliverables", systemImage: "list.bullet.rectangle") }.tag(1)
-                ScrollView { assumptions.padding(.vertical, 12) }
-                    .tabItem { Label("Bid Assumptions", systemImage: "text.badge.checkmark") }.tag(2)
-                ScrollView { review.padding(.vertical, 12) }
-                    .tabItem { Label("Baseline & Changes", systemImage: "arrow.triangle.branch") }.tag(3)
+            switch checklist {
+            case .success(let value):
+                CampaignReviewChecklistView(checklist: value, navigate: navigateReviewStep)
+                    .disabled(session.isReadOnly || document == nil || session.isPerformingRecoveryCommand)
+            case .failure(let error):
+                Label("Review guide unavailable: \(error.localizedDescription)", systemImage: "exclamationmark.triangle")
+                    .font(.callout).foregroundStyle(.orange).textSelection(.enabled)
+                    .accessibilityIdentifier("campaign.review.problem")
             }
+            campaignTabs(checklist)
             .disabled(session.isReadOnly || document == nil || session.isPerformingRecoveryCommand)
             if let preview = session.restorePreview {
                 CampaignBackupReviewView(preview: preview,
@@ -139,6 +147,37 @@ struct CampaignWorkspaceView: View {
         }
     }
 
+    private func campaignTabs(_ checklist: Result<CampaignReviewChecklist, Error>) -> some View {
+        ScrollViewReader { proxy in
+            TabView(selection: $selectedTab) {
+                CampaignAgencySourcesView(session: session, selectedDocumentID: $selectedAgencyDocumentID,
+                                          importLifecycle: importLifecycle,
+                                          privateExportLifecycle: privateExportLifecycle,
+                                          currentContext: {
+                    guard selectedTab == 0 else { return nil }
+                    return recoveryContext()
+                })
+                    .tabItem { Label("Agency Sources", systemImage: "doc.text.magnifyingglass") }.tag(0)
+                ScrollView { briefAndDeliverables.padding(.vertical, 12) }
+                    .tabItem { Label("Brief & Deliverables", systemImage: "list.bullet.rectangle") }.tag(1)
+                ScrollView { assumptions.padding(.vertical, 12) }
+                    .tabItem { Label("Bid Assumptions", systemImage: "text.badge.checkmark") }.tag(2)
+                ScrollView { review(checklist).padding(.vertical, 12) }
+                    .tabItem { Label("Baseline & Changes", systemImage: "arrow.triangle.branch") }.tag(3)
+            }
+            .onChange(of: navigationRequest) { request in
+                guard let request else { return }
+                // Allow the selected tab to mount before scrolling. A newer
+                // navigation, dismissal or project replacement retires this.
+                DispatchQueue.main.async {
+                    guard navigationRequest == request, selectedTab == request.tab,
+                          !dismissalConsumed, document != nil else { return }
+                    proxy.scrollTo(request.anchor, anchor: .top)
+                }
+            }
+        }
+    }
+
     private var briefAndDeliverables: some View {
         VStack(alignment: .leading, spacing: 12) {
             GroupBox("Campaign brief") {
@@ -150,6 +189,7 @@ struct CampaignWorkspaceView: View {
                     field("Mandatory requirements", text: briefBinding(\.mandatoryRequirements))
                 }.padding(6)
             }
+            .id("campaign.section.brief")
             HStack {
                 Text("Deliverables").font(.headline)
                 Spacer()
@@ -158,6 +198,7 @@ struct CampaignWorkspaceView: View {
                 }
                 .accessibilityIdentifier("campaign.deliverable.add")
             }
+            .id("campaign.section.deliverables")
             if session.ledger.draft.deliverables.isEmpty {
                 Text("Add the hero film, cutdowns, vertical versions and market variants you have agreed to deliver.")
                     .foregroundStyle(.secondary)
@@ -178,6 +219,7 @@ struct CampaignWorkspaceView: View {
                     Stepper(value: deliverableBinding(item, \.durationSeconds), in: 1...86400) {
                         Text("\(item.durationSeconds) sec").monospacedDigit()
                     }.frame(width: 130)
+                        .accessibilityIdentifier("campaign.deliverable.duration.\(item.id)")
                     Button("Remove") { session.updateDraft { $0.deliverables.removeAll { $0.id == item.id } } }
                         .accessibilityIdentifier("campaign.deliverable.remove.\(item.id)")
                 }
@@ -186,7 +228,13 @@ struct CampaignWorkspaceView: View {
                     field("Market", text: deliverableBinding(item, \.market))
                     field("Language", text: deliverableBinding(item, \.language))
                 }
-                DisclosureGroup("Shot coverage (\(item.linkedShotIDs.count) linked)") {
+                DisclosureGroup("Shot coverage (\(item.linkedShotIDs.count) linked)", isExpanded: Binding(
+                    get: { expandedCoverageIDs.contains(item.id) },
+                    set: { expanded in
+                        if expanded { expandedCoverageIDs.insert(item.id) }
+                        else { expandedCoverageIDs.remove(item.id) }
+                    }
+                )) {
                     VStack(alignment: .leading, spacing: 5) {
                         if document?.shots.isEmpty != false {
                             Text("Create shots in the Shot workspace, then link their coverage here.").foregroundStyle(.secondary)
@@ -217,38 +265,48 @@ struct CampaignWorkspaceView: View {
                         }
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
                 }
+                .id("campaign.section.coverage.\(item.id)")
             }.padding(6)
         }
+        .id("campaign.section.deliverable.\(item.id)")
     }
 
     private var assumptions: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Record the bid basis, not the private working budget. Include exclusions, shoot days, locations, post, talent usage and delivery requirements.")
                 .foregroundStyle(.secondary)
+                .id("campaign.section.assumptions")
             Text("Source references can be manual citations, such as ‘Agency script v3, page 4’. Use Agency Sources to import local text and link reviewed lines to these assumptions. Original documents and sender identities are not verified.")
                 .font(.caption).foregroundStyle(.secondary)
             Button("Add Assumption") {
                 session.updateDraft { $0.assumptions.append(CampaignAssumption()) }
             }
+            .accessibilityIdentifier("campaign.assumption.add")
             ForEach(session.ledger.draft.assumptions) { item in
                 GroupBox {
                     VStack(spacing: 8) {
-                        field("Assumption", text: assumptionBinding(item.id, \.text))
-                        field("Source document / version", text: assumptionBinding(item.id, \.sourceLabel))
+                        field("Assumption", text: assumptionBinding(item.id, \.text),
+                              identifier: "campaign.assumption.text.\(item.id)")
+                        field("Source document / version", text: assumptionBinding(item.id, \.sourceLabel),
+                              identifier: "campaign.assumption.sourceLabel.\(item.id)")
                         HStack {
-                            field("Page / section / reference", text: assumptionBinding(item.id, \.sourceReference))
+                            field("Page / section / reference", text: assumptionBinding(item.id, \.sourceReference),
+                                  identifier: "campaign.assumption.sourceReference.\(item.id)")
                             Button("Remove") { session.updateDraft { $0.assumptions.removeAll { $0.id == item.id } } }
+                                .accessibilityIdentifier("campaign.assumption.remove.\(item.id)")
                         }
                     }.padding(6)
                 }
+                .id("campaign.section.assumption.\(item.id)")
             }
         }
     }
 
-    private var review: some View {
+    private func review(_ checklist: Result<CampaignReviewChecklist, Error>) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Freeze a named snapshot of this scope and its source objects. A snapshot is not approval; record each approval separately with evidence.")
                 .foregroundStyle(.secondary)
+                .id("campaign.section.baseline")
             HStack {
                 TextField("Baseline name, e.g. Awarded bid · 5 Nov", text: $baselineName)
                     .accessibilityIdentifier("campaign.baseline.name")
@@ -268,23 +326,28 @@ struct CampaignWorkspaceView: View {
             }
             if let baseline {
                 Text("Baseline \(baseline.id.uuidString)").font(.caption).textSelection(.enabled)
-                switch comparison {
+                switch checklist {
                 case .failure(let error):
                     Text(error.localizedDescription).foregroundStyle(.orange)
-                case .success(let changes):
+                case .success(let value):
+                    let changes = value.changes ?? []
                     HStack {
                         Label(changes.isEmpty ? "No tracked changes" : "\(changes.count) changes / source warnings to review",
                               systemImage: changes.isEmpty ? "checkmark.circle" : "exclamationmark.triangle")
                     }
+                    .id("campaign.section.changes")
                     Text("Exact tracked changes only. Coverage, costs, schedule and original documents still need human review. No automatic repricing or spend authorization.")
                         .font(.caption).foregroundStyle(.secondary)
                     if selectedTab == 3 {
-                        CampaignChangeReviewView(session: session, model: model, baseline: baseline,
-                                                 exportLifecycle: reportExportLifecycle,
-                                                 isContextActive: {
-                            !dismissalConsumed && selectedTab == 3 && selectedBaselineID == baseline.id
-                        })
-                        .id(baseline.id)
+                        VStack(spacing: 0) {
+                            CampaignChangeReviewView(session: session, model: model, baseline: baseline,
+                                                     exportLifecycle: reportExportLifecycle,
+                                                     isContextActive: {
+                                !dismissalConsumed && selectedTab == 3 && selectedBaselineID == baseline.id
+                            })
+                            .id(baseline.id)
+                        }
+                        .id("campaign.section.report")
                     }
                     ForEach(changes) { change in changeRow(change) }
                     if selectedTab == 3 {
@@ -294,6 +357,7 @@ struct CampaignWorkspaceView: View {
                     }
                 }
                 decisionHistory(baseline)
+                    .id("campaign.section.decisions")
             }
         }
     }
@@ -304,7 +368,10 @@ struct CampaignWorkspaceView: View {
                 HStack {
                     Text(change.title).font(.headline)
                     Spacer()
-                    if canNavigate(change) { Button("Go to Source") { navigate(change) } }
+                    if canNavigate(change) {
+                        Button("Go to Source") { navigate(change) }
+                            .accessibilityIdentifier("campaign.change.source.\(change.sourceKind.rawValue).\(change.sourceID)\(change.unresolved ? ".unresolved" : "")")
+                    }
                 }
                 Text("\(change.sourceKind.rawValue) · \(change.sourceID.uuidString)").font(.caption).textSelection(.enabled)
                 Text("Affected: \(affectedNames(change).joined(separator: ", "))").font(.callout)
@@ -368,12 +435,12 @@ struct CampaignWorkspaceView: View {
         }
     }
 
-    private func field(_ label: String, text: Binding<String>) -> some View {
+    private func field(_ label: String, text: Binding<String>, identifier: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             TextField(label, text: text, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
                 .accessibilityLabel(label)
-                .accessibilityIdentifier("campaign.field.\(label)")
+                .accessibilityIdentifier(identifier ?? "campaign.field.\(label)")
         }
     }
     private func briefBinding(_ path: WritableKeyPath<CampaignBrief, String>) -> Binding<String> {
@@ -409,22 +476,96 @@ struct CampaignWorkspaceView: View {
         let citations = (session.ledger.draft.agency?.citations ?? []) + (baseline?.draft.agency?.citations ?? [])
         return citations.first { $0.id == change.sourceID }?.documentID
     }
+
+    private func navigateReviewStep(_ destination: CampaignReviewDestination) {
+        guard !dismissalConsumed, document != nil,
+              !session.isReadOnly, !session.isPerformingRecoveryCommand else { return }
+        switch destination {
+        case .brief:
+            let brief = session.ledger.draft.brief
+            let needsBrief = brief.brand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || brief.objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if needsBrief {
+                reveal(tab: 1, anchor: "campaign.section.brief")
+            } else if let item = session.ledger.draft.deliverables.first(where: {
+                $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || $0.aspectRatio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }) {
+                reveal(tab: 1, anchor: "campaign.section.deliverable.\(item.id)")
+            } else {
+                reveal(tab: 1, anchor: session.ledger.draft.deliverables.isEmpty
+                       ? "campaign.section.deliverables" : "campaign.section.brief")
+            }
+        case .agencySources:
+            // Bring the first unresolved source into view without importing,
+            // acknowledging its review or changing any citation.
+            if let workspace = session.ledger.draft.agency {
+                let warnings = workspace.warnings(draft: session.ledger.draft)
+                if let warning = warnings.first(where: { $0.sourceKind == .agencyDocument }) {
+                    selectedAgencyDocumentID = warning.sourceID
+                } else if let warning = warnings.first,
+                          let citation = workspace.citations.first(where: { $0.id == warning.sourceID }) {
+                    selectedAgencyDocumentID = citation.documentID
+                }
+            }
+            reveal(tab: 0, anchor: "campaign.section.agencySources")
+        case .assumptions:
+            reveal(tab: 2, anchor: "campaign.section.assumptions")
+        case .coverage:
+            let shotIDs = Set((document?.shots ?? []).map(\.id))
+            let firstMissing = session.ledger.draft.deliverables.first(where: {
+                $0.linkedShotIDs.contains { !shotIDs.contains($0) }
+            })
+            if let item = firstMissing ?? session.ledger.draft.deliverables.first {
+                expandedCoverageIDs.insert(item.id)
+                reveal(tab: 1, anchor: "campaign.section.coverage.\(item.id)")
+            } else {
+                reveal(tab: 1, anchor: "campaign.section.deliverables")
+            }
+        case .baseline:
+            reveal(tab: 3, anchor: baseline == nil ? "campaign.section.baseline" : "campaign.section.changes")
+        case .decisions:
+            reveal(tab: 3, anchor: baseline == nil ? "campaign.section.baseline" : "campaign.section.decisions")
+        case .report:
+            reveal(tab: 3, anchor: baseline == nil ? "campaign.section.baseline" : "campaign.section.report")
+        }
+    }
+
+    private func reveal(tab: Int, anchor: String) {
+        // Presentation state only. A fresh request also supports repeated clicks
+        // on the same destination without resetting any ancestor view identity.
+        navigationRequest = SectionNavigation(tab: tab, anchor: anchor)
+        selectedTab = tab
+    }
+
     private func canNavigate(_ change: CampaignChange) -> Bool {
         switch change.sourceKind {
+        case .brief: return true
+        case .deliverable: return session.ledger.draft.deliverables.contains { $0.id == change.sourceID }
+        case .assumption: return session.ledger.draft.assumptions.contains { $0.id == change.sourceID }
         case .script: return document?.screenplay.elements.contains { $0.id == change.sourceID } ?? false
         case .shot: return document?.shots.contains { $0.id == change.sourceID } ?? false
         case .board: return document?.boardFrames.contains { $0.id == change.sourceID } ?? false
         case .agencyDocument, .agencyCitation:
             guard let id = agencyDocumentID(for: change) else { return false }
             return session.ledger.draft.agency?.latestRevision(documentID: id) != nil
-        default: return false
         }
     }
     private func navigate(_ change: CampaignChange) {
-        guard !dismissalConsumed else { return }
+        guard !dismissalConsumed, document != nil, canNavigate(change) else { return }
         switch change.sourceKind {
+        case .brief:
+            reveal(tab: 1, anchor: "campaign.section.brief")
+            return
+        case .deliverable:
+            reveal(tab: 1, anchor: "campaign.section.deliverable.\(change.sourceID)")
+            return
+        case .assumption:
+            reveal(tab: 2, anchor: "campaign.section.assumption.\(change.sourceID)")
+            return
         case .agencyDocument, .agencyCitation:
-            selectedAgencyDocumentID = agencyDocumentID(for: change); selectedTab = 0
+            selectedAgencyDocumentID = agencyDocumentID(for: change)
+            reveal(tab: 0, anchor: "campaign.section.agencySources")
             return
         case .script:
             model.setWorkflowMode(.writing); model.selectElement(id: change.sourceID)
@@ -437,7 +578,6 @@ struct CampaignWorkspaceView: View {
             if let board = document?.boardFrames.first(where: { $0.id == change.sourceID }) {
                 model.setWorkflowMode(.boards); model.selectBoardFrame(board)
             }
-        default: return
         }
         requestDismissal()
     }

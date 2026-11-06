@@ -45,12 +45,15 @@ struct CampaignAgencySourcesView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Import an agency script, brief or bid letter as text or a supported Word DOCX. Verify extracted text against the original before using it. Nothing is uploaded and the screenplay is not changed.")
                     .font(.callout).foregroundStyle(.secondary)
+                    .id("campaign.section.agencySources")
                 Text("Text: .txt, .md, .fountain, up to 256 KiB. DOCX: up to 2 MiB, with bounded text extraction. PDF remains disabled pending parser isolation; no legacy .doc or OCR. Originals and extracted text are retained in private campaign backups and may contain confidential material.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Button("Choose New Source…") { chooseSource(revising: nil) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading || reconciliation != nil)
+                        .accessibilityIdentifier("campaign.agency.choose.new")
                     if let selected {
                         Button("Choose Revised Source…") { chooseSource(revising: selected.documentID) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading || reconciliation != nil)
+                            .accessibilityIdentifier("campaign.agency.choose.revision")
                     }
                 }
                 if importLifecycle.isReading {
@@ -128,12 +131,14 @@ struct CampaignAgencySourcesView: View {
                 sourceText(preview.text, height: 180)
                 HStack {
                     Button("Cancel Import", action: importLifecycle.cancel)
+                        .accessibilityIdentifier("campaign.agency.import.cancel")
                     Spacer()
                     Button("Import Preview Locally") {
                         if let documentID = importLifecycle.importPreview(into: session) {
                             selectedDocumentID = documentID
                         }
                     }
+                    .accessibilityIdentifier("campaign.agency.import.confirm")
                 }
             }.padding(6)
         }
@@ -194,13 +199,16 @@ struct CampaignAgencySourcesView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     TextField("First line", text: $firstLine).accessibilityLabel("First source line").frame(width: 90)
+                        .accessibilityIdentifier("campaign.agency.citation.firstLine")
                     Text("through")
                     TextField("Last line", text: $lastLine).accessibilityLabel("Last source line").frame(width: 90)
+                        .accessibilityIdentifier("campaign.agency.citation.lastLine")
                     Spacer()
                     Picker("Target type", selection: $targetKind) {
                         Text("Deliverable").tag(CampaignAgencyTargetKind.deliverable)
                         Text("Assumption").tag(CampaignAgencyTargetKind.assumption)
                     }.frame(width: 220)
+                        .accessibilityIdentifier("campaign.agency.citation.targetKind")
                 }
                 Picker("Campaign target", selection: $targetID) {
                     Text("Choose target").tag(Optional<UUID>.none)
@@ -210,15 +218,18 @@ struct CampaignAgencySourcesView: View {
                         ForEach(session.ledger.draft.assumptions) { item in Text(item.text).tag(Optional(item.id)) }
                     }
                 }
+                .accessibilityIdentifier("campaign.agency.citation.target")
                 if let excerpt { sourceText(excerpt, height: 90) }
                 else { Text("Enter a valid inclusive line range from this source.").font(.caption).foregroundStyle(.orange) }
                 TextField("Why these lines support the target", text: $citationNote, axis: .vertical)
                     .textFieldStyle(.roundedBorder).lineLimit(1...3)
+                    .accessibilityIdentifier("campaign.agency.citation.note")
                 Button("Add Reviewed Citation") {
                     guard let first = Int(firstLine), let last = Int(lastLine), let targetID else { return }
                     if session.citeAgencyRevision(revision.id, firstLine: first, lastLine: last,
                                                   targetKind: targetKind, targetID: targetID, note: citationNote) { citationNote = "" }
                 }.disabled(excerpt == nil || targetID == nil || citationNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("campaign.agency.citation.add")
                 Text("Links retain exact source and target revisions. Later changes require review; no scope text or screenplay is automatically rewritten.")
                     .font(.caption).foregroundStyle(.secondary)
             }.padding(6)

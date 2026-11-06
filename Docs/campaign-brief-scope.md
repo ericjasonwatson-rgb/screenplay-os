@@ -33,6 +33,23 @@ The experimental writing-only package editor is not supported.
    reviewed copy. No sending/sharing, automatic costing, quote or schedule promise
    occurs.
 
+The compact **Next review step** guide points into these existing tabs. Expand
+**Show review checklist** to inspect required baseline fields, optional agency
+evidence, bid assumptions, shot links, the selected baseline and its separate
+local decision records. **Go to Step** and each **Open** action only navigate;
+they do not import, review, reconcile, freeze, record an approval or save a file.
+The guide is computed from current data and is not a saved completion checklist,
+readiness score or permission to proceed. No imported agency source or complete
+set of approval types is required merely to use Campaign.
+
+The comparison and record counts belong to the selected baseline, not a combined
+view of all versions. Changed scope leaves existing records historical; unresolved
+evidence remains a review problem. The guide checks explicit links, not semantic
+or exhaustive coverage. Before a baseline is selected it identifies missing
+deliverable-to-shot links only; full tracked source warnings appear in the
+baseline comparison. Deleted targets remain visible as evidence rather than
+being redirected to another live object.
+
 Draft edits are committed locally before becoming the published in-memory state.
 Undo Draft Change restores prior draft content without deleting frozen baselines
 or historical decisions. Closing/reopening retains saved data. A write failure
@@ -258,6 +275,47 @@ failed-write retry. Hosted tests use native Campaign controls with injected
 chooser results; they do not drive the system file panels. These are authored
 acceptance cases; use the exact PR head's Mac CI result for execution evidence.
 
+
+## Connected producer rehearsal
+
+Use disposable, independently authored synthetic material for this rehearsal.
+Do not put agency or client material into public test fixtures. A local ad-hoc
+app build is not a signed/notarized distribution, and hosted tests are not a claim
+that an installed release or a physical keyboard/screen reader has been tested.
+
+1. Start a legacy filmmaking project and open Campaign. Inspect the blank
+   campaign's next step. Follow it to enter a brand, objective and a named hero
+   deliverable with an aspect ratio. Check that merely opening checklist rows
+   does not create campaign records or alter the screenplay.
+2. Open Bid Assumptions and record a synthetic bid basis. If useful, import a
+   synthetic TXT/DOCX source, inspect its exact preview, save it locally, record
+   a review and cite selected lines against the deliverable or assumption.
+   An absent imported source is optional, not a failed workflow.
+3. Follow the guide to Baseline & Changes, name and freeze a baseline. Inspect
+   its identity and comparison scope. Preview and confirm a fictional creative
+   record only as a test; verify that production and spend remain separate.
+4. Revise the deliverable and import a revised synthetic source. Inspect the
+   guide's new warnings, review the current source and explicitly reconcile the
+   old citation. Check the old baseline and its local decision remain historical.
+   From a changed deliverable or assumption, use Go to Source to return to that
+   exact live object. A removed object must not open an unrelated replacement.
+5. Preview a summary report for the selected baseline, inspect it, then save a
+   reviewed local copy. Confirm the saved bytes match the preview. Close and
+   reopen Campaign to verify the saved draft, source history and baseline choice
+   available for comparison. Checklist state itself is not a persisted record.
+6. Save a separate private backup. The automated recovery rehearsal uses a fresh
+   temporary storage root and verifies exact restored history. For an installed
+   app recovery check, use only an isolated disposable test environment with the
+   same synthetic project identity and no existing campaign. Do not remove a real
+   campaign record to make Restore available.
+
+Hosted producer-journey tests connect these controls using injected local file
+chooser results and synthetic data. A revised-source scenario may start with an
+explicitly seeded V1 campaign so it can focus on the connected revision-to-report
+path. Real picker interaction, laptop layout, accessibility, Shortcuts discovery
+and installed-app recovery remain separate manual acceptance gates. No provider
+call, account, credentials, network send, merge or deployment is part of this
+rehearsal.
 
 ## Agency text import and reconciliation
 
