@@ -86,6 +86,17 @@ def main():
         }
         Some(ti)
 """)
+    # Enable a native .fcproj encode/decode check in the isolated test crate.
+    # filmcraft-format is already a workspace package at the pinned v0.17.1 tag.
+    manifest = root / "crates/interchange/Cargo.toml"
+    replace(manifest,
+        """[dev-dependencies]
+proptest = { workspace = true }
+""",
+        """[dev-dependencies]
+proptest = { workspace = true }
+filmcraft-format = { workspace = true }
+""")
     test = root / "crates/interchange/tests/it/otio.rs"
     test.write_text(test.read_text() + r'''
 
@@ -136,6 +147,13 @@ fn screenplayos_namespace_survives_native_project_and_otio_roundtrip() {
         serde_json::from_slice(&project_bytes).unwrap();
     let reopened_clip = &reopened_project.sequence(sequence).unwrap().video_tracks[0].items[0];
     assert_eq!(reopened_clip.otio_screenplayos, Some(external.clone()));
+    // Test actual FilmCraft .fcproj format encoding and loading, not just a
+    // naked Project serde round-trip. Executable GUI/CLI I/O remains separate.
+    let native_bytes = filmcraft_format::encode(&imported.project, true);
+    assert!(!native_bytes.is_empty());
+    let native_loaded = filmcraft_format::decode(&native_bytes).unwrap();
+    let native_clip = &native_loaded.project.sequence(sequence).unwrap().video_tracks[0].items[0];
+    assert_eq!(native_clip.otio_screenplayos, Some(external.clone()));
     let (exported, _) = filmcraft_interchange::export(
         &imported.project, sequence, Format::Otio, &ExportOptions::default()
     ).unwrap();
