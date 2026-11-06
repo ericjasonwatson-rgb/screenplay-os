@@ -2,6 +2,7 @@
 import CryptoKit
 import Foundation
 import Security
+import LocalAuthentication
 import XCTest
 import ShieldApprovalContract
 import ShieldNativeContract
@@ -149,6 +150,23 @@ final class ReviewerSigningContractTests: XCTestCase {
         case .failure(let error):
             XCTFail("Security.framework DER signature rejected: \(error)")
         }
+    }
+
+
+    func testReviewerKeyLookupRequiresSecureEnclaveAndAuthenticationContext() throws {
+        let store = try keyStore()
+        let context = LAContext()
+        defer { context.invalidate() }
+        let query = store.protectedSigningKeyQuery(using: context)
+        XCTAssertEqual(query[kSecAttrTokenID as String] as? String,
+                       kSecAttrTokenIDSecureEnclave as String)
+        XCTAssertEqual(query[kSecAttrApplicationTag as String] as? Data,
+                       store.applicationTag)
+        XCTAssertEqual(query[kSecAttrKeyClass as String] as? String,
+                       kSecAttrKeyClassPrivate as String)
+        XCTAssertNotNil(query[kSecUseAuthenticationContext as String] as? LAContext)
+        XCTAssertEqual(query[kSecReturnRef as String] as? Bool, true)
+        XCTAssertNil(query[kSecValueData as String])
     }
 
 
