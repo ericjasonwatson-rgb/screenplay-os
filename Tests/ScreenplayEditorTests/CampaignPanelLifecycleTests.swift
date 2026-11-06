@@ -250,13 +250,14 @@ private struct CampaignPanelHost: View {
     @ObservedObject var model: ScreenplayViewModel
     let root: URL
     let importLifecycle: CampaignAgencyImportLifecycle?
+    let reportExportLifecycle: CampaignReportExportLifecycle?
 
     var body: some View {
         ContentView(model: model)
             .sheet(isPresented: $model.campaignPresented) {
                 if let projectID = model.document?.project.id {
                     CampaignWorkspaceView(model: model, projectID: projectID, root: root,
-                                          importLifecycle: importLifecycle)
+                                          importLifecycle: importLifecycle, reportExportLifecycle: reportExportLifecycle)
                 }
             }
     }
@@ -285,7 +286,8 @@ final class CampaignPanelFixture {
     private let preferences: UserDefaults
     private let preferencesSuite: String
 
-    init(importLifecycle: CampaignAgencyImportLifecycle? = nil) throws {
+    init(importLifecycle: CampaignAgencyImportLifecycle? = nil,
+         reportExportLifecycle: CampaignReportExportLifecycle? = nil) throws {
         let applicationSetup = Self.applicationSetup
         try #require(applicationSetup.activationPolicySet,
                      "The hosted AppKit process could not set its accessory activation policy.")
@@ -305,7 +307,8 @@ final class CampaignPanelFixture {
         // Install an AppKit view-controller presentation owner, as an application
         // window does, before testing SwiftUI's real sheet presentation chain.
         let hostingController = NSHostingController(rootView: CampaignPanelHost(
-            model: model, root: root, importLifecycle: importLifecycle))
+            model: model, root: root, importLifecycle: importLifecycle,
+            reportExportLifecycle: reportExportLifecycle))
         let host = hostingController.view
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760),
                           styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)

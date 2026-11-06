@@ -7,6 +7,8 @@ import ScreenplayDomain
 final class CampaignWorkspaceSession: ObservableObject {
     @Published private(set) var ledger: CampaignLedger
     @Published private(set) var problem: String?
+    @Published private(set) var reportPreview: CampaignChangeReportPreview?
+    private var isSavingReport = false
     @Published private(set) var decisionPreview: CampaignDecisionPreview?
     @Published private(set) var status = "Changes save locally. Nothing is sent to anyone."
     @Published private(set) var isReadOnly = false
@@ -207,22 +209,74 @@ final class CampaignWorkspaceSession: ObservableObject {
 
     var canImport: Bool { bytes == nil && !isReadOnly }
 
-    func exportReport(baselineID: UUID, document: ScreenplayOSDocument) {
+    func discardReportPreview() { reportPreview = nil }
+
+    @discardableResult
+    func previewReport(baselineID: UUID, document: ScreenplayOSDocument,
+                       includeFullEvidence: Bool = false) -> CampaignChangeReportPreview? {
+        reportPreview = nil
         do {
-            guard let baseline = ledger.baselines.first(where: { $0.id == baselineID }) else { return }
-            let changes = try ledger.compare(baselineID: baselineID, document: document)
-            var lines = ["CAMPAIGN CHANGE REVIEW", "Project: \(document.project.metadata.title)",
-                         "Baseline: \(baseline.name) [\(baseline.id)]", "Frozen: \(baseline.createdAt.formatted())",
-                         "Human review required. This is not a quote, approval, or authorization to spend.",
-                         "Scope: campaign brief, deliverables, assumptions, script, shots, board timing and selected image metadata. Imported text and bounded DOCX extraction are tracked with retained original hashes, manual review and line citations. PDF import is not enabled. Extraction may omit layout or nontext content; originals must be checked by a person. No OCR or media analysis.", ""]
-            if changes.isEmpty { lines.append("No tracked changes or unresolved source links detected.") }
-            for change in changes {
-                lines += [change.title, "Source: \(change.sourceKind.rawValue) \(change.sourceID)",
-                          "Affected deliverables: \(change.affectedDeliverableIDs.map(\.uuidString).joined(separator: ", "))",
-                          "BEFORE", change.before, "AFTER", change.after, ""]
+            try validateReportLease()
+            let preview = try ledger.previewChangeReport(baselineID: baselineID, document: document,
+                options: .init(includeFullEvidence: includeFullEvidence))
+            reportPreview = preview
+            problem = nil
+            return preview
+        } catch { problem = error.localizedDescription; return nil }
+    }
+
+    func reportPreviewIsCurrent(_ preview: CampaignChangeReportPreview, baselineID: UUID,
+                                document: ScreenplayOSDocument) -> Bool {
+        guard reportPreview?.id == preview.id else { return false }
+        return (try? preview.validatedData(ledger: ledger, baselineID: baselineID, document: document)) != nil
+    }
+
+    private func validateReportLease() throws {
+        guard !isReadOnly, let storageURL else {
+            throw CampaignError.invalid("Reopen Campaign before previewing or saving a report.")
+        }
+        let current = try CampaignWorkspaceStore.load(projectID: ledger.projectID, from: storageURL)
+        guard current.bytes == bytes else { throw CampaignWorkspaceStore.Failure.conflict }
+    }
+
+    /// The context callback reads live UI state, never the state captured before
+    /// NSSavePanel's nested event loop. Cancellation and failure do not consume a
+    /// still-valid preview. Only successful saving consumes it.
+    @discardableResult
+    func saveReviewedReport(_ preview: CampaignChangeReportPreview,
+                            lifecycle: CampaignReportExportLifecycle? = nil,
+                            currentContext: () -> (baselineID: UUID, document: ScreenplayOSDocument, sourceURL: URL?)?) -> Bool {
+        guard !isSavingReport else { return false }
+        isSavingReport = true
+        let lifecycle = lifecycle ?? .live
+        defer { isSavingReport = false }
+        do {
+            func validate() throws -> Data {
+                guard reportPreview?.id == preview.id, let context = currentContext() else {
+                    throw CampaignError.invalid("Preview the report again before saving a reviewed copy.")
+                }
+                try validateReportLease()
+                return try preview.validatedData(ledger: ledger, baselineID: context.baselineID,
+                                                  document: context.document)
             }
-            try export(Data(lines.joined(separator: "\n").utf8), name: "Campaign-change-review.txt", type: .plainText)
-        } catch { problem = error.localizedDescription }
+            _ = try validate()
+            guard let url = lifecycle.chooseDestination() else { return false }
+            let reviewedBytes = try validate()
+            // Report exports may never replace their own canonical companion data.
+            guard let context = currentContext() else {
+                throw CampaignError.invalid("Preview the report again before saving a reviewed copy.")
+            }
+            try CampaignReportExportLifecycle.validateDestination(url,
+                protecting: [storageURL, context.sourceURL].compactMap { $0 })
+            let previous = try CampaignReportExportLifecycle.destinationBytes(url)
+            // Recheck at the write boundary as well as after the modal returns.
+            _ = try validate()
+            try lifecycle.write(reviewedBytes, url, previous)
+            reportPreview = nil
+            problem = nil
+            status = "Saved \(url.lastPathComponent). Nothing was sent."
+            return true
+        } catch { problem = error.localizedDescription; return false }
     }
 
     private func export(_ data: Data, name: String, type: UTType) throws {

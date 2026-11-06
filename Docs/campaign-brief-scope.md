@@ -27,8 +27,11 @@ The experimental writing-only package editor is not supported.
    cannot receive new approvals. A spend record requires a ceiling and currency.
    These records do not verify identity, create signatures, authorize provider
    requests, make payments, or carry approval forward to a revised scope.
-7. Export a local change-review text file for producer review. No sending/sharing
-   occurs. No automatic costing, quote or schedule promise is generated.
+7. Preview a local change-review report. The default summary lists changed source
+   identities and affected deliverables without before/after source text. Opt in
+   explicitly to include full evidence, inspect the exact preview, then save that
+   reviewed copy. No sending/sharing, automatic costing, quote or schedule promise
+   occurs.
 
 Draft edits are committed locally before becoming the published in-memory state.
 Undo Draft Change restores prior draft content without deleting frozen baselines
@@ -109,6 +112,39 @@ The confirmed record is historical local evidence. **Undo Draft Change does not
 erase approval records.** It does not verify the approver, create an electronic
 signature, authorize a provider request or execute spending. Creative, production
 and spend records remain separate and do not carry forward to revised baselines.
+
+## Review a report before exporting
+
+Change-review reports start in summary mode. They identify the project and frozen
+baseline, count tracked changes and unresolved sources, and list affected
+deliverables by name and permanent identity. Removed or renamed deliverables keep
+their baseline context. A source with no linked deliverable still requires a
+person to assess coverage. Summary mode omits before/after snapshots, imported
+agency text, review notes and citation evidence. It does not inspect names for
+confidential information and is **not automatically redacted or client-safe**.
+
+Full evidence is an explicit option. It can contain complete script or agency
+text, bid assumptions, review notes and other confidential material from the
+tracked snapshots. Inspect the selectable plain-text preview before saving. The
+saved UTF-8 bytes are the reviewed bytes, not a newly regenerated report. Reports
+are not approval records, signatures, quotes or spending authorization.
+
+Changing the report option or its baseline, project, project title, campaign or
+tracked sources invalidates the preview. Leaving the tab or closing the panel
+discards it. Saving rechecks the live context after the file picker returns;
+cancelled or stale requests do not write a file. Failed writes retain a still-valid
+preview for an explicit retry. Export does not modify the campaign ledger, its
+history or its Undo stack. A selected destination can still be in a synced folder;
+the app itself performs no upload or sharing operation.
+
+Reports are limited to 2,000,000 UTF-8 bytes and fail rather than truncate. Choose
+summary mode if full evidence exceeds that bound. Report saving rejects the live
+campaign ledger and screenplay destination, including resolved aliases and
+hardlinks. Existing destinations above the bounded 16 MiB reader limit are not
+replaced. These preflight checks retain the shared file writer's existing limits:
+they are not a lock against a malicious same-user writer changing or growing a
+file between checks. Imported originals' directory paths are deliberately not
+retained, so inspect the selected output filename before replacing any file.
 
 ## Integration and verification
 

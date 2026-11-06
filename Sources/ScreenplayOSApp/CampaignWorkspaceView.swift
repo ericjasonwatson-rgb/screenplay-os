@@ -9,6 +9,7 @@ struct CampaignWorkspaceView: View {
     @StateObject private var session: CampaignWorkspaceSession
     @Environment(\.dismiss) private var dismiss
     private let importLifecycle: CampaignAgencyImportLifecycle?
+    private let reportExportLifecycle: CampaignReportExportLifecycle?
     @State private var baselineName = ""
     @State private var selectedBaselineID: UUID?
     @State private var selectedTab = 1
@@ -16,9 +17,11 @@ struct CampaignWorkspaceView: View {
     @State private var dismissalConsumed = false
 
     init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
-         importLifecycle: CampaignAgencyImportLifecycle? = nil) {
+         importLifecycle: CampaignAgencyImportLifecycle? = nil,
+         reportExportLifecycle: CampaignReportExportLifecycle? = nil) {
         self.model = model
         self.importLifecycle = importLifecycle
+        self.reportExportLifecycle = reportExportLifecycle
         _session = StateObject(wrappedValue: CampaignWorkspaceSession(projectID: projectID, root: root))
     }
 
@@ -234,13 +237,17 @@ struct CampaignWorkspaceView: View {
                     HStack {
                         Label(changes.isEmpty ? "No tracked changes" : "\(changes.count) changes / source warnings to review",
                               systemImage: changes.isEmpty ? "checkmark.circle" : "exclamationmark.triangle")
-                        Spacer()
-                        Button("Export Change Review…") {
-                            if let document { session.exportReport(baselineID: baseline.id, document: document) }
-                        }
                     }
                     Text("Exact tracked changes only. Coverage, costs, schedule and original documents still need human review. No automatic repricing or spend authorization.")
                         .font(.caption).foregroundStyle(.secondary)
+                    if selectedTab == 3 {
+                        CampaignChangeReviewView(session: session, model: model, baseline: baseline,
+                                                 exportLifecycle: reportExportLifecycle,
+                                                 isContextActive: {
+                            !dismissalConsumed && selectedTab == 3 && selectedBaselineID == baseline.id
+                        })
+                        .id(baseline.id)
+                    }
                     ForEach(changes) { change in changeRow(change) }
                     if selectedTab == 3 {
                         CampaignApprovalReviewView(session: session, model: model, baseline: baseline,
@@ -289,6 +296,7 @@ struct CampaignWorkspaceView: View {
         // Revoke the proposal without rebuilding a disappearing sheet subtree
         // or publishing an unchanged nil value during teardown.
         if session.decisionPreview != nil { session.discardDecisionPreview() }
+        if session.reportPreview != nil { session.discardReportPreview() }
     }
 
     private func decisionHistory(_ baseline: CampaignBaseline) -> some View {
@@ -342,7 +350,10 @@ struct CampaignWorkspaceView: View {
     private func affectedNames(_ change: CampaignChange) -> [String] {
         guard !change.affectedDeliverableIDs.isEmpty else { return ["No linked deliverable; assess coverage manually"] }
         let all = session.ledger.draft.deliverables + (baseline?.draft.deliverables ?? [])
-        return change.affectedDeliverableIDs.map { id in all.first { $0.id == id }?.name ?? id.uuidString }
+        return change.affectedDeliverableIDs.map { id in
+            guard let name = all.first(where: { $0.id == id })?.name else { return "Unknown deliverable (\(id.uuidString))" }
+            return "\(name) (\(id.uuidString))"
+        }
     }
     private func agencyDocumentID(for change: CampaignChange) -> UUID? {
         if change.sourceKind == .agencyDocument { return change.sourceID }
