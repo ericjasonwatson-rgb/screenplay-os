@@ -70,7 +70,11 @@ case .value, .timeout:
     fputs("FAIL: no proven XPC code-signing rejection\n", stderr)
     exit(1)
 }
-print("PASS: peer's mismatched signing requirement rejected by XPC")
+guard let attempts = deniedCount(), attempts == 0 else {
+    fputs("FAIL: rejected connection invoked protected service method, or count was inaccessible\n", stderr)
+    exit(1)
+}
+print("PASS: mismatched signing requirement rejected before any protected method ran")
 #else
 import Foundation
 exit(78)
