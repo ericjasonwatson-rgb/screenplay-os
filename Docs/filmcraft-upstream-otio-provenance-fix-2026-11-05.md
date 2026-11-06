@@ -85,3 +85,28 @@ Use the synthetic two-appearance Take timeline emitted by
 Until FilmCraft supplies that behavior and passes a new pinned build,
 ScreenplayOS may offer only **manual, non-authoritative relink
 candidates**. No editor results can be applied automatically.
+
+## Experimental implementation (not upstream)
+
+The branch now includes `Scripts/apply_filmcraft_otio_provenance_experiment.py`
+which patches **only an isolated checkout** of FilmCraft tag `v0.17.1`,
+never the upstream repository. It adds a bounded optional
+`TrackItem.otio_screenplayos` value with serde default, initializes
+newly created clips with `None`, retains object-shaped
+`metadata.screenplayos` on OTIO import when it serializes to at most
+4096 bytes, and re-exports it beside FilmCraft's own namespace.
+No arbitrary metadata or external instructions are executed.
+
+A new Rust regression imports a synthetic Clip.2, verifies preserved
+provenance in its native TrackItem, round-trips that TrackItem through
+serde, and checks the exported OTIO namespace. CI additionally runs
+the existing FilmCraft interchange OTIO tests against the patched
+source. This proof-of-concept is **not** merged upstream, and passing
+its Rust checks would not prove that all FilmCraft timeline editing,
+clip duplication or native project saves preserve identity safely.
+
+Experimental patch CI is run in the ScreenplayOS
+`Editorial Siri Image Integration Smoke` workflow's independent
+`filmcraft-provenance-experiment` job; the strict **unpatched**
+FilmCraft v0.17.1 compatibility job remains red until a trustworthy
+compatible executable is actually available.
