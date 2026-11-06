@@ -53,7 +53,8 @@ struct CampaignAgencyReconciliationTests {
     /// Simulate a separately loaded, otherwise valid workspace with the same IDs.
     private func rewrite(_ draft: inout CampaignDraft, collection: String,
                          _ edit: (inout [[String: Any]]) throws -> Void) throws {
-        var object = try #require(JSONSerialization.jsonObject(with: bytes(try #require(draft.agency))) as? [String: Any])
+        let workspace = try #require(draft.agency)
+        var object = try #require(JSONSerialization.jsonObject(with: bytes(workspace)) as? [String: Any])
         var rows = try #require(object[collection] as? [[String: Any]])
         try edit(&rows)
         object[collection] = rows
