@@ -405,30 +405,61 @@ final class CampaignPanelFixture {
         let previouslyFocused = field.isAccessibilityFocused?()
         let previousFrame = field.accessibilityFrame?()
         let nativeScrolls = revealTextField(identifier, in: content, sheet: sheet)
-        // Scrolling can replace SwiftUI's virtual node. Also end the prior AX
-        // focus explicitly: makeFirstResponder(content) ends AppKit editing but
-        // need not clear SwiftUI's requested-focus state for a repeated edit.
-        let revealed = try await control(identifier)
-        let clearFocus = try #require(revealed.setAccessibilityFocused, "Campaign field has no native focus setter: \(identifier)")
-        clearFocus(false)
-        let cleared = try await waitForNativeUI(content) {
-            campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier }?
-                .isAccessibilityFocused?() == false
-        }
-        if !cleared {
-            print("CAMPAIGN_FOCUS_CLEAR identifier=\(identifier) previousAXFocus=\(String(describing: previouslyFocused)) previousFrame=\(String(describing: previousFrame)) currentFrame=\(String(describing: revealed.accessibilityFrame?())) nativeScrolls=\(nativeScrolls) responder=\(String(describing: sheet.firstResponder))")
-            diagnoseFailure("clear text focus \(identifier)")
-        }
-        try #require(cleared, "Campaign field did not release its previous accessibility focus: \(identifier)")
+        // Scrolling can replace the AX node. Resolve its exact identity again.
         let current = try await control(identifier)
-        let focus = try #require(current.setAccessibilityFocused, "Campaign field has no native focus setter: \(identifier)")
-        focus(true)
-        let focused = try await waitForNativeUI(content) {
-            guard let text = sheet.firstResponder as? NSTextView else { return false }
-            return text.isEditable && !(text is WritingTextView)
+        let nativeControl: NSTextField?
+        if let cell = current as? NSCell {
+            // NSCell.controlView is a public, exact association, unlike guessing
+            // a SwiftUI backing view by class name, position or matching text.
+            // https://developer.apple.com/documentation/appkit/nscell/controlview
+            let control = try #require(cell.controlView as? NSTextField,
+                "Campaign AX text cell has no associated native text field: \(identifier)")
+            try #require(control.cell === cell && control.window === sheet && control.isEditable && control.isEnabled,
+                "Campaign text cell must belong to its enabled, editable control in this sheet: \(identifier)")
+            nativeControl = control
+            sheet.makeKey()
+            control.selectText(nil)
+        } else {
+            nativeControl = nil
+            let focus = try #require(current.setAccessibilityFocused,
+                "Campaign field has no native focus setter: \(identifier)")
+            focus(true)
+        }
+        func expectedEditorIsActive() -> Bool {
+            guard let target = campaignAXElement(in: content, matching: { $0.accessibilityIdentifier?() == identifier }),
+                  target.isAccessibilityFocused?() == true,
+                  let text = sheet.firstResponder as? NSTextView,
+                  text.isEditable, !(text is WritingTextView) else { return false }
+            if let cell = target as? NSCell {
+                guard let control = cell.controlView as? NSTextField else { return false }
+                return control.cell === cell && control.window === sheet && control.isEditable && control.isEnabled
+                    && control.currentEditor() === text
+            }
+            return nativeControl == nil
+        }
+        var focused = try await waitForNativeUI(content, until: expectedEditorIsActive)
+        var keySteps = 0
+        if !focused && nativeControl == nil {
+            // A virtual element may expose an AX focus setter without activating
+            // AppKit's editor. Use the window's real key-view loop, not guessed
+            // click coordinates. A stale AX flag alone cannot satisfy this path:
+            // observe it unfocused before accepting a focused editable responder.
+            sheet.makeKey()
+            sheet.recalculateKeyViewLoop()
+            var sawUnfocused = current.isAccessibilityFocused?() == false
+            let deadline = ProcessInfo.processInfo.systemUptime + 3
+            while !focused && keySteps < 64 && ProcessInfo.processInfo.systemUptime < deadline {
+                sheet.selectNextKeyView(nil)
+                keySteps += 1
+                focused = try await waitForNativeUI(content, timeout: 0.05) {
+                    let target = campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier }
+                    if target?.isAccessibilityFocused?() == false { sawUnfocused = true }
+                    return sawUnfocused && expectedEditorIsActive()
+                }
+            }
         }
         if !focused {
-            print("CAMPAIGN_FOCUS identifier=\(identifier) previousAXFocus=\(String(describing: previouslyFocused)) previousFrame=\(String(describing: previousFrame)) currentFrame=\(String(describing: current.accessibilityFrame?())) nativeScrolls=\(nativeScrolls) responder=\(String(describing: sheet.firstResponder))")
+            print("CAMPAIGN_FOCUS identifier=\(identifier) previousAXFocus=\(String(describing: previouslyFocused)) previousFrame=\(String(describing: previousFrame)) currentFrame=\(String(describing: current.accessibilityFrame?())) nativeScrolls=\(nativeScrolls) nativeControl=\(nativeControl != nil) keySteps=\(keySteps) sheetKey=\(sheet.isKeyWindow) responder=\(String(describing: sheet.firstResponder))")
             diagnoseFailure("text focus \(identifier)")
         }
         try #require(focused, "Campaign field did not obtain native text focus: \(identifier)")
