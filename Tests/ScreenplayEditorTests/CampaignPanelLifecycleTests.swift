@@ -383,13 +383,34 @@ final class CampaignPanelFixture {
     }
 
     func control(_ identifier: String) async throws -> AnyObject {
-        let content = try #require(window.attachedSheet?.contentView)
-        let appeared = try await waitForNativeUI(content) {
-            campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier } != nil
+        let initialSheet = window.attachedSheet.map { String(describing: ObjectIdentifier($0)) } ?? "nil"
+        // The AX request in open() suspends while AppKit services it. A sheet
+        // can detach or be replaced during that suspension. Observe the live
+        // hierarchy rather than requiring or retaining its earlier content view.
+        let appeared = try await waitForNativeUI(host) {
+            guard self.model.campaignPresented,
+                  let content = self.window.attachedSheet?.contentView else { return false }
+            // The sheet is a separate window, not part of the host's subtree.
+            // Preserve its layout/display servicing while following live content.
+            content.layoutSubtreeIfNeeded()
+            content.displayIfNeeded()
+            guard self.model.campaignPresented,
+                  self.window.attachedSheet?.contentView === content else { return false }
+            return campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier } != nil
         }
-        if !appeared { diagnoseFailure("control \(identifier)") }
-        try #require(appeared, "Missing native Campaign control: \(identifier)")
-        return try #require(campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier })
+        let currentSheet = window.attachedSheet
+        let resolved = (currentSheet?.contentView).flatMap { content in
+            campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier }
+        }
+        if !appeared || !model.campaignPresented || resolved == nil {
+            // Always emit this bounded state line, even if another failure has
+            // already consumed the suite's larger one-time hierarchy dump.
+            let currentIdentity = currentSheet.map { String(describing: ObjectIdentifier($0)) } ?? "nil"
+            print("CAMPAIGN_CONTROL stage=resolve identifier=\(identifier) binding=\(model.campaignPresented) initialSheet=\(initialSheet) currentSheet=\(currentIdentity) parentMatches=\(currentSheet?.sheetParent === window) windowVisible=\(window.isVisible) appeared=\(appeared) resolved=\(resolved != nil)")
+            diagnoseFailure("control \(identifier)")
+        }
+        try #require(appeared && model.campaignPresented, "Missing native Campaign control: \(identifier)")
+        return try #require(resolved, "Campaign control disappeared from the current sheet: \(identifier)")
     }
 
     func press(_ identifier: String) async throws {

@@ -216,6 +216,10 @@ private struct CampaignApprovalTextField: NSViewRepresentable {
         field.placeholderString = label
         field.setAccessibilityLabel(label)
         field.setAccessibilityIdentifier(identifier)
+        // AppKit exposes the editable cell as the focused accessibility element,
+        // while its owning text-field view may be ignored in the AX hierarchy.
+        field.cell?.setAccessibilityLabel(label)
+        field.cell?.setAccessibilityIdentifier(identifier)
         let text = String(decoding: bytes, as: UTF8.self)
         // Never replace a matching field editor's string or marked-text state.
         let displayed = field.currentEditor()?.string ?? field.stringValue
