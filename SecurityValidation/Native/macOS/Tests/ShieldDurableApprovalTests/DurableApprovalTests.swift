@@ -53,6 +53,68 @@ final class DurableApprovalTests: XCTestCase {
         directory.appendingPathComponent("claims.sqlite")
     }
 
+    func testIndependentCheckpointDetectsRestoredOlderLedger() throws {
+        let dir = try directory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let db = database(dir)
+        let oldCopy = dir.appendingPathComponent("older.sqlite")
+        let key = P256.Signing.PrivateKey()
+        let first = try request()
+        let second = try request(request: UUID(uuidString: "20000000-0000-0000-0000-000000000099")!)
+        try DurableApprovalClaimLedger.bootstrap(at: db)
+        let ledger = try DurableApprovalClaimLedger(databaseURL: db, verifier: verifier(key))
+        XCTAssertNil(ledger.claim(try signed(first, by: key), for: first,
+                                  atTrustedTime: 1002).failure)
+        let firstCheckpoint = try ledger.stateCommitment()
+        XCTAssertEqual(firstCheckpoint.claimCount, 1)
+        try FileManager.default.copyItem(at: db, to: oldCopy)
+        XCTAssertNil(ledger.claim(try signed(second, by: key), for: second,
+                                  atTrustedTime: 1003).failure)
+        let trustedCheckpoint = try ledger.stateCommitment()
+        XCTAssertEqual(trustedCheckpoint.claimCount, 2)
+        XCTAssertTrue(ledger.matchesTrustedCheckpoint(trustedCheckpoint))
+        XCTAssertFalse(ledger.matchesTrustedCheckpoint(firstCheckpoint))
+        try FileManager.default.removeItem(at: db)
+        try FileManager.default.copyItem(at: oldCopy, to: db)
+        let reopened = try DurableApprovalClaimLedger(databaseURL: db, verifier: verifier(key))
+        XCTAssertFalse(reopened.matchesTrustedCheckpoint(trustedCheckpoint))
+        XCTAssertTrue(reopened.matchesTrustedCheckpoint(firstCheckpoint))
+    }
+
+    func testLedgerDigestStableAcrossReopenAndChangesOnNewClaim() throws {
+        let dir = try directory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let db = database(dir)
+        let key = P256.Signing.PrivateKey()
+        try DurableApprovalClaimLedger.bootstrap(at: db)
+        let one = try DurableApprovalClaimLedger(databaseURL: db, verifier: verifier(key))
+        let empty = try one.stateCommitment()
+        XCTAssertEqual(empty.claimCount, 0)
+        XCTAssertEqual(empty.sha256Hex.count, 64)
+        let two = try DurableApprovalClaimLedger(databaseURL: db, verifier: verifier(key))
+        XCTAssertEqual(try two.stateCommitment(), empty)
+        let req = try request()
+        XCTAssertNil(two.claim(try signed(req, by: key), for: req,
+                               atTrustedTime: 1001).failure)
+        let changed = try two.stateCommitment()
+        XCTAssertEqual(changed.claimCount, 1)
+        XCTAssertNotEqual(changed.sha256Hex, empty.sha256Hex)
+        XCTAssertFalse(one.matchesTrustedCheckpoint(empty))
+        XCTAssertTrue(one.matchesTrustedCheckpoint(changed))
+    }
+
+    func testMissingLedgerNeverMatchesCheckpoint() throws {
+        let dir = try directory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let db = database(dir)
+        let key = P256.Signing.PrivateKey()
+        try DurableApprovalClaimLedger.bootstrap(at: db)
+        let ledger = try DurableApprovalClaimLedger(databaseURL: db, verifier: verifier(key))
+        let expected = try ledger.stateCommitment()
+        try FileManager.default.removeItem(at: db)
+        XCTAssertFalse(ledger.matchesTrustedCheckpoint(expected))
+    }
+
     func testClaimPersistsAcrossNewVerifierAndLedgerInstance() throws {
         let dir = try directory()
         defer { try? FileManager.default.removeItem(at: dir) }
