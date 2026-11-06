@@ -13,6 +13,7 @@ struct CampaignWorkspaceView: View {
     @State private var selectedBaselineID: UUID?
     @State private var selectedTab = 1
     @State private var selectedAgencyDocumentID: UUID?
+    @State private var dismissalConsumed = false
 
     init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
          importLifecycle: CampaignAgencyImportLifecycle? = nil) {
@@ -43,7 +44,7 @@ struct CampaignWorkspaceView: View {
                     Text(document?.project.metadata.title ?? "Project unavailable").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Close") { discardApprovalEntry(); dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Close", action: requestDismissal).keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("campaign.close")
             }
             Text("Keep the agreed scope connected to the script, shots and boards. All changes require producer review.")
@@ -86,10 +87,15 @@ struct CampaignWorkspaceView: View {
         .onChange(of: selectedBaselineID) { _ in discardApprovalEntry() }
         .onChange(of: selectedTab) { _ in discardApprovalEntry() }
         .onChange(of: model.document?.project.id) { _ in
-            discardApprovalEntry()
-            if document == nil { dismiss() }
+            if document == nil { requestDismissal() }
+            else { discardApprovalEntry() }
         }
-        .onDisappear { discardApprovalEntry() }
+        .onDisappear {
+            // Retire externally dismissed presentations too. A retained old view
+            // must not dismiss a later sheet when another project is loaded.
+            dismissalConsumed = true
+            discardApprovalEntry()
+        }
     }
 
     private var briefAndDeliverables: some View {
@@ -269,6 +275,15 @@ struct CampaignWorkspaceView: View {
         }
     }
 
+    private func requestDismissal() {
+        // Consume before revocation or DismissAction can schedule further view
+        // updates. This state belongs to this presentation and is never reset.
+        guard !dismissalConsumed else { return }
+        dismissalConsumed = true
+        discardApprovalEntry()
+        dismiss()
+    }
+
     private func discardApprovalEntry() {
         // The child is removed on tab changes and keyed by baseline identity.
         // Revoke the proposal without rebuilding a disappearing sheet subtree
@@ -346,6 +361,7 @@ struct CampaignWorkspaceView: View {
         }
     }
     private func navigate(_ change: CampaignChange) {
+        guard !dismissalConsumed else { return }
         switch change.sourceKind {
         case .agencyDocument, .agencyCitation:
             selectedAgencyDocumentID = agencyDocumentID(for: change); selectedTab = 0
@@ -363,6 +379,6 @@ struct CampaignWorkspaceView: View {
             }
         default: return
         }
-        dismiss()
+        requestDismissal()
     }
 }
