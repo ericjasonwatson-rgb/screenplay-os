@@ -69,6 +69,8 @@ public final class ReviewerConfirmationSession {
         case needsReview, confirmed, denied, consumed
     }
     public private(set) var status: Status = .needsReview
+    /// Mutation epoch, so an async OS prompt cannot sign a replaced review.
+    public private(set) var generation: UInt64 = 0
     private var presentation: ReviewPresentation
 
     public init(presentation: ReviewPresentation) {
@@ -77,6 +79,7 @@ public final class ReviewerConfirmationSession {
 
     public func replace(with value: ReviewPresentation) {
         presentation = value
+        generation &+= 1
         status = .needsReview
     }
 
@@ -86,17 +89,20 @@ public final class ReviewerConfirmationSession {
               presentation.binding.isWithinLifetime(at: trustedNowSeconds),
               digest == presentation.confirmationDigest else { return false }
         status = .confirmed
+        generation &+= 1
         return true
     }
 
     public func deny() {
         status = .denied
+        generation &+= 1
     }
 
     /// One-use UI handoff only; no cryptographic authorization is produced.
     public func consumeConfirmed(trustedNowSeconds: Int64) -> ApprovalRequestBinding? {
         guard status == .confirmed else { return nil }
         status = .consumed
+        generation &+= 1
         return presentation.binding.isWithinLifetime(at: trustedNowSeconds) ?
             presentation.binding : nil
     }
