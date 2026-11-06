@@ -129,6 +129,13 @@ fn screenplayos_namespace_survives_native_project_and_otio_roundtrip() {
     let serialized = serde_json::to_value(clip).unwrap();
     let reopened: filmcraft_project::TrackItem = serde_json::from_value(serialized).unwrap();
     assert_eq!(reopened.otio_screenplayos, Some(external.clone()));
+    // Project-level serde is the closest model-layer analog of saving and
+    // reopening an editor project; executable file I/O is a separate gate.
+    let project_bytes = serde_json::to_vec(&imported.project).unwrap();
+    let reopened_project: filmcraft_project::Project =
+        serde_json::from_slice(&project_bytes).unwrap();
+    let reopened_clip = &reopened_project.sequence(sequence).unwrap().video_tracks[0].items[0];
+    assert_eq!(reopened_clip.otio_screenplayos, Some(external.clone()));
     let (exported, _) = filmcraft_interchange::export(
         &imported.project, sequence, Format::Otio, &ExportOptions::default()
     ).unwrap();
