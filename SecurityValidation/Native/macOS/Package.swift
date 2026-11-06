@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "ShieldReviewerKeychain", targets: ["ShieldReviewerKeychain"]),
         .library(name: "ShieldApprovalContract", targets: ["ShieldApprovalContract"]),
         .library(name: "ShieldApprovalVerification", targets: ["ShieldApprovalVerification"]),
+        .library(name: "ShieldDurableApproval", targets: ["ShieldDurableApproval"]),
         .executable(name: "ShieldMacService", targets: ["ShieldMacService"]),
         .executable(name: "ShieldXPCProbeServer", targets: ["ShieldXPCProbeServer"]),
         .executable(name: "ShieldXPCProbeClient", targets: ["ShieldXPCProbeClient"])
@@ -20,12 +21,14 @@ let package = Package(
         .target(name: "ShieldReviewerKeychain", dependencies: ["ShieldNativeContract"]),
         .target(name: "ShieldApprovalContract"),
         .target(name: "ShieldApprovalVerification", dependencies: ["ShieldApprovalContract"]),
+        .target(name: "ShieldDurableApproval", dependencies: ["ShieldApprovalContract", "ShieldApprovalVerification"]),
         .executableTarget(name: "ShieldMacService", dependencies: ["ShieldNativeContract", "ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeServer", dependencies: ["ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeClient", dependencies: ["ShieldMacXPCInterfaces"]),
         .testTarget(name: "ShieldNativeContractTests", dependencies: ["ShieldNativeContract"]),
         .testTarget(name: "ShieldReviewerKeychainTests", dependencies: ["ShieldReviewerKeychain", "ShieldNativeContract"]),
         .testTarget(name: "ShieldApprovalContractTests", dependencies: ["ShieldApprovalContract"]),
-        .testTarget(name: "ShieldApprovalVerificationTests", dependencies: ["ShieldApprovalVerification", "ShieldApprovalContract"])
+        .testTarget(name: "ShieldApprovalVerificationTests", dependencies: ["ShieldApprovalVerification", "ShieldApprovalContract"]),
+        .testTarget(name: "ShieldDurableApprovalTests", dependencies: ["ShieldDurableApproval", "ShieldApprovalVerification", "ShieldApprovalContract"])
     ]
 )
