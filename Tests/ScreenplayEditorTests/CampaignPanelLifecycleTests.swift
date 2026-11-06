@@ -402,11 +402,34 @@ final class CampaignPanelFixture {
         let field = try await control(identifier)
         let sheet = try #require(window.attachedSheet)
         let content = try #require(sheet.contentView)
-        let focus = try #require(field.setAccessibilityFocused, "Campaign field has no native focus setter: \(identifier)")
+        let previouslyFocused = field.isAccessibilityFocused?()
+        let previousFrame = field.accessibilityFrame?()
+        let nativeScrolls = revealTextField(identifier, in: content, sheet: sheet)
+        // Scrolling can replace SwiftUI's virtual node. Also end the prior AX
+        // focus explicitly: makeFirstResponder(content) ends AppKit editing but
+        // need not clear SwiftUI's requested-focus state for a repeated edit.
+        let revealed = try await control(identifier)
+        let clearFocus = try #require(revealed.setAccessibilityFocused, "Campaign field has no native focus setter: \(identifier)")
+        clearFocus(false)
+        let cleared = try await waitForNativeUI(content) {
+            campaignAXElement(in: content) { $0.accessibilityIdentifier?() == identifier }?
+                .isAccessibilityFocused?() == false
+        }
+        if !cleared {
+            print("CAMPAIGN_FOCUS_CLEAR identifier=\(identifier) previousAXFocus=\(String(describing: previouslyFocused)) previousFrame=\(String(describing: previousFrame)) currentFrame=\(String(describing: revealed.accessibilityFrame?())) nativeScrolls=\(nativeScrolls) responder=\(String(describing: sheet.firstResponder))")
+            diagnoseFailure("clear text focus \(identifier)")
+        }
+        try #require(cleared, "Campaign field did not release its previous accessibility focus: \(identifier)")
+        let current = try await control(identifier)
+        let focus = try #require(current.setAccessibilityFocused, "Campaign field has no native focus setter: \(identifier)")
         focus(true)
         let focused = try await waitForNativeUI(content) {
             guard let text = sheet.firstResponder as? NSTextView else { return false }
             return text.isEditable && !(text is WritingTextView)
+        }
+        if !focused {
+            print("CAMPAIGN_FOCUS identifier=\(identifier) previousAXFocus=\(String(describing: previouslyFocused)) previousFrame=\(String(describing: previousFrame)) currentFrame=\(String(describing: current.accessibilityFrame?())) nativeScrolls=\(nativeScrolls) responder=\(String(describing: sheet.firstResponder))")
+            diagnoseFailure("text focus \(identifier)")
         }
         try #require(focused, "Campaign field did not obtain native text focus: \(identifier)")
         #expect(!WritingTextView.acceptsScriptCommands(in: sheet))
@@ -415,6 +438,35 @@ final class CampaignPanelFixture {
         editor.setSelectedRange(NSRange(location: 0, length: (editor.string as NSString).length))
         editor.insertText(value, replacementRange: editor.selectedRange())
         sheet.makeFirstResponder(content)
+    }
+
+    /// Reveal the exact AX-identified field before requesting keyboard focus.
+    /// Use only document views whose bounded AX tree contains this same
+    /// identifier and the field's reported screen rectangle. NSView's public
+    /// scrolling API is available on the application's macOS 13 minimum.
+    /// No guessed point, private view class, direct value setter or model edit.
+    private func revealTextField(_ identifier: String, in content: NSView, sheet: NSWindow) -> Int {
+        var remaining = 400
+        var scrolls = 0
+        func reveal(in view: NSView, depth: Int = 0) {
+            guard depth < 30, remaining > 0 else { return }
+            remaining -= 1
+            if let scroll = view as? NSScrollView, let document = scroll.documentView,
+               let field = campaignAXElement(in: document, matching: { $0.accessibilityIdentifier?() == identifier }),
+               let frame = field.accessibilityFrame?(), !frame.isEmpty,
+               [frame.minX, frame.minY, frame.width, frame.height].allSatisfy({ $0.isFinite }) {
+                // accessibilityFrame is in screen coordinates; scrollToVisible
+                // accepts the document view's local coordinates and performs
+                // the minimum scroll. A false result also means already visible.
+                // https://developer.apple.com/documentation/appkit/nsview/scrolltovisible(_:)
+                let rectangle = document.convert(sheet.convertFromScreen(frame), from: nil)
+                if document.scrollToVisible(rectangle) { scrolls += 1 }
+                document.layoutSubtreeIfNeeded()
+            }
+            for child in view.subviews { reveal(in: child, depth: depth + 1) }
+        }
+        reveal(in: content)
+        return scrolls
     }
 
     func selectTab(_ label: String) async throws {
@@ -460,7 +512,7 @@ final class CampaignPanelFixture {
                   seen.insert(ObjectIdentifier(element)).inserted else { return }
             remaining -= 1
             let children = element.accessibilityChildren?() ?? []
-            print("CAMPAIGN_AX \(path) type=\(type(of: element)) identifier=\(String(describing: element.accessibilityIdentifier?()).prefix(120)) role=\(String(describing: element.accessibilityRole?())) label=\(String(describing: element.accessibilityLabel?()).prefix(120)) frame=\(String(describing: element.accessibilityFrame?())) children=\(children.count) fullProtocol=\(element is any NSAccessibilityProtocol)")
+            print("CAMPAIGN_AX \(path) type=\(type(of: element)) identifier=\(String(describing: element.accessibilityIdentifier?()).prefix(120)) role=\(String(describing: element.accessibilityRole?())) label=\(String(describing: element.accessibilityLabel?()).prefix(120)) frame=\(String(describing: element.accessibilityFrame?())) focused=\(String(describing: element.isAccessibilityFocused?())) children=\(children.count) fullProtocol=\(element is any NSAccessibilityProtocol)")
             for (index, child) in children.enumerated() {
                 describe(child as AnyObject, path: "\(path).ax\(index)", depth: depth + 1)
             }

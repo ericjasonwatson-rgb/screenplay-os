@@ -50,16 +50,62 @@ struct CampaignAgencyReconciliationTests {
         return try encoder.encode(value)
     }
 
+    /// Keep synthetic JSON strings in Swift's Codable path. Bridging the whole
+    /// workspace through JSONSerialization/Any can change retained source text
+    /// before the domain decoder checks its exact UTF-8 bytes and digest.
+    private enum FixtureJSON: Codable {
+        case object([String: FixtureJSON]), array([FixtureJSON]), string(String)
+        case integer(Int64), number(Double), boolean(Bool), null
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if container.decodeNil() { self = .null }
+            else if let value = try? container.decode(String.self) { self = .string(value) }
+            else if let value = try? container.decode(Bool.self) { self = .boolean(value) }
+            else if let value = try? container.decode(Int64.self) { self = .integer(value) }
+            else if let value = try? container.decode(Double.self) { self = .number(value) }
+            else if let value = try? container.decode([FixtureJSON].self) { self = .array(value) }
+            else { self = .object(try container.decode([String: FixtureJSON].self)) }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .object(let value): try container.encode(value)
+            case .array(let value): try container.encode(value)
+            case .string(let value): try container.encode(value)
+            case .integer(let value): try container.encode(value)
+            case .number(let value): try container.encode(value)
+            case .boolean(let value): try container.encode(value)
+            case .null: try container.encodeNil()
+            }
+        }
+    }
+
     /// Simulate a separately loaded, otherwise valid workspace with the same IDs.
     private func rewrite(_ draft: inout CampaignDraft, collection: String,
-                         _ edit: (inout [[String: Any]]) throws -> Void) throws {
+                         _ edit: (inout [[String: FixtureJSON]]) throws -> Void) throws {
         let workspace = try #require(draft.agency)
-        var object = try #require(JSONSerialization.jsonObject(with: bytes(workspace)) as? [String: Any])
-        var rows = try #require(object[collection] as? [[String: Any]])
+        var object = try JSONDecoder().decode([String: [[String: FixtureJSON]]].self, from: bytes(workspace))
+        var rows = try #require(object[collection])
         try edit(&rows)
         object[collection] = rows
-        draft.agency = try JSONDecoder().decode(CampaignAgencyWorkspace.self,
-            from: JSONSerialization.data(withJSONObject: object))
+        draft.agency = try JSONDecoder().decode(CampaignAgencyWorkspace.self, from: bytes(object))
+    }
+
+    @Test func fixtureRewritePreservesExactSourceEvidenceWithoutAnyEdits() throws {
+        var f = try fixture()
+        let before = try bytes(f.ledger.draft)
+        try rewrite(&f.ledger.draft, collection: "citations") { _ in }
+        #expect(try bytes(f.ledger.draft) == before)
+        let workspace = try #require(f.ledger.draft.agency)
+        #expect(workspace.revisions[0].bytes == f.original.bytes)
+        #expect(workspace.revisions[1].bytes == f.current.bytes)
+        #expect(workspace.revisions[0].text.utf8.elementsEqual(f.original.text.utf8))
+        #expect(workspace.revisions[1].text.utf8.elementsEqual(f.current.text.utf8))
+        for revision in workspace.revisions {
+            #expect(Data(revision.text.utf8) == revision.bytes)
+        }
     }
 
     @Test func previewShowsExactOriginalAndCurrentEvidenceWithoutMutatingAnything() throws {
@@ -114,7 +160,7 @@ struct CampaignAgencyReconciliationTests {
             let original = rows[0]
             rows = (0..<CampaignAgencyWorkspace.maximumAnnotations).map { index in
                 var copy = original
-                if index != replacedIndex { copy["id"] = UUID().uuidString }
+                if index != replacedIndex { copy["id"] = .string(UUID().uuidString) }
                 return copy
             }
         }
@@ -244,10 +290,10 @@ struct CampaignAgencyReconciliationTests {
         #expect("Café" == "Cafe\u{0301}")
         let mutations: [(inout CampaignDraft) throws -> Void] = [
             { draft in draft.deliverables[0].name = "Cafe\u{0301} hero" },
-            { draft in try self.rewrite(&draft, collection: "citations") { $0[0]["note"] = "Cafe\u{0301}" } },
-            { draft in try self.rewrite(&draft, collection: "reviews") { $0[1]["note"] = "Cafe\u{0301}" } },
-            { draft in try self.rewrite(&draft, collection: "revisions") { $0[0]["filename"] = "Cafe\u{0301}-v1.txt" } },
-            { draft in try self.rewrite(&draft, collection: "revisions") { $0[1]["filename"] = "Cafe\u{0301}-v2.txt" } }
+            { draft in try self.rewrite(&draft, collection: "citations") { $0[0]["note"] = .string("Cafe\u{0301}") } },
+            { draft in try self.rewrite(&draft, collection: "reviews") { $0[1]["note"] = .string("Cafe\u{0301}") } },
+            { draft in try self.rewrite(&draft, collection: "revisions") { $0[0]["filename"] = .string("Cafe\u{0301}-v1.txt") } },
+            { draft in try self.rewrite(&draft, collection: "revisions") { $0[1]["filename"] = .string("Cafe\u{0301}-v2.txt") } }
         ]
         for mutate in mutations {
             var draft = f.ledger.draft
