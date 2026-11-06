@@ -40,6 +40,9 @@ jobs:
       - name: Verify ad-hoc-signed helper is rejected at startup
         run: |
           python3 Scripts/ad_hoc_negative_smoke.py "$(swift build --show-bin-path --configuration ${{ matrix.configuration }})"
+      - name: Verify live launchd XPC peer signature rejection
+        run: |
+          python3 Scripts/launchd_xpc_probe.py "$(swift build --show-bin-path --configuration ${{ matrix.configuration }})"
       - name: Assert there is no dispatch path in validation helper
         run: |
           grep -q 'native_integration_pending' Sources/ShieldNativeContract/ShieldNativeContract.swift
