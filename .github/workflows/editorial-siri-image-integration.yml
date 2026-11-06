@@ -20,6 +20,7 @@ on:
       - 'Scripts/run_filmcraft_roundtrip.py'
       - 'Scripts/test_filmcraft_roundtrip_review.py'
       - 'Scripts/filmcraft_manual_relink_candidates.py'
+      - 'Scripts/apply_filmcraft_otio_provenance_experiment.py'
   workflow_dispatch:
 
 permissions:
@@ -48,3 +49,31 @@ jobs:
           python3 Scripts/test_filmcraft_roundtrip_review.py "$SCREENPLAYOS_OTIO_CAPTURE_PATH"
           swift test --configuration debug --disable-sandbox --no-parallel --filter SiriWorkspace
           swift test --configuration debug --disable-sandbox --no-parallel --filter ProductionImage
+
+  filmcraft-provenance-experiment:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Check out ScreenplayOS
+        uses: actions/checkout@v4
+      - name: Check out FilmCraft v0.17.1
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/filmcraft
+          ref: v0.17.1
+          path: filmcraft-source
+          persist-credentials: false
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - name: Apply and review source-anchored patch
+        run: |
+          python3 Scripts/apply_filmcraft_otio_provenance_experiment.py filmcraft-source
+          git -C filmcraft-source diff --check
+          git -C filmcraft-source diff --stat
+      - name: Compile and test real FilmCraft OTIO code
+        working-directory: filmcraft-source
+        run: |
+          cargo test --locked -p filmcraft-interchange --test it screenplayos_namespace_survives_native_project_and_otio_roundtrip -- --nocapture
+          cargo test --locked -p filmcraft-interchange --test it otio::
