@@ -1,0 +1,102 @@
+#if os(macOS)
+import CryptoKit
+import Foundation
+import XCTest
+import ShieldApprovalContract
+import ShieldNativeContract
+import ShieldReviewerReview
+@testable import ShieldReviewerKeychain
+
+final class ReviewerSigningContractTests: XCTestCase {
+    private func preview() throws -> ReviewPresentation {
+        let payload = Data("synthetic-only-content".utf8)
+        let policy = Data("synthetic-only-policy".utf8)
+        func hex(_ data: Data) -> String {
+            SHA256.hash(data: data).map {
+                String(format: "%02x", $0)
+            }.joined()
+        }
+        let now = Int64(Date().timeIntervalSince1970)
+        let binding = try ApprovalRequestBinding(
+            projectID: UUID(), requestID: UUID(),
+            agentIdentity: "com.example.agent",
+            destinationID: "test.provider", purpose: .analyze,
+            contentSHA256: hex(payload), policySHA256: hex(policy),
+            payloadByteCount: Int64(payload.count),
+            issuedAtSeconds: now - 1, expiresAtSeconds: now + 60
+        )
+        return try ReviewPresentation(
+            binding: binding, contentBytes: payload,
+            effectivePolicyBytes: policy
+        )
+    }
+
+    private func keyStore() throws -> ReviewerKeyStore {
+        let config = try SignedPeerConfiguration(
+            teamID: "AB12345678",
+            agentBundleID: "com.example.shield.agent",
+            reviewerBundleID: "com.example.shield.reviewer",
+            helperBundleID: "com.example.shield.helper",
+            agentMachService: "com.example.shield.agentservice",
+            reviewerMachService: "com.example.shield.reviewservice"
+        )
+        return ReviewerKeyStore(configuration: config)
+    }
+
+    @MainActor
+    func testAdHocTestRunnerCannotSignEvenAfterExplicitReview() async throws {
+        let presentation = try preview()
+        let session = ReviewerConfirmationSession(presentation: presentation)
+        XCTAssertTrue(session.explicitlyConfirm(
+            digest: presentation.confirmationDigest,
+            trustedNowSeconds: presentation.binding.issuedAtSeconds + 1
+        ))
+        let store = try keyStore()
+        XCTAssertFalse(store.isAuthorizedRunningReviewer())
+        do {
+            _ = try await store.signExplicitReview(
+                presentation, confirmation: session
+            )
+            XCTFail("Unsigned or ad-hoc test runner must never sign")
+        } catch ReviewerKeyStoreError.untrustedReviewer {
+            XCTAssertEqual(session.status, .confirmed,
+                           "Refused before consuming review or accessing Keychain")
+        }
+    }
+
+    @MainActor
+    func testMissingExplicitConfirmationDoesNotBecomeAuthorization() async throws {
+        let presentation = try preview()
+        let session = ReviewerConfirmationSession(presentation: presentation)
+        let store = try keyStore()
+        do {
+            _ = try await store.signExplicitReview(
+                presentation, confirmation: session
+            )
+            XCTFail("Signing should not run")
+        } catch ReviewerKeyStoreError.untrustedReviewer {
+            XCTAssertEqual(session.status, .needsReview)
+        }
+    }
+
+    func testReviewMutationGenerationTracksReplacementAndDenial() throws {
+        let original = try preview()
+        let session = ReviewerConfirmationSession(presentation: original)
+        let start = session.generation
+        XCTAssertTrue(session.explicitlyConfirm(
+            digest: original.confirmationDigest,
+            trustedNowSeconds: original.binding.issuedAtSeconds + 1
+        ))
+        XCTAssertTrue(session.generation > start)
+        let confirmed = session.generation
+        session.replace(with: original)
+        XCTAssertTrue(session.generation > confirmed)
+        XCTAssertEqual(session.status, .needsReview)
+        session.deny()
+        XCTAssertEqual(session.status, .denied)
+        XCTAssertNil(session.consumeConfirmed(
+            trustedNowSeconds: original.binding.issuedAtSeconds + 1
+        ))
+    }
+}
+#endif
