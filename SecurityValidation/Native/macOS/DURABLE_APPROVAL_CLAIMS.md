@@ -15,6 +15,8 @@ automatic resend under that identity.
 3. Parent directory must belong to the running UID, not be a symlink and have
    mode 0700; existing database must be regular, owner-matched and mode 0600.
    SQLite opens with NOFOLLOW and READWRITE, never CREATE, with busy timeout.
+   All ancestors must be free of symlinks: for example, canonicalize macOS's
+   OS-managed `/var` -> `/private/var` path before trusted installer setup.
 4. Each claim uses an independent connection, BEGIN IMMEDIATE + a unique
    project/request primary key and synchronous=FULL before returning success.
    Unknown outcomes cannot be automatically retried. Same ID cannot be
