@@ -18,6 +18,7 @@ def main():
     root = Path(sys.argv[1]).resolve(strict=True)
     track = root / "crates/project/src/track.rs"
     common = root / "crates/interchange/src/common.rs"
+    lib = root / "crates/project/src/lib.rs"
     otio = root / "crates/interchange/src/otio.rs"
     replace(track,
         """    pub name: String,
@@ -29,6 +30,16 @@ def main():
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub otio_screenplayos: Option<serde_json::Value>,
     pub label: Label,
+""")
+    replace(lib,
+        """            name,
+            label,
+            start,
+""",
+        """            name,
+            otio_screenplayos: None,
+            label,
+            start,
 """)
     replace(common,
         """            name: name.to_string(),
