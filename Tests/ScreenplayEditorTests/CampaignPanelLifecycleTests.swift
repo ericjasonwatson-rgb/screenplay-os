@@ -408,7 +408,15 @@ final class CampaignPanelFixture {
         // Scrolling can replace the AX node. Resolve its exact identity again.
         let current = try await control(identifier)
         let nativeControl: NSTextField?
-        if let cell = current as? NSCell {
+        if let control = current as? NSTextField {
+            // A native representable may expose the text field itself as its
+            // AX node. Use that exact object, never a guessed backing view.
+            try #require(control.window === sheet && control.isEditable && control.isEnabled,
+                "Campaign AX text field must be enabled and editable in this sheet: \(identifier)")
+            nativeControl = control
+            sheet.makeKey()
+            control.selectText(nil)
+        } else if let cell = current as? NSCell {
             // NSCell.controlView is a public, exact association, unlike guessing
             // a SwiftUI backing view by class name, position or matching text.
             // https://developer.apple.com/documentation/appkit/nscell/controlview
@@ -430,6 +438,10 @@ final class CampaignPanelFixture {
                   target.isAccessibilityFocused?() == true,
                   let text = sheet.firstResponder as? NSTextView,
                   text.isEditable, !(text is WritingTextView) else { return false }
+            if let control = target as? NSTextField {
+                return control === nativeControl && control.window === sheet && control.isEditable && control.isEnabled
+                    && control.currentEditor() === text
+            }
             if let cell = target as? NSCell {
                 guard let control = cell.controlView as? NSTextField else { return false }
                 return control.cell === cell && control.window === sheet && control.isEditable && control.isEnabled

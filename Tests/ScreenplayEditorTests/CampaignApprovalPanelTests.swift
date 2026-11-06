@@ -356,13 +356,21 @@ extension CampaignPanelLifecycleTests {
                 try #require(popup.cell === cell)
             }
             try #require(popup.window === fixture.window.attachedSheet && popup.isEnabled)
-            let matches = popup.itemArray.filter { $0.title.hasPrefix(baseline.name + " · ") }
+            let menu = try #require(popup.menu)
+            // SwiftUI's native popup installs actions on its menu items, not
+            // necessarily on the NSPopUpButton itself. Dispatch the exact item
+            // through AppKit's public menu action path, including validation.
+            // https://developer.apple.com/documentation/appkit/nsmenu/performactionforitem(at:)
+            menu.update()
+            let matches = menu.items.filter { $0.title.hasPrefix(baseline.name + " · ") }
             let item = try #require(matches.count == 1 ? matches.first : nil)
-            let index = try #require(popup.itemArray.firstIndex { $0 === item })
-            popup.selectItem(at: index)
-            try #require(popup.sendAction(popup.action, to: popup.target))
+            let index = try #require(menu.items.firstIndex { $0 === item })
+            try #require(popup.menu === menu && item.menu === menu && menu.item(at: index) === item)
+            try #require(item.isEnabled && item.action != nil,
+                "The exact baseline menu item must expose its enabled native action.")
+            menu.performActionForItem(at: index)
             let content = try #require(fixture.window.attachedSheet?.contentView)
-            #expect(try await waitForNativeUI(content) {
+            try #require(try await waitForNativeUI(content) {
                 guard let value = campaignAXElement(in: content, matching: {
                     $0.accessibilityIdentifier?() == "campaign.approval.baseline.id"
                 }) else { return false }

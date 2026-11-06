@@ -293,7 +293,7 @@ struct CampaignWorkspaceView: View {
             }
             Text("Historical decisions stay attached to the frozen version, even after the working scope changes. Undo Draft Change does not erase recorded decisions.")
                 .font(.caption).foregroundStyle(.secondary)
-        }.accessibilityIdentifier("campaign.approval.history")
+        }
     }
 
     private func field(_ label: String, text: Binding<String>) -> some View {

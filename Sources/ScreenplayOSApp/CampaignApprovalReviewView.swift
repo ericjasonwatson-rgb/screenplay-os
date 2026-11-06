@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ScreenplayDomain
 
@@ -9,12 +10,19 @@ struct CampaignApprovalReviewView: View {
     let baseline: CampaignBaseline
     let current: Bool
     @State private var scope: CampaignApprovalScope = .creative
-    @State private var approver = ""
-    @State private var evidence = ""
-    @State private var ceiling = ""
-    @State private var currency = "USD"
+    // String equality treats composed and decomposed Unicode as equal. Keep
+    // exact bytes in transient state so every distinct native edit is retained.
+    @State private var approverBytes = Data()
+    @State private var evidenceBytes = Data()
+    @State private var ceilingBytes = Data()
+    @State private var currencyBytes = Data("USD".utf8)
     @State private var preview: CampaignDecisionPreview?
     @State private var problem: String?
+
+    private var approver: String { String(decoding: approverBytes, as: UTF8.self) }
+    private var evidence: String { String(decoding: evidenceBytes, as: UTF8.self) }
+    private var ceiling: String { String(decoding: ceilingBytes, as: UTF8.self) }
+    private var currency: String { String(decoding: currencyBytes, as: UTF8.self) }
 
     private var document: ScreenplayOSDocument? {
         guard model.document?.project.id == session.ledger.projectID else { return nil }
@@ -61,18 +69,18 @@ struct CampaignApprovalReviewView: View {
         VStack(alignment: .leading, spacing: 8) {
             Picker("Scope", selection: Binding(get: { scope }, set: { value in
                 guard value != scope else { return }
-                clearPreview(); scope = value; approver = ""; evidence = ""; ceiling = ""; currency = "USD"
+                clearPreview(); scope = value; clearFields()
             })) {
                 Text("Creative").tag(CampaignApprovalScope.creative)
                 Text("Production approach").tag(CampaignApprovalScope.production)
                 Text("Additional spend").tag(CampaignApprovalScope.spend)
             }.pickerStyle(.segmented).accessibilityIdentifier("campaign.approval.scope")
-            field("Approved by", text: $approver, identifier: "approver")
-            field("Evidence / message reference", text: $evidence, identifier: "evidence")
+            field("Approved by", bytes: $approverBytes, identifier: "approver")
+            field("Evidence / message reference", bytes: $evidenceBytes, identifier: "evidence")
             if scope == .spend {
                 HStack {
-                    field("Ceiling in minor units", text: $ceiling, identifier: "ceiling")
-                    field("Currency", text: $currency, identifier: "currency")
+                    field("Ceiling in minor units", bytes: $ceilingBytes, identifier: "ceiling")
+                    field("Currency", bytes: $currencyBytes, identifier: "currency")
                 }
                 Text("For USD 125.00, enter 12500 and USD. The ceiling records evidence only.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -119,17 +127,20 @@ struct CampaignApprovalReviewView: View {
         }.accessibilityIdentifier("campaign.approval.previewEvidence")
     }
 
-    private func field(_ label: String, text: Binding<String>, identifier: String) -> some View {
+    private func field(_ label: String, bytes: Binding<Data>, identifier: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label).font(.caption).foregroundStyle(.secondary)
-            TextField(label, text: Binding(get: { text.wrappedValue }, set: { value in
-                // Swift String equality folds canonically equivalent Unicode.
-                if !text.wrappedValue.utf8.elementsEqual(value.utf8) { clearPreview() }
-                text.wrappedValue = value
-            }), axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
-                .accessibilityLabel(label)
-                .accessibilityIdentifier("campaign.approval." + identifier)
+            CampaignApprovalTextField(bytes: Binding(get: { bytes.wrappedValue }, set: { value in
+                if bytes.wrappedValue != value { clearPreview() }
+                bytes.wrappedValue = value
+            }), label: label, identifier: "campaign.approval." + identifier)
+                .frame(maxWidth: .infinity)
         }
+    }
+
+    private func clearFields() {
+        approverBytes = Data(); evidenceBytes = Data(); ceilingBytes = Data()
+        currencyBytes = Data("USD".utf8)
     }
 
     private func makePreview() {
@@ -169,6 +180,77 @@ struct CampaignApprovalReviewView: View {
     }
 
     private func discardEntry() {
-        clearPreview(); scope = .creative; approver = ""; evidence = ""; ceiling = ""; currency = "USD"
+        clearPreview(); scope = .creative; clearFields()
+    }
+}
+
+/// SwiftUI TextField can coalesce canonically equivalent Unicode before calling
+/// its binding setter. Capture native editing notifications and store UTF-8 bytes
+/// directly instead; this is local approval entry only, not a screenplay editor.
+private struct CampaignApprovalTextField: NSViewRepresentable {
+    @Binding var bytes: Data
+    let label: String
+    let identifier: String
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField()
+        field.isEditable = true
+        field.isSelectable = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
+        field.font = .systemFont(ofSize: NSFont.systemFontSize)
+        field.usesSingleLineMode = false
+        field.cell?.wraps = true
+        field.maximumNumberOfLines = 4
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.delegate = context.coordinator
+        return field
+    }
+
+    func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.parent = self
+        field.isEnabled = isEnabled
+        field.placeholderString = label
+        field.setAccessibilityLabel(label)
+        field.setAccessibilityIdentifier(identifier)
+        let text = String(decoding: bytes, as: UTF8.self)
+        // Never replace a matching field editor's string or marked-text state.
+        let displayed = field.currentEditor()?.string ?? field.stringValue
+        if !displayed.utf8.elementsEqual(text.utf8) {
+            field.stringValue = text
+            if let editor = field.currentEditor(), !editor.string.utf8.elementsEqual(text.utf8) {
+                editor.string = text
+            }
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView field: NSTextField, context: Context) -> CGSize? {
+        guard let width = proposal.width, width.isFinite else { return nil }
+        let measured = field.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: 80))
+        return CGSize(width: width, height: min(80, max(24, measured?.height ?? 24)))
+    }
+
+    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) {
+        coordinator.isActive = false
+        field.delegate = nil
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: CampaignApprovalTextField
+        var isActive = true
+        init(_ parent: CampaignApprovalTextField) { self.parent = parent }
+
+        func controlTextDidChange(_ notification: Notification) { capture(notification) }
+        func controlTextDidEndEditing(_ notification: Notification) { capture(notification) }
+
+        private func capture(_ notification: Notification) {
+            guard isActive, let field = notification.object as? NSTextField else { return }
+            let text = field.currentEditor()?.string ?? field.stringValue
+            let exactBytes = Data(text.utf8)
+            if parent.bytes != exactBytes { parent.bytes = exactBytes }
+        }
     }
 }
