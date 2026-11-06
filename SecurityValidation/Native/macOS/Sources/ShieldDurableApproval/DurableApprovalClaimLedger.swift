@@ -156,12 +156,29 @@ public final class DurableApprovalClaimLedger {
               url.pathExtension == "sqlite",
               !url.lastPathComponent.isEmpty else { throw DurableClaimError.unsafePath }
         let parent = url.deletingLastPathComponent().path
+        guard url.standardizedFileURL.path == url.path,
+              !containsSymlinkAncestor(parent) else { throw DurableClaimError.unsafePath }
         var st = stat()
         guard lstat(parent, &st) == 0,
               (st.st_mode & mode_t(S_IFMT)) == mode_t(S_IFDIR),
               (st.st_mode & mode_t(0o777)) == mode_t(0o700),
               st.st_uid == geteuid() else { throw DurableClaimError.unsafePath }
         return url.path
+    }
+
+    private static func containsSymlinkAncestor(_ absoluteParent: String) -> Bool {
+        guard absoluteParent.hasPrefix("/") else { return true }
+        let components = (absoluteParent as NSString).pathComponents
+        var current = "/"
+        for component in components where component != "/" && component != "" {
+            current = (current as NSString).appendingPathComponent(component)
+            var status = stat()
+            guard lstat(current, &status) == 0,
+                  (status.st_mode & mode_t(S_IFMT)) == mode_t(S_IFDIR) else {
+                return true
+            }
+        }
+        return false
     }
 
     private static func openCheckedFile(_ url: URL) throws -> OpaquePointer {
@@ -171,22 +188,35 @@ public final class DurableApprovalClaimLedger {
         guard (st.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG),
               (st.st_mode & mode_t(0o777)) == mode_t(0o600),
               st.st_uid == geteuid() else { throw DurableClaimError.unsafePath }
+        // Apple's SQLite 3.43.2 on macOS can return SQLITE_CANTOPEN for
+        // SQLITE_OPEN_NOFOLLOW on an otherwise valid private regular file.
+        // Independently reject symbolic-link ancestors and open the final
+        // component with POSIX O_NOFOLLOW. Recheck file identity around SQLite.
+        // THIS IS NOT RACE-PROOF AGAINST SAME-UID COMPROMISE.
+        let guardFD = Darwin.open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        guard guardFD >= 0 else { throw DurableClaimError.unsafePath }
+        defer { _ = Darwin.close(guardFD) }
+        var before = stat()
+        guard fstat(guardFD, &before) == 0,
+              before.st_dev == st.st_dev, before.st_ino == st.st_ino,
+              (before.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG) else {
+            throw DurableClaimError.unsafePath
+        }
+
         var handle: OpaquePointer?
-        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW
+        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
         let openCode = sqlite3_open_v2(path, &handle, flags, nil)
         guard openCode == SQLITE_OK, let db = handle else {
-            // TEMPORARY CI DIAGNOSTIC: comparison never returns a usable DB.
-            // No credentials, contents, signing data or file paths are logged.
-            let sqliteVersion = sqlite3_libversion_number()
-            let primary = handle.map { String(cString: sqlite3_errmsg($0)) } ?? "no handle"
             if let handle { sqlite3_close(handle) }
-            var probe: OpaquePointer?
-            let probeCode = sqlite3_open_v2(path, &probe,
-                SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
-            if let probe { sqlite3_close(probe) }
-            fputs("[test-only] SQLite version=\(sqliteVersion) guardedOpen=\(openCode) " +
-                "error=\(primary) nonguardedProbe=\(probeCode) (probe closed)\n", stderr)
             throw DurableClaimError.storageFailure
+        }
+        var after = stat()
+        guard lstat(path, &after) == 0,
+              after.st_dev == before.st_dev, after.st_ino == before.st_ino,
+              (after.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG),
+              (after.st_mode & mode_t(0o777)) == mode_t(0o600) else {
+            sqlite3_close(db)
+            throw DurableClaimError.unsafePath
         }
         sqlite3_busy_timeout(db, 5_000)
         return db
