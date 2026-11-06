@@ -19,7 +19,7 @@ public enum DurableClaimError: Error, Equatable {
 }
 
 public final class DurableApprovalClaimLedger {
-    private static let schemaVersion = 1
+    private static let schemaVersion: Int32 = 1
     private let fileURL: URL
     private let verifier: EphemeralApprovalVerifier
 
