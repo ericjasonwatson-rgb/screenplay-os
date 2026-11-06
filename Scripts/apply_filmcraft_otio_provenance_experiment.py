@@ -96,6 +96,7 @@ proptest = { workspace = true }
         """[dev-dependencies]
 proptest = { workspace = true }
 filmcraft-format = { workspace = true }
+tempfile = "3.27"
 """)
     test = root / "crates/interchange/tests/it/otio.rs"
     test.write_text(test.read_text() + r'''
@@ -151,11 +152,18 @@ fn screenplayos_namespace_survives_native_project_and_otio_roundtrip() {
     // naked Project serde round-trip. Executable GUI/CLI I/O remains separate.
     let native_bytes = filmcraft_format::encode(&imported.project, true);
     assert!(!native_bytes.is_empty());
-    let native_loaded = filmcraft_format::decode(&native_bytes).unwrap();
+    // Save a real .fcproj file using FilmCraft's atomic writer and reopen it
+    // from disk using FilmCraft's native decoder.
+    let project_dir = tempfile::tempdir().unwrap();
+    let project_path = project_dir.path().join("synthetic-provenance.fcproj");
+    filmcraft_format::atomic_write(&project_path, &native_bytes).unwrap();
+    let disk_bytes = std::fs::read(&project_path).unwrap();
+    let native_loaded = filmcraft_format::decode(&disk_bytes).unwrap();
     let native_clip = &native_loaded.project.sequence(sequence).unwrap().video_tracks[0].items[0];
     assert_eq!(native_clip.otio_screenplayos, Some(external.clone()));
+    // Export specifically from the reopened project, not the in-memory import.
     let (exported, _) = filmcraft_interchange::export(
-        &imported.project, sequence, Format::Otio, &ExportOptions::default()
+        &native_loaded.project, sequence, Format::Otio, &ExportOptions::default()
     ).unwrap();
     let returned: serde_json::Value = serde_json::from_slice(&exported).unwrap();
     assert_eq!(
