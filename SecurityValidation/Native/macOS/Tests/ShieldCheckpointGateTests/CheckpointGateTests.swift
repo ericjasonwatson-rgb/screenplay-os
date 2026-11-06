@@ -96,11 +96,13 @@ final class CheckpointGateTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let gate = CheckpointClaimCoordinator(ledger: ledger, authority: authority)
         authority.failLoad = true
+        let req = try request()
+        let signature = try signed(req, by: key)
         XCTAssertEqual(failure(gate.claimAndCheckpoint(
-            try signed(request(), by: key), for: request(), atTrustedTime: 1001
+            signature, for: req, atTrustedTime: 1001
         )), .authorityUnavailable)
-        XCTAssertFalse(try ledger.hasUnknownClaim(projectID: request().projectID,
-                                                  requestID: request().requestID))
+        XCTAssertFalse(try ledger.hasUnknownClaim(projectID: req.projectID,
+                                                  requestID: req.requestID))
     }
 
     func testAnchorFailureAfterDurableClaimRequiresQuarantine() throws {
