@@ -506,7 +506,7 @@ extension CampaignPanelLifecycleTests {
                 }
                 guard let frame = element.accessibilityFrame?(), !frame.isEmpty else { return false }
                 var remaining = 400
-                func inspect(_ view: NSView, depth: Int = 0) -> Bool {
+                @MainActor func inspect(_ view: NSView, depth: Int = 0) -> Bool {
                     guard depth < 30, remaining > 0 else { return false }
                     remaining -= 1
                     if let scroll = view as? NSScrollView, let document = scroll.documentView,
