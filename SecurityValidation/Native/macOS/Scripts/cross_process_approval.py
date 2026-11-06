@@ -69,9 +69,26 @@ with tempfile.TemporaryDirectory(prefix="cips-ci-approval-",
     d = mint("20000000-0000-0000-0000-000000000005", "d.json")
     expect(0, call("claim", db, d), "CLAIMED")
 
+    # Simulated independently retained checkpoint. This is provided by the
+    # CI harness and is NOT a trusted production operating-system anchor.
+    older = root / "older.sqlite"
+    shutil.copy2(db, older)
+    next_request = mint("20000000-0000-0000-0000-000000000006", "next.json")
+    expect(0, call("claim", db, next_request), "CLAIMED")
+    state = call("state", db)
+    assert state.returncode == 0, state.stderr
+    checkpoint = root / "checkpoint.json"
+    checkpoint.write_text(state.stdout, encoding="utf-8")
+    os.chmod(checkpoint, 0o600)
+    expect(0, call("compare", db, checkpoint), "MATCH")
+    # Restore an older but valid database; the separately retained checkpoint
+    # must now disagree. Restoring both records is NOT prevented by this test.
+    shutil.copy2(older, db)
+    expect(43, call("compare", db, checkpoint), "ROLLBACK_OR_MISMATCH")
+
     # A missing history must NEVER silently start a new database.
     db.unlink()
     assert call("claim", db, a).returncode == 42
     assert not db.exists()
 
-print("PASS: separate-process restart, eight-way concurrency, tamper and missing-history checks")
+print("PASS: separate-process restart, concurrency, tamper, rollback mismatch and missing-history checks")
