@@ -583,14 +583,65 @@ extension CampaignPanelLifecycleTests {
             let current = try #require(try fixture.ledger().draft.deliverables.first { $0.id == deliverableID }?.durationSeconds)
             try #require(duration >= current)
             for previous in current..<duration {
-                let stepper = try await fixture.control("campaign.deliverable.duration.\(deliverableID)")
-                try #require(stepper.isAccessibilityEnabled?() == true)
-                try #require(stepper.accessibilityPerformIncrement?() == true,
-                             "The identified duration stepper must accept its public native increment action.")
+                let identifier = "campaign.deliverable.duration.\(deliverableID)"
+                let element = try await fixture.control(identifier)
+                try #require(element.isAccessibilityEnabled?() == true)
+                let stepper = try nativeDurationStepper(in: element, fixture: fixture)
+                let value = stepper.doubleValue
+                let increment = stepper.increment
+                let next = value + increment
+                try #require(stepper.window === fixture.window.attachedSheet && stepper.isEnabled)
+                try #require(value.isFinite && increment.isFinite && increment > 0 && next.isFinite)
+                try #require(value >= stepper.minValue && value <= stepper.maxValue && next <= stepper.maxValue)
+                let action = try #require(stepper.action, "The identified native duration stepper has no action.")
+                let target = try #require(stepper.target, "The identified native duration stepper has no target.")
+                try #require(try fixture.ledger().draft.deliverables.first { $0.id == deliverableID }?.durationSeconds == previous)
+                // Dispatch once through this exact control, just as the existing
+                // segmented-picker helper does for native selection. Do not try
+                // a rejected AX increment first: it could have delayed effects.
+                // This is not a physical gesture or screen-reader acceptance test.
+                stepper.doubleValue = next
+                try #require(stepper.doubleValue == next)
+                try #require(stepper.sendAction(action, to: target),
+                             "The identified native duration stepper rejected its target-action.")
                 try await fixture.expectLedger {
                     $0.draft.deliverables.first { $0.id == deliverableID }?.durationSeconds == previous + 1
                 }
             }
+        }
+
+        private func nativeDurationStepper(in element: AnyObject, fixture: CampaignPanelFixture) throws -> NSStepper {
+            var controls: [NSStepper] = []
+            var controlIDs = Set<ObjectIdentifier>()
+            var visited = Set<ObjectIdentifier>()
+            var remaining = 80
+            var diagnostics: [String] = []
+            @MainActor func inspect(_ node: AnyObject, depth: Int = 0) {
+                guard depth < 12, remaining > 0, visited.insert(ObjectIdentifier(node)).inserted else { return }
+                remaining -= 1
+                if diagnostics.count < 12 {
+                    diagnostics.append("type=\(type(of: node)) role=\(String(describing: node.accessibilityRole?())) identifier=\(String(describing: node.accessibilityIdentifier?()))")
+                }
+                let control: NSStepper?
+                if let stepper = node as? NSStepper { control = stepper }
+                else if let cell = node as? NSStepperCell,
+                        let stepper = cell.controlView as? NSStepper, stepper.cell === cell { control = stepper }
+                else { control = nil }
+                if let control, control.window === fixture.window.attachedSheet,
+                   controlIDs.insert(ObjectIdentifier(control)).inserted { controls.append(control) }
+                // Search only the exact AX-identified control's descendants, not
+                // nearby views, matching labels, guessed coordinates or classes.
+                for child in node.accessibilityChildren?() ?? [] { inspect(child as AnyObject, depth: depth + 1) }
+                if let view = node as? NSView {
+                    for child in view.subviews { inspect(child, depth: depth + 1) }
+                }
+            }
+            inspect(element)
+            if controls.count != 1 {
+                print("CAMPAIGN_DURATION nativeMatches=\(controls.count) nodesVisited=\(80 - remaining) \(diagnostics.joined(separator: " | "))")
+            }
+            return try #require(controls.count == 1 ? controls.first : nil,
+                "Duration must resolve to one attached NSStepper through the exact AX node or public NSCell.controlView association.")
         }
 
         private func expectDecisionSummary(for baseline: CampaignBaseline, creativeCount: Int,
