@@ -75,6 +75,59 @@ def main():
         }
         Some(ti)
 """)
+    test = root / "crates/interchange/tests/it/otio.rs"
+    test.write_text(test.read_text() + r'''
+
+#[test]
+fn screenplayos_namespace_survives_native_project_and_otio_roundtrip() {
+    let digest = "a".repeat(64);
+    let doc = serde_json::json!({
+        "OTIO_SCHEMA": "Timeline.1", "name": "Synthetic",
+        "tracks": {"OTIO_SCHEMA": "Stack.1", "children": [{
+            "OTIO_SCHEMA": "Track.1", "name": "Picture", "kind": "Video",
+            "children": [{
+                "OTIO_SCHEMA": "Clip.2", "name": "generated",
+                "source_range": {
+                    "OTIO_SCHEMA": "TimeRange.1",
+                    "start_time": {"OTIO_SCHEMA": "RationalTime.1", "value": 0, "rate": 24},
+                    "duration": {"OTIO_SCHEMA": "RationalTime.1", "value": 48, "rate": 24}
+                },
+                "media_references": {"DEFAULT_MEDIA": {
+                    "OTIO_SCHEMA": "ExternalReference.1", "target_url": "Board Images/generated.png"
+                }},
+                "active_media_reference_key": "DEFAULT_MEDIA",
+                "metadata": {"screenplayos": {
+                    "occurrence_id": "00000000-0000-0000-0000-000000000011",
+                    "scene_id": "00000000-0000-0000-0000-000000000012",
+                    "shot_id": "00000000-0000-0000-0000-000000000013",
+                    "board_id": "00000000-0000-0000-0000-000000000014",
+                    "take_id": "00000000-0000-0000-0000-000000000015",
+                    "generation_job_id": "00000000-0000-0000-0000-000000000016",
+                    "media_sha256": digest,
+                    "prompt_sha256": digest
+                }}
+            }]
+        }]}
+    });
+    let bytes = serde_json::to_vec(&doc).unwrap();
+    let (imported, _) = import(&bytes, Format::Otio, None).unwrap();
+    let sequence = imported.sequences[0];
+    let clip = &imported.project.sequence(sequence).unwrap().video_tracks[0].items[0];
+    let external = clip.otio_screenplayos.clone().expect("import must preserve external provenance");
+    assert_eq!(external, doc["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"]);
+    let serialized = serde_json::to_value(clip).unwrap();
+    let reopened: filmcraft_project::TrackItem = serde_json::from_value(serialized).unwrap();
+    assert_eq!(reopened.otio_screenplayos, Some(external.clone()));
+    let (exported, _) = filmcraft_interchange::export(
+        &imported.project, sequence, Format::Otio, &ExportOptions::default()
+    ).unwrap();
+    let returned: serde_json::Value = serde_json::from_slice(&exported).unwrap();
+    assert_eq!(
+        returned["tracks"]["children"][0]["children"][0]["metadata"]["screenplayos"],
+        external
+    );
+}
+''')
     print("Applied narrow ScreenplayOS OTIO provenance experiment to FilmCraft source.")
 
 if __name__ == "__main__":
