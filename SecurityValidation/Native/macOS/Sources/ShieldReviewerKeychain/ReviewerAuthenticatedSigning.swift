@@ -21,6 +21,22 @@ public enum ReviewerSigningError: Error {
 }
 
 extension ReviewerKeyStore {
+    /// Non-secret query builder, testable without creating a key or prompting.
+    /// OS Keychain isolation and entitlement control still require real-device
+    /// validation under a properly signed reviewer app.
+    public func protectedSigningKeyQuery(using context: LAContext) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassKey,
+            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+            kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+            kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,
+            kSecAttrApplicationTag as String: applicationTag,
+            kSecUseAuthenticationContext as String: context,
+            kSecReturnRef as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+    }
+
     /// Requires a matching signed reviewer app, exact UI-confirmed request,
     /// a fresh OS owner-authentication ceremony, and a pre-enrolled Secure
     /// Enclave private key. No software key fallback or automatic enrollment.
@@ -76,15 +92,9 @@ extension ReviewerKeyStore {
             throw ReviewerSigningError.changedOrCanceledDuringAuthentication
         }
 
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
-            kSecAttrApplicationTag as String: applicationTag,
-            kSecUseAuthenticationContext as String: context,
-            kSecReturnRef as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
+        // Require a Secure Enclave token at lookup, AND verify the returned
+        // SecKey attributes. Failure never falls back to a software key.
+        let query = protectedSigningKeyQuery(using: context)
         var found: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &found) == errSecSuccess,
               let found else {
