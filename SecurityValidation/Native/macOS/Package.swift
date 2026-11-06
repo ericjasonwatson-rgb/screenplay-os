@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .library(name: "ShieldNativeContract", targets: ["ShieldNativeContract"]),
         .library(name: "ShieldMacXPCInterfaces", targets: ["ShieldMacXPCInterfaces"]),
+        .library(name: "ShieldReviewerKeychain", targets: ["ShieldReviewerKeychain"]),
         .executable(name: "ShieldMacService", targets: ["ShieldMacService"]),
         .executable(name: "ShieldXPCProbeServer", targets: ["ShieldXPCProbeServer"]),
         .executable(name: "ShieldXPCProbeClient", targets: ["ShieldXPCProbeClient"])
@@ -14,9 +15,11 @@ let package = Package(
     targets: [
         .target(name: "ShieldNativeContract"),
         .target(name: "ShieldMacXPCInterfaces"),
+        .target(name: "ShieldReviewerKeychain", dependencies: ["ShieldNativeContract"]),
         .executableTarget(name: "ShieldMacService", dependencies: ["ShieldNativeContract", "ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeServer", dependencies: ["ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldXPCProbeClient", dependencies: ["ShieldMacXPCInterfaces"]),
-        .testTarget(name: "ShieldNativeContractTests", dependencies: ["ShieldNativeContract"])
+        .testTarget(name: "ShieldNativeContractTests", dependencies: ["ShieldNativeContract"]),
+        .testTarget(name: "ShieldReviewerKeychainTests", dependencies: ["ShieldReviewerKeychain", "ShieldNativeContract"])
     ]
 )
