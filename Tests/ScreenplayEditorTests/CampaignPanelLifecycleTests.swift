@@ -263,7 +263,7 @@ private struct CampaignPanelHost: View {
 }
 
 @MainActor
-private final class CampaignPanelFixture {
+final class CampaignPanelFixture {
     private static let applicationSetup: (application: NSApplication, activationPolicySet: Bool) = {
         // SwiftPM does not run NSApplicationMain. Complete the public AppKit
         // launch setup once so its accessibility server can answer self-process
@@ -278,7 +278,7 @@ private final class CampaignPanelFixture {
 
     let root: URL
     let model: ScreenplayViewModel
-    let hostingController: NSHostingController<CampaignPanelHost>
+    private let hostingController: NSHostingController<CampaignPanelHost>
     let host: NSView
     let window: NSWindow
     let scriptBeforeEdit: String
@@ -481,7 +481,7 @@ private final class CampaignPanelFixture {
 }
 
 @MainActor
-private func campaignAXValue(_ element: AnyObject) throws -> Any? {
+func campaignAXValue(_ element: AnyObject) throws -> Any? {
     // AppKit declares this ObjC selector with several covariant return types.
     // Supply the general AX signature before invoking it on a virtual node.
     let getter: (() -> Any?)? = element.accessibilityValue
@@ -496,7 +496,7 @@ private func campaignNativeView<T: NSView>(_ type: T.Type, in view: NSView) -> T
 }
 
 @MainActor
-private func campaignAXElement(in root: NSView,
+func campaignAXElement(in root: NSView,
                                matching predicate: (AnyObject) -> Bool) -> AnyObject? {
     var seen = Set<ObjectIdentifier>()
     var remaining = 400

@@ -109,6 +109,35 @@ public struct CampaignAgencyCitation: Codable, Equatable, Identifiable {
     public let createdAt: Date
 }
 
+/// Transient, exact evidence for a human-confirmed replacement. Only the draft
+/// can create a preview. It is never persisted and does not approve any scope.
+public struct CampaignAgencyCitationReplacementPreview {
+    public let originalCitation: CampaignAgencyCitation
+    public let originalRevision: CampaignAgencyRevision
+    public let originalExcerpt: String
+    public let replacementRevision: CampaignAgencyRevision
+    public let replacementReview: CampaignAgencyReview
+    public let replacementExcerpt: String
+    public let firstLine: Int
+    public let lastLine: Int
+    public let targetKind: CampaignAgencyTargetKind
+    public let targetID: UUID
+    public let targetSnapshot: String
+    public let note: String
+
+    fileprivate init(originalCitation: CampaignAgencyCitation, originalRevision: CampaignAgencyRevision,
+                     originalExcerpt: String, replacementRevision: CampaignAgencyRevision,
+                     replacementReview: CampaignAgencyReview, replacementExcerpt: String,
+                     firstLine: Int, lastLine: Int, targetKind: CampaignAgencyTargetKind,
+                     targetID: UUID, targetSnapshot: String, note: String) {
+        self.originalCitation = originalCitation; self.originalRevision = originalRevision
+        self.originalExcerpt = originalExcerpt; self.replacementRevision = replacementRevision
+        self.replacementReview = replacementReview; self.replacementExcerpt = replacementExcerpt
+        self.firstLine = firstLine; self.lastLine = lastLine; self.targetKind = targetKind
+        self.targetID = targetID; self.targetSnapshot = targetSnapshot; self.note = note
+    }
+}
+
 public struct CampaignAgencyWarning: Equatable, Identifiable {
     public let id: String
     public let sourceID: UUID
@@ -281,6 +310,23 @@ public struct CampaignAgencyWorkspace: Codable, Equatable {
         guard citations.contains(where: { $0.id == id }) else { throw CampaignError.invalid("Agency citation not found.") }
         citations.removeAll { $0.id == id }
     }
+
+    fileprivate mutating func replaceCitation(_ preview: CampaignAgencyCitationReplacementPreview, at date: Date) throws -> CampaignAgencyCitation {
+        guard let index = citations.firstIndex(where: { $0.id == preview.originalCitation.id }) else {
+            throw CampaignError.invalid("The original agency citation was removed. Start reconciliation again.")
+        }
+        let citation = CampaignAgencyCitation(id: UUID(), documentID: preview.replacementRevision.documentID,
+            revisionID: preview.replacementRevision.id, firstLine: preview.firstLine, lastLine: preview.lastLine,
+            targetKind: preview.targetKind, targetID: preview.targetID, targetSnapshot: preview.targetSnapshot,
+            note: preview.note, createdAt: date)
+        // Replace in place rather than append/remove: a full citation collection
+        // remains valid, and no intermediate state can lose the old evidence.
+        var candidate = self
+        candidate.citations[index] = citation
+        try candidate.validate()
+        self = candidate
+        return citation
+    }
 }
 
 extension CampaignDraft {
@@ -326,7 +372,66 @@ extension CampaignDraft {
         agency = workspace
     }
 
-    fileprivate func agencyTargetSnapshot(kind: CampaignAgencyTargetKind, id: UUID) throws -> String {
+    public func previewAgencyCitationReplacement(citationID: UUID, revisionID: UUID,
+                                                firstLine: Int, lastLine: Int,
+                                                targetKind: CampaignAgencyTargetKind, targetID: UUID,
+                                                note: String) throws -> CampaignAgencyCitationReplacementPreview {
+        try validate()
+        guard let workspace = agency,
+              let citation = workspace.citations.first(where: { $0.id == citationID }),
+              let original = workspace.revisions.first(where: { $0.id == citation.revisionID }) else {
+            throw CampaignError.invalid("The original agency citation or its retained source is missing.")
+        }
+        guard let revision = workspace.latestRevision(documentID: citation.documentID), revision.id == revisionID,
+              let review = workspace.currentReview(revisionID: revisionID) else {
+            throw CampaignError.invalid("Choose the explicitly reviewed current revision of this agency document.")
+        }
+        let originalExcerpt = try original.excerpt(firstLine: citation.firstLine, lastLine: citation.lastLine)
+        let replacementExcerpt = try revision.excerpt(firstLine: firstLine, lastLine: lastLine)
+        let snapshot = try agencyTargetSnapshot(kind: targetKind, id: targetID)
+        guard snapshot.utf8.count <= 256 * 1_024 else {
+            throw CampaignError.invalid("Agency citation target snapshot is too large.")
+        }
+        try campaignAgencyNote(note, label: "reconciliation note")
+        return .init(originalCitation: citation, originalRevision: original, originalExcerpt: originalExcerpt,
+            replacementRevision: revision, replacementReview: review, replacementExcerpt: replacementExcerpt,
+            firstLine: firstLine, lastLine: lastLine, targetKind: targetKind, targetID: targetID,
+            targetSnapshot: snapshot, note: note)
+    }
+
+    /// Checks all evidence that the person previewed, including exact Unicode
+    /// bytes. A newer review or source never silently rebinds a pending preview.
+    public func validateAgencyCitationReplacement(_ preview: CampaignAgencyCitationReplacementPreview) throws {
+        try validate()
+        guard let workspace = agency,
+              let citation = workspace.citations.first(where: { $0.id == preview.originalCitation.id }),
+              let original = workspace.revisions.first(where: { $0.id == preview.originalRevision.id }),
+              let current = workspace.latestRevision(documentID: preview.originalCitation.documentID),
+              let review = workspace.currentReview(revisionID: current.id),
+              try campaignAgencyExact(citation, preview.originalCitation),
+              try campaignAgencyExact(original, preview.originalRevision),
+              try campaignAgencyExact(current, preview.replacementRevision),
+              try campaignAgencyExact(review, preview.replacementReview) else {
+            throw CampaignError.invalid("Agency evidence changed after the preview. Review the current source and preview reconciliation again.")
+        }
+        let snapshot = try agencyTargetSnapshot(kind: preview.targetKind, id: preview.targetID)
+        guard snapshot.utf8.elementsEqual(preview.targetSnapshot.utf8) else {
+            throw CampaignError.invalid("The campaign target changed after the preview. Preview reconciliation again.")
+        }
+    }
+
+    /// Atomically replaces one citation only after validating its exact preview.
+    /// Source/review history and all other authored campaign data are untouched.
+    @discardableResult public mutating func replaceAgencyCitation(_ preview: CampaignAgencyCitationReplacementPreview,
+                                                                 at date: Date = Date()) throws -> CampaignAgencyCitation {
+        try validateAgencyCitationReplacement(preview)
+        guard var workspace = agency else { throw CampaignError.invalid("Agency citation not found.") }
+        let replacement = try workspace.replaceCitation(preview, at: date)
+        agency = workspace
+        return replacement
+    }
+
+    public func agencyTargetSnapshot(kind: CampaignAgencyTargetKind, id: UUID) throws -> String {
         switch kind {
         case .deliverable:
             if let item = deliverables.first(where: { $0.id == id }) { return try campaignJSON(item) }
@@ -339,6 +444,9 @@ extension CampaignDraft {
 
 private func campaignAgencyDigest(_ data: Data) -> String {
     SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+}
+private func campaignAgencyExact<T: Encodable>(_ left: T, _ right: T) throws -> Bool {
+    try campaignJSON(left).utf8.elementsEqual(campaignJSON(right).utf8)
 }
 private func campaignAgencyNote(_ value: String, label: String, maximumBytes: Int = 16 * 1_024) throws {
     guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, value.utf8.count <= maximumBytes else {

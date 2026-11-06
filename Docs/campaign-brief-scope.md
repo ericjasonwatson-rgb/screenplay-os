@@ -177,8 +177,13 @@ synthetic; no user agency documents or private project content are published.
 5. Choose Revised Source for an existing document to append its next revision.
    The prior version stays available for comparison. Review does not carry forward.
    Superseded citations, changed targets and removed targets remain visible and
-   block approval, even after freezing another baseline. Explicitly remove and
-   recreate those citations after reconciling current source and scope.
+   block approval, even after freezing another baseline. Use **Reconcile Citation…**
+   to inspect the old evidence, choose current reviewed lines and a target, then
+   preview and explicitly confirm one atomic replacement. The range and target
+   start blank; no mapping is inferred. A changed source, review, citation or target
+   invalidates the preview. Cancel leaves the saved citation intact, and one Undo
+   restores the old citation. Explicit removal remains available when a citation
+   is no longer appropriate.
 6. Freeze a new baseline only when the reviewed scope is appropriate. Historical
    baselines retain the exact imported evidence and decisions they were frozen with.
    Undo Draft Change can restore the prior working draft, including source/citation

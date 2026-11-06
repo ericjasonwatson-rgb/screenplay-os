@@ -100,6 +100,23 @@ with nonregular-file/symlink rejection and post-read consistency checks. The sto
 cooperating lock/byte lease and owner-only staged replacement remain in place. This
 is not a defense against a malicious same-user filesystem actor or cross-device sync.
 
+## Guided citation reconciliation
+
+For an outdated citation, choose **Reconcile Citation…** after reviewing the
+current source revision. Compare the retained old excerpt and target with the
+current source. Enter a replacement line range, choose a campaign target and
+write a reconciliation note. Nothing is mapped or selected automatically.
+**Preview Replacement** captures the exact evidence for inspection;
+**Confirm Reconciliation** replaces that one citation in a single local save.
+
+The preview is transient, not a new file format or approval record. A changed
+source, review, original citation or chosen target invalidates it. Cancelling,
+leaving the source or tab, or closing the panel discards pending choices without
+removing the saved citation. A failed save leaves the persisted citation intact.
+One **Undo Draft Change** restores the replaced citation and its identity.
+Retained source/review history and frozen baselines are not rewritten. A new
+reconciliation never carries forward creative or spend approval.
+
 ## Validation and remaining gates
 
 Automated fixtures cover normal stored/deflated DOCX, Unicode and whitespace,

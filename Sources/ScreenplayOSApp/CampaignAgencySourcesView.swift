@@ -15,6 +15,7 @@ struct CampaignAgencySourcesView: View {
     @State private var targetKind: CampaignAgencyTargetKind = .deliverable
     @State private var targetID: UUID?
     @State private var citationNote = ""
+    @State private var reconciliation: CampaignAgencyReconciliationContext?
 
     init(session: CampaignWorkspaceSession, selectedDocumentID: Binding<UUID?>,
          importLifecycle: CampaignAgencyImportLifecycle? = nil) {
@@ -41,9 +42,9 @@ struct CampaignAgencySourcesView: View {
                 Text("Text: .txt, .md, .fountain, up to 256 KiB. DOCX: up to 2 MiB, with bounded text extraction. PDF remains disabled pending parser isolation; no legacy .doc or OCR. Originals and extracted text are retained in private campaign backups and may contain confidential material.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    Button("Choose New Source…") { chooseSource(revising: nil) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading)
+                    Button("Choose New Source…") { chooseSource(revising: nil) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading || reconciliation != nil)
                     if let selected {
-                        Button("Choose Revised Source…") { chooseSource(revising: selected.documentID) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading)
+                        Button("Choose Revised Source…") { chooseSource(revising: selected.documentID) }.disabled(importLifecycle.preview != nil || importLifecycle.isReading || reconciliation != nil)
                     }
                 }
                 if importLifecycle.isReading {
@@ -63,7 +64,12 @@ struct CampaignAgencySourcesView: View {
                             Text(revision.filename).tag(Optional(revision.documentID))
                         }
                     }
-                    if let selected { sourceDetail(selected, workspace: workspace) }
+                    .accessibilityIdentifier("campaign.agency.document")
+                    if let reconciliation {
+                        CampaignAgencyReconciliationView(session: session, context: reconciliation) {
+                            self.reconciliation = nil
+                        }.id(reconciliation.citation.id)
+                    } else if let selected { sourceDetail(selected, workspace: workspace) }
                     let warnings = workspace.warnings(draft: session.ledger.draft)
                     if !warnings.isEmpty {
                         Divider()
@@ -72,7 +78,7 @@ struct CampaignAgencySourcesView: View {
                             Label(warning.message, systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.orange).font(.caption).textSelection(.enabled)
                         }
-                        Text("Review the new revision, then remove and recreate any outdated citations against current lines and scope. Freezing another baseline does not clear these warnings.")
+                        Text("Review the current revision, then use Reconcile Citation to preview and replace an outdated link, or remove it. Freezing another baseline does not clear these warnings.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 } else if importLifecycle.preview == nil {
@@ -81,11 +87,11 @@ struct CampaignAgencySourcesView: View {
                 }
             }.padding(.vertical, 12)
         }
-        .onChange(of: selected?.id) { _ in
-            reviewer = ""; reviewNote = ""; firstLine = "1"; lastLine = "1"; citationNote = ""
-        }
+        .onChange(of: selectedDocumentID) { _ in resetEditors() }
+        .onChange(of: selected?.id) { _ in resetEditors() }
+        .onChange(of: session.ledger.projectID) { _ in resetEditors() }
         .onChange(of: targetKind) { _ in targetID = nil }
-        .onDisappear(perform: importLifecycle.cancel)
+        .onDisappear { importLifecycle.cancel(); resetEditors() }
     }
 
     private func chooseSource(revising documentID: UUID?) {
@@ -157,10 +163,13 @@ struct CampaignAgencySourcesView: View {
                 Text("Read the source and compare revised text against its previous version. This review does not approve creative work or authorize spend.")
                     .font(.caption).foregroundStyle(.secondary)
                 TextField("Reviewed by", text: $reviewer).textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("campaign.agency.reviewer")
                 TextField("Review note / changes found", text: $reviewNote, axis: .vertical).lineLimit(1...4).textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("campaign.agency.reviewNote")
                 Button("Record Source Review") {
                     if session.reviewAgencyRevision(revision.id, reviewer: reviewer, note: reviewNote) { reviewer = ""; reviewNote = "" }
                 }.disabled(reviewer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || reviewNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("campaign.agency.review")
             }
             citations(revision, workspace: workspace)
         }
@@ -212,9 +221,20 @@ struct CampaignAgencySourcesView: View {
                         Text("\(citation.targetKind.rawValue.capitalized): \(targetName(citation)) · lines \(citation.firstLine)–\(citation.lastLine)")
                             .font(.callout)
                         Spacer()
+                        Button("Reconcile Citation…") { beginReconciliation(citation, current: revision, workspace: workspace) }
+                            .disabled(workspace.currentReview(revisionID: revision.id) == nil)
+                            .accessibilityIdentifier("campaign.agency.reconcile.\(citation.id)")
                         Button("Remove Citation") { session.removeAgencyCitation(citation.id) }
+                            .accessibilityIdentifier("campaign.agency.removeCitation.\(citation.id)")
                     }
                     Text("Revision \(citation.revisionID.uuidString)").font(.caption.monospaced()).textSelection(.enabled)
+                    if workspace.currentReview(revisionID: revision.id) == nil {
+                        Text("Record a review of the current source above before reconciling this citation.")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
+                    ForEach(workspace.warnings(draft: session.ledger.draft).filter { $0.sourceID == citation.id }) { warning in
+                        Text(warning.message).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
+                    }
                     Text(citation.note).font(.caption).textSelection(.enabled)
                     if let source = workspace.revisions.first(where: { $0.id == citation.revisionID }),
                        let text = try? source.excerpt(firstLine: citation.firstLine, lastLine: citation.lastLine) {
@@ -224,6 +244,21 @@ struct CampaignAgencySourcesView: View {
                 Divider()
             }
         }
+    }
+
+    private func resetEditors() {
+        reconciliation = nil
+        reviewer = ""; reviewNote = ""; firstLine = "1"; lastLine = "1"
+        targetID = nil; citationNote = ""
+    }
+
+    private func beginReconciliation(_ citation: CampaignAgencyCitation, current: CampaignAgencyRevision,
+                                     workspace: CampaignAgencyWorkspace) {
+        guard let review = workspace.currentReview(revisionID: current.id),
+              let original = workspace.revisions.first(where: { $0.id == citation.revisionID }) else { return }
+        importLifecycle.cancel()
+        reconciliation = CampaignAgencyReconciliationContext(projectID: session.ledger.projectID,
+            citation: citation, originalRevision: original, currentRevision: current, review: review)
     }
 
     private func targetName(_ citation: CampaignAgencyCitation) -> String {
@@ -240,23 +275,5 @@ struct CampaignAgencySourcesView: View {
     private func sourceText(_ text: String, height: CGFloat) -> some View {
         // A read-only native text surface, not interpreted Markdown or a WebView.
         CampaignReadOnlyText(text: text).frame(height: height).border(Color.secondary.opacity(0.25))
-    }
-}
-
-private struct CampaignReadOnlyText: NSViewRepresentable {
-    let text: String
-    func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSTextView.scrollableTextView()
-        if let view = scroll.documentView as? NSTextView {
-            view.isEditable = false; view.isSelectable = true; view.isRichText = false
-            view.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-            view.textContainerInset = NSSize(width: 6, height: 6)
-            view.setAccessibilityLabel("Imported agency source text")
-        }
-        return scroll
-    }
-    func updateNSView(_ view: NSScrollView, context: Context) {
-        guard let editor = view.documentView as? NSTextView else { return }
-        if !editor.string.utf8.elementsEqual(text.utf8) { editor.string = text }
     }
 }

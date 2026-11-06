@@ -83,6 +83,11 @@ final class CampaignWorkspaceSession: ObservableObject {
         _ = mutateDraft { draft in try draft.removeAgencyCitation(id: id) }
     }
 
+    @discardableResult
+    func replaceAgencyCitation(_ preview: CampaignAgencyCitationReplacementPreview) -> Bool {
+        mutateDraft { draft in _ = try draft.replaceAgencyCitation(preview) }
+    }
+
     func undoDraft() {
         guard let prior = history.last else { return }
         var next = ledger; next.draft = prior
