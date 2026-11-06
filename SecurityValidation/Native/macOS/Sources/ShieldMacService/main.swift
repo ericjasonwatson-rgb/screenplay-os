@@ -114,7 +114,10 @@ do {
         fputs("helper code-signing identity is not trusted; service disabled\n", stderr)
         exit(78)
     }
-    SignedListenerDelegate(config).serve()
+    // NSXPCListener.delegate is weak. Keep the delegate strongly alive for the
+    // lifetime of both Mach listeners; otherwise connections can silently fail.
+    let serviceDelegate = SignedListenerDelegate(config)
+    serviceDelegate.serve()
 } catch {
     fputs("invalid signed helper configuration\n", stderr)
     exit(78)
