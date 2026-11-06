@@ -68,7 +68,8 @@ extension CampaignPanelLifecycleTests {
             try await preview(fixture)
             try await expectPreview(fixture, baseline: seed.second, scope: "Spend", evidence: spendEvidence)
             let ceiling = try await text(fixture, "campaign.approval.preview.ceiling")
-            #expect(ceiling.contains("12500") && ceiling.contains("USD"))
+            #expect(ceiling == "Ceiling: 12500 minor units · USD",
+                    "Preview must show the exact raw minor-unit ceiling and currency; actual text: \(ceiling)")
             #expect(try fixture.ledger().decisions == [creative])
             try await fixture.press("campaign.approval.confirm")
             try await fixture.expectLedger { $0.decisions.count == 2 }
@@ -241,6 +242,61 @@ extension CampaignPanelLifecycleTests {
             try await fixture.selectTab("Baseline & Changes")
             try await expectBlank(fixture)
             #expect(try bytes(fixture) == seed.bytes)
+        }
+
+        @Test func repeatedImmediateProjectReplacementReopensCorrectSessionWithoutApprovalTab() async throws {
+            let fixture = try CampaignPanelFixture()
+            defer { fixture.close() }
+            _ = try await fixture.scriptEditor()
+            let originalID = try #require(fixture.model.document?.project.id)
+            let originalURL = try #require(fixture.model.saveURL)
+            _ = try await fixture.open()
+            let originalBrand = "Synthetic original project"
+            try await fixture.replaceText("campaign.field.Brand", with: originalBrand)
+            try await fixture.expectLedger { $0.projectID == originalID && $0.draft.brief.brand == originalBrand }
+            let originalLedger = try fixture.ledger()
+            let originalBytes = try bytes(fixture)
+            var replacementBytes: [UUID: Data] = [:]
+
+            // Deliberately never select Baseline & Changes. The regression is
+            // ancestor-sheet teardown and an old session observing a project
+            // replacement, even when no approval editor was ever mounted.
+            for cycle in 1...3 {
+                #expect(fixture.model.document?.project.id == originalID)
+                fixture.model.newDocument()
+                let replacementID = try #require(fixture.model.document?.project.id)
+                #expect(replacementID != originalID)
+                try await fixture.expectDismissed()
+                #expect(try Data(contentsOf: fixture.campaignURL(projectID: originalID)) == originalBytes)
+                #expect(!FileManager.default.fileExists(atPath: try fixture.campaignURL(projectID: replacementID).path))
+
+                _ = try await fixture.open()
+                let blank = try await fixture.control("campaign.field.Brand")
+                #expect(try campaignAXValue(blank) as? String == "")
+                #expect(fixture.model.document?.project.id == replacementID)
+                let replacementBrand = "Synthetic replacement project \(cycle)"
+                try await fixture.replaceText("campaign.field.Brand", with: replacementBrand)
+                try await fixture.expectLedger {
+                    $0.projectID == replacementID && $0.draft.brief.brand == replacementBrand
+                }
+                let replacementLedger = try fixture.ledger()
+                replacementBytes[replacementID] = try bytes(fixture)
+                try await fixture.press("campaign.close")
+                try await fixture.expectDismissed()
+                // No delay or re-presentation retry between native dismissal,
+                // loading the earlier project and its single reopen attempt.
+                fixture.model.loadScreenplayOSDocument(at: originalURL)
+                #expect(fixture.model.document?.project.id == originalID)
+                _ = try await fixture.open()
+                let restored = try await fixture.control("campaign.field.Brand")
+                #expect(try campaignAXValue(restored) as? String == originalBrand)
+                #expect(try fixture.ledger() == originalLedger)
+                #expect(try bytes(fixture) == originalBytes)
+                #expect(try fixture.ledger(projectID: replacementID) == replacementLedger)
+                for (id, saved) in replacementBytes {
+                    #expect(try Data(contentsOf: fixture.campaignURL(projectID: id)) == saved)
+                }
+            }
         }
 
         private enum Dismissal { case cancel, tab, close, escape }

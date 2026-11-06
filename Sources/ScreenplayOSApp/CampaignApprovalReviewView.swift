@@ -113,7 +113,7 @@ struct CampaignApprovalReviewView: View {
                                      identifier: "campaign.approval.preview.evidence")
                     .frame(height: 90)
                 if let amount = value.decision.spendCeilingMinorUnits, let code = value.decision.currencyCode {
-                    Text("Ceiling: \(amount) minor units · \(code)")
+                    Text(verbatim: "Ceiling: \(amount) minor units · \(code)")
                         .accessibilityIdentifier("campaign.approval.preview.ceiling")
                 }
                 Text("This immutable record stays attached to this baseline. Undo Draft Change does not erase recorded decisions. Nothing is sent to anyone.")

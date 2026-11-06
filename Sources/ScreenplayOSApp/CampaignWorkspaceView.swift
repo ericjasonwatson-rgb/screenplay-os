@@ -13,7 +13,6 @@ struct CampaignWorkspaceView: View {
     @State private var selectedBaselineID: UUID?
     @State private var selectedTab = 1
     @State private var selectedAgencyDocumentID: UUID?
-    @State private var approvalEditorID = UUID()
 
     init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
          importLifecycle: CampaignAgencyImportLifecycle? = nil) {
@@ -241,7 +240,6 @@ struct CampaignWorkspaceView: View {
                         CampaignApprovalReviewView(session: session, model: model, baseline: baseline,
                                                    current: changes.isEmpty)
                             .id(baseline.id)
-                            .id(approvalEditorID)
                     }
                 }
                 decisionHistory(baseline)
@@ -272,8 +270,10 @@ struct CampaignWorkspaceView: View {
     }
 
     private func discardApprovalEntry() {
-        session.discardDecisionPreview()
-        approvalEditorID = UUID()
+        // The child is removed on tab changes and keyed by baseline identity.
+        // Revoke the proposal without rebuilding a disappearing sheet subtree
+        // or publishing an unchanged nil value during teardown.
+        if session.decisionPreview != nil { session.discardDecisionPreview() }
     }
 
     private func decisionHistory(_ baseline: CampaignBaseline) -> some View {
@@ -287,7 +287,7 @@ struct CampaignWorkspaceView: View {
                     Text(decision.evidence).font(.caption).textSelection(.enabled)
                         .accessibilityIdentifier("campaign.approval.history.\(decision.id).evidence")
                     if let amount = decision.spendCeilingMinorUnits, let code = decision.currencyCode {
-                        Text("Ceiling: \(amount) minor units · \(code)").font(.caption)
+                        Text(verbatim: "Ceiling: \(amount) minor units · \(code)").font(.caption)
                     }
                 }
             }
