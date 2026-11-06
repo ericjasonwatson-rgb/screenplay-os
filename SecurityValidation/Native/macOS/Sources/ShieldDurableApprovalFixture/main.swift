@@ -53,6 +53,35 @@ private func execute() throws {
         )
         let json = try JSONEncoder().encode(fixture)
         print(String(decoding: json, as: UTF8.self))
+    case "state":
+        guard args.count == 3 else { throw FixtureFailure.usage }
+        let tempKey = P256.Signing.PrivateKey()
+        let verifier = try EphemeralApprovalVerifier(trustedReviewerKeys: [
+            "fixture_only": tempKey.publicKey.x963Representation
+        ])
+        let ledger = try DurableApprovalClaimLedger(
+            databaseURL: URL(fileURLWithPath: args[2]), verifier: verifier
+        )
+        print(String(decoding: try JSONEncoder().encode(ledger.stateCommitment()), as: UTF8.self))
+    case "compare":
+        guard args.count == 4 else { throw FixtureFailure.usage }
+        let tempKey = P256.Signing.PrivateKey()
+        let verifier = try EphemeralApprovalVerifier(trustedReviewerKeys: [
+            "fixture_only": tempKey.publicKey.x963Representation
+        ])
+        let ledger = try DurableApprovalClaimLedger(
+            databaseURL: URL(fileURLWithPath: args[2]), verifier: verifier
+        )
+        let expected = try JSONDecoder().decode(
+            LedgerStateCommitment.self,
+            from: Data(contentsOf: URL(fileURLWithPath: args[3]))
+        )
+        if ledger.matchesTrustedCheckpoint(expected) {
+            print("MATCH")
+        } else {
+            print("ROLLBACK_OR_MISMATCH")
+            exit(43)
+        }
     case "bootstrap":
         guard args.count == 3 else { throw FixtureFailure.usage }
         try DurableApprovalClaimLedger.bootstrap(at: URL(fileURLWithPath: args[2]))
