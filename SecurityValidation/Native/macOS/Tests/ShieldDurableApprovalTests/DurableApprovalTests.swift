@@ -171,6 +171,37 @@ final class DurableApprovalTests: XCTestCase {
         }
     }
 
+    func testSymlinkedParentDirectoryIsRejected() throws {
+        let dir = try directory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let key = P256.Signing.PrivateKey()
+        let real = database(dir)
+        try DurableApprovalClaimLedger.bootstrap(at: real)
+        let alias = dir.appendingPathComponent("alias", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: dir)
+        let disguised = alias.appendingPathComponent("claims.sqlite")
+        XCTAssertThrowsError(try DurableApprovalClaimLedger(
+            databaseURL: disguised, verifier: verifier(key)
+        )) { XCTAssertEqual($0 as? DurableClaimError, .unsafePath) }
+        XCTAssertThrowsError(try DurableApprovalClaimLedger.bootstrap(at: disguised)) {
+            XCTAssertEqual($0 as? DurableClaimError, .unsafePath)
+        }
+    }
+
+    func testPublicParentDirectoryIsRejected() throws {
+        let dir = try directory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let db = database(dir)
+        try DurableApprovalClaimLedger.bootstrap(at: db)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int(0o755))], ofItemAtPath: dir.path
+        )
+        let key = P256.Signing.PrivateKey()
+        XCTAssertThrowsError(try DurableApprovalClaimLedger(
+            databaseURL: db, verifier: verifier(key)
+        )) { XCTAssertEqual($0 as? DurableClaimError, .unsafePath) }
+    }
+
     func testUnreadableOrUninitializedDatabaseFailsClosed() throws {
         let dir = try directory()
         defer { try? FileManager.default.removeItem(at: dir) }
