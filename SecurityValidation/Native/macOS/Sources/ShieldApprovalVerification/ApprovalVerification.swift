@@ -60,13 +60,10 @@ public final class EphemeralApprovalVerifier {
         self.trustedKeys = parsed
     }
 
-    /// Verifies the signature over the EXACT expected trusted-gateway request.
-    /// The timestamp MUST come from a trusted system clock, not an AI agent.
-    ///
-    /// In-memory consumption is atomic among threads in this process but is
-    /// lost on restart. Do not connect this function to live dispatch.
+    /// Stateless cryptographic check for a later, separately durable claim.
+    /// Never use this by itself to authorize dispatch; it has no replay storage.
     @discardableResult
-    public func verifyAndConsume(
+    public func verifySignature(
         _ approval: ReviewerApprovalSignature,
         for expected: ApprovalRequestBinding,
         atTrustedTime nowSeconds: Int64
@@ -84,6 +81,20 @@ public final class EphemeralApprovalVerifier {
               ),
               key.isValidSignature(signature, for: ReviewerApprovalMessage.bytes(for: expected)) else {
             return .failure(.invalidSignature)
+        }
+        return .success(())
+    }
+
+    /// Reference-only in-memory one-use check. It is NOT durable on restart.
+    @discardableResult
+    public func verifyAndConsume(
+        _ approval: ReviewerApprovalSignature,
+        for expected: ApprovalRequestBinding,
+        atTrustedTime nowSeconds: Int64
+    ) -> Result<Void, ApprovalVerificationError> {
+        switch verifySignature(approval, for: expected, atTrustedTime: nowSeconds) {
+        case .failure(let error): return .failure(error)
+        case .success: break
         }
         let unique = expected.projectID.uuidString + ":" + expected.requestID.uuidString
         lock.lock()
