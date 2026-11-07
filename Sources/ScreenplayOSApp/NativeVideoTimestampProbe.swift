@@ -7,11 +7,12 @@ import ScreenplayDomain
 /// No project mutation, media conversion, provider access or NLE import.
 enum NativeVideoTimestampProbe {
     enum Failure: LocalizedError {
-        case invalidTrack, invalidDuration, unreadableSamples, unsupportedTimestamp
+        case invalidSource, invalidTrack, invalidDuration, unreadableSamples, unsupportedTimestamp
         case mediaChanged, tooManySamples
 
         var errorDescription: String? {
             switch self {
+            case .invalidSource: return "Only verified ordinary local MOV or MP4 media can be inspected."
             case .invalidTrack: return "A single valid video track is required for this timestamp probe."
             case .invalidDuration: return "The source has no valid presentation duration."
             case .unreadableSamples: return "The source's compressed video samples cannot be inspected."
@@ -23,6 +24,11 @@ enum NativeVideoTimestampProbe {
     }
 
     static func inspect(_ url: URL, expectedSHA256: String) async throws -> NativeVideoPresentationIndex {
+        guard url.isFileURL,
+              ["mov", "mp4"].contains(url.pathExtension.lowercased()),
+              NativeAssemblyProject.digest(expectedSHA256) else {
+            throw Failure.invalidSource
+        }
         try NativeVideoTakeImporter.verify(url, digest: expectedSHA256)
         let worker = Task.detached(priority: .utility) {
             try await read(url, expectedSHA256: expectedSHA256)
