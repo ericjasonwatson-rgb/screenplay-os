@@ -65,6 +65,35 @@ final class NativeVideoPresentationIndexTests: XCTestCase {
         XCTAssertThrowsError(try lateFirst.sample(atTimelineFrame: 24))
     }
 
+    func testUntrustedDecodedIndexMustPassSourceAndOrderingChecks() throws {
+        let original = try index([
+            .init(value: 0, timescale: 24),
+            .init(value: 1, timescale: 24),
+            .init(value: 2, timescale: 24)
+        ], duration: .init(value: 1, timescale: 1))
+        let encoded = try JSONEncoder().encode(original)
+        var raw = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+
+        var timestamps = raw["samples"] as! [[String: Any]]
+        timestamps.swapAt(0, 1)
+        raw["samples"] = timestamps
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            NativeVideoPresentationIndex.self,
+            from: JSONSerialization.data(withJSONObject: raw)))
+
+        raw = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        raw["mediaSHA256"] = "forged"
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            NativeVideoPresentationIndex.self,
+            from: JSONSerialization.data(withJSONObject: raw)))
+
+        raw = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        raw["version"] = 99
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            NativeVideoPresentationIndex.self,
+            from: JSONSerialization.data(withJSONObject: raw)))
+    }
+
     func testIndexSerializesWithoutFloatingPointTimeDrift() throws {
         let source = try index([
             .init(value: 0, timescale: 24_000),
