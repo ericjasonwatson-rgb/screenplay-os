@@ -24,6 +24,7 @@ struct NativeAssemblyWorkspaceView: View {
     @State private var previewRequestID = UUID()
     @State private var previewProblem: String?
     @State private var previewLoading = false
+    @State private var previewTask: Task<Void, Never>?
     private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     private var sceneID: String? {
@@ -46,6 +47,9 @@ struct NativeAssemblyWorkspaceView: View {
         return assembly.clip(at: min(playheadFrame, max(0, assembly.totalFrames - 1)))
     }
     private func refreshPreview() {
+        // Cancellation also stops expensive SHA hashing when a scrub moves on.
+        previewTask?.cancel()
+        previewTask = nil
         // Distinguish each clip/frame request so a slow decoder cannot place
         // an old image over a newly selected shot.
         let requestID = UUID()
@@ -70,7 +74,7 @@ struct NativeAssemblyWorkspaceView: View {
             previewLoading = true
             let localFrame = max(0, min(currentClip.frameCount - 1,
                                         playheadFrame - startFrame(for: currentClip.id)))
-            Task {
+            previewTask = Task {
                 do {
                     let decoded = try await NativeVideoFramePreview.preview(
                         currentClip, localFrame: localFrame, screenplayURL: screenplayURL)
@@ -268,7 +272,12 @@ struct NativeAssemblyWorkspaceView: View {
                 from: playbackBaseFrame, after: elapsed, totalFrames: assembly.totalFrames)
             if playheadFrame >= assembly.totalFrames { playing = false }
         }
-        .onDisappear { playing = false }
+        .onDisappear {
+            playing = false
+            previewTask?.cancel()
+            previewTask = nil
+            previewRequestID = UUID()
+        }
         .confirmationDialog("Rebuild this assembly from current selected boards?",
                             isPresented: $rebuildConfirmation) {
             Button("Rebuild Assembly") { rebuild() }
@@ -293,6 +302,8 @@ struct NativeAssemblyWorkspaceView: View {
     }
 
     private func load() {
+        previewTask?.cancel()
+        previewTask = nil
         playing = false
         undoStack = []
         selection = nil
