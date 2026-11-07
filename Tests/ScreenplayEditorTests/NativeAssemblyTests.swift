@@ -92,6 +92,19 @@ final class NativeAssemblyTests: XCTestCase {
         XCTAssertTrue(assembled.isCurrent(with: initial))
     }
 
+    func testPlaybackClockUsesElapsedTimeWithoutLosingFractionalFrames() {
+        let frames = NativeAssemblyProject.playbackFrame
+        XCTAssertEqual(frames(0, 0, 240), 0)
+        XCTAssertEqual(frames(0, 0.05, 240), 1)
+        XCTAssertEqual(frames(0, 0.10, 240), 2)
+        XCTAssertEqual(frames(0, 0.15, 240), 3)
+        XCTAssertEqual(frames(0, 1.0, 240), 24)
+        XCTAssertEqual(frames(24, 1.0, 240), 48)
+        XCTAssertEqual(frames(230, 10.0, 240), 240)
+        XCTAssertEqual(frames(0, .infinity, 240), 0)
+        XCTAssertEqual(frames(-10, -1, 240), 0)
+    }
+
     func testSceneBoardRevisionStableWhenStorageArrayIsReordered() throws {
         let initial = boards()
         let assembled = try NativeAssemblyProject.assemble(
