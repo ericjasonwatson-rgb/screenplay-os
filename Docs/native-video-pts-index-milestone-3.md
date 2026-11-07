@@ -12,9 +12,9 @@ The new `NativeVideoPresentationIndex` deliberately separates three concepts: (1
 
 - Pure project-domain index with version, source fingerprint, track ID, duration, strictly increasing presentation timestamps, bounded memory/sample count and exact rational comparison using CoreMedia's `CMTimeCompare`.
 - Deterministic `sample(atTimelineFrame:)`: selects the last presentation timestamp **at or before** the 24 fps editorial time. This explicitly holds a source frame across sparse/VFR gaps rather than guessing a coded-frame ordinal.
-- A read-only local `NativeVideoTimestampProbe` that verifies a local video's SHA-256, uses AVAssetReader to inspect its video sample presentation timestamps (including multi-sample buffers), sorts samples into presentation rather than decode order, verifies file fingerprint again and builds a validated index.
+- A read-only local `NativeVideoTimestampProbe` that verifies a local video's SHA-256, uses AVAssetReader decoded-sample output to inspect video presentation timestamps (including multi-sample buffers), sorts timestamps into presentation order, verifies the file fingerprint again and builds a validated index. The first compressed pass-through probe failed on a synthetic H.264 file in CI, so this preview uses decoded frames and immediately discards pixel data.
 - Strict refusal for empty/duplicate/out-of-order/unrepresentable timestamps, missing or multiple video tracks, invalid duration, oversized sample sets and changed source files.
-- Synthetic tests for rational 24000/1001, 25 fps and VFR source timestamps, JSON persistence and invalid sample sequences, plus a macOS test that renders a local H.264 file and enumerates its actual compressed sample timestamps.
+- Synthetic tests for rational 24000/1001, 25 fps and VFR source timestamps, JSON persistence and invalid sample sequences, plus a macOS test that renders a local H.264 file and enumerates its actual decoded-sample timestamps.
 
 ## Deliberate non-features
 
@@ -25,7 +25,7 @@ The new `NativeVideoPresentationIndex` deliberately separates three concepts: (1
 ## Acceptance gates
 
 1. Run focused macOS CI on this branch; no pass is claimed until the actual run is green.
-2. Confirm that compressed H.264 sample PTS reads and JSON index serialization succeed and that the index matches known synthetic sample timing.
+2. Confirm that decoded H.264 sample PTS reads and JSON index serialization succeed and that the index matches known synthetic sample timing.
 3. Test 24000/1001, 25, 30000/1001 and VFR real clips with explicit permitted source media, including audio/video track metadata and edit-list offsets.
 4. Only then persist a source-hash-bound timing index, switch the preview decoder to the chosen original PTS, and verify source-in/source-out and frame selection after split, trim, duplicate and reopen.
 5. Continuous playback and mixed video/still export are later milestones with separate clocks and output validation.
