@@ -9,7 +9,7 @@ on:
       - 'Sources/ScreenplayDomain/NativeAssembly.swift'
       - 'Sources/ScreenplayOSApp/NativeAssembly*.swift'
       - 'Sources/ScreenplayOSApp/ContentView.swift'
-      - 'Tests/ScreenplayEditorTests/NativeAssemblyTests.swift'
+      - 'Tests/ScreenplayEditorTests/NativeAssembly*.swift'
       - '.github/workflows/native-assembly-editor.yml'
   workflow_dispatch:
 
@@ -27,4 +27,4 @@ jobs:
       - name: Compile native application including exporter and UI
         run: swift build --configuration debug --disable-sandbox --product ScreenplayOS
       - name: Run local assembly identity, edit and persistence tests
-        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeAssemblyTests
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeAssembly
