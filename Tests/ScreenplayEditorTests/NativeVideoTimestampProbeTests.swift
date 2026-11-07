@@ -33,7 +33,7 @@ final class NativeVideoTimestampProbeTests: XCTestCase {
         return (folder, video, try NativeVideoTakeImporter.digest(video))
     }
 
-    func testProbeReadsRealCompressedVideoPresentationTimestamps() async throws {
+    func testProbeReadsRealDecodedVideoPresentationTimestamps() async throws {
         let fixture = try await syntheticVideo()
         defer { try? FileManager.default.removeItem(at: fixture.folder) }
         let index = try await NativeVideoTimestampProbe.inspect(
