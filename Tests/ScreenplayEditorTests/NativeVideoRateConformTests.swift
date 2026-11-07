@@ -156,11 +156,12 @@ final class NativeVideoRateConformTests: XCTestCase {
         let after = try await viewer.frame(imported, localFrame: 20, screenplayURL: screenplay)
         XCTAssertEqual(before.selectedSampleIndex, 2)
         XCTAssertEqual(after.selectedSampleIndex, 4)
-        XCTAssertEqual(before.selectedSourceTimestamp?.cmTime.seconds, 3.0 / 24.0, accuracy: 0.0001)
-        XCTAssertEqual(after.selectedSourceTimestamp?.cmTime.seconds, 20.0 / 24.0, accuracy: 0.0001)
-        XCTAssertNotEqual(
-            SHA256.hash(data: before.pngData),
-            SHA256.hash(data: after.pngData)
-        )
+        guard let beforePTS = before.selectedSourceTimestamp,
+              let afterPTS = after.selectedSourceTimestamp else {
+            return XCTFail("The conformed preview must return a verified source PTS")
+        }
+        XCTAssertEqual(beforePTS.cmTime.seconds, 3.0 / 24.0, accuracy: 0.0001)
+        XCTAssertEqual(afterPTS.cmTime.seconds, 20.0 / 24.0, accuracy: 0.0001)
+        XCTAssertNotEqual(before.pngData, after.pngData)
     }
 }
