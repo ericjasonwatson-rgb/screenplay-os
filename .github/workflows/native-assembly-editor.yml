@@ -35,7 +35,7 @@ jobs:
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeAssembly
       - name: Run paused video frame preview decoding and provenance tests
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoFramePreview
-      - name: Validate rational source timebase and compressed sample PTS inspection
+      - name: Validate rational source timebase and decoded sample PTS inspection
         run: |
           swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoPresentationIndex
           swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoTimestampProbe
