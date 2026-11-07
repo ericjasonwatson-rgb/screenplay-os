@@ -23,6 +23,29 @@ final class ContractTests: XCTestCase {
         XCTAssertTrue(value.requirement(for: .reviewer).contains("certificate leaf[subject.OU]"))
         XCTAssertTrue(value.helperRequirement().contains("com.example.shield.helper"))
     }
+    func testEveryDeployedPeerRequiresDeveloperIDApplicationCertificate() throws {
+        let value = try config()
+        let requirements = [
+            value.requirement(for: .agent),
+            value.requirement(for: .reviewer),
+            value.helperRequirement()
+        ]
+        for requirement in requirements {
+            XCTAssertTrue(requirement.contains(
+                "certificate 1[field.1.2.840.113635.100.6.2.6] exists"
+            ))
+            XCTAssertTrue(requirement.contains(
+                "certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
+            ))
+            XCTAssertFalse(requirement.contains(
+                "certificate leaf[field.1.2.840.113635.100.6.1.9]"
+            ))
+            XCTAssertTrue(requirement.contains("anchor apple generic"))
+            XCTAssertTrue(requirement.contains(
+                "certificate leaf[subject.OU] = \"AB12345678\""
+            ))
+        }
+    }
     func testInvalidTeamIDs() {
         for team in ["", "abc1234567", "ABCDE1234", "ABCDE123456", "ABCDEFGH\"1"] {
             XCTAssertThrowsError(try SignedPeerConfiguration(teamID: team, agentBundleID: "com.a.agent", reviewerBundleID: "com.a.reviewer", helperBundleID: "com.a.helper", agentMachService: "com.a.agentservice", reviewerMachService: "com.a.reviewservice"))
