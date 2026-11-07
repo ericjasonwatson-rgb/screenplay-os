@@ -6,6 +6,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 Scripts/test-fixture-hygiene.py
 python3 Scripts/check-fixture-hygiene.py
 
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/LegacyInspector
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/Packaging
 node --test LicenseWorker/test/*.test.mjs
 
 # Verify the independently authored synthetic agency examples before native tests.

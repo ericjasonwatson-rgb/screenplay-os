@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'Sources/ScreenplayDomain/Campaign*.swift'
+      - 'Sources/ScreenplayDomain/Commerce.swift'
+      - 'Sources/ScreenplayDomain/Resources/pricing.json'
+      - 'Sources/ScreenplayOSApp/AppBranding.swift'
       - 'Sources/ScreenplayOSApp/Campaign*.swift'
       - 'Sources/ScreenplayOSApp/ScreenplayOSApp.swift'
       - 'Sources/ScreenplayOSApp/ScreenplayViewModel.swift'
@@ -16,6 +19,12 @@ on:
       - 'Scripts/Integration/**'
       - 'Scripts/validate-campaign-siri-integration.py'
       - 'Scripts/test.sh'
+      - 'Scripts/package-app.sh'
+      - 'Scripts/validate-campaign-app.py'
+      - 'Scripts/prepare-campaign-pilot.py'
+      - 'Scripts/Packaging/**'
+      - 'Tests/Packaging/**'
+      - 'Docs/campaign-pilot-walkthrough.md'
       - 'Scripts/check-fixture-hygiene.py'
       - 'Scripts/test-fixture-hygiene.py'
       - 'Scripts/check-campaign-agency-fixtures.py'
@@ -95,3 +104,52 @@ jobs:
           # Fetch the actual current PR head. A moved, unreviewed Siri head fails
           # closed in the validator. Neither feature branch is changed or merged.
           python3 Scripts/validate-campaign-siri-integration.py --campaign-ref HEAD --siri-ref FETCH_HEAD --configuration ${{ matrix.configuration }}
+  campaign-app-package:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Record exact source and toolchain
+        run: |
+          git rev-parse HEAD
+          swift --version
+      - name: Verify portable packaging and pilot tests
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Tests/Packaging -v
+          python3 Scripts/check-fixture-hygiene.py
+          PYTHONDONTWRITEBYTECODE=1 python3 Scripts/check-campaign-agency-fixtures.py --self-test --check
+      - name: Validate relocated Release app on this disposable runner
+        id: validate_app
+        run: |
+          # This creates a temporary ad-hoc app only. No signing credentials,
+          # notarization, installed-app replacement or download release is used.
+          PYTHONDONTWRITEBYTECODE=1 python3 Scripts/validate-campaign-app.py \
+            --output "$RUNNER_TEMP/campaign-app-evidence" --launch-on-disposable-runner
+      - name: Retain package validation evidence even after failure
+        if: ${{ always() && steps.validate_app.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-app-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          path: ${{ runner.temp }}/campaign-app-evidence/evidence.json
+      - name: Prepare synthetic manual pilot materials
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 Scripts/prepare-campaign-pilot.py \
+            --output "$RUNNER_TEMP/campaign-pilot"
+      - name: Retain synthetic pilot materials
+        uses: actions/upload-artifact@v4
+        with:
+          name: campaign-pilot-materials-${{ github.event.pull_request.head.sha || github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          # Explicitly omit temporary apps, binaries, DMGs, source/build trees and
+          # credentials. An ad-hoc app is not an approved public download.
+          path: |
+            ${{ runner.temp }}/campaign-pilot/manifest.json
+            ${{ runner.temp }}/campaign-pilot/walkthrough.md
+            ${{ runner.temp }}/campaign-pilot/expected-lines.txt
+            ${{ runner.temp }}/campaign-pilot/documents/*.docx
+            ${{ runner.temp }}/campaign-pilot/expected/*.txt

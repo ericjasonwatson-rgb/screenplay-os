@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
-export SWIFTPM_MODULECACHE_OVERRIDE="$CLANG_MODULE_CACHE_PATH"
-mkdir -p "$CLANG_MODULE_CACHE_PATH" "$PWD/.build/swift-cache"
 scratch_path="${SCREENPLAYOS_SCRATCH_PATH:-$PWD/.build}"
+export CLANG_MODULE_CACHE_PATH="$scratch_path/clang-cache"
+export SWIFTPM_MODULECACHE_OVERRIDE="$CLANG_MODULE_CACHE_PATH"
+mkdir -p "$CLANG_MODULE_CACHE_PATH" "$scratch_path/swift-cache"
 configuration="${SCREENPLAYOS_BUILD_CONFIGURATION:-release}"
 # Default to Apple Silicon; use universal for Apple Silicon plus Intel.
 architecture="${SCREENPLAYOS_BUILD_ARCH:-arm64}"
@@ -42,20 +42,20 @@ trap 'rm -rf "$build_stage"' EXIT
 if [[ "$architecture" == "universal" ]]; then
     binaries=()
     for arch in arm64 x86_64; do
-        swift build --arch "$arch" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
-        binary_dir="$(swift build --arch "$arch" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
+        swift build --arch "$arch" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$scratch_path/swift-cache" --product ScreenplayOS
+        binary_dir="$(swift build --arch "$arch" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$scratch_path/swift-cache" --show-bin-path)"
         binaries+=("$binary_dir/ScreenplayOS")
     done
     binary_source="$build_stage/ScreenplayOS-universal"
     lipo -create "${binaries[@]}" -output "$binary_source"
 else
-    swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --product ScreenplayOS
-    binary_dir="$(swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$PWD/.build/swift-cache" --show-bin-path)"
+    swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$scratch_path/swift-cache" --product ScreenplayOS
+    binary_dir="$(swift build --arch "$architecture" --configuration "$configuration" --disable-sandbox --scratch-path "$scratch_path" --cache-path "$scratch_path/swift-cache" --show-bin-path)"
     binary_source="$binary_dir/ScreenplayOS"
 fi
 staged_app="$build_stage/ScreenplayOS.app"
 python3 - "$binary_source" "$staged_app" "$configuration" <<'PY'
-import os, pathlib, plistlib, re, shutil, subprocess, sys
+import hashlib, json, os, pathlib, plistlib, re, shutil, subprocess, sys
 source, app = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 version = os.environ.get('SCREENPLAYOS_APP_VERSION', '0.1')
 build = os.environ.get('SCREENPLAYOS_BUILD_NUMBER', '1')
@@ -68,10 +68,15 @@ shutil.copy2(source, temporary)
 temporary.replace(app / 'Contents/MacOS/ScreenplayOS')
 resources = app / 'Contents/Resources'
 resources.mkdir(parents=True, exist_ok=True)
+# Bundle.main resolves packaged resources without a SwiftPM build-tree fallback.
+shutil.copy2('Sources/ScreenplayDomain/Resources/pricing.json', resources / 'pricing.json')
+resource_sources = {'pricing.json': 'Sources/ScreenplayDomain/Resources/pricing.json'}
 # Package the transparent master and its standard macOS icon representations.
 branding = pathlib.Path('Sources/ScreenplayOSApp/Resources')
 shutil.copy2(branding / 'ScreenplayOS.icns', resources / 'ScreenplayOS.icns')
 shutil.copy2(branding / 'ScreenplayOSAppIcon.png', resources / 'ScreenplayOSAppIcon.png')
+for name in ['ScreenplayOS.icns', 'ScreenplayOSAppIcon.png']:
+    resource_sources[name] = str(branding / name)
 # The experimental converted-copy command is an explicit bridge to the vetted
 # Python writer. Keep its scripts and schemas inside the signed bundle; the app
 # still checks for a compatible local Python runtime before offering success.
@@ -80,11 +85,23 @@ for name in ['convert-legacy-copy.py', 'legacy_copy.py', 'legacy_destination.py'
     target = converter / 'Scripts' / name
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(pathlib.Path('Scripts') / name, target)
+    resource_sources[str(target.relative_to(resources))] = str(pathlib.Path('Scripts') / name)
 for name in ['screenplayos-1.0.schema.json', 'legacy/open-screenplay-1.0.schema.json', 'drafts/legacy-destination-0.1.schema.json']:
     target = converter / 'Specs' / name
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(pathlib.Path('Specs') / name, target)
+    resource_sources[str(target.relative_to(resources))] = str(pathlib.Path('Specs') / name)
+full_revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
 revision = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], text=True).strip()
+source_dirty = os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1'
+(resources / 'BuildManifest.json').write_text(json.dumps({
+    'schemaVersion': 1,
+    'sourceRevision': full_revision,
+    'sourceDirty': source_dirty,
+    'buildConfiguration': sys.argv[3],
+    'resources': {name: {'source': path, 'sha256': hashlib.sha256((resources / name).read_bytes()).hexdigest()}
+                  for name, path in sorted(resource_sources.items())},
+}, indent=2, sort_keys=True) + '\n')
 if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
     revision += '-dirty'
 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
@@ -112,6 +129,8 @@ if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
         },
     }],
     'ScreenplayOSRevision': revision,
+    'ScreenplayOSSourceRevision': full_revision,
+    'ScreenplayOSSourceDirty': source_dirty,
     'ScreenplayOSBuildConfiguration': sys.argv[3],
 }))
 print(app.resolve())
