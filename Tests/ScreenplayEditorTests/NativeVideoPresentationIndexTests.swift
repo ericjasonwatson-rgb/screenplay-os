@@ -46,6 +46,21 @@ final class NativeVideoPresentationIndexTests: XCTestCase {
         XCTAssertEqual(try vfr.sample(atTimelineFrame: 8).index, 3)
     }
 
+    func testTwentyNinePointNineSevenFPSAndFiftyNinePointNineFourFPS() throws {
+        let ntsc30 = try index((0..<90).map {
+            NativeVideoTimestamp(value: Int64($0) * 1001, timescale: 30_000)
+        }, duration: .init(value: 3003, timescale: 1000))
+        XCTAssertEqual(try ntsc30.sample(atTimelineFrame: 1).index, 1)
+        XCTAssertEqual(try ntsc30.sample(atTimelineFrame: 24).index, 29)
+        XCTAssertEqual(try ntsc30.sample(atTimelineFrame: 48).index, 59)
+
+        let ntsc60 = try index((0..<120).map {
+            NativeVideoTimestamp(value: Int64($0) * 1001, timescale: 60_000)
+        }, duration: .init(value: 2002, timescale: 1000))
+        XCTAssertEqual(try ntsc60.sample(atTimelineFrame: 1).index, 2)
+        XCTAssertEqual(try ntsc60.sample(atTimelineFrame: 24).index, 59)
+    }
+
     func testMissingOrInvalidPresentationTimesFailClosed() throws {
         XCTAssertThrowsError(try index([], duration: .init(value: 1, timescale: 1)))
         XCTAssertThrowsError(try index([.init(value: -1, timescale: 24)],
