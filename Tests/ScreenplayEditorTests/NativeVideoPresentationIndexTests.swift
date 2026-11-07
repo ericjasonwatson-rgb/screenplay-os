@@ -61,6 +61,31 @@ final class NativeVideoPresentationIndexTests: XCTestCase {
         XCTAssertEqual(try ntsc60.sample(atTimelineFrame: 24).index, 59)
     }
 
+    func testOccurrenceSourceFrameMappingIsBoundToTakeFingerprint() throws {
+        let pts = try index((0..<48).map {
+            NativeVideoTimestamp(value: Int64($0), timescale: 24)
+        }, duration: .init(value: 2, timescale: 1))
+        let clip = NativeAssemblyClip(
+            sceneSpineID: "SC-001", shotID: UUID(), boardFrameID: UUID(),
+            takeID: UUID(), mediaSHA256: digest, mediaPath: "Video Takes/source.mp4",
+            label: "Video occurrence", frameCount: 12, mediaKind: .video,
+            sourceInFrame: 12, sourceFrameLimit: 48)
+        XCTAssertEqual(try pts.sample(for: clip, localFrame: 0).index, 12)
+        XCTAssertEqual(try pts.sample(for: clip, localFrame: 11).index, 23)
+        let split = try NativeAssemblyProject(projectID: UUID(), sceneSpineID: "SC-001",
+            boardRevision: digest, clips: [clip])
+            .splitting(clip.id, afterFrames: 5, newOccurrenceID: UUID())
+        XCTAssertEqual(try pts.sample(for: split.clips[1], localFrame: 0).index, 17)
+
+        var forged = clip
+        forged.mediaSHA256 = String(repeating: "c", count: 64)
+        XCTAssertThrowsError(try pts.sample(for: forged, localFrame: 0))
+        XCTAssertThrowsError(try pts.sample(for: clip, localFrame: 12))
+        forged = clip
+        forged.mediaKind = .stillImage
+        XCTAssertThrowsError(try pts.sample(for: forged, localFrame: 0))
+    }
+
     func testMissingOrInvalidPresentationTimesFailClosed() throws {
         XCTAssertThrowsError(try index([], duration: .init(value: 1, timescale: 1)))
         XCTAssertThrowsError(try index([.init(value: -1, timescale: 24)],
