@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""macOS CI: verify synthetic app packaging and signing fail-closed rules."""
+"""macOS CI: inspect signed-peer requirements and fail-closed reviewer apps."""
 import os
 import pathlib
 import plistlib
@@ -9,48 +9,118 @@ import tempfile
 
 if len(sys.argv) != 2:
     raise SystemExit("usage: reviewer_bundle_smoke.py <swift-build-bin-directory>")
-binary = pathlib.Path(sys.argv[1]) / "ShieldReviewerDemoApp"
+
+build_dir = pathlib.Path(sys.argv[1])
 tool = pathlib.Path(__file__).with_name("package_reviewer_app.py")
-bundle_id = "com.creativeipshield.reviewer.validation"
 team = "AB12345678"
+reviewer = "com.creativeipshield.reviewer.validation"
+agent = "com.creativeipshield.agent.validation"
+helper = "com.creativeipshield.helper.validation"
+agent_mach = "com.creativeipshield.agentservice.validation"
+reviewer_mach = "com.creativeipshield.reviewservice.validation"
 
 
-def call(*args):
-    return subprocess.run([str(x) for x in args],
-                          capture_output=True, text=True, timeout=30)
+def call(*args, timeout=30):
+    return subprocess.run(list(map(str, args)), text=True,
+                          capture_output=True, timeout=timeout)
 
 
-def denied(result, reason):
-    assert result.returncode != 0, "Unexpectedly accepted " + reason
+def assert_denied(result, reason):
+    if result.returncode == 0:
+        raise AssertionError("Unexpectedly accepted: " + reason)
 
 
-with tempfile.TemporaryDirectory(prefix="cips-reviewer-ci-",
-                                 dir=str(pathlib.Path.home().resolve())) as temp:
-    app = pathlib.Path(temp) / "Reviewer.app"
-    common = ("--app", app, "--bundle-id", bundle_id)
-    first = call(sys.executable, tool, "assemble", "--binary", binary, *common)
-    assert first.returncode == 0, first.stderr
-    assert first.stdout.strip() == "ASSEMBLED_UNSIGNED_SYNTHETIC_REVIEWER_APP"
-    with (app / "Contents" / "Info.plist").open("rb") as stream:
-        metadata = plistlib.load(stream)
-    assert metadata["CFBundleIdentifier"] == bundle_id
-    assert metadata["CIPSValidationOnly"] is True
-    assert metadata["CIPSNoRealApprovalOrEgress"] is True
-    assert metadata["CFBundleExecutable"] == "ShieldReviewerDemoApp"
-    assert call("plutil", "-lint", app / "Contents" / "Info.plist").returncode == 0
-    denied(call(sys.executable, tool, "assemble", "--binary", binary, *common),
-           "overwrite of an existing bundle")
-    verification = (sys.executable, tool, "verify-release",
-                    *common, "--team-id", team)
-    denied(call(*verification), "unsigned bundle")
-    denied(call(sys.executable, tool, "sign-release", *common,
-                "--team-id", team, "--identity", "-"),
-           "ad-hoc release signing identity")
-    # CI intentionally gives the SYNTHETIC bundle an ad-hoc signature;
-    # this is not a valid Developer ID Application signature.
-    signed = call("codesign", "--force", "--sign", "-", "--timestamp=none", app)
-    assert signed.returncode == 0, signed.stderr
-    assert call("codesign", "--verify", "--strict", app).returncode == 0
-    denied(call(*verification), "ad-hoc signed bundle")
+with tempfile.TemporaryDirectory(prefix="cips-reviewer-signing-",
+                                 dir=str(pathlib.Path.home().resolve())) as directory:
+    root = pathlib.Path(directory)
+    os.chmod(root, 0o700)
+    demo = root / "DemoReviewer.app"
+    candidate = root / "CandidateReviewer.app"
+    common = ("--bundle-id", reviewer)
+    valid_candidate_config = (
+        *common, "--team-id", team,
+        "--agent-bundle-id", agent,
+        "--helper-bundle-id", helper,
+        "--agent-mach-service", agent_mach,
+        "--reviewer-mach-service", reviewer_mach
+    )
+    demo_build = call(sys.executable, tool, "assemble",
+                      "--binary", build_dir / "ShieldReviewerDemoApp",
+                      "--app", demo, *common)
+    assert demo_build.returncode == 0, demo_build.stderr
+    assert demo_build.stdout.strip() == "ASSEMBLED_UNSIGNED_SYNTHETIC_REVIEWER_APP"
 
-print("PASS: reviewer .app assembled; unsigned and ad-hoc release identities denied")
+    candidate_build = call(
+        sys.executable, tool, "assemble-candidate",
+        "--binary", build_dir / "ShieldReviewerCandidateApp",
+        "--app", candidate, *valid_candidate_config
+    )
+    assert candidate_build.returncode == 0, candidate_build.stderr
+    assert candidate_build.stdout.strip() == "ASSEMBLED_UNSIGNED_FAIL_CLOSED_REVIEWER_CANDIDATE"
+
+    with (candidate / "Contents" / "Info.plist").open("rb") as stream:
+        data = plistlib.load(stream)
+    assert data["CFBundleIdentifier"] == reviewer
+    assert data["CIPSReviewerBundleID"] == reviewer
+    assert data["CIPSTeamID"] == team
+    assert data["CIPSReviewerCandidate"] is True
+    assert data["CIPSValidationOnly"] is True
+    assert data["CIPSNoRealApprovalOrEgress"] is True
+    assert data["CFBundleExecutable"] == "ShieldReviewerCandidateApp"
+    for app in (demo, candidate):
+        check = call("plutil", "-lint", app / "Contents" / "Info.plist")
+        assert check.returncode == 0, check.stderr
+
+    assert_denied(call(sys.executable, tool, "assemble",
+                       "--binary", build_dir / "ShieldReviewerDemoApp",
+                       "--app", demo, *common),
+                  "overwriting synthetic demo")
+    assert_denied(call(sys.executable, tool, "assemble-candidate",
+                       "--binary", build_dir / "ShieldReviewerCandidateApp",
+                       "--app", candidate, *valid_candidate_config),
+                  "overwriting candidate")
+    assert_denied(call(sys.executable, tool, "assemble-candidate",
+                       "--binary", build_dir / "ShieldReviewerCandidateApp",
+                       "--app", root / "Invalid.app", *common,
+                       "--team-id", team,
+                       "--agent-bundle-id", reviewer,
+                       "--helper-bundle-id", helper,
+                       "--agent-mach-service", agent_mach,
+                       "--reviewer-mach-service", reviewer_mach),
+                  "agent impersonating reviewer bundle")
+
+    # Mac's code signing requirement parser must accept the strict Developer
+    # ID Application OID expression, not merely reject an invalid expression.
+    from package_reviewer_app import developer_id_requirement
+    expression = developer_id_requirement(reviewer, team)
+    assert "certificate 1[field.1.2.840.113635.100.6.2.6] exists" in expression
+    assert "certificate leaf[field.1.2.840.113635.100.6.1.13] exists" in expression
+    assert 'certificate leaf[subject.OU] = "' + team + '"' in expression
+    compiled = call("csreq", "-r", expression, "-b", root / "developer-id-requirement.bin")
+    assert compiled.returncode == 0, compiled.stderr
+
+    for app in (demo, candidate):
+        verify = (sys.executable, tool, "verify-release",
+                  "--app", app, *common, "--team-id", team)
+        assert_denied(call(*verify), "unsigned reviewer bundle")
+        assert_denied(call(sys.executable, tool, "sign-release",
+                           "--app", app, *common, "--team-id", team,
+                           "--identity", "-"), "ad-hoc release identity")
+        signed = call("codesign", "--force", "--sign", "-",
+                      "--timestamp=none", app)
+        assert signed.returncode == 0, signed.stderr
+        assert call("codesign", "--verify", "--strict", app).returncode == 0
+        assert_denied(call(*verify), "ad-hoc signed reviewer bundle")
+
+    # The candidate's actual executable must fail at signing preflight before
+    # displaying a UI, opening Keychain or prompting for authentication.
+    candidate_bin = candidate / "Contents" / "MacOS" / "ShieldReviewerCandidateApp"
+    launched = call(candidate_bin, timeout=8)
+    assert launched.returncode == 78, (
+        f"ad-hoc candidate exit={launched.returncode} "
+        f"stdout={launched.stdout!r} stderr={launched.stderr!r}"
+    )
+    assert "not trusted" in launched.stderr or "missing signed" in launched.stderr
+
+print("PASS: Developer ID OID requirements parse; synthetic/candidate .app "
+      "assembled; unsigned/ad-hoc release and candidate startup rejected")
