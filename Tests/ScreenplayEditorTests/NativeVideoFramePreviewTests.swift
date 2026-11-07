@@ -75,9 +75,9 @@ final class NativeVideoFramePreviewTests: XCTestCase {
         let afterSplit = try await NativeVideoFramePreview.preview(
             right, localFrame: 0, screenplayURL: screenplay)
         XCTAssertEqual(afterSplit.requestedFrame, 24)
-        XCTAssertEqual(hash(afterSplit.pngData), hash(
-            try await NativeVideoFramePreview.preview(
-                imported, localFrame: 24, screenplayURL: screenplay).pngData))
+        let sameTimestamp = try await NativeVideoFramePreview.preview(
+            imported, localFrame: 24, screenplayURL: screenplay)
+        XCTAssertEqual(hash(afterSplit.pngData), hash(sameTimestamp.pngData))
 
         do {
             _ = try await NativeVideoFramePreview.preview(
