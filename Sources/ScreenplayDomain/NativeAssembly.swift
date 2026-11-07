@@ -223,6 +223,17 @@ public enum NativeAssemblyFileStore {
         let data = try encoder.encode(project)
         guard data.count <= maximumBytes else { throw NativeAssemblyError.invalidFile }
         let manager = FileManager.default
+        // Do not follow an attacker-controlled sidecar directory symlink.
+        var existingParent = url.deletingLastPathComponent()
+        while !manager.fileExists(atPath: existingParent.path) {
+            let next = existingParent.deletingLastPathComponent()
+            guard next.path != existingParent.path else { throw NativeAssemblyError.invalidFile }
+            existingParent = next
+        }
+        let parent = try existingParent.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        guard parent.isDirectory == true, parent.isSymbolicLink != true else {
+            throw NativeAssemblyError.invalidFile
+        }
         if manager.fileExists(atPath: url.path) {
             let value = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
             guard value.isRegularFile == true, value.isSymbolicLink != true else {
@@ -232,6 +243,10 @@ public enum NativeAssemblyFileStore {
         try manager.createDirectory(at: url.deletingLastPathComponent(),
                                     withIntermediateDirectories: true,
                                     attributes: [.posixPermissions: 0o700])
+        guard url.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL ==
+              url.deletingLastPathComponent().standardizedFileURL else {
+            throw NativeAssemblyError.invalidFile
+        }
         try data.write(to: url, options: [.atomic])
         try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
