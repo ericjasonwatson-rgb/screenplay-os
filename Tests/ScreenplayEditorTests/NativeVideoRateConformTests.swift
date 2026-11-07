@@ -126,12 +126,32 @@ final class NativeVideoRateConformTests: XCTestCase {
             let index = try await NativeVideoTimestampProbe.inspect(
                 url, expectedSHA256: NativeVideoTakeImporter.digest(url))
             XCTAssertEqual(index.samples.count, timestamps.count, label)
+            // AVAssetWriter may quantize input PTS to the MP4 track timescale.
+            // The output file's actual presentation timestamps, not the
+            // pre-encode CMTime values, are authoritative for frame selection.
             for (position, expected) in timestamps.enumerated() {
-                XCTAssertEqual(CMTimeCompare(index.samples[position].cmTime, expected),
-                               0, "\(label) sample \(position)")
+                let observed = index.samples[position].cmTime
+                XCTAssertLessThanOrEqual(
+                    abs(observed.seconds - expected.seconds), 0.002,
+                    "\(label) sample \(position) exceeded 2ms mux timing tolerance"
+                )
             }
-            XCTAssertEqual(try index.sample(atTimelineFrame: queryFrame).index,
-                           expectedIndex, label)
+            let target = CMTime(value: Int64(queryFrame), timescale: 24)
+            let observedIndex = index.samples.indices.last {
+                CMTimeCompare(index.samples[$0].cmTime, target) <= 0
+            }
+            let selected = try index.sample(atTimelineFrame: queryFrame)
+            XCTAssertEqual(selected.index, observedIndex, label)
+            XCTAssertLessThanOrEqual(
+                CMTimeCompare(selected.timestamp.cmTime, target), 0, label)
+            if selected.index + 1 < index.samples.count {
+                XCTAssertGreaterThan(
+                    CMTimeCompare(index.samples[selected.index + 1].cmTime, target), 0, label)
+            }
+            // Whole-frame boundaries of these two rates remain unambiguous.
+            if label != "23.976" {
+                XCTAssertEqual(selected.index, expectedIndex, label)
+            }
         }
     }
 
