@@ -92,6 +92,20 @@ final class NativeAssemblyTests: XCTestCase {
         XCTAssertTrue(assembled.isCurrent(with: initial))
     }
 
+    func testSceneBoardRevisionStableWhenStorageArrayIsReordered() throws {
+        let initial = boards()
+        let assembled = try NativeAssemblyProject.assemble(
+            projectID: UUID(), sceneSpineID: "SC-001", boards: initial.reversed())
+        XCTAssertTrue(assembled.isCurrent(with: initial))
+        XCTAssertTrue(assembled.isCurrent(with: initial.reversed()))
+        var changed = initial
+        changed[0].frameNumber = 99
+        XCTAssertFalse(assembled.isCurrent(with: changed))
+        var empty = assembled
+        empty.clips = []
+        XCTAssertThrowsError(try empty.validated())
+    }
+
     func testRefusesSymlinkedSidecarDirectory() throws {
         let project = try NativeAssemblyProject.assemble(
             projectID: UUID(), sceneSpineID: "SC-001", boards: boards())
