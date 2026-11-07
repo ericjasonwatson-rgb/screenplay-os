@@ -96,7 +96,7 @@ with tempfile.TemporaryDirectory(prefix="cips-reviewer-signing-",
     assert "certificate 1[field.1.2.840.113635.100.6.2.6] exists" in expression
     assert "certificate leaf[field.1.2.840.113635.100.6.1.13] exists" in expression
     assert 'certificate leaf[subject.OU] = "' + team + '"' in expression
-    compiled = call("csreq", "-r", expression, "-b", root / "developer-id-requirement.bin")
+    compiled = call("csreq", "-r", "=" + expression, "-b", root / "developer-id-requirement.bin")
     assert compiled.returncode == 0, compiled.stderr
 
     for app in (demo, candidate):
