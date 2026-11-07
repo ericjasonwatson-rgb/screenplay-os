@@ -216,6 +216,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     /// The original occurrence retains its ID on the left side.
     public func splitting(_ id: UUID, afterFrames: Int,
                           newOccurrenceID: UUID = UUID()) throws -> NativeAssemblyProject {
+        _ = try validated()
         guard let index = clips.firstIndex(where: { $0.id == id }) else { throw NativeAssemblyError.unknownClip }
         guard afterFrames > 0, afterFrames < clips[index].frameCount,
               !clips.contains(where: { $0.id == newOccurrenceID }) else { throw NativeAssemblyError.invalidEdit }
@@ -230,6 +231,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     }
 
     public func trimming(_ id: UUID, toFrames newCount: Int) throws -> NativeAssemblyProject {
+        _ = try validated()
         guard let index = clips.firstIndex(where: { $0.id == id }) else { throw NativeAssemblyError.unknownClip }
         guard newCount > 0, newCount <= Self.maximumFrames else { throw NativeAssemblyError.invalidEdit }
         var result = self
@@ -240,6 +242,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     /// Head trim advances video media in-point. Still-image head trims only
     /// shorten the held image, so no fictitious source time is created.
     public func trimmingHead(_ id: UUID, byFrames count: Int) throws -> NativeAssemblyProject {
+        _ = try validated()
         guard let index = clips.firstIndex(where: { $0.id == id }) else {
             throw NativeAssemblyError.unknownClip
         }
@@ -258,6 +261,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     /// occurrence. Its identity and shot/board association are never inferred.
     public func insertingVideoTake(_ clip: NativeAssemblyClip,
                                    after occurrenceID: UUID) throws -> NativeAssemblyProject {
+        _ = try validated()
         guard let index = clips.firstIndex(where: { $0.id == occurrenceID }) else {
             throw NativeAssemblyError.unknownClip
         }
@@ -273,6 +277,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     }
 
     public func moving(_ id: UUID, by offset: Int) throws -> NativeAssemblyProject {
+        _ = try validated()
         guard let index = clips.firstIndex(where: { $0.id == id }) else { throw NativeAssemblyError.unknownClip }
         let destination = index + offset
         guard clips.indices.contains(destination) else { throw NativeAssemblyError.invalidEdit }
@@ -283,6 +288,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     }
 
     public func duplicating(_ id: UUID, newOccurrenceID: UUID = UUID()) throws -> NativeAssemblyProject {
+        _ = try validated()
         guard let index = clips.firstIndex(where: { $0.id == id }) else { throw NativeAssemblyError.unknownClip }
         guard !clips.contains(where: { $0.id == newOccurrenceID }) else { throw NativeAssemblyError.invalidEdit }
         var result = self
