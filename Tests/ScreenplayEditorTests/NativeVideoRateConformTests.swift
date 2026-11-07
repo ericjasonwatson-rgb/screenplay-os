@@ -137,8 +137,11 @@ final class NativeVideoRateConformTests: XCTestCase {
                 )
             }
             let target = CMTime(value: Int64(queryFrame), timescale: 24)
-            let observedIndex = index.samples.indices.last {
+            guard let observedIndex = index.samples.indices.last(where: {
                 CMTimeCompare(index.samples[$0].cmTime, target) <= 0
+            }) else {
+                XCTFail("\(label) missing a source presentation at or before the edit time")
+                continue
             }
             let selected = try index.sample(atTimelineFrame: queryFrame)
             XCTAssertEqual(selected.index, observedIndex, label)
