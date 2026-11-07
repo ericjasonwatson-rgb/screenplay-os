@@ -17,7 +17,8 @@ let package = Package(
         .executable(name: "ShieldXPCProbeServer", targets: ["ShieldXPCProbeServer"]),
         .executable(name: "ShieldXPCProbeClient", targets: ["ShieldXPCProbeClient"]),
         .executable(name: "ShieldDurableApprovalFixture", targets: ["ShieldDurableApprovalFixture"]),
-        .executable(name: "ShieldReviewerDemoApp", targets: ["ShieldReviewerDemoApp"])
+        .executable(name: "ShieldReviewerDemoApp", targets: ["ShieldReviewerDemoApp"]),
+        .executable(name: "ShieldReviewerCandidateApp", targets: ["ShieldReviewerCandidateApp"])
     ],
     targets: [
         .target(name: "ShieldNativeContract"),
@@ -33,6 +34,7 @@ let package = Package(
         .executableTarget(name: "ShieldXPCProbeClient", dependencies: ["ShieldMacXPCInterfaces"]),
         .executableTarget(name: "ShieldDurableApprovalFixture", dependencies: ["ShieldDurableApproval", "ShieldApprovalContract", "ShieldApprovalVerification"]),
         .executableTarget(name: "ShieldReviewerDemoApp", dependencies: ["ShieldReviewerReview", "ShieldApprovalContract"]),
+        .executableTarget(name: "ShieldReviewerCandidateApp", dependencies: ["ShieldReviewerKeychain", "ShieldNativeContract"]),
         .testTarget(name: "ShieldNativeContractTests", dependencies: ["ShieldNativeContract"]),
         .testTarget(name: "ShieldReviewerKeychainTests", dependencies: ["ShieldReviewerKeychain", "ShieldNativeContract"]),
         .testTarget(name: "ShieldReviewerSigningTests", dependencies: ["ShieldReviewerKeychain", "ShieldReviewerReview", "ShieldApprovalContract", "ShieldNativeContract", "ShieldApprovalVerification"]),
