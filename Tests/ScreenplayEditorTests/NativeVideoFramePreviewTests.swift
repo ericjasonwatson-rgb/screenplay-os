@@ -29,6 +29,30 @@ final class NativeVideoFramePreviewTests: XCTestCase {
         SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
 
+    func testRefusesSymlinkedVideoTakesDirectoryBeforeDecode() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let elsewhere = root.appendingPathComponent("external", isDirectory: true)
+        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        try Data("not a video".utf8).write(to: elsewhere.appendingPathComponent("fake.mp4"))
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("Video Takes", isDirectory: true),
+            withDestinationURL: elsewhere)
+        let clip = NativeAssemblyClip(sceneSpineID: "SC-001", shotID: UUID(),
+            boardFrameID: UUID(), takeID: UUID(),
+            mediaSHA256: String(repeating: "a", count: 64),
+            mediaPath: "Video Takes/fake.mp4", label: "Unsafe",
+            frameCount: 1, mediaKind: .video,
+            sourceInFrame: 0, sourceFrameLimit: 1)
+        do {
+            _ = try await NativeVideoFramePreview.preview(
+                clip, localFrame: 0,
+                screenplayURL: root.appendingPathComponent("Synthetic.screenplayos.json"))
+            XCTFail("A symlinked video directory must not be accepted")
+        } catch NativeVideoFramePreview.Failure.unsafeMedia {}
+    }
+
     func testScrubReturnsTwoDistinctSourceFramesAndRejectsTampering() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
