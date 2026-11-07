@@ -23,7 +23,7 @@ struct ScreenplayOSApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: NativeDocumentWindow.sceneID) {
             ContentView(model: model)
                 .sheet(isPresented: $model.campaignPresented) {
                     if let projectID = model.document?.project.id {
@@ -32,6 +32,10 @@ struct ScreenplayOSApp: App {
                 }
                 .onAppear { appDelegate.model = model; model.enablePackageWindows() }
                 .background(DocumentCloseGuard(model: model))
+                .background(NativeDocumentWindow(model: model, opening: appDelegate.nativeDocumentOpening))
+                .safeAreaInset(edge: .bottom) {
+                    NativeDocumentOpenNotice(opening: appDelegate.nativeDocumentOpening)
+                }
                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
         }
         .defaultSize(width: 1200, height: 760)
@@ -49,18 +53,23 @@ struct ScreenplayOSApp: App {
             CommandGroup(replacing: .newItem) {
                 Group {
                     Button("New Screenplay") {
+                        appDelegate.nativeDocumentOpening.cancelPendingRequest()
                         model.newDocument()
                     }
                     .keyboardShortcut("n", modifiers: [.command])
                     .help("Start a screenplay with Outline, Script, Shot, Boards, and Edit.")
 
                     Menu("Experimental Features") {
-                        Button("New Writing-Only Screenplay", action: model.newPackage)
+                        Button("New Writing-Only Screenplay") {
+                            appDelegate.nativeDocumentOpening.cancelPendingRequest()
+                            model.newPackage()
+                        }
                             .keyboardShortcut("n", modifiers: [.command, .shift])
                             .help("Creates a separate writing-only document. Outline, Shot, Boards, Edit, and title-page editing are not available in this editor.")
                     }
 
                     Button("Open...") {
+                        appDelegate.nativeDocumentOpening.cancelPendingRequest()
                         model.showOpenPanel()
                     }
                     .keyboardShortcut("o", modifiers: [.command])
@@ -68,6 +77,7 @@ struct ScreenplayOSApp: App {
                     Menu("Recover Unsaved Draft") {
                         ForEach(model.recoveryCopies) { copy in
                             Button("\(copy.title) — \(copy.savedAt.formatted())") {
+                                appDelegate.nativeDocumentOpening.cancelPendingRequest()
                                 model.openRecoveryCopy(copy)
                             }
                         }
@@ -77,7 +87,10 @@ struct ScreenplayOSApp: App {
                     Menu("Recover Package Edits") {
                         Button("Refresh Recovery List", action: model.refreshPackageRecoveries)
                         ForEach(model.packageRecoveries) { record in
-                            Button("\(record.title) — \(record.savedAt.formatted())") { model.openPackageRecovery(record) }
+                            Button("\(record.title) — \(record.savedAt.formatted())") {
+                                appDelegate.nativeDocumentOpening.cancelPendingRequest()
+                                model.openPackageRecovery(record)
+                            }
                         }
                     }
                     Menu("Open Recent") {
@@ -86,6 +99,7 @@ struct ScreenplayOSApp: App {
                         } else {
                             ForEach(model.recentDocuments) { recent in
                                 Button(recent.name) {
+                                    appDelegate.nativeDocumentOpening.cancelPendingRequest()
                                     model.openDocument(at: recent.url)
                                 }
                             }
@@ -477,9 +491,18 @@ struct ScreenplayOSApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var model: ScreenplayViewModel?
+    let nativeDocumentOpening = NativeDocumentOpening()
+    weak var model: ScreenplayViewModel? {
+        didSet { nativeDocumentOpening.bind(model) }
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        nativeDocumentOpening.open(urls)
+    }
+
     private var terminationApproved = false
     func requestQuit() {
+        nativeDocumentOpening.cancelPendingRequest()
         guard model?.confirmSafeClose() != false else { return }
         terminationApproved = true
         // Dismiss any read-only preview only after every editor and the legacy draft approve termination.

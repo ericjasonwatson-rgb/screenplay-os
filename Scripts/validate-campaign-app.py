@@ -29,6 +29,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 
 REPO = Path(__file__).resolve().parents[1]
 RESOURCE_SOURCES = {
@@ -47,6 +48,8 @@ LIMITATIONS = [
     "No installation, publication, accounts, live providers, or user documents are supplied or modified. Normal GUI startup may create blank documents/preferences on the disposable runner.",
     "Resource probe compiles unchanged production Commerce.swift plus the actual generated SwiftPM accessor; it is not a shipping app command.",
     "A window smoke test is startup evidence only, not interactive Campaign workflow or visual-quality acceptance.",
+    "Native-open evidence uses OS document events, exact process/window metadata, and the existing post-decode recent-document preference. It does not inspect rendered content or prove keyboard, selection, Undo, or physical-user acceptance.",
+    "Native-open negative controls observe a bounded interval; synthetic source bytes are checked unchanged. Disposable-runner preferences may retain temporary paths after cleanup.",
     "No Accessibility/Screen Recording permission, screenshot, Gatekeeper bypass, or existing-app termination is used.",
     "Missing/malformed pricing probes intentionally fail with production fatal errors; macOS may create diagnostic reports for these disposable probes.",
 ]
@@ -93,14 +96,14 @@ def check_launch_permission(enabled: bool, env: dict[str, str]) -> None:
                 "GUI launch requires GITHUB_ACTIONS=true and RUNNER_ENVIRONMENT=github-hosted on a disposable hosted runner.")
 
 
-def stop_command_tree(process: subprocess.Popen) -> None:
+def stop_command_tree(process: subprocess.Popen, *, grace=5) -> None:
     """Terminate only a new session created for this command and its children."""
     try:
         os.killpg(process.pid, signal.SIGTERM)
     except ProcessLookupError:
         pass
     try:
-        process.wait(timeout=5)
+        process.wait(timeout=grace)
     except subprocess.TimeoutExpired:
         pass
     # The leader may exit before a compiler descendant. Reap the entire owned
@@ -118,7 +121,8 @@ class Runner:
         self.evidence = evidence
         self.last_returncode = None
 
-    def run(self, args, *, cwd=None, env=None, timeout=120, allowed=(0,), include_output=False):
+    def run(self, args, *, cwd=None, env=None, timeout=120, allowed=(0,), include_output=False,
+            termination_grace=5):
         args = [str(arg) for arg in args]
         started = time.monotonic()
         print("Checking: " + " ".join(args), flush=True)
@@ -132,10 +136,10 @@ class Runner:
                 process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
                 timed_out = True
-                stop_command_tree(process)
+                stop_command_tree(process, grace=termination_grace)
             except KeyboardInterrupt:
                 interrupted = True
-                stop_command_tree(process)
+                stop_command_tree(process, grace=termination_grace)
             self.last_returncode = process.returncode
             log.seek(0)
             digest = hashlib.sha256()
@@ -445,6 +449,115 @@ def launch_smoke(app: Path, window_probe: Path, runner: Runner, *, timeout=30) -
     return result
 
 
+NATIVE_OPEN_INPUTS = (
+    "cold.screenplayos.json", "warm.screenplayos.json", "multi-a.screenplayos.json",
+    "multi-b.screenplayos.json", "unsupported.txt", "malformed.screenplayos.json",
+)
+NATIVE_OPEN_CASES = {
+    "coldOpen": (1, 1), "warmOpen": (1, 1), "repeatSameFile": (1, 1),
+    "multipleURLsRejected": (2, 0), "unsupportedRejected": (1, 0), "malformedRejected": (1, 0),
+}
+
+
+def make_native_open_inputs(root: Path) -> dict[str, str]:
+    """Fresh minimal native documents, independent of private/pilot fixtures."""
+    root.mkdir(mode=0o700)  # Never reuse inputs or their recent-document paths.
+    for name in NATIVE_OPEN_INPUTS:
+        path = root / name
+        if name == "malformed.screenplayos.json":
+            data = b'{"format": "screenplayos", invalid JSON\n'
+        else:
+            screenplay_id = str(uuid.uuid4()).upper()
+            document = {
+                "format": "screenplayos", "format_version": "1.0",
+                "project": {"id": str(uuid.uuid4()).upper(), "screenplay_id": screenplay_id,
+                    "metadata": {"title": "Synthetic native-open check", "author": "",
+                        "created_at": "2026-01-01T00:00:00Z", "modified_at": "2026-01-01T00:00:00Z"}},
+                "screenplay": {"id": screenplay_id, "metadata": {"title": "Synthetic native-open check"},
+                    "elements": [{"id": str(uuid.uuid4()).upper(), "type": "action",
+                        "text": "A blank ticket rests beside a fictional receipt printer.", "external_ids": {}}],
+                    "revision": 0, "revision_settings": {"mode_enabled": False,
+                        "label": "Blue Revision", "color": "blue"}},
+            }
+            data = (json.dumps(document, sort_keys=True, indent=2) + "\n").encode()
+        with path.open("xb") as stream:
+            stream.write(data)
+        path.chmod(0o600)
+    return {name: sha256(root / name) for name in NATIVE_OPEN_INPUTS}
+
+
+def verify_native_open_output(output: str, app: Path) -> dict:
+    """Fail closed: a workspace completion callback alone is never a load pass."""
+    try:
+        result = json.loads(output)
+    except (ValueError, TypeError) as error:
+        raise ValidationError("Native-open probe returned invalid JSON evidence.") from error
+    fields = {"schemaVersion", "status", "appPath", "executablePath", "pid",
+              "initialRecentInputsAbsent", "scenarios", "cleanup"}
+    require(isinstance(result, dict) and set(result) == fields, "Native-open evidence fields are not allowlisted.")
+    require(type(result["schemaVersion"]) is int and result["schemaVersion"] == 1
+            and result["status"] == "passed", "Native-open probe did not pass.")
+    require(result["appPath"] == str(app.resolve())
+            and result["executablePath"] == str((app / "Contents/MacOS/ScreenplayOS").resolve()),
+            "Native-open probe used a different app or executable.")
+    pid = result["pid"]
+    require(type(pid) is int and pid > 0, "Native-open process identity is invalid.")
+    require(result["initialRecentInputsAbsent"] is True, "Native-open inputs were not proven absent from recents.")
+    cases = result["scenarios"]
+    require(isinstance(cases, dict) and set(cases) == set(NATIVE_OPEN_CASES), "Native-open scenarios are incomplete.")
+    case_fields = {"status", "pid", "requestedURLCount", "workspaceCompletionReceived",
+                   "executableMatches", "finishedLaunching", "mainWindowIDs", "recentFirstMatches",
+                   "matchingRecentURLCount", "rejectedURLsAbsent", "stableObservationSeconds"}
+    main_windows = None
+    for name, (request_count, recent_count) in NATIVE_OPEN_CASES.items():
+        case = cases[name]
+        require(isinstance(case, dict) and set(case) == case_fields, f"Native-open scenario fields are not allowlisted: {name}")
+        require(case["status"] == "passed" and type(case["pid"]) is int and case["pid"] == pid,
+                f"Native-open scenario changed process: {name}")
+        for key in ("workspaceCompletionReceived", "executableMatches", "finishedLaunching",
+                    "recentFirstMatches", "rejectedURLsAbsent"):
+            require(case[key] is True, f"Native-open scenario lacks {key}: {name}")
+        require(type(case["requestedURLCount"]) is int and case["requestedURLCount"] == request_count
+                and type(case["matchingRecentURLCount"]) is int and case["matchingRecentURLCount"] == recent_count,
+                f"Native-open scenario did not prove its requested/rejected URL state: {name}")
+        windows = case["mainWindowIDs"]
+        require(isinstance(windows, list) and len(windows) == 1 and type(windows[0]) is int and windows[0] > 0,
+                f"Native-open scenario lacks one visible main window: {name}")
+        if main_windows is None:
+            main_windows = windows
+        require(windows == main_windows, f"Native-open scenario replaced the main window: {name}")
+        duration = case["stableObservationSeconds"]
+        require(type(duration) in (int, float) and 2 <= duration <= 35,
+                f"Native-open scenario lacks bounded stable observation: {name}")
+    cleanup = result["cleanup"]
+    require(isinstance(cleanup, dict) and set(cleanup) == {"status", "pid", "executableMatches", "terminated", "forceTerminationUsed"},
+            "Native-open cleanup evidence is not allowlisted.")
+    require(cleanup["status"] == "passed" and type(cleanup["pid"]) is int and cleanup["pid"] == pid
+            and cleanup["executableMatches"] is True and cleanup["terminated"] is True
+            and type(cleanup["forceTerminationUsed"]) is bool, "Native-open owned app was not safely terminated.")
+    return result
+
+
+def native_open_smoke(app: Path, probe: Path, root: Path, runner: Runner, result: dict) -> None:
+    check_launch_permission(True, dict(os.environ))
+    inputs = root / "native-open-inputs"
+    before = make_native_open_inputs(inputs)
+    result.update(status="failed", inputSHA256=before, sourceBytesUnchanged=False,
+                  evidenceScope="OS-native-open-loaded-model-route; not rendered-content or physical-user acceptance")
+    try:
+        # This helper owns the NSWorkspace-launched instance, not the Python
+        # process group. Give its signal handler time to verify/stop that exact
+        # instance before Runner can escalate termination of the helper itself.
+        output = runner.run([probe, app, inputs], cwd=root, timeout=240, termination_grace=10)
+        result["probe"] = verify_native_open_output(output, app)
+    finally:
+        unchanged = all((inputs / name).is_file() and not (inputs / name).is_symlink()
+                        and sha256(inputs / name) == digest for name, digest in before.items())
+        result["sourceBytesUnchanged"] = unchanged
+        require(unchanged, "Native-open changed or removed a synthetic source file.")
+    result["status"] = "passed"
+
+
 def validate(repo: Path, architecture: str, launch: bool, evidence: dict) -> None:
     check_launch_permission(launch, dict(os.environ))
     require(platform.system() == "Darwin", "Real .app validation requires macOS and Xcode; portable tests do not substitute for this gate.")
@@ -484,10 +597,14 @@ def validate(repo: Path, architecture: str, launch: bool, evidence: dict) -> Non
         expected = root / "expected-pricing.json"
         shutil.copyfile(repo / RESOURCE_SOURCES["pricing.json"], expected)
         window_probe = root / "window-probe"
+        native_open_probe = root / "native-open-probe"
         if launch:
             runner.run(["xcrun", "swiftc", "-O", "-parse-as-library", "-target", native + "-apple-macosx13.0",
                         repo / "Scripts/Packaging/WindowProbe.swift",
                         "-o", window_probe], cwd=root, timeout=120)
+            runner.run(["xcrun", "swiftc", "-O", "-parse-as-library", "-target", native + "-apple-macosx13.0",
+                        repo / "Scripts/Packaging/NativeOpenProbe.swift",
+                        "-o", native_open_probe], cwd=root, timeout=120)
         with hidden_scratch(scratch):
             evidence["runtimePricing"] = {**probe_details,
                 **run_probe(probe, expected, evidence["bundle"]["pricing"], runner, cwd=relocated.parent)}
@@ -495,8 +612,11 @@ def validate(repo: Path, architecture: str, launch: bool, evidence: dict) -> Non
                 probe, expected, root, probe_details["missingBundleFatalPrefix"], runner)
             if launch:
                 evidence["launch"] = launch_smoke(relocated, window_probe, runner)
+                evidence["nativeOpen"] = {"status": "failed"}
+                native_open_smoke(relocated, native_open_probe, root, runner, evidence["nativeOpen"])
             else:
                 evidence["launch"] = {"status": "not_run", "reason": "GUI launch was not opted into on a disposable hosted runner."}
+                evidence["nativeOpen"] = dict(evidence["launch"])
         evidence["scratchRestored"] = scratch.is_dir()
         require(evidence["scratchRestored"], "Owned build tree was not restored.")
         require(git_state(repo, runner) == initial, "Source changed during validation.")
@@ -509,7 +629,7 @@ def main(argv=None) -> int:
     parser.add_argument("--output", required=True, type=Path, help="new evidence directory outside the checkout; parent must exist")
     parser.add_argument("--architecture", choices=("arm64", "x86_64", "universal"),
                         default="arm64" if platform.machine() == "arm64" else "x86_64")
-    parser.add_argument("--launch-on-disposable-runner", action="store_true", help="require a visible app window; GitHub-hosted disposable CI only")
+    parser.add_argument("--launch-on-disposable-runner", action="store_true", help="require window and OS-native-open gates; GitHub-hosted disposable CI only")
     args = parser.parse_args(argv)
     evidence = {"schemaVersion": 1, "status": "failed", "purpose": "local-review-app-validation",
                 "startedAt": datetime.now(timezone.utc).isoformat(), "requestedArchitecture": args.architecture,

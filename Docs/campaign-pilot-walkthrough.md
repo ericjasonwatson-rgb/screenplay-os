@@ -77,9 +77,14 @@ full macOS test/CI matrix separately and record the exact tested commit and resu
 This is a locally compiled, ad-hoc-signed app, not a signed/notarized download.
 No Gatekeeper bypass is part of this guide. If macOS blocks the app, stop and
 record the warning. Do not remove quarantine or disable system protections.
-Launch only this newly built app from Finder. Do not pass a screenplay as an
-`open -a` argument or rely on double-click document routing: this app has no
-file-open delegate for that route. Use its **File > Open...** command instead.
+Launch only this newly built app from Finder. **File > Open...** remains the
+explicit import route. For a saved ScreenplayOS JSON project, Finder's **Open
+With > Other...** can target this exact app bundle; do not change the default
+association or assume a double-click selects this build. Open one project at a
+time. Native document opening uses the existing save/protected-copy reader and
+focuses an already-open file without reloading it. During a Campaign review,
+sheet or picker, it declines the request: finish that work and retry explicitly.
+FDX, PDF, DOCX, text and experimental packages still require **File > Open...**.
 
 The app normally uses its local preferences and Application Support. A separate
 app bundle is **not** a separate app-data sandbox. Use the fresh project below;
@@ -234,10 +239,16 @@ decision. Reviews and reconciliation change evidence links, not past snapshots.
    `pilot-v1-to-v2-summary.txt` in the kit. Do not send it. A report is not an
    approval, quote, automated repricing or schedule promise.
 3. **Close** the Campaign panel and reopen it; check saved fields/history. Close
-   it again, save the screenplay and quit this pilot app. Relaunch the same new
-   app from Finder and choose **File > Open...** to open your pilot screenplay.
+   it again, save the screenplay and quit this pilot app. Open your saved pilot
+   screenplay with Finder's **Open With > Other...**, selecting this exact new
+   app. Confirm the correct project, not just the presence of an app window.
    Open Campaign and check the counts above and the two baselines' decisions.
    Selection/UI state need not persist; select the baselines explicitly.
+   As a separate native-lifecycle check, close Campaign and the main window
+   without quitting. Open the same pilot file into this exact app again. It
+   should recreate the document window and retain the saved campaign history.
+   Record the result; hosted model/window tests do not replace this physical
+   Finder/SwiftUI scene-reopening check.
 4. Choose **Private Backup…** and save a new `pilot-campaign-private-backup.json`
    in the kit. Confirm success. This full ledger includes retained originals,
    reviews, citations, baseline snapshots and historical decisions, so keep it

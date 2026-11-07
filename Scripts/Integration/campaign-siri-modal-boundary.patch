@@ -1,7 +1,7 @@
 diff --git a/Sources/ScreenplayOSApp/ScreenplayOSApp.swift b/Sources/ScreenplayOSApp/ScreenplayOSApp.swift
 --- a/Sources/ScreenplayOSApp/ScreenplayOSApp.swift
 +++ b/Sources/ScreenplayOSApp/ScreenplayOSApp.swift
-@@ -30,7 +30,14 @@
+@@ -30,8 +30,15 @@
                          CampaignWorkspaceView(model: model, projectID: projectID)
                      }
                  }
@@ -15,8 +15,9 @@ diff --git a/Sources/ScreenplayOSApp/ScreenplayOSApp.swift b/Sources/ScreenplayO
 +                    SiriWorkspaceNavigation.consume(model: model)
 +                }
                  .background(DocumentCloseGuard(model: model))
-                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
-         }
+                 .background(NativeDocumentWindow(model: model, opening: appDelegate.nativeDocumentOpening))
+                 .safeAreaInset(edge: .bottom) {
+                     NativeDocumentOpenNotice(opening: appDelegate.nativeDocumentOpening)
 diff --git a/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift b/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift
 --- a/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift
 +++ b/Sources/ScreenplayOSApp/SiriWorkspaceIntents.swift

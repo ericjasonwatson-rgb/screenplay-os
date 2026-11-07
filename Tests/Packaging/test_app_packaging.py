@@ -365,6 +365,195 @@ class AppPackagingTests(unittest.TestCase):
         process.kill.assert_called_once_with()
         self.assertEqual(process.wait.call_count, 2)
 
+    def native_open_evidence(self):
+        pid = 2468
+        return {"schemaVersion": 1, "status": "passed", "appPath": str(self.app.resolve()),
+            "executablePath": str((self.app / "Contents/MacOS/ScreenplayOS").resolve()), "pid": pid,
+            "initialRecentInputsAbsent": True,
+            "scenarios": {name: {"status": "passed", "pid": pid, "requestedURLCount": counts[0],
+                "workspaceCompletionReceived": True, "executableMatches": True, "finishedLaunching": True,
+                "mainWindowIDs": [120], "recentFirstMatches": True, "matchingRecentURLCount": counts[1],
+                "rejectedURLsAbsent": True, "stableObservationSeconds": 2.1}
+                for name, counts in MODULE.NATIVE_OPEN_CASES.items()},
+            "cleanup": {"status": "passed", "pid": pid, "executableMatches": True,
+                "terminated": True, "forceTerminationUsed": False}}
+
+    def test_native_inputs_are_fresh_minimal_synthetic_and_never_overwritten(self):
+        all_ids = set()
+        for attempt in range(2):
+            root = self.root / f"inputs-{attempt}"
+            hashes = MODULE.make_native_open_inputs(root)
+            self.assertEqual(set(hashes), set(MODULE.NATIVE_OPEN_INPUTS))
+            for name, digest in hashes.items():
+                path = root / name
+                self.assertEqual(digest, MODULE.sha256(path))
+                self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+                if name.startswith("malformed"):
+                    with self.assertRaises(ValueError):
+                        json.loads(path.read_bytes())
+                    continue
+                document = json.loads(path.read_bytes())
+                self.assertEqual(document["format"], "screenplayos")
+                self.assertEqual(document["project"]["screenplay_id"], document["screenplay"]["id"])
+                ids = {document["project"]["id"], document["screenplay"]["id"], document["screenplay"]["elements"][0]["id"]}
+                self.assertEqual(len(ids), 3)
+                self.assertFalse(ids & all_ids)
+                all_ids.update(ids)
+            with self.assertRaises(FileExistsError):
+                MODULE.make_native_open_inputs(root)
+            self.assertEqual({name: MODULE.sha256(root / name) for name in hashes}, hashes)
+
+    def test_native_output_requires_all_six_real_route_cases_and_owned_cleanup(self):
+        evidence = self.native_open_evidence()
+        self.assertEqual(MODULE.verify_native_open_output(json.dumps(evidence), self.app), evidence)
+        evidence["cleanup"]["forceTerminationUsed"] = True
+        self.assertEqual(MODULE.verify_native_open_output(json.dumps(evidence), self.app), evidence)
+
+    def test_native_output_rejects_missing_extra_or_wrong_global_evidence(self):
+        for change in (
+            lambda v: v.pop("initialRecentInputsAbsent"),
+            lambda v: v.update(windowTitle="not allowlisted"),
+            lambda v: v.update(schemaVersion=True),
+            lambda v: v.update(status="failed"),
+            lambda v: v.update(pid=True),
+            lambda v: v.update(pid=0),
+            lambda v: v.update(appPath=str(self.root / "another.app")),
+            lambda v: v.update(executablePath="/Applications/ScreenplayOS.app/Contents/MacOS/ScreenplayOS"),
+            lambda v: v.update(initialRecentInputsAbsent=False),
+            lambda v: v["scenarios"].pop("warmOpen"),
+            lambda v: v["scenarios"].update(unexpected={}),
+            lambda v: v["cleanup"].update(pid=9999),
+            lambda v: v["cleanup"].update(terminated=False),
+            lambda v: v["cleanup"].update(executableMatches=False),
+            lambda v: v["cleanup"].update(status="failed"),
+            lambda v: v["cleanup"].update(forceTerminationUsed=1),
+            lambda v: v["cleanup"].update(unexpected=True),
+        ):
+            evidence = self.native_open_evidence()
+            change(evidence)
+            with self.subTest(evidence=evidence), self.assertRaises(MODULE.ValidationError):
+                MODULE.verify_native_open_output(json.dumps(evidence), self.app)
+        for invalid in ("not JSON", "{}", "[]", "null"):
+            with self.subTest(invalid=invalid), self.assertRaises(MODULE.ValidationError):
+                MODULE.verify_native_open_output(invalid, self.app)
+
+    def test_native_completion_without_model_window_or_same_process_is_not_a_pass(self):
+        mutations = {
+            "status": "not_run", "pid": 9999, "requestedURLCount": True,
+            "workspaceCompletionReceived": False, "executableMatches": False,
+            "finishedLaunching": False, "mainWindowIDs": [], "recentFirstMatches": False,
+            "matchingRecentURLCount": 7, "rejectedURLsAbsent": False, "stableObservationSeconds": 0.1,
+        }
+        for name in MODULE.NATIVE_OPEN_CASES:
+            for key, value in mutations.items():
+                evidence = self.native_open_evidence()
+                evidence["scenarios"][name][key] = value
+                with self.subTest(case=name, field=key), self.assertRaises(MODULE.ValidationError):
+                    MODULE.verify_native_open_output(json.dumps(evidence), self.app)
+            evidence = self.native_open_evidence()
+            evidence["scenarios"][name]["windowTitle"] = "not allowlisted"
+            with self.assertRaises(MODULE.ValidationError):
+                MODULE.verify_native_open_output(json.dumps(evidence), self.app)
+
+    def test_native_repeat_cannot_replace_window_or_use_unbounded_observation(self):
+        for key, value in (("mainWindowIDs", [121]), ("mainWindowIDs", [True]),
+                           ("mainWindowIDs", [120, 121]), ("mainWindowIDs", [0]),
+                           ("stableObservationSeconds", True), ("stableObservationSeconds", 40),
+                           ("stableObservationSeconds", float("nan")),
+                           ("stableObservationSeconds", float("inf"))):
+            evidence = self.native_open_evidence()
+            evidence["scenarios"]["repeatSameFile"][key] = value
+            with self.subTest(field=key, value=value), self.assertRaises(MODULE.ValidationError):
+                MODULE.verify_native_open_output(json.dumps(evidence), self.app)
+
+    def test_native_orchestration_uses_temporary_exact_app_and_checks_source_bytes(self):
+        runner = mock.Mock()
+        runner.run.return_value = json.dumps(self.native_open_evidence())
+        result = {}
+        with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"}):
+            MODULE.native_open_smoke(self.app, self.root / "native-probe", self.root, runner, result)
+        self.assertEqual(result["status"], "passed")
+        self.assertIs(result["sourceBytesUnchanged"], True)
+        self.assertEqual(set(result["inputSHA256"]), set(MODULE.NATIVE_OPEN_INPUTS))
+        runner.run.assert_called_once_with([self.root / "native-probe", self.app, self.root / "native-open-inputs"],
+                                          cwd=self.root, timeout=240, termination_grace=10)
+
+    def test_native_orchestration_refuses_nonhosted_before_creating_inputs_or_launching(self):
+        runner = mock.Mock()
+        with mock.patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(MODULE.ValidationError, "disposable"):
+            MODULE.native_open_smoke(self.app, self.root / "native-probe", self.root, runner, {})
+        runner.run.assert_not_called()
+        self.assertFalse((self.root / "native-open-inputs").exists())
+
+    def test_native_source_mutation_fails_even_with_otherwise_passing_output(self):
+        def mutate_source(*args, **kwargs):
+            (self.root / "native-open-inputs/cold.screenplayos.json").write_bytes(b"changed")
+            return json.dumps(self.native_open_evidence())
+        runner = mock.Mock()
+        runner.run.side_effect = mutate_source
+        result = {}
+        with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"}), \
+             self.assertRaisesRegex(MODULE.ValidationError, "changed or removed"):
+            MODULE.native_open_smoke(self.app, self.root / "native-probe", self.root, runner, result)
+        self.assertEqual(result["status"], "failed")
+        self.assertIs(result["sourceBytesUnchanged"], False)
+
+    def test_native_failure_still_verifies_source_preservation(self):
+        runner = mock.Mock()
+        runner.run.side_effect = MODULE.ValidationError("probe timed out")
+        result = {}
+        with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"}), \
+             self.assertRaisesRegex(MODULE.ValidationError, "timed out"):
+            MODULE.native_open_smoke(self.app, self.root / "native-probe", self.root, runner, result)
+        self.assertEqual(result["status"], "failed")
+        self.assertIs(result["sourceBytesUnchanged"], True)
+
+    def test_validation_compiles_and_runs_native_gate_only_with_launch_opt_in(self):
+        for launch in (False, True):
+            evidence = {}
+            runner = mock.Mock()
+            def command(args, **kwargs):
+                if args[0] == "bash":
+                    Path(kwargs["env"]["SCREENPLAYOS_SCRATCH_PATH"]).mkdir()
+                    args[-1].mkdir()
+                return "mock toolchain"
+            runner.run.side_effect = command
+            def native_stage(app, probe, root, run, result):
+                self.assertFalse((root / "build").exists())
+                self.assertTrue((root / "build.hidden").exists())
+                result.update(status="passed")
+            with self.subTest(launch=launch), \
+                 mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"}), \
+                 mock.patch.object(MODULE.platform, "system", return_value="Darwin"), \
+                 mock.patch.object(MODULE.platform, "machine", return_value="arm64"), \
+                 mock.patch.object(MODULE, "Runner", return_value=runner), \
+                 mock.patch.object(MODULE, "git_state", return_value={"head": HEAD, "clean": True}), \
+                 mock.patch.object(MODULE, "verify_bundle", return_value={"pricing": {}}), \
+                 mock.patch.object(MODULE, "verify_native", return_value={}), \
+                 mock.patch.object(MODULE, "negative_resource_checks", return_value={}), \
+                 mock.patch.object(MODULE, "build_probe", return_value=(self.root / "probe", {"missingBundleFatalPrefix": "missing"})), \
+                 mock.patch.object(MODULE, "run_probe", return_value={}), \
+                 mock.patch.object(MODULE, "negative_runtime_checks", return_value={}), \
+                 mock.patch.object(MODULE, "launch_smoke", return_value={"status": "passed"}) as window, \
+                 mock.patch.object(MODULE, "native_open_smoke", side_effect=native_stage) as native:
+                MODULE.validate(self.repo, "arm64", launch, evidence)
+            self.assertEqual(native.call_count, int(launch))
+            self.assertEqual(window.call_count, int(launch))
+            native_compiles = [call for call in runner.run.call_args_list
+                               if self.repo / "Scripts/Packaging/NativeOpenProbe.swift" in call.args[0]]
+            self.assertEqual(len(native_compiles), int(launch))
+            self.assertEqual(evidence["nativeOpen"]["status"], "passed" if launch else "not_run")
+            self.assertIs(evidence["temporaryArtifactsRemoved"], True)
+
+    def test_command_allows_grace_for_helper_owned_launchservices_cleanup(self):
+        process = mock.Mock(pid=4321, returncode=-15)
+        process.wait.side_effect = [subprocess.TimeoutExpired("native-probe", 1), -15, -15]
+        with mock.patch.object(MODULE.subprocess, "Popen", return_value=process), \
+             mock.patch.object(MODULE.os, "killpg"), contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(MODULE.ValidationError):
+                MODULE.Runner({}).run(["native-probe"], timeout=1, termination_grace=10)
+        self.assertEqual(process.wait.call_args_list, [mock.call(timeout=1), mock.call(timeout=10), mock.call(timeout=5)])
+
 
 if __name__ == "__main__":
     unittest.main()
