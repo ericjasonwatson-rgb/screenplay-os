@@ -4,6 +4,11 @@ import Foundation
 /// First-party, image-only assembly model. It does not depend on FilmCraft's
 /// native project format or mutate the screenplay/board source of truth.
 public struct NativeAssemblyClip: Codable, Equatable, Identifiable, Sendable {
+    public enum MediaKind: String, Codable, Sendable {
+        case stillImage = "still_image"
+        case video
+    }
+
     public var id: UUID                 // Timeline occurrence, never the Take identity.
     public var sceneSpineID: String
     public var shotID: UUID
@@ -15,11 +20,18 @@ public struct NativeAssemblyClip: Codable, Equatable, Identifiable, Sendable {
     public var mediaPath: String        // Portable, Board Images/<basename> only.
     public var label: String
     public var frameCount: Int
+    public var mediaKind: MediaKind
+    /// Exact source-relative in point on a conformed 24 fps timeline.
+    /// For still images this must remain zero.
+    public var sourceInFrame: Int
+    /// Upper bound of conformed video source frames; nil for still images.
+    public var sourceFrameLimit: Int?
 
     public init(id: UUID = UUID(), sceneSpineID: String, shotID: UUID, boardFrameID: UUID,
                 takeID: UUID, generationJobID: UUID? = nil, mediaSHA256: String,
                 promptSHA256: String? = nil, mediaPath: String, label: String,
-                frameCount: Int) {
+                frameCount: Int, mediaKind: MediaKind = .stillImage,
+                sourceInFrame: Int = 0, sourceFrameLimit: Int? = nil) {
         self.id = id
         self.sceneSpineID = sceneSpineID
         self.shotID = shotID
@@ -31,6 +43,34 @@ public struct NativeAssemblyClip: Codable, Equatable, Identifiable, Sendable {
         self.mediaPath = mediaPath
         self.label = label
         self.frameCount = frameCount
+        self.mediaKind = mediaKind
+        self.sourceInFrame = sourceInFrame
+        self.sourceFrameLimit = sourceFrameLimit
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, sceneSpineID, shotID, boardFrameID, takeID, generationJobID
+        case mediaSHA256, promptSHA256, mediaPath, label, frameCount
+        case mediaKind, sourceInFrame, sourceFrameLimit
+    }
+
+    /// Supports schema-v1 still-image sidecars without inventing video ranges.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        sceneSpineID = try values.decode(String.self, forKey: .sceneSpineID)
+        shotID = try values.decode(UUID.self, forKey: .shotID)
+        boardFrameID = try values.decode(UUID.self, forKey: .boardFrameID)
+        takeID = try values.decode(UUID.self, forKey: .takeID)
+        generationJobID = try values.decodeIfPresent(UUID.self, forKey: .generationJobID)
+        mediaSHA256 = try values.decode(String.self, forKey: .mediaSHA256)
+        promptSHA256 = try values.decodeIfPresent(String.self, forKey: .promptSHA256)
+        mediaPath = try values.decode(String.self, forKey: .mediaPath)
+        label = try values.decode(String.self, forKey: .label)
+        frameCount = try values.decode(Int.self, forKey: .frameCount)
+        mediaKind = try values.decodeIfPresent(MediaKind.self, forKey: .mediaKind) ?? .stillImage
+        sourceInFrame = try values.decodeIfPresent(Int.self, forKey: .sourceInFrame) ?? 0
+        sourceFrameLimit = try values.decodeIfPresent(Int.self, forKey: .sourceFrameLimit)
     }
 }
 
@@ -42,7 +82,7 @@ public enum NativeAssemblyError: Error, Equatable {
 /// Exactly 24 integer frames per second. The schema is deliberately independent
 /// of the screenplay package, and is never treated as authoritative source data.
 public struct NativeAssemblyProject: Codable, Equatable, Sendable {
-    public static let currentVersion = 1
+    public static let currentVersion = 2
     public static let framesPerSecond = 24
     public static let maximumFrames = 24 * 60 * 30
     public var version: Int
@@ -78,7 +118,20 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
                   clip.label.utf8.count <= 500,
                   Self.digest(clip.mediaSHA256),
                   clip.promptSHA256.map(Self.digest) ?? true,
-                  Self.safeMediaPath(clip.mediaPath) else { throw NativeAssemblyError.invalidClip }
+                  Self.safeMediaPath(clip.mediaPath, kind: clip.mediaKind),
+                  clip.sourceInFrame >= 0 else { throw NativeAssemblyError.invalidClip }
+            switch clip.mediaKind {
+            case .stillImage:
+                guard clip.sourceInFrame == 0, clip.sourceFrameLimit == nil else {
+                    throw NativeAssemblyError.invalidClip
+                }
+            case .video:
+                guard let limit = clip.sourceFrameLimit,
+                      limit > 0, limit <= Self.maximumFrames,
+                      clip.sourceInFrame <= limit - clip.frameCount else {
+                    throw NativeAssemblyError.invalidClip
+                }
+            }
             frames += clip.frameCount
         }
         return self
@@ -89,6 +142,18 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     private static func orderedBoards(_ boards: [BoardFrame], scene: String) -> [BoardFrame] {
         boards.filter { $0.sceneSpineID == scene }
             .sorted { ($0.frameNumber, $0.id.uuidString) < ($1.frameNumber, $1.id.uuidString) }
+    }
+
+    /// Old local v1 projects contain still images only. Unsupported versions
+    /// never get silently opened and rewritten as the latest schema.
+    public func migrated() throws -> NativeAssemblyProject {
+        if version == Self.currentVersion { return try validated() }
+        guard version == 1, clips.allSatisfy({
+            $0.mediaKind == .stillImage && $0.sourceInFrame == 0 && $0.sourceFrameLimit == nil
+        }) else { throw NativeAssemblyError.unsupportedVersion }
+        var result = self
+        result.version = Self.currentVersion
+        return try result.validated()
     }
 
     public func isCurrent(with boards: [BoardFrame]) -> Bool {
@@ -158,6 +223,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
         var right = result.clips[index]
         right.id = newOccurrenceID
         right.frameCount -= afterFrames
+        if right.mediaKind == .video { right.sourceInFrame += afterFrames }
         result.clips[index].frameCount = afterFrames
         result.clips.insert(right, at: index + 1)
         return try result.validated()
@@ -168,6 +234,41 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
         guard newCount > 0, newCount <= Self.maximumFrames else { throw NativeAssemblyError.invalidEdit }
         var result = self
         result.clips[index].frameCount = newCount
+        return try result.validated()
+    }
+
+    /// Head trim advances video media in-point. Still-image head trims only
+    /// shorten the held image, so no fictitious source time is created.
+    public func trimmingHead(_ id: UUID, byFrames count: Int) throws -> NativeAssemblyProject {
+        guard let index = clips.firstIndex(where: { $0.id == id }) else {
+            throw NativeAssemblyError.unknownClip
+        }
+        guard count > 0, count < clips[index].frameCount else {
+            throw NativeAssemblyError.invalidEdit
+        }
+        var result = self
+        result.clips[index].frameCount -= count
+        if result.clips[index].mediaKind == .video {
+            result.clips[index].sourceInFrame += count
+        }
+        return try result.validated()
+    }
+
+    /// Adds an explicitly imported, assembly-local video Take after an existing
+    /// occurrence. Its identity and shot/board association are never inferred.
+    public func insertingVideoTake(_ clip: NativeAssemblyClip,
+                                   after occurrenceID: UUID) throws -> NativeAssemblyProject {
+        guard let index = clips.firstIndex(where: { $0.id == occurrenceID }) else {
+            throw NativeAssemblyError.unknownClip
+        }
+        let parent = clips[index]
+        guard clip.mediaKind == .video, clip.sceneSpineID == sceneSpineID,
+              clip.shotID == parent.shotID, clip.boardFrameID == parent.boardFrameID,
+              !clips.contains(where: { $0.id == clip.id }) else {
+            throw NativeAssemblyError.invalidEdit
+        }
+        var result = self
+        result.clips.insert(clip, at: index + 1)
         return try result.validated()
     }
 
@@ -195,13 +296,17 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
         value.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil
     }
 
-    public static func safeMediaPath(_ value: String) -> Bool {
-        guard value.utf8.count <= 512, value.hasPrefix("Board Images/") else { return false }
-        let name = String(value.dropFirst("Board Images/".count))
+    public static func safeMediaPath(_ value: String,
+                                     kind: NativeAssemblyClip.MediaKind = .stillImage) -> Bool {
+        let directory = kind == .stillImage ? "Board Images/" : "Video Takes/"
+        guard value.utf8.count <= 512, value.hasPrefix(directory) else { return false }
+        let name = String(value.dropFirst(directory.count))
         return !name.isEmpty && name != "." && name != ".." &&
             !name.contains("/") && !name.contains("\\") &&
             !name.contains(":") && !name.contains("%") &&
-            name.unicodeScalars.allSatisfy { $0.value >= 32 && $0.value != 127 }
+            name.unicodeScalars.allSatisfy { $0.value >= 32 && $0.value != 127 } &&
+            (kind == .stillImage || name.lowercased().hasSuffix(".mov") ||
+             name.lowercased().hasSuffix(".mp4"))
     }
 
     private static func portablePath(_ url: URL) throws -> String {
@@ -282,7 +387,7 @@ public enum NativeAssemblyFileStore {
         let value = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
         guard value.isRegularFile == true, value.isSymbolicLink != true,
               let size = value.fileSize, size <= maximumBytes else { throw NativeAssemblyError.invalidFile }
-        let project = try JSONDecoder().decode(NativeAssemblyProject.self, from: Data(contentsOf: url)).validated()
+        let project = try JSONDecoder().decode(NativeAssemblyProject.self, from: Data(contentsOf: url)).migrated()
         guard project.projectID == projectID, project.sceneSpineID == sceneSpineID else {
             throw NativeAssemblyError.wrongProject
         }
