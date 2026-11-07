@@ -92,6 +92,24 @@ final class NativeAssemblyTests: XCTestCase {
         XCTAssertTrue(assembled.isCurrent(with: initial))
     }
 
+    func testRefusesSymlinkedSidecarDirectory() throws {
+        let project = try NativeAssemblyProject.assemble(
+            projectID: UUID(), sceneSpineID: "SC-001", boards: boards())
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let redirected = root.appendingPathComponent("unexpected")
+        let parent = root.appendingPathComponent("ScreenplayOS")
+        try FileManager.default.createDirectory(at: redirected, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: parent.appendingPathComponent("NativeAssemblies"),
+            withDestinationURL: redirected)
+        let path = try NativeAssemblyFileStore.url(
+            projectID: project.projectID, sceneSpineID: project.sceneSpineID, root: root)
+        XCTAssertThrowsError(try NativeAssemblyFileStore.save(project, to: path))
+        XCTAssertTrue((try FileManager.default.contentsOfDirectory(atPath: redirected.path)).isEmpty)
+    }
+
     func testRejectsWrongProjectAtLoad() throws {
         let project = try NativeAssemblyProject.assemble(
             projectID: UUID(), sceneSpineID: "SC-001", boards: boards())
