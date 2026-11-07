@@ -12,7 +12,7 @@ The new XCTest fixture creates local sources at:
 - **30000/1001 (~29.97 fps)** — timeline frame 1 displays source sample 1.
 - **Irregular VFR-style timing** — sparse source presentations at edit frames 0, 1, 3, 10, 20, 21 are held across gaps until a later source sample is presented.
 
-The test writes H.264 using AVAssetWriter, reads its actual sample presentation times through the trusted `NativeVideoTimestampProbe`, confirms all expected rational timestamps survived encoding, imports it into `Video Takes/`, then exercises the source-PTS-conformed paused viewer on two deliberately different images.
+The test writes H.264 using AVAssetWriter, reads its actual sample presentation times through the trusted `NativeVideoTimestampProbe`, checks that muxed presentation timestamps stay within a 2 ms tolerance of their requested rational times, then uses the **actual muxed source PTS** as the timing authority, and imports it into `Video Takes/`, then exercises the source-PTS-conformed paused viewer on two deliberately different images.
 
 **This is regression code, not a user-facing feature switch.** All media is synthetic, locally generated and cleaned up.
 
@@ -29,3 +29,7 @@ The test writes H.264 using AVAssetWriter, reads its actual sample presentation 
 The feature branch has a dedicated macOS GitHub Actions test step `NativeVideoRateConformTests`. The branch remains draft until a real CI result passes on its exact head. Do not merge or enable continuous playback automatically; manual inspection and real-rate camera fixtures remain open.
 
 No private creative materials, external files, AI models, media uploads, provider payments or original FilmCraft code are used.
+
+## CI finding — H.264 container timestamp quantization
+
+The first macOS test run on commit `3cc1f166` compiled and passed the irregular VFR preview test, but the fractional-rate test failed when it asserted exact equality between H.264 output PTS and input CMTime rationals at 24000/1001. MP4 muxing can choose a coarser track timebase and quantize frame presentation times; testing exact input/output rational equality is therefore the wrong acceptance condition. The revised test requires bounded 2 ms output deviation and checks that the editor selects the last sample **from the actual stored PTS** at or before a timeline position, with the following sample strictly after it. Strict source bounds, monotonicity, media fingerprint and VFR hold checks remain in force. This adjustment does not certify arbitrary camera formats.
