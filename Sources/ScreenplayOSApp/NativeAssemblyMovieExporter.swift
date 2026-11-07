@@ -90,7 +90,9 @@ enum NativeAssemblyMovieExporter {
 
         var frame = 0
         for (clip, source) in zip(project.clips, sources) {
-            let buffer = try renderPixelBuffer(source)
+            // Decode the exact bytes whose digest was checked, even if a
+            // local source file changes after the initial preflight.
+            let buffer = try renderPixelBuffer(source, expectedSHA256: clip.mediaSHA256)
             for _ in 0..<clip.frameCount {
                 try Task.checkCancellation()
                 while !input.isReadyForMoreMediaData {
@@ -113,8 +115,11 @@ enum NativeAssemblyMovieExporter {
         finished = true
     }
 
-    private static func renderPixelBuffer(_ url: URL) throws -> CVPixelBuffer {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+    private static func renderPixelBuffer(_ url: URL, expectedSHA256: String) throws -> CVPixelBuffer {
+        let bytes = try Data(contentsOf: url, options: .mappedIfSafe)
+        let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        guard digest == expectedSHA256 else { throw Failure.alteredMedia }
+        guard let source = CGImageSourceCreateWithData(bytes as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             throw Failure.invalidImage
         }
