@@ -44,6 +44,22 @@ public struct NativeVideoPresentationIndex: Codable, Equatable, Sendable {
         try validate()
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case version, mediaSHA256, trackID, duration, samples
+    }
+
+    /// Persisted indexes are untrusted until validated. Synthesized Decodable
+    /// would otherwise bypass the checks performed by the public initializer.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        mediaSHA256 = try container.decode(String.self, forKey: .mediaSHA256)
+        trackID = try container.decode(Int32.self, forKey: .trackID)
+        duration = try container.decode(NativeVideoTimestamp.self, forKey: .duration)
+        samples = try container.decode([NativeVideoTimestamp].self, forKey: .samples)
+        try validate()
+    }
+
     public func validate() throws {
         guard version == Self.currentVersion else { throw NativeVideoTimestampError.unsupportedVersion }
         guard NativeAssemblyProject.digest(mediaSHA256), trackID > 0 else {
