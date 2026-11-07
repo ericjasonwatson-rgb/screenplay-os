@@ -18,6 +18,7 @@ struct NativeAssemblyWorkspaceView: View {
     @State private var playbackBaseFrame = 0
     @State private var message: String?
     @State private var exportInProgress = false
+    @State private var videoImportInProgress = false
     @State private var rebuildConfirmation = false
     @State private var cachedPreview: NSImage?
     private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
@@ -30,6 +31,9 @@ struct NativeAssemblyWorkspaceView: View {
         return model.boardFrames.filter { $0.sceneSpineID == sceneID }
     }
     private var screenplayURL: URL? { model.saveURL ?? model.sourceURL }
+    private var containsVideo: Bool {
+        assembly?.clips.contains(where: { $0.mediaKind == .video }) ?? false
+    }
     private var isStale: Bool {
         guard let assembly else { return false }
         return !assembly.isCurrent(with: sourceBoards)
@@ -59,8 +63,14 @@ struct NativeAssemblyWorkspaceView: View {
                     if assembly == nil { rebuild() } else { rebuildConfirmation = true }
                 }
                 .disabled(sceneID == nil || model.document == nil)
-                Button("Export MP4") { exportVideo() }
-                    .disabled(assembly == nil || isStale || exportInProgress || screenplayURL == nil)
+                Button("Import MOV/MP4 Take") { importVideo() }
+                    .disabled(assembly == nil || selection == nil || isStale ||
+                              videoImportInProgress || screenplayURL == nil)
+                Button("Export Stills MP4") { exportVideo() }
+                    .disabled(assembly == nil || containsVideo || isStale ||
+                              exportInProgress || screenplayURL == nil)
+                    .help(containsVideo ? "Video Takes require a tested decode/conform export path." :
+                          "Export a silent still-image boardomatic.")
             }
             .padding(12)
 
@@ -78,7 +88,9 @@ struct NativeAssemblyWorkspaceView: View {
                         } else {
                             VStack(spacing: 8) {
                                 Image(systemName: "photo.badge.exclamationmark").font(.system(size: 30))
-                                Text("Selected image unavailable or fingerprint mismatch")
+                                Text(currentClip?.mediaKind == .video ?
+                                     "Video Take imported. Playback and export decoding are not yet enabled." :
+                                     "Selected image unavailable or fingerprint mismatch")
                                     .font(.caption).multilineTextAlignment(.center)
                             }.foregroundStyle(.secondary)
                         }
@@ -92,7 +104,10 @@ struct NativeAssemblyWorkspaceView: View {
                         if let clip = currentClip {
                             Text("Take \(clip.takeID.uuidString.prefix(8))")
                             Text("Edit \(clip.id.uuidString.prefix(8))")
-                            Text("\(clip.frameCount) frames · still image")
+                            Text("\(clip.frameCount) frames · \(clip.mediaKind == .video ? "video Take" : "still image")")
+                            if clip.mediaKind == .video {
+                                Text("Source in \(clip.sourceInFrame)f / \(clip.sourceFrameLimit ?? 0)f")
+                            }
                         }
                         Spacer()
                         Text("All changes are local. No AI requests or external editor sync.")
@@ -158,6 +173,9 @@ struct NativeAssemblyWorkspaceView: View {
                     }}
                     Button("+1 Frame") { if let selection {
                         perform { try $0.trimming(selection, toFrames: length(for: selection) + 1) }
+                    }}
+                    Button("Trim Head +1") { if let selection {
+                        perform { try $0.trimmingHead(selection, byFrames: 1) }
                     }}
                     Button("Split at Playhead") { if let selection {
                         let local = playheadFrame - startFrame(for: selection)
@@ -314,6 +332,48 @@ struct NativeAssemblyWorkspaceView: View {
             message = "Previous assembly restored."
         } catch {
             message = "Undo could not be saved: \(error)"
+        }
+    }
+
+    private func importVideo() {
+        guard let current = assembly, let selection,
+              let parent = current.clips.first(where: { $0.id == selection }),
+              let screenplayURL, !isStale else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.movie]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let source = panel.url else { return }
+        videoImportInProgress = true
+        playing = false
+        message = "Verifying and importing a local video Take..."
+        Task {
+            let access = source.startAccessingSecurityScopedResource()
+            defer {
+                if access { source.stopAccessingSecurityScopedResource() }
+                videoImportInProgress = false
+            }
+            do {
+                let imported = try await NativeVideoTakeImporter.importLocalVideo(
+                    source, screenplayURL: screenplayURL, after: parent)
+                // Do not adopt a late result if the timeline was edited while
+                // video was being validated or copied.
+                guard assembly == current else {
+                    message = "The timeline changed during import; the new Take was not adopted."
+                    return
+                }
+                let next = try current.insertingVideoTake(imported, after: selection)
+                try NativeAssemblyFileStore.save(next, to: path())
+                undoStack.append(current)
+                if undoStack.count > 100 { undoStack.removeFirst() }
+                assembly = next
+                self.selection = imported.id
+                playheadFrame = startFrame(for: imported.id)
+                refreshPreview()
+                message = "Video Take added. Source in/out editing is enabled; video preview and export remain gated."
+            } catch {
+                message = "Video import refused: \(error.localizedDescription)"
+            }
         }
     }
 
