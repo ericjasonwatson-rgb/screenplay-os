@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreMedia
+import CoreVideo
 import Foundation
 import ScreenplayDomain
 
@@ -8,6 +9,7 @@ import ScreenplayDomain
 enum NativeVideoTimestampProbe {
     enum Failure: LocalizedError {
         case invalidSource, invalidTrack, invalidDuration, unreadableSamples, unsupportedTimestamp
+        case readerConfiguration, readerStart, readerCompletion
         case mediaChanged, tooManySamples
 
         var errorDescription: String? {
@@ -15,7 +17,10 @@ enum NativeVideoTimestampProbe {
             case .invalidSource: return "Only verified ordinary local MOV or MP4 media can be inspected."
             case .invalidTrack: return "A single valid video track is required for this timestamp probe."
             case .invalidDuration: return "The source has no valid presentation duration."
-            case .unreadableSamples: return "The source's compressed video samples cannot be inspected."
+            case .unreadableSamples: return "The source's video samples cannot be inspected."
+            case .readerConfiguration: return "The local video reader cannot be configured for frame timestamps."
+            case .readerStart: return "The local video reader failed to start."
+            case .readerCompletion: return "The local video reader did not finish reading all frames."
             case .unsupportedTimestamp: return "Source timestamps are invalid or not representable."
             case .mediaChanged: return "The original video changed while its timestamps were inspected."
             case .tooManySamples: return "The source exceeds the timestamp-index sample limit."
@@ -49,10 +54,17 @@ enum NativeVideoTimestampProbe {
             throw Failure.invalidDuration
         }
         let reader = try AVAssetReader(asset: asset)
-        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
-        guard reader.canAdd(output) else { throw Failure.unreadableSamples }
+        // Decoded sample output is supported where passthrough compressed
+        // samples are not. This probe uses the sample PTS only; pixel data is
+        // discarded immediately rather than cached or exported.
+        let settings: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
+        ]
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: settings)
+        output.alwaysCopiesSampleData = false
+        guard reader.canAdd(output) else { throw Failure.readerConfiguration }
         reader.add(output)
-        guard reader.startReading() else { throw reader.error ?? Failure.unreadableSamples }
+        guard reader.startReading() else { throw reader.error ?? Failure.readerStart }
         defer { if reader.status == .reading { reader.cancelReading() } }
 
         var times: [NativeVideoTimestamp] = []
@@ -73,9 +85,9 @@ enum NativeVideoTimestampProbe {
                 }
             }
         }
-        guard reader.status == .completed else { throw reader.error ?? Failure.unreadableSamples }
-        // Compressed samples can arrive in decoding rather than presentation
-        // order (for example with B-frames). Never mistake decode order for PTS.
+        guard reader.status == .completed else { throw reader.error ?? Failure.readerCompletion }
+        // Presentation timestamps are sorted even if a decoder or media
+        // reader delivers samples in a different internal order.
         times.sort { CMTimeCompare($0.cmTime, $1.cmTime) < 0 }
 
         try NativeVideoTakeImporter.verify(url, digest: expectedSHA256)
