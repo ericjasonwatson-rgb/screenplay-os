@@ -167,7 +167,7 @@ def verify_release(app, bundle_id, team_id):
     requirement = developer_id_requirement(bundle_id, team_id)
     result = subprocess.run(
         ["codesign", "--verify", "--strict", "--verbose=2",
-         f"--test-requirement={requirement}", str(app)],
+         "-R", "=" + requirement, str(app)],
         capture_output=True, text=True, timeout=60
     )
     if result.returncode != 0:
