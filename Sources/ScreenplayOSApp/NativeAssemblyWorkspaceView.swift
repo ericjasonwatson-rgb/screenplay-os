@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Dispatch
 import Foundation
 import ScreenplayDomain
 import SwiftUI
@@ -14,8 +15,7 @@ struct NativeAssemblyWorkspaceView: View {
     @State private var selection: UUID?
     @State private var playheadFrame = 0
     @State private var playing = false
-    @State private var playbackStartedAt: Date?
-    @State private var playbackBaseFrame = 0
+    @State private var playbackClock: NativeMonotonicPlaybackClock?
     @State private var message: String?
     @State private var exportInProgress = false
     @State private var videoImportInProgress = false
@@ -165,11 +165,19 @@ struct NativeAssemblyWorkspaceView: View {
 
                 HStack(spacing: 12) {
                     Button {
-                        if playing { playing = false } else {
+                        let now = DispatchTime.now().uptimeNanoseconds
+                        if playing {
+                            if let playbackClock {
+                                playheadFrame = playbackClock.frame(atNanoseconds: now)
+                            }
+                            playing = false
+                            playbackClock = nil
+                        } else {
                             if playheadFrame >= assembly.totalFrames { playheadFrame = 0 }
-                            playing = true
-                            playbackBaseFrame = playheadFrame
-                            playbackStartedAt = Date()
+                            playbackClock = try? NativeMonotonicPlaybackClock(
+                                totalFrames: assembly.totalFrames,
+                                startFrame: playheadFrame, startedAtNanoseconds: now)
+                            playing = playbackClock?.isPlaying == true
                         }
                     } label: {
                         Label(playing ? "Pause" : "Play", systemImage: playing ? "pause.fill" : "play.fill")
@@ -179,7 +187,11 @@ struct NativeAssemblyWorkspaceView: View {
                           "Play the still-image boardomatic.")
                     Slider(value: Binding(
                         get: { Double(playheadFrame) },
-                        set: { playing = false; playheadFrame = Int($0) }
+                        set: {
+                            playing = false
+                            playbackClock = nil
+                            playheadFrame = Int($0)
+                        }
                     ), in: 0...Double(max(1, assembly.totalFrames)), step: 1)
                     Text("\(timecode(playheadFrame)) / \(timecode(assembly.totalFrames))")
                         .font(.caption.monospacedDigit())
@@ -193,6 +205,7 @@ struct NativeAssemblyWorkspaceView: View {
                                 selection = clip.id
                                 playheadFrame = startFrame(for: clip.id)
                                 playing = false
+                                playbackClock = nil
                             } label: {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(clip.label).font(.caption.weight(.semibold)).lineLimit(2)
@@ -266,15 +279,18 @@ struct NativeAssemblyWorkspaceView: View {
         .onChange(of: playheadFrame) { _ in
             if currentClip?.mediaKind == .video { refreshPreview() }
         }
-        .onReceive(timer) { now in
-            guard playing, let assembly, let playbackStartedAt else { return }
-            let elapsed = max(0, now.timeIntervalSince(playbackStartedAt))
-            playheadFrame = NativeAssemblyProject.playbackFrame(
-                from: playbackBaseFrame, after: elapsed, totalFrames: assembly.totalFrames)
-            if playheadFrame >= assembly.totalFrames { playing = false }
+        .onReceive(timer) { _ in
+            guard playing, let assembly, let playbackClock else { return }
+            playheadFrame = playbackClock.frame(
+                atNanoseconds: DispatchTime.now().uptimeNanoseconds)
+            if playheadFrame >= assembly.totalFrames {
+                playing = false
+                self.playbackClock = nil
+            }
         }
         .onDisappear {
             playing = false
+            playbackClock = nil
             previewTask?.cancel()
             previewTask = nil
             previewRequestID = UUID()
