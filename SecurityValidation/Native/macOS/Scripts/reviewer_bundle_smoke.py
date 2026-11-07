@@ -110,6 +110,24 @@ with tempfile.TemporaryDirectory(prefix="cips-reviewer-signing-",
                       "--timestamp=none", app)
         assert signed.returncode == 0, signed.stderr
         assert call("codesign", "--verify", "--strict", app).returncode == 0
+        # POSITIVE CONTROL: a signed test bundle should satisfy a literal
+        # identifier-only expression. Without the leading '=' codesign would
+        # interpret the string as a filesystem path, making every test fail
+        # regardless of the actual certificate requirements.
+        allowed_identifier = call(
+            "codesign", "--verify", "--strict", "-R",
+            '=identifier "' + reviewer + '"', app)
+        assert allowed_identifier.returncode == 0, allowed_identifier.stderr
+        # NEGATIVE CONTROLS: wrong identity and missing Developer ID
+        # certificate extensions must each fail when evaluated as expressions.
+        assert_denied(call(
+            "codesign", "--verify", "--strict", "-R",
+            '=identifier "' + reviewer + '.wrong"', app),
+            "literal requirement with incorrect bundle identifier")
+        assert_denied(call(
+            "codesign", "--verify", "--strict", "-R",
+            "=" + expression, app),
+            "Developer ID Application-only literal requirement")
         assert_denied(call(*verify), "ad-hoc signed reviewer bundle")
 
     # The candidate's actual executable must fail at signing preflight before
@@ -122,5 +140,5 @@ with tempfile.TemporaryDirectory(prefix="cips-reviewer-signing-",
     )
     assert "not trusted" in launched.stderr or "missing signed" in launched.stderr
 
-print("PASS: Developer ID OID requirements parse; synthetic/candidate .app "
+print("PASS: Developer ID literal expression positive/negative controls; .app "
       "assembled; unsigned/ad-hoc release and candidate startup rejected")
