@@ -37,11 +37,17 @@ enum NativeAssemblyMovieExporter {
         let parent = documentURL.deletingLastPathComponent().standardizedFileURL
         let expected = parent.appendingPathComponent("Board Images", isDirectory: true).standardizedFileURL
         let candidate = parent.appendingPathComponent(clip.mediaPath).standardizedFileURL
-        guard candidate.deletingLastPathComponent() == expected,
-              candidate.resolvingSymlinksInPath() == candidate else { throw Failure.unsafeMedia }
+        guard candidate.deletingLastPathComponent() == expected else { throw Failure.unsafeMedia }
+        // Check the untrusted Board Images components rather than comparing a
+        // globally canonicalized path. macOS may alias /var to /private/var.
+        let folder = try? expected.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        guard folder?.isDirectory == true, folder?.isSymbolicLink == false else {
+            throw Failure.unsafeMedia
+        }
         let values = try? candidate.resourceValues(
             forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-        guard values?.isRegularFile == true, values?.isSymbolicLink == false,
+        guard values?.isSymbolicLink == false else { throw Failure.unsafeMedia }
+        guard values?.isRegularFile == true,
               let bytes = values?.fileSize, bytes > 0, bytes <= 20_000_000 else {
             throw Failure.missingMedia
         }
