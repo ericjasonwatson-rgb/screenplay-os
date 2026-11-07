@@ -243,9 +243,15 @@ public enum NativeAssemblyFileStore {
         try manager.createDirectory(at: url.deletingLastPathComponent(),
                                     withIntermediateDirectories: true,
                                     attributes: [.posixPermissions: 0o700])
-        guard url.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL ==
-              url.deletingLastPathComponent().standardizedFileURL else {
-            throw NativeAssemblyError.invalidFile
+        // Check only the app-owned sidecar components. macOS can legitimately
+        // resolve the system /var prefix via /private/var.
+        var owned = url.deletingLastPathComponent()
+        for _ in 0..<3 {
+            let info = try owned.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard info.isDirectory == true, info.isSymbolicLink != true else {
+                throw NativeAssemblyError.invalidFile
+            }
+            owned = owned.deletingLastPathComponent()
         }
         try data.write(to: url, options: [.atomic])
         try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
