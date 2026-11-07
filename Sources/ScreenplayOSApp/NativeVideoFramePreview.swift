@@ -29,6 +29,9 @@ enum NativeVideoFramePreview {
         let pngData: Data
         let requestedFrame: Int
         let actualTimestampSeconds: Double
+        /// Present only when a verified source-PTS index selected the sample.
+        let selectedSampleIndex: Int?
+        let selectedSourceTimestamp: NativeVideoTimestamp?
     }
 
     /// Uses the source-in plus a 0-based local frame offset; the timeline
@@ -45,8 +48,24 @@ enum NativeVideoFramePreview {
         })
     }
 
+    /// Source-PTS-conformed still preview. The sample index must come from
+    /// NativeVideoTimestampProbe for this exact, digest-verified local file.
+    static func preview(_ clip: NativeAssemblyClip, localFrame: Int,
+                        screenplayURL: URL, presentationIndex: NativeVideoPresentationIndex) async throws -> Decoded {
+        let worker = Task.detached(priority: .userInitiated) {
+            try decode(clip, localFrame: localFrame, screenplayURL: screenplayURL,
+                       presentationIndex: presentationIndex)
+        }
+        return try await withTaskCancellationHandler(operation: {
+            try await worker.value
+        }, onCancel: {
+            worker.cancel()
+        })
+    }
+
     private static func decode(_ clip: NativeAssemblyClip, localFrame: Int,
-                               screenplayURL: URL) throws -> Decoded {
+                               screenplayURL: URL,
+                               presentationIndex: NativeVideoPresentationIndex? = nil) throws -> Decoded {
         try Task.checkCancellation()
         guard clip.mediaKind == .video else { throw Failure.notVideo }
         guard localFrame >= 0, localFrame < clip.frameCount,
@@ -55,39 +74,17 @@ enum NativeVideoFramePreview {
               clip.sourceInFrame <= frameLimit - clip.frameCount else {
             throw Failure.invalidRange
         }
-        guard screenplayURL.isFileURL,
-              NativeAssemblyProject.safeMediaPath(clip.mediaPath, kind: .video) else {
-            throw Failure.unsafeMedia
-        }
-        let sourceDir = screenplayURL.deletingLastPathComponent()
-            .appendingPathComponent("Video Takes", isDirectory: true)
-            .standardizedFileURL
-        let file = screenplayURL.deletingLastPathComponent()
-            .appendingPathComponent(clip.mediaPath).standardizedFileURL
-        guard file.deletingLastPathComponent() == sourceDir else { throw Failure.unsafeMedia }
-        let directory = try? sourceDir.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
-        guard directory?.isDirectory == true, directory?.isSymbolicLink == false else {
-            throw Failure.unsafeMedia
-        }
-        let fileInfo = try? file.resourceValues(
-            forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-        guard fileInfo?.isSymbolicLink == false else { throw Failure.unsafeMedia }
-        guard fileInfo?.isRegularFile == true,
-              let size = fileInfo?.fileSize, size > 0,
-              size <= NativeVideoTakeImporter.maximumBytes else { throw Failure.missingMedia }
-
-        // Source provenance check is expensive but intentionally performed
-        // before a decoded image becomes visible in this unoptimized preview.
-        do {
-            try NativeVideoTakeImporter.verify(file, digest: clip.mediaSHA256)
-        } catch {
-            throw Failure.alteredMedia
-        }
+        let file = try verifiedVideoURL(clip, screenplayURL: screenplayURL)
         try Task.checkCancellation()
 
         let sourceFrame = clip.sourceInFrame + localFrame
-        let requested = CMTime(value: Int64(sourceFrame),
-                               timescale: CMTimeScale(NativeAssemblyProject.framesPerSecond))
+        // An indexed request targets an actual source presentation time rather
+        // than assuming each source clip has a native 24 fps frame ordinal.
+        try presentationIndex?.validate()
+        let selected = try presentationIndex?.sample(for: clip, localFrame: localFrame)
+        let requested = selected?.timestamp.cmTime ??
+            CMTime(value: Int64(sourceFrame),
+                   timescale: CMTimeScale(NativeAssemblyProject.framesPerSecond))
         let generator = AVAssetImageGenerator(asset: AVURLAsset(url: file))
         generator.appliesPreferredTrackTransform = true
         generator.requestedTimeToleranceBefore = .zero
@@ -115,6 +112,41 @@ enum NativeVideoFramePreview {
         guard let png = NSBitmapImageRep(cgImage: image)
             .representation(using: .png, properties: [:]) else { throw Failure.decodeFailed }
         return Decoded(pngData: png, requestedFrame: sourceFrame,
-                       actualTimestampSeconds: actual.seconds)
+                       actualTimestampSeconds: actual.seconds,
+                       selectedSampleIndex: selected?.index,
+                       selectedSourceTimestamp: selected?.timestamp)
+    }
+
+    /// Shared path-and-content gate for probing and preview decoding. Returned
+    /// URLs always refer to an ordinary file within the screenplay's flat
+    /// Video Takes directory. Reverify the SHA after decoding as well.
+    static func verifiedVideoURL(_ clip: NativeAssemblyClip,
+                                 screenplayURL: URL) throws -> URL {
+        guard clip.mediaKind == .video, screenplayURL.isFileURL,
+              NativeAssemblyProject.safeMediaPath(clip.mediaPath, kind: .video) else {
+            throw Failure.unsafeMedia
+        }
+        let sourceDir = screenplayURL.deletingLastPathComponent()
+            .appendingPathComponent("Video Takes", isDirectory: true)
+            .standardizedFileURL
+        let file = screenplayURL.deletingLastPathComponent()
+            .appendingPathComponent(clip.mediaPath).standardizedFileURL
+        guard file.deletingLastPathComponent() == sourceDir else { throw Failure.unsafeMedia }
+        let directory = try? sourceDir.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        guard directory?.isDirectory == true, directory?.isSymbolicLink == false else {
+            throw Failure.unsafeMedia
+        }
+        let fileInfo = try? file.resourceValues(
+            forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        guard fileInfo?.isSymbolicLink == false else { throw Failure.unsafeMedia }
+        guard fileInfo?.isRegularFile == true,
+              let size = fileInfo?.fileSize, size > 0,
+              size <= NativeVideoTakeImporter.maximumBytes else { throw Failure.missingMedia }
+        do {
+            try NativeVideoTakeImporter.verify(file, digest: clip.mediaSHA256)
+        } catch {
+            throw Failure.alteredMedia
+        }
+        return file
     }
 }

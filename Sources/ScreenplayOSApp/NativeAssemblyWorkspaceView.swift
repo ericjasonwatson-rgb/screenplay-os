@@ -25,6 +25,7 @@ struct NativeAssemblyWorkspaceView: View {
     @State private var previewProblem: String?
     @State private var previewLoading = false
     @State private var previewTask: Task<Void, Never>?
+    @State private var videoPTSPreview = NativeVideoConformedPreview()
     private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     private var sceneID: String? {
@@ -76,7 +77,7 @@ struct NativeAssemblyWorkspaceView: View {
                                         playheadFrame - startFrame(for: currentClip.id)))
             previewTask = Task {
                 do {
-                    let decoded = try await NativeVideoFramePreview.preview(
+                    let decoded = try await videoPTSPreview.frame(
                         currentClip, localFrame: localFrame, screenplayURL: screenplayURL)
                     guard previewRequestID == requestID else { return }
                     cachedPreview = NSImage(data: decoded.pngData)
@@ -277,6 +278,7 @@ struct NativeAssemblyWorkspaceView: View {
             previewTask?.cancel()
             previewTask = nil
             previewRequestID = UUID()
+            Task { await videoPTSPreview.clear() }
         }
         .confirmationDialog("Rebuild this assembly from current selected boards?",
                             isPresented: $rebuildConfirmation) {
@@ -304,6 +306,7 @@ struct NativeAssemblyWorkspaceView: View {
     private func load() {
         previewTask?.cancel()
         previewTask = nil
+        Task { await videoPTSPreview.clear() }
         playing = false
         undoStack = []
         selection = nil
