@@ -7,6 +7,7 @@ on:
       - feature/native-video-frame-preview-20261106
       - feature/native-video-pts-index-20261106
       - feature/native-pts-preview-integration-20261107
+      - feature/native-video-rate-conform-20261107
   pull_request:
     paths:
       - 'Sources/ScreenplayDomain/NativeAssembly.swift'
@@ -38,6 +39,8 @@ jobs:
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoFramePreview
       - name: Verify PTS-conformed paused scrub and cache provenance
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoConformedPreview
+      - name: Verify mixed-source frame-rate and VFR timeline mapping
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoRateConform
       - name: Validate rational source timebase and decoded sample PTS inspection
         run: |
           swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoPresentationIndex
