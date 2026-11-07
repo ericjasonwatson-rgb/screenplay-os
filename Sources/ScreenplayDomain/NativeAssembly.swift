@@ -96,6 +96,18 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
         return (try? BoardTakeMigration.sourceRevision(ordered)) == boardRevision
     }
 
+    /// Clock-driven playhead calculation; timer updates never discard fractional
+    /// frames. Every tick derives from the same start instant and base frame.
+    public static func playbackFrame(from baseFrame: Int, after elapsedSeconds: Double,
+                                     totalFrames: Int) -> Int {
+        let length = max(0, totalFrames)
+        let start = max(0, min(baseFrame, length))
+        guard elapsedSeconds.isFinite, elapsedSeconds > 0 else { return start }
+        let remainingSeconds = Double(length - start) / Double(framesPerSecond)
+        let bounded = min(elapsedSeconds, remainingSeconds)
+        return min(length, start + Int((bounded * Double(framesPerSecond)).rounded(.down)))
+    }
+
     public func clip(at frame: Int) -> NativeAssemblyClip? {
         guard frame >= 0 else { return nil }
         var cursor = 0
