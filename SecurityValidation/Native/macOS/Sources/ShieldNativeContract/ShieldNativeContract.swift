@@ -63,8 +63,15 @@ public struct SignedPeerConfiguration: Equatable {
         Self.requirement(bundleID: helperBundleID, teamID: teamID)
     }
 
+    /// Deployed helpers/agents/reviewers require a Developer ID Application
+    /// chain, never merely any Apple-issued certificate with the same Team ID.
+    /// Apple TN3127: intermediate .2.6 and leaf .1.13 identify Developer ID
+    /// Application; Apple Development and Mac App Store use different OIDs.
     private static func requirement(bundleID: String, teamID: String) -> String {
-        "identifier \"\(bundleID)\" and anchor apple generic and certificate leaf[subject.OU] = \"\(teamID)\""
+        "identifier \"\(bundleID)\" and anchor apple generic " +
+        "and certificate 1[field.1.2.840.113635.100.6.2.6] exists " +
+        "and certificate leaf[field.1.2.840.113635.100.6.1.13] exists " +
+        "and certificate leaf[subject.OU] = \"\(teamID)\""
     }
 }
 
