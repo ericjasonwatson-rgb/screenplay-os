@@ -82,6 +82,23 @@ public struct NativeVideoPresentationIndex: Codable, Equatable, Sendable {
         }
     }
 
+    /// Read-only binding between one editorial occurrence and a PTS index.
+    /// A source fingerprint mismatch must never silently select another Take's
+    /// timestamps. The model still requires explicit source conformance later.
+    public func sample(for clip: NativeAssemblyClip, localFrame: Int) throws
+        -> (index: Int, timestamp: NativeVideoTimestamp) {
+        guard clip.mediaKind == .video, clip.mediaSHA256 == mediaSHA256 else {
+            throw NativeVideoTimestampError.invalidSource
+        }
+        guard localFrame >= 0, localFrame < clip.frameCount,
+              let sourceLimit = clip.sourceFrameLimit, sourceLimit > 0,
+              clip.sourceInFrame >= 0,
+              clip.sourceInFrame <= sourceLimit - clip.frameCount else {
+            throw NativeVideoTimestampError.outsideSourceRange
+        }
+        return try sample(atTimelineFrame: clip.sourceInFrame + localFrame)
+    }
+
     /// The visible source sample at a 24 fps edit-time position is the latest
     /// presentation timestamp that is <= that instant. Holding an earlier
     /// frame across a VFR interval is intentional and deterministic.
