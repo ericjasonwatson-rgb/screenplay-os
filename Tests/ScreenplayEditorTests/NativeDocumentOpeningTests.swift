@@ -93,13 +93,45 @@ struct NativeDocumentOpeningTests {
         #expect(try Data(contentsOf: source) == bytes)
         let element = try #require(fixture.model.elements.last)
         fixture.model.binding(for: element).wrappedValue = "Edit saved to the protected copy"
-        #expect(fixture.model.saveURL != nil && fixture.model.saveURL != source)
-        #expect(fixture.model.sourceURL == source)
+        let copyURL = try #require(fixture.model.saveURL)
+        #expect(copyURL != source)
+        // Successful autosave makes the new copy both the saved and source URL.
+        // The original's unknown authored data must still remain byte-for-byte intact.
+        #expect(fixture.model.sourceURL == copyURL)
+        #expect(try Data(contentsOf: source) == bytes)
         let copy = fixture.model.document
-        try Data("{broken".utf8).write(to: source)
-        #expect(!opening.open([source]), "A stale sourceURL is not evidence that the reader succeeded.")
+        let copyBytes = try Data(contentsOf: copyURL)
+        let malformed = Data("{broken".utf8)
+        try malformed.write(to: source)
+        #expect(!opening.open([source]))
         #expect(fixture.model.document == copy)
+        #expect(fixture.model.sourceURL == copyURL)
+        #expect(fixture.model.saveURL == copyURL)
+        #expect(fixture.model.canUndo)
+        #expect(try Data(contentsOf: copyURL) == copyBytes)
+        #expect(try Data(contentsOf: source) == malformed)
         #expect(opening.notice?.contains("Document not opened") == true)
+    }
+
+    @Test func failedReaderReportsFailureEvenWhenItsSourceURLStillMatches() throws {
+        let fixture = try CampaignPanelFixture(); defer { fixture.close() }
+        let source = try nativeOpeningDocument(in: fixture.root, name: "ReaderResult.json")
+        #expect(fixture.model.loadScreenplayOSDocument(at: source))
+        let original = fixture.model.document
+        let selection = fixture.model.selectedElementID
+        let caret = fixture.model.documentCaretToken
+        let malformed = Data("{broken".utf8)
+        try malformed.write(to: source)
+        // Exercise the shared reader directly: native repeated-open intentionally
+        // focuses this already-active document without invoking the reader again.
+        #expect(!fixture.model.loadScreenplayOSDocument(at: source))
+        #expect(fixture.model.sourceURL == source, "A URL retained from the earlier successful load cannot prove this read succeeded.")
+        #expect(fixture.model.saveURL == source)
+        #expect(fixture.model.document == original)
+        #expect(fixture.model.selectedElementID == selection)
+        #expect(fixture.model.documentCaretToken == caret)
+        #expect(fixture.model.errorMessage != nil)
+        #expect(try Data(contentsOf: source) == malformed)
     }
 
     @Test func unsupportedMissingMalformedAndBatchRequestsDoNotReplaceCurrentDocument() throws {
@@ -214,7 +246,7 @@ struct NativeDocumentOpeningTests {
         #expect(newSession.ledger.draft.brief.brand.isEmpty)
     }
 
-    @Test func presentationFlagsAndNativeFilePickerRejectWithoutDeferredOpen() async throws {
+    @Test func presentationFlagsAndNativeSheetRejectWithoutDeferredOpen() async throws {
         let fixture = try CampaignPanelFixture(); defer { fixture.close() }
         let opening = attachedOpening(fixture)
         let source = try nativeOpeningDocument(in: fixture.root, name: "Other.json")
@@ -232,19 +264,91 @@ struct NativeDocumentOpeningTests {
             fixture.model[keyPath: flag] = false
             #expect(fixture.model.document == original)
         }
-        let panel = NSOpenPanel()
-        panel.directoryURL = fixture.root
-        panel.beginSheetModal(for: fixture.window) { _ in }
-        let presented = try await waitForNativeUI(fixture.host) { fixture.window.attachedSheet != nil }
+        // Exercise AppKit's actual attachedSheet boundary without the remote
+        // NSOpenPanel service. The earlier picker test in swiftpm-testing-helper
+        // ended before its test/suite summary on macOS 15 CI; the logs did not
+        // identify the precise service/runner failure. This
+        // hosted test does not claim system file-picker interaction coverage.
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 160),
+            styleMask: [.titled], backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        defer {
+            if fixture.window.attachedSheet === panel { fixture.window.endSheet(panel) }
+            panel.orderOut(nil)
+            panel.close()
+        }
+        let field = NSTextField(frame: NSRect(x: 20, y: 50, width: 360, height: 24))
+        field.stringValue = "Synthetic native review remains current"
+        panel.contentView?.addSubview(field)
+        fixture.window.beginSheet(panel, completionHandler: nil)
+        let presented = try await waitForNativeUI(fixture.host) { fixture.window.attachedSheet === panel }
         try #require(presented)
+        #expect(panel.makeFirstResponder(field))
+        let responder = panel.firstResponder
+        let selection = fixture.model.selectedElementID
+        let caret = fixture.model.documentCaretToken
+        let sourceBytes = try Data(contentsOf: source)
         #expect(!opening.open([source]))
-        panel.cancel(nil)
+        #expect(opening.notice?.contains("try opening the file again") == true)
+        #expect(fixture.window.attachedSheet === panel)
+        #expect(panel.firstResponder === responder)
+        #expect(field.stringValue == "Synthetic native review remains current")
+        #expect(fixture.model.document == original)
+        #expect(fixture.model.selectedElementID == selection)
+        #expect(fixture.model.documentCaretToken == caret)
+        #expect(fixture.model.canUndo)
+        fixture.window.endSheet(panel)
+        panel.orderOut(nil)
         let dismissed = try await waitForNativeUI(fixture.host) { fixture.window.attachedSheet == nil }
         try #require(dismissed)
         opening.attach(window: fixture.window, model: fixture.model)
         await drainNativeOpeningCallbacks()
         #expect(fixture.model.document == original)
         #expect(fixture.model.sourceURL != source)
+        #expect(try Data(contentsOf: source) == sourceBytes)
+        #expect(opening.open([source]), "A dismissed sheet must permit a fresh explicit retry, not replay the rejected command.")
+        #expect(fixture.model.sourceURL == source)
+        #expect(try Data(contentsOf: source) == sourceBytes)
+    }
+
+    @Test func nativeApplicationModalSessionRejectsWithoutDeferredOpen() async throws {
+        let fixture = try CampaignPanelFixture(); defer { fixture.close() }
+        let opening = attachedOpening(fixture)
+        let source = try nativeOpeningDocument(in: fixture.root, name: "ModalRetry.json")
+        let original = fixture.model.document
+        let selection = fixture.model.selectedElementID
+        let sourceBytes = try Data(contentsOf: source)
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 160),
+            styleMask: [.titled], backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        defer { panel.orderOut(nil); panel.close() }
+        // This is the real application-modal boundary used by runModal file
+        // pickers, without launching a separate OS file-picker view service.
+        do {
+            let session = NSApp.beginModalSession(for: panel)
+            defer { NSApp.endModalSession(session) }
+            #expect(NSApp.runModalSession(session) == .continue)
+            try #require(NSApp.modalWindow === panel)
+            #expect(fixture.window.attachedSheet == nil)
+            let responder = panel.firstResponder
+            #expect(!opening.open([source]))
+            #expect(NSApp.modalWindow === panel)
+            #expect(panel.firstResponder === responder)
+            #expect(fixture.model.document == original)
+            #expect(fixture.model.selectedElementID == selection)
+            #expect(fixture.model.canUndo)
+            #expect(opening.notice?.contains("try opening the file again") == true)
+        }
+        panel.orderOut(nil)
+        #expect(NSApp.modalWindow == nil)
+        opening.attach(window: fixture.window, model: fixture.model)
+        await drainNativeOpeningCallbacks()
+        #expect(fixture.model.document == original)
+        #expect(fixture.model.sourceURL != source)
+        #expect(try Data(contentsOf: source) == sourceBytes)
+        #expect(opening.open([source]))
+        #expect(fixture.model.sourceURL == source)
+        #expect(try Data(contentsOf: source) == sourceBytes)
     }
 
     @Test func modelReplacementAndOldWindowCallbacksCannotRetargetPendingWork() async throws {

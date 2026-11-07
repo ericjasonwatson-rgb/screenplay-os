@@ -29,7 +29,10 @@ if [[ -d "$testing_frameworks/Testing.framework" ]]; then
     test_args+=(-Xlinker -rpath -Xlinker "$testing_libraries")
 fi
 configuration="${SCREENPLAYOS_BUILD_CONFIGURATION:-debug}"
-swift test --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" ${test_args[@]+"${test_args[@]}"} "$@"
+test_output="$(mktemp "$PWD/.build/native-test-output.XXXXXXXX")"
+trap 'rm -f "$test_output"' EXIT
+swift test --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" ${test_args[@]+"${test_args[@]}"} "$@" 2>&1 | tee "$test_output"
+python3 Scripts/check-native-test-completion.py "$test_output"
 swift run --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-self-test
 swift run --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-inspect Tests/Fixtures/Synthetic.open-screenplay.json --json >/dev/null
 swift run --configuration "$configuration" --disable-sandbox --cache-path "$PWD/.build/swift-cache" --skip-build screenplay-inspect Tests/Fixtures/Minimal.screenplayos.json --json >/dev/null

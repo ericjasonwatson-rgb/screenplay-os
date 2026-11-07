@@ -409,6 +409,56 @@ class AppPackagingTests(unittest.TestCase):
         evidence["cleanup"]["forceTerminationUsed"] = True
         self.assertEqual(MODULE.verify_native_open_output(json.dumps(evidence), self.app), evidence)
 
+    def test_native_output_accepts_existing_filesystem_aliases_not_string_spelling(self):
+        # Models macOS /var -> /private/var without depending on that host layout.
+        alias = self.root / "os-path-alias"
+        alias.symlink_to(self.root, target_is_directory=True)
+        aliased_app = alias / self.app.name
+        evidence = self.native_open_evidence()
+        evidence["appPath"] = str(aliased_app)
+        evidence["executablePath"] = str(aliased_app / "Contents/MacOS/ScreenplayOS")
+        self.assertNotEqual(evidence["appPath"], str(self.app.resolve()))
+        self.assertEqual(MODULE.verify_native_open_output(json.dumps(evidence), self.app), evidence)
+
+    def test_native_path_identity_rejects_other_copies_and_different_hardlink_paths(self):
+        copy = self.root / "other/ScreenplayOS.app"
+        shutil.copytree(self.app, copy)
+        evidence = self.native_open_evidence()
+        evidence["appPath"] = str(copy)
+        evidence["executablePath"] = str(copy / "Contents/MacOS/ScreenplayOS")
+        with self.assertRaisesRegex(MODULE.ValidationError, "different app or executable"):
+            MODULE.verify_native_open_output(json.dumps(evidence), self.app)
+        executable = self.app / "Contents/MacOS/ScreenplayOS"
+        hardlink = self.root / "another-executable-path"
+        os.link(executable, hardlink)
+        self.assertTrue(executable.samefile(hardlink))
+        self.assertFalse(MODULE.same_existing_path(str(hardlink), executable))
+        evidence = self.native_open_evidence()
+        evidence["executablePath"] = str(hardlink)
+        with self.assertRaisesRegex(MODULE.ValidationError, "different app or executable"):
+            MODULE.verify_native_open_output(json.dumps(evidence), self.app)
+
+    def test_native_path_identity_requires_existing_absolute_resolvable_paths(self):
+        loop = self.root / "loop"
+        loop.symlink_to(loop)
+        for value in (None, True, 123, {}, "ScreenplayOS.app", str(self.root / "missing"), str(loop), "/bad\x00path"):
+            with self.subTest(value=value):
+                self.assertFalse(MODULE.same_existing_path(value, self.app))
+        missing = self.root / "missing-but-spelled-identically"
+        self.assertFalse(MODULE.same_existing_path(str(missing), missing))
+        with mock.patch.object(MODULE.Path, "samefile", side_effect=PermissionError("unavailable metadata")):
+            self.assertFalse(MODULE.same_existing_path(str(self.app), self.app))
+
+    def test_native_timeout_diagnostics_cannot_substitute_for_acceptance(self):
+        evidence = self.native_open_evidence()
+        evidence["failureObservation"] = {"sampleCount": 300, "workspaceCompletionReceived": True,
+            "finishedLaunching": True, "visibleMainWindowCount": 1, "recentFirstMatches": False,
+            "matchingRecentURLCount": 0, "recentFirstAliasMatched": False, "elapsedMilliseconds": 30000}
+        for status in ("failed", "passed"):
+            evidence["status"] = status
+            with self.subTest(status=status), self.assertRaises(MODULE.ValidationError):
+                MODULE.verify_native_open_output(json.dumps(evidence), self.app)
+
     def test_native_output_rejects_missing_extra_or_wrong_global_evidence(self):
         for change in (
             lambda v: v.pop("initialRecentInputsAbsent"),

@@ -21,6 +21,7 @@ on:
       - 'Scripts/Integration/**'
       - 'Scripts/validate-campaign-siri-integration.py'
       - 'Scripts/test.sh'
+      - 'Scripts/check-native-test-completion.py'
       - 'Scripts/package-app.sh'
       - 'Scripts/validate-campaign-app.py'
       - 'Scripts/prepare-campaign-pilot.py'

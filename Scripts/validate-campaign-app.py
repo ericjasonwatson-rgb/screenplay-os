@@ -486,6 +486,21 @@ def make_native_open_inputs(root: Path) -> dict[str, str]:
     return {name: sha256(root / name) for name in NATIVE_OPEN_INPUTS}
 
 
+def same_existing_path(actual: object, expected: Path) -> bool:
+    """Accept OS path aliases only when they resolve to the exact existing path.
+
+    Foundation can spell /private/var as /var. A copied executable, another
+    same-named app, or even a different hard-link path is not an accepted alias.
+    """
+    if not isinstance(actual, str) or not Path(actual).is_absolute():
+        return False
+    try:
+        candidate = Path(actual)
+        return candidate.resolve(strict=True) == expected.resolve(strict=True) and candidate.samefile(expected)
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
 def verify_native_open_output(output: str, app: Path) -> dict:
     """Fail closed: a workspace completion callback alone is never a load pass."""
     try:
@@ -497,8 +512,8 @@ def verify_native_open_output(output: str, app: Path) -> dict:
     require(isinstance(result, dict) and set(result) == fields, "Native-open evidence fields are not allowlisted.")
     require(type(result["schemaVersion"]) is int and result["schemaVersion"] == 1
             and result["status"] == "passed", "Native-open probe did not pass.")
-    require(result["appPath"] == str(app.resolve())
-            and result["executablePath"] == str((app / "Contents/MacOS/ScreenplayOS").resolve()),
+    require(same_existing_path(result["appPath"], app)
+            and same_existing_path(result["executablePath"], app / "Contents/MacOS/ScreenplayOS"),
             "Native-open probe used a different app or executable.")
     pid = result["pid"]
     require(type(pid) is int and pid > 0, "Native-open process identity is invalid.")

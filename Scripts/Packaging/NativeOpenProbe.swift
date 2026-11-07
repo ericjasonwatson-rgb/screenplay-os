@@ -17,8 +17,32 @@ private func require(_ condition: Bool, _ message: String) throws {
     if !condition { throw ProbeFailure(message: message) }
 }
 
-private func canonical(_ url: URL) -> URL {
-    url.standardizedFileURL.resolvingSymlinksInPath()
+// Foundation may reintroduce /var after resolving /private/var. Compare actual
+// existing filesystem paths on both sides, not two APIs' URL string spellings.
+// Do not fall back to a filename, matching bytes, or an unresolved path.
+private func filesystemPath(_ path: String) -> String? {
+    guard path.hasPrefix("/"), !path.utf8.contains(0), let resolved = realpath(path, nil) else { return nil }
+    defer { free(resolved) }
+    return String(cString: resolved)
+}
+
+private func sameFilesystemPath(_ lhs: URL?, _ rhs: URL) -> Bool {
+    guard let lhs, lhs.isFileURL, rhs.isFileURL,
+          let left = filesystemPath(lhs.path), let right = filesystemPath(rhs.path) else { return false }
+    return left == right
+}
+
+private func requiredFilesystemPath(_ url: URL) throws -> String {
+    guard url.isFileURL, let path = filesystemPath(url.path) else {
+        throw ProbeFailure(message: "An expected synthetic path could not be resolved on disk.")
+    }
+    return path
+}
+
+private func recentPathIdentity(_ path: String) -> String {
+    // Preserve stale entries for unchanged-list comparisons, but never let an
+    // unresolved preference entry match an existing requested input.
+    filesystemPath(path).map { "resolved:" + $0 } ?? "unresolved:" + path
 }
 
 @MainActor
@@ -38,6 +62,7 @@ private final class NativeOpenSession {
     private var signalSources: [DispatchSourceSignal] = []
     private var interrupted = false
     private var coldReply: Reply?
+    private var failureObservation: [String: Any]?
     private var result: [String: Any] = ["schemaVersion": 1, "status": "failed", "scenarios": [String: Any]()]
 
     private final class Reply {
@@ -47,9 +72,9 @@ private final class NativeOpenSession {
     }
 
     init(appURL: URL, inputDirectory: URL) {
-        self.appURL = canonical(appURL)
-        self.executableURL = canonical(appURL.appendingPathComponent("Contents/MacOS/ScreenplayOS"))
-        self.inputDirectory = canonical(inputDirectory)
+        self.appURL = appURL.standardizedFileURL
+        self.executableURL = appURL.appendingPathComponent("Contents/MacOS/ScreenplayOS").standardizedFileURL
+        self.inputDirectory = inputDirectory.standardizedFileURL
     }
 
     private func installSignalHandlers() {
@@ -83,8 +108,8 @@ private final class NativeOpenSession {
     private func matches(_ application: NSRunningApplication) -> Bool {
         application.processIdentifier > 0
             && application.bundleIdentifier == domain
-            && application.executableURL.map(canonical) == executableURL
-            && application.bundleURL.map(canonical) == appURL
+            && sameFilesystemPath(application.executableURL, executableURL)
+            && sameFilesystemPath(application.bundleURL, appURL)
     }
 
     private func currentOwnedApplication() throws -> NSRunningApplication {
@@ -160,29 +185,56 @@ private final class NativeOpenSession {
 
     private func exercise(_ name: String, urls: [URL], expectedFirst: URL, expectedOccurrences: Int,
                           cold: Bool = false, unchangedRecents: Bool = false) throws {
-        let before = try recentPaths()
+        failureObservation = ["requestedURLCount": urls.count, "sampleCount": 0, "workspaceCompletionReceived": false]
+        let before = try recentPaths().map(recentPathIdentity)
+        let rejectedPaths = Set(try names.dropFirst(2).map { try requiredFilesystemPath(inputDirectory.appendingPathComponent($0)) })
+        let requestedPaths = Set(try urls.map(requiredFilesystemPath))
+        let firstExpectedPath = try requiredFilesystemPath(expectedFirst)
         try send(urls, cold: cold)
-        let rejectedPaths = Set(names.dropFirst(2).map { inputDirectory.appendingPathComponent($0).path })
-        let requestedPaths = Set(urls.map(\.path))
-        let deadline = ProcessInfo.processInfo.systemUptime + 30
+        failureObservation?["workspaceCompletionReceived"] = true
+        let started = ProcessInfo.processInfo.systemUptime
+        let deadline = started + 30
         var stableStart: TimeInterval?
+        var sampleCount = 0
+        var everFirstMatched = false
+        var everMainWindowVisible = false
         while ProcessInfo.processInfo.systemUptime < deadline {
             try require(!interrupted, "Native-open probe was interrupted.")
             let application = try currentOwnedApplication()
             let paths = try recentPaths()
-            try require(rejectedPaths.isDisjoint(with: paths), "A rejected document entered the loaded-model recent list.")
-            if unchangedRecents {
-                try require(paths == before, "A repeated or rejected request changed the recent-document list.")
-            }
+            let resolvedPaths = paths.compactMap(filesystemPath)
+            let firstResolved = paths.first.flatMap(filesystemPath)
+            let firstMatches = firstResolved == firstExpectedPath
+            let listUnchanged = paths.map(recentPathIdentity) == before
+            let rejectedAbsent = rejectedPaths.isDisjoint(with: resolvedPaths)
             let windows = try visibleMainWindowIDs(pid: application.processIdentifier)
-            let matching = paths.filter { requestedPaths.contains($0) }.count
+            let matching = resolvedPaths.filter { requestedPaths.contains($0) }.count
             let ready = application.isFinishedLaunching && windows.count == 1
-                && paths.first == expectedFirst.path && matching == expectedOccurrences
+                && firstMatches && matching == expectedOccurrences
+            let now = ProcessInfo.processInfo.systemUptime
+            sampleCount += 1
+            everFirstMatched = everFirstMatched || firstMatches
+            everMainWindowVisible = everMainWindowVisible || windows.count == 1
+            failureObservation = ["requestedURLCount": urls.count, "sampleCount": sampleCount,
+                "workspaceCompletionReceived": true, "exactOwnedProcessVerified": true,
+                "finishedLaunching": application.isFinishedLaunching, "visibleMainWindowCount": windows.count,
+                "sameMainWindow": mainWindowIDs.map { $0 == windows } ?? (windows.count == 1),
+                "recentDocumentCount": paths.count, "resolvedRecentPathCount": resolvedPaths.count,
+                "firstRecentPathResolved": firstResolved != nil, "recentFirstMatches": firstMatches,
+                "recentFirstAliasMatched": firstMatches && paths.first != expectedFirst.path,
+                "matchingRecentURLCount": matching, "rejectedURLsAbsent": rejectedAbsent,
+                "recentListUnchanged": listUnchanged, "recentListMustRemainUnchanged": unchangedRecents,
+                "everRecentFirstMatched": everFirstMatched, "everMainWindowVisible": everMainWindowVisible,
+                "elapsedMilliseconds": Int((now - started) * 1000),
+                "stableObservationMilliseconds": stableStart.map { Int((now - $0) * 1000) } ?? 0]
+            try require(rejectedAbsent, "A rejected document entered the loaded-model recent list.")
+            if unchangedRecents {
+                try require(listUnchanged, "A repeated or rejected request changed the recent-document list.")
+            }
             if ready {
                 if let mainWindowIDs {
                     try require(windows == mainWindowIDs, "Native open replaced the visible main window.")
                 }
-                let now = ProcessInfo.processInfo.systemUptime
                 if stableStart == nil { stableStart = now }
                 let observed = now - (stableStart ?? now)
                 if observed >= 2 {
@@ -195,6 +247,7 @@ private final class NativeOpenSession {
                         "recentFirstMatches": true, "matchingRecentURLCount": matching,
                         "rejectedURLsAbsent": true, "stableObservationSeconds": observed]
                     result["scenarios"] = scenarios
+                    failureObservation = nil
                     return
                 }
             } else {
@@ -248,10 +301,11 @@ private final class NativeOpenSession {
             }
             let running = NSWorkspace.shared.runningApplications.filter { !$0.isTerminated }
             initialPIDs = Set(running.map(\.processIdentifier))
-            try require(!running.contains { $0.bundleIdentifier == domain || $0.executableURL.map(canonical) == executableURL },
+            try require(!running.contains { $0.bundleIdentifier == domain || sameFilesystemPath($0.executableURL, executableURL) },
                         "An existing ScreenplayOS instance is running; no existing instance was changed.")
             let before = try recentPaths()
-            try require(Set(inputs.map(\.path)).isDisjoint(with: before), "Synthetic native-open inputs already appear in recents.")
+            try require(Set(try inputs.map(requiredFilesystemPath)).isDisjoint(with: before.compactMap(filesystemPath)),
+                        "Synthetic native-open inputs already appear in recents.")
             result["initialRecentInputsAbsent"] = true
             try exercise("coldOpen", urls: [inputs[0]], expectedFirst: inputs[0], expectedOccurrences: 1, cold: true)
             try exercise("warmOpen", urls: [inputs[1]], expectedFirst: inputs[1], expectedOccurrences: 1)
@@ -262,6 +316,7 @@ private final class NativeOpenSession {
             result["status"] = "passed"
         } catch {
             result["error"] = (error as? ProbeFailure)?.message ?? "Native-open input or metadata read failed."
+            if let failureObservation { result["failureObservation"] = failureObservation }
         }
         do {
             result["cleanup"] = try cleanup()
