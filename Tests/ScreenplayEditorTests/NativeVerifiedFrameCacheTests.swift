@@ -3,11 +3,11 @@ import XCTest
 @testable import ScreenplayOSApp
 
 final class NativeVerifiedFrameCacheTests: XCTestCase {
-    private let hash = String(repeating: "a", count: 64)
+    private let fingerprint = String(repeating: "a", count: 64)
 
     private func key(_ n: Int, source: String = "/tmp/Video Takes/a.mov",
                      fingerprint: String? = nil) -> NativeVerifiedFrameCache.Key {
-        .init(sourcePath: source, mediaSHA256: fingerprint ?? hash,
+        .init(sourcePath: source, mediaSHA256: fingerprint ?? self.fingerprint,
               ptsValue: Int64(n), ptsTimescale: 24)
     }
 
