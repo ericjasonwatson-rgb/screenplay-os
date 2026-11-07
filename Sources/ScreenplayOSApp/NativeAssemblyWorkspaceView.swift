@@ -14,7 +14,8 @@ struct NativeAssemblyWorkspaceView: View {
     @State private var selection: UUID?
     @State private var playheadFrame = 0
     @State private var playing = false
-    @State private var lastPlaybackTick: Date?
+    @State private var playbackStartedAt: Date?
+    @State private var playbackBaseFrame = 0
     @State private var message: String?
     @State private var exportInProgress = false
     @State private var rebuildConfirmation = false
@@ -109,7 +110,8 @@ struct NativeAssemblyWorkspaceView: View {
                         if playing { playing = false } else {
                             if playheadFrame >= assembly.totalFrames { playheadFrame = 0 }
                             playing = true
-                            lastPlaybackTick = Date()
+                            playbackBaseFrame = playheadFrame
+                            playbackStartedAt = Date()
                         }
                     } label: {
                         Label(playing ? "Pause" : "Play", systemImage: playing ? "pause.fill" : "play.fill")
@@ -198,12 +200,10 @@ struct NativeAssemblyWorkspaceView: View {
         .onChange(of: sceneID) { _ in load() }
         .onChange(of: currentClip?.id) { _ in refreshPreview() }
         .onReceive(timer) { now in
-            guard playing, let assembly else { return }
-            let elapsed = now.timeIntervalSince(lastPlaybackTick ?? now)
-            let frames = Int((elapsed * Double(NativeAssemblyProject.framesPerSecond)).rounded(.down))
-            guard frames > 0 else { return }
-            playheadFrame = min(assembly.totalFrames, playheadFrame + frames)
-            lastPlaybackTick = now
+            guard playing, let assembly, let playbackStartedAt else { return }
+            let elapsed = max(0, now.timeIntervalSince(playbackStartedAt))
+            playheadFrame = NativeAssemblyProject.playbackFrame(
+                from: playbackBaseFrame, after: elapsed, totalFrames: assembly.totalFrames)
             if playheadFrame >= assembly.totalFrames { playing = false }
         }
         .onDisappear { playing = false }
