@@ -56,6 +56,16 @@ Application leaf OID 1.2.840.113635.100.6.1.13, exact Team and bundle
 identifiers, hardened runtime and secure timestamp. This follows Apple's
 TN3127 code-signing requirements guidance.
 
+Critical CLI detail: when calling codesign -R/--test-requirement, a
+literal requirement expression MUST be prefixed with an equals sign.
+Without it, codesign can interpret the argument as a filename instead
+of evaluating the intended requirement. The release verifier uses
+-R "=identifier ... and anchor apple generic ...". The CI script includes
+a positive identifier-only control that must PASS against an ad-hoc
+signed test bundle, plus wrong-ID and strict Developer ID controls
+that must FAIL. A negative-only signature test cannot establish that
+the requirement parser actually evaluated the intended expression.
+
 This is a private test ceremony, NOT a distribution process. No certificates,
 private keys or Keychain passwords should be shared in chat or GitHub.
 
