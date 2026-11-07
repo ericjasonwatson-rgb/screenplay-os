@@ -1,0 +1,30 @@
+name: Native Assembly Editor (macOS)
+
+on:
+  push:
+    branches:
+      - feature/native-assembly-editor-20261106
+  pull_request:
+    paths:
+      - 'Sources/ScreenplayDomain/NativeAssembly.swift'
+      - 'Sources/ScreenplayOSApp/NativeAssembly*.swift'
+      - 'Sources/ScreenplayOSApp/ContentView.swift'
+      - 'Tests/ScreenplayEditorTests/NativeAssemblyTests.swift'
+      - '.github/workflows/native-assembly-editor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-assembly:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm macOS Swift toolchain
+        run: swift --version
+      - name: Compile native application including exporter and UI
+        run: swift build --configuration debug --disable-sandbox --product ScreenplayOS
+      - name: Run local assembly identity, edit and persistence tests
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeAssemblyTests
