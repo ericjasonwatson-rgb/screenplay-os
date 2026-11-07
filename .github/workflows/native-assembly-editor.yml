@@ -15,9 +15,11 @@ on:
       - 'Sources/ScreenplayDomain/NativeVideoPresentationIndex.swift'
       - 'Sources/ScreenplayOSApp/NativeAssembly*.swift'
       - 'Sources/ScreenplayOSApp/NativeVideo*.swift'
+      - 'Sources/ScreenplayOSApp/NativeVerifiedFrameCache.swift'
       - 'Sources/ScreenplayOSApp/ContentView.swift'
       - 'Tests/ScreenplayEditorTests/NativeAssembly*.swift'
       - 'Tests/ScreenplayEditorTests/NativeVideo*.swift'
+      - 'Tests/ScreenplayEditorTests/NativeVerifiedFrameCacheTests.swift'
       - '.github/workflows/native-assembly-editor.yml'
   workflow_dispatch:
 
