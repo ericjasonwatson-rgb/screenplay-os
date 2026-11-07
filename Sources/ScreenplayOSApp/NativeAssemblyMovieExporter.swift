@@ -11,7 +11,7 @@ import ScreenplayDomain
 enum NativeAssemblyMovieExporter {
     enum Failure: LocalizedError {
         case unsavedScreenplay, missingMedia, unsafeMedia, alteredMedia, invalidImage
-        case outputExists, outputFailed, renderTooLong
+        case outputExists, outputFailed, renderTooLong, unsupportedVideoTake
 
         var errorDescription: String? {
             switch self {
@@ -23,6 +23,7 @@ enum NativeAssemblyMovieExporter {
             case .outputExists: return "The output file already exists. Choose a different filename."
             case .outputFailed: return "The MP4 writer could not complete the render."
             case .renderTooLong: return "The first assembly exporter supports up to five minutes."
+            case .unsupportedVideoTake: return "Video Takes cannot be exported until native video decoding and conform tests pass."
             }
         }
     }
@@ -60,6 +61,10 @@ enum NativeAssemblyMovieExporter {
 
     static func render(_ project: NativeAssemblyProject, documentURL: URL, outputURL: URL) async throws {
         _ = try project.validated()
+        // Never treat a video file as a still image or silently omit its edit.
+        guard project.clips.allSatisfy({ $0.mediaKind == .stillImage }) else {
+            throw Failure.unsupportedVideoTake
+        }
         guard project.totalFrames > 0, project.totalFrames <= 5 * 60 * NativeAssemblyProject.framesPerSecond else {
             throw Failure.renderTooLong
         }
