@@ -87,6 +87,9 @@ enum NativeVideoTakeImporter {
             }
         }
 
+        // Imported creative media is private to the local user by default.
+        try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
+
         // A local, assembly-owned video Take gets a new source Take ID.
         // Only its occurrence gets a new occurrence ID after insertion.
         return NativeAssemblyClip(
