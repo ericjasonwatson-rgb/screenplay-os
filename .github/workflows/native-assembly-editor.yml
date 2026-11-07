@@ -5,9 +5,11 @@ on:
     branches:
       - feature/native-assembly-editor-20261106
       - feature/native-video-frame-preview-20261106
+      - feature/native-video-pts-index-20261106
   pull_request:
     paths:
       - 'Sources/ScreenplayDomain/NativeAssembly.swift'
+      - 'Sources/ScreenplayDomain/NativeVideoPresentationIndex.swift'
       - 'Sources/ScreenplayOSApp/NativeAssembly*.swift'
       - 'Sources/ScreenplayOSApp/NativeVideo*.swift'
       - 'Sources/ScreenplayOSApp/ContentView.swift'
@@ -33,3 +35,7 @@ jobs:
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeAssembly
       - name: Run paused video frame preview decoding and provenance tests
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoFramePreview
+      - name: Validate rational source timebase and decoded sample PTS inspection
+        run: |
+          swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoPresentationIndex
+          swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoTimestampProbe
