@@ -81,10 +81,23 @@ final class NativeVideoConformedPreviewTests: XCTestCase {
         XCTAssertEqual(splitFrame.selectedSampleIndex, 30)
         XCTAssertEqual(sha(splitFrame.pngData), sha(second.pngData))
 
+        // A split occurrence and the original should reuse exactly the same
+        // cached source PTS frame without sharing an editorial occurrence ID.
+        let repeated = try await preview.frame(imported, localFrame: 30,
+                                                screenplayURL: screenplay)
+        XCTAssertEqual(repeated.pngData, second.pngData)
+        XCTAssertEqual(repeated.requestedFrame, 30)
+        #if DEBUG
+        let diagnostics = await preview.cacheDiagnostics()
+        XCTAssertGreaterThanOrEqual(diagnostics.hits, 2)
+        XCTAssertLessThanOrEqual(diagnostics.frameCount, 16)
+        XCTAssertLessThanOrEqual(diagnostics.bytes, 16 * 1024 * 1024)
+        #endif
+
         let sourceCopy = root.appendingPathComponent(imported.mediaPath)
         try Data("altered video".utf8).write(to: sourceCopy)
         do {
-            _ = try await preview.frame(imported, localFrame: 0,
+            _ = try await preview.frame(imported, localFrame: 30,
                                         screenplayURL: screenplay)
             XCTFail("A cached index may never authorize changed source bytes")
         } catch NativeVideoFramePreview.Failure.alteredMedia {}
