@@ -18,15 +18,24 @@ struct ScreenplayOSApp: App {
     }
 
     private var scriptCommandsDisabled: Bool {
-        !model.scriptEditorFocused || model.titlePagePresented ||
+        !model.scriptEditorFocused || model.campaignPresented || model.titlePagePresented ||
         model.dialogueAssistantPresented || model.boardGenerationSnapshot != nil || model.generationConsentPreview != nil
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: NativeDocumentWindow.sceneID) {
             ContentView(model: model)
+                .sheet(isPresented: $model.campaignPresented) {
+                    if let projectID = model.document?.project.id {
+                        CampaignWorkspaceView(model: model, projectID: projectID)
+                    }
+                }
                 .onAppear { appDelegate.model = model; model.enablePackageWindows() }
                 .background(DocumentCloseGuard(model: model))
+                .background(NativeDocumentWindow(model: model, opening: appDelegate.nativeDocumentOpening))
+                .safeAreaInset(edge: .bottom) {
+                    NativeDocumentOpenNotice(opening: appDelegate.nativeDocumentOpening)
+                }
                 .frame(minWidth: 900, idealWidth: 1200, minHeight: 560, idealHeight: 760)
         }
         .defaultSize(width: 1200, height: 760)
@@ -39,23 +48,28 @@ struct ScreenplayOSApp: App {
             CommandGroup(replacing: .appInfo) {
                 Group {
                     Button("About ScreenplayOS", action: AppBranding.showAbout)
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
             }
             CommandGroup(replacing: .newItem) {
                 Group {
                     Button("New Screenplay") {
+                        appDelegate.nativeDocumentOpening.cancelPendingRequest()
                         model.newDocument()
                     }
                     .keyboardShortcut("n", modifiers: [.command])
                     .help("Start a screenplay with Outline, Script, Shot, Boards, and Edit.")
 
                     Menu("Experimental Features") {
-                        Button("New Writing-Only Screenplay", action: model.newPackage)
+                        Button("New Writing-Only Screenplay") {
+                            appDelegate.nativeDocumentOpening.cancelPendingRequest()
+                            model.newPackage()
+                        }
                             .keyboardShortcut("n", modifiers: [.command, .shift])
                             .help("Creates a separate writing-only document. Outline, Shot, Boards, Edit, and title-page editing are not available in this editor.")
                     }
 
                     Button("Open...") {
+                        appDelegate.nativeDocumentOpening.cancelPendingRequest()
                         model.showOpenPanel()
                     }
                     .keyboardShortcut("o", modifiers: [.command])
@@ -63,6 +77,7 @@ struct ScreenplayOSApp: App {
                     Menu("Recover Unsaved Draft") {
                         ForEach(model.recoveryCopies) { copy in
                             Button("\(copy.title) — \(copy.savedAt.formatted())") {
+                                appDelegate.nativeDocumentOpening.cancelPendingRequest()
                                 model.openRecoveryCopy(copy)
                             }
                         }
@@ -72,7 +87,10 @@ struct ScreenplayOSApp: App {
                     Menu("Recover Package Edits") {
                         Button("Refresh Recovery List", action: model.refreshPackageRecoveries)
                         ForEach(model.packageRecoveries) { record in
-                            Button("\(record.title) — \(record.savedAt.formatted())") { model.openPackageRecovery(record) }
+                            Button("\(record.title) — \(record.savedAt.formatted())") {
+                                appDelegate.nativeDocumentOpening.cancelPendingRequest()
+                                model.openPackageRecovery(record)
+                            }
                         }
                     }
                     Menu("Open Recent") {
@@ -81,12 +99,13 @@ struct ScreenplayOSApp: App {
                         } else {
                             ForEach(model.recentDocuments) { recent in
                                 Button(recent.name) {
+                                    appDelegate.nativeDocumentOpening.cancelPendingRequest()
                                     model.openDocument(at: recent.url)
                                 }
                             }
                         }
                     }
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packagePreview != nil || model.campaignPresented)
             }
             CommandGroup(replacing: .saveItem) {
                 Button("Close Window") { NSApp.keyWindow?.performClose(nil) }
@@ -135,7 +154,7 @@ struct ScreenplayOSApp: App {
                         model.showProductionExportPanel()
                     }
                     .keyboardShortcut("p", modifiers: [.command, .option])
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
                 if let editor = model.packageEditor {
                     Button("Save Package") { editor.saveCurrent() }
                         .keyboardShortcut("s", modifiers: [.command])
@@ -156,7 +175,7 @@ struct ScreenplayOSApp: App {
                     }
                         .keyboardShortcut("z", modifiers: [.command, .shift])
                         .disabled(packageFieldEditor == nil && !(model.packageEditor?.canRedo ?? model.canRedo))
-                }.disabled(model.packagePreview != nil)
+                }.disabled(model.packagePreview != nil || model.campaignPresented)
             }
             CommandGroup(after: .textEditing) {
                 if let editor = model.packageEditor {
@@ -164,6 +183,14 @@ struct ScreenplayOSApp: App {
                     Button("Find Next") { editor.navigateFind() }.keyboardShortcut("g", modifiers: [.command])
                     Button("Find Previous") { editor.navigateFind(backward: true) }.keyboardShortcut("g", modifiers: [.command, .shift])
                 }
+            }
+            CommandMenu("Campaign") {
+                Button("Campaign Brief & Scope…") { model.campaignPresented = true }
+                    .disabled(model.document == nil || model.packageSheetOpen || model.campaignPresented
+                              || model.titlePagePresented || model.dialogueAssistantPresented
+                              || model.continuityBiblePresented || model.boardGenerationSnapshot != nil
+                              || model.generationConsentPreview != nil || model.generationCostLedger != nil
+                              || model.convertedCopyReceipt != nil)
             }
             CommandMenu("Workspace") {
                 Group {
@@ -220,23 +247,23 @@ struct ScreenplayOSApp: App {
                         AppDelegate.resetMainWindowLayout()
                     }
                     .keyboardShortcut("0", modifiers: [.command, .shift])
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
             }
             CommandMenu("AI") {
                 Button("Connect AI provider…") { model.dialogueAssistantPresented = true }
-                    .disabled(model.packageSheetOpen)
+                    .disabled(model.packageSheetOpen || model.campaignPresented)
                 Button("Suggest dialogue line…") { model.dialogueAssistantPresented = true }
-                    .disabled(model.packageSheetOpen || model.selectedElement?.type != .dialogue)
+                    .disabled(model.packageSheetOpen || model.campaignPresented || model.selectedElement?.type != .dialogue)
                 Divider()
                 Button("Preview Offline AI Request…") { model.prepareOfflineDialogueRequest() }
-                    .disabled(model.packageSheetOpen || model.selectedElement?.type != .dialogue)
+                    .disabled(model.packageSheetOpen || model.campaignPresented || model.selectedElement?.type != .dialogue)
                 Button("Export AI Activity…") { model.showGenerationActivityExportPanel() }
-                    .disabled(model.packageSheetOpen || model.document == nil)
+                    .disabled(model.packageSheetOpen || model.campaignPresented || model.document == nil)
                 Button("AI Cost Ledger…") { model.showGenerationCostLedger() }
-                    .disabled(model.packageSheetOpen || model.document == nil)
+                    .disabled(model.packageSheetOpen || model.campaignPresented || model.document == nil)
                 Divider()
                 Button("Enter License…") { model.showLicenseImportPanel() }
-                    .disabled(model.packageSheetOpen)
+                    .disabled(model.packageSheetOpen || model.campaignPresented)
             }
             CommandMenu("Screenplay") {
                 Group {
@@ -444,7 +471,7 @@ struct ScreenplayOSApp: App {
                         .keyboardShortcut("7", modifiers: [.command])
                     }
                     .disabled(scriptCommandsDisabled)
-                }.disabled(model.packageSheetOpen)
+                }.disabled(model.packageSheetOpen || model.campaignPresented)
             }
         }
         MenuBarExtra {
@@ -464,9 +491,18 @@ struct ScreenplayOSApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var model: ScreenplayViewModel?
+    let nativeDocumentOpening = NativeDocumentOpening()
+    weak var model: ScreenplayViewModel? {
+        didSet { nativeDocumentOpening.bind(model) }
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        nativeDocumentOpening.open(urls)
+    }
+
     private var terminationApproved = false
     func requestQuit() {
+        nativeDocumentOpening.cancelPendingRequest()
         guard model?.confirmSafeClose() != false else { return }
         terminationApproved = true
         // Dismiss any read-only preview only after every editor and the legacy draft approve termination.

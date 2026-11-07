@@ -9,6 +9,7 @@ import ScreenplayFDX
 
 @MainActor
 final class ScreenplayViewModel: ObservableObject {
+    @Published var campaignPresented = false
     @Published var showEditScript = false
     @Published var boardGenerationSnapshot: BoardGenerationSnapshot?
     @Published var dialogueAssistantPresented = false
@@ -2052,8 +2053,9 @@ final class ScreenplayViewModel: ObservableObject {
         autosave()
     }
 
-    func loadScreenplayOSDocument(at url: URL) {
-        guard saveBeforeReplacingDocument() else { return }
+    @discardableResult
+    func loadScreenplayOSDocument(at url: URL) -> Bool {
+        guard saveBeforeReplacingDocument() else { return false }
         do {
             let data = try Data(contentsOf: url)
             let decoded = try BoardImageStorage.resolved(JSONDecoder.screenplayOSDecoder().decode(ScreenplayOSDocument.self, from: data), at: url)
@@ -2089,8 +2091,10 @@ final class ScreenplayViewModel: ObservableObject {
                 let listed = dropped.prefix(3).joined(separator: ", ") + (dropped.count > 3 ? ", …" : "")
                 errorMessage = "\(url.lastPathComponent) contains data this version of ScreenplayOS cannot preserve (\(listed)). It opened as a copy: edits autosave to a new file in \(autosaveDirectory.lastPathComponent), and the original is not changed unless you choose to replace it. Use Save As to choose where your edits go."
             }
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

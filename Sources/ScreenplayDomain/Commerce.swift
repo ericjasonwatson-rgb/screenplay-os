@@ -105,7 +105,10 @@ public struct Entitlements: Equatable, Sendable {
 
 public struct PricingConfiguration: Codable, Equatable, Sendable {
     public static let current: PricingConfiguration = {
-        guard let url = Bundle.module.url(forResource: "pricing", withExtension: "json"),
+        // Packaged apps use Contents/Resources; SwiftPM tools/tests use Bundle.module.
+        let url = Bundle.main.url(forResource: "pricing", withExtension: "json")
+            ?? Bundle.module.url(forResource: "pricing", withExtension: "json")
+        guard let url,
               let data = try? Data(contentsOf: url),
               let value = try? JSONDecoder().decode(PricingConfiguration.self, from: data) else {
             fatalError("The bundled pricing configuration is missing or invalid.")

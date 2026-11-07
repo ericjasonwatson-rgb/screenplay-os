@@ -1,0 +1,584 @@
+import SwiftUI
+import ScreenplayDomain
+
+/// A contextual production panel, not a sixth creative workspace. The screenplay,
+/// shots and boards remain the only editable source objects.
+@MainActor
+struct CampaignWorkspaceView: View {
+    @ObservedObject var model: ScreenplayViewModel
+    @StateObject private var session: CampaignWorkspaceSession
+    @Environment(\.dismiss) private var dismiss
+    private let importLifecycle: CampaignAgencyImportLifecycle?
+    private let reportExportLifecycle: CampaignReportExportLifecycle?
+    private let backupRestoreLifecycle: CampaignBackupRestoreLifecycle?
+    private let privateExportLifecycle: CampaignPrivateExportLifecycle?
+    @State private var baselineName = ""
+    @State private var selectedBaselineID: UUID?
+    @State private var selectedTab = 1
+    @State private var selectedAgencyDocumentID: UUID?
+    @State private var dismissalConsumed = false
+    @State private var presentationID = UUID()
+    @State private var navigationRequest: SectionNavigation?
+    @State private var expandedCoverageIDs: Set<UUID> = []
+
+    private struct SectionNavigation: Equatable {
+        let id = UUID()
+        let tab: Int
+        let anchor: String
+    }
+
+    init(model: ScreenplayViewModel, projectID: UUID, root: URL? = nil,
+         importLifecycle: CampaignAgencyImportLifecycle? = nil,
+         reportExportLifecycle: CampaignReportExportLifecycle? = nil,
+         backupRestoreLifecycle: CampaignBackupRestoreLifecycle? = nil,
+         privateExportLifecycle: CampaignPrivateExportLifecycle? = nil) {
+        self.model = model
+        self.importLifecycle = importLifecycle
+        self.reportExportLifecycle = reportExportLifecycle
+        self.backupRestoreLifecycle = backupRestoreLifecycle
+        self.privateExportLifecycle = privateExportLifecycle
+        _session = StateObject(wrappedValue: CampaignWorkspaceSession(projectID: projectID, root: root))
+    }
+
+    private var document: ScreenplayOSDocument? {
+        // SwiftUI can rebuild this value with a new projectID while retaining the
+        // original StateObject. Never pair that session with another project's sources.
+        guard model.document?.project.id == session.ledger.projectID else { return nil }
+        return model.document
+    }
+    private var baseline: CampaignBaseline? {
+        session.ledger.baselines.first { $0.id == selectedBaselineID }
+    }
+    private var reviewChecklist: Result<CampaignReviewChecklist, Error> {
+        Result {
+            guard let document else { throw CampaignError.invalid("This campaign's project is unavailable.") }
+            return try CampaignReviewChecklist(ledger: session.ledger, document: document,
+                                               selectedBaselineID: selectedBaselineID)
+        }
+    }
+
+    var body: some View {
+        // Capture the derived comparison once per render. The guide and change
+        // rows must describe the same selection without duplicating comparison.
+        let checklist = reviewChecklist
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Campaign Brief & Scope").font(.title2.weight(.semibold))
+                    Text(document?.project.metadata.title ?? "Project unavailable").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Close", action: requestDismissal).keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("campaign.close")
+            }
+            Text("Keep the agreed scope connected to the script, shots and boards. All changes require producer review.")
+                .font(.callout).foregroundStyle(.secondary)
+            switch checklist {
+            case .success(let value):
+                CampaignReviewChecklistView(checklist: value, navigate: navigateReviewStep)
+                    .disabled(session.isReadOnly || document == nil || session.isPerformingRecoveryCommand)
+            case .failure(let error):
+                Label("Review guide unavailable: \(error.localizedDescription)", systemImage: "exclamationmark.triangle")
+                    .font(.callout).foregroundStyle(.orange).textSelection(.enabled)
+                    .accessibilityIdentifier("campaign.review.problem")
+            }
+            campaignTabs(checklist)
+            .disabled(session.isReadOnly || document == nil || session.isPerformingRecoveryCommand)
+            if let preview = session.restorePreview {
+                CampaignBackupReviewView(preview: preview,
+                    isRestoring: session.isPerformingRecoveryCommand,
+                    cancel: session.discardRestorePreview,
+                    confirm: {
+                        _ = session.confirmBackupRestore(preview, lifecycle: backupRestoreLifecycle,
+                                                         currentContext: recoveryContext)
+                    })
+            }
+            if let problem = session.problem {
+                Label(problem, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange).font(.callout).textSelection(.enabled)
+            }
+            Divider()
+            HStack {
+                Button("Undo Draft Change", action: session.undoDraft).disabled(!session.canUndoDraft)
+                    .accessibilityIdentifier("campaign.undo")
+                Spacer()
+                Button("Restore Backup…") {
+                    let tab = selectedTab
+                    _ = session.previewBackupRestore(lifecycle: backupRestoreLifecycle, currentContext: {
+                        guard selectedTab == tab else { return nil }
+                        return recoveryContext()
+                    })
+                }
+                .disabled(!session.canImport || session.restorePreview != nil || session.isPerformingRecoveryCommand)
+                .accessibilityIdentifier("campaign.backup.restore")
+                Button("Private Backup…") {
+                    let tab = selectedTab
+                    _ = session.exportBackup(lifecycle: privateExportLifecycle, currentContext: {
+                        guard selectedTab == tab else { return nil }
+                        return recoveryContext()
+                    })
+                }
+                .disabled(session.isReadOnly || session.restorePreview != nil || session.isPerformingRecoveryCommand)
+                .accessibilityIdentifier("campaign.backup.export")
+            }
+            .disabled(document == nil)
+            Text(session.status).font(.caption).foregroundStyle(.secondary)
+            Text("Campaign records stay on this Mac and are not included in screenplay or portable-project exports. Back them up separately. There are no dedicated working-budget or margin fields. Imported text and notes may be confidential; inspect backups and reports before sharing.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(20)
+        .frame(minWidth: 720, idealWidth: 820, maxWidth: 1000, minHeight: 540, idealHeight: 680, maxHeight: 900)
+        .onAppear { selectedBaselineID = session.ledger.baselines.last?.id }
+        .onChange(of: session.ledger.baselines.count) { _ in
+            if selectedBaselineID == nil { selectedBaselineID = session.ledger.baselines.last?.id }
+        }
+        .onChange(of: selectedBaselineID) { _ in discardApprovalEntry() }
+        .onChange(of: selectedTab) { _ in discardApprovalEntry(); session.discardRestorePreview() }
+        .onChange(of: model.document?.project.id) { _ in
+            if document == nil { requestDismissal() }
+            else { discardApprovalEntry() }
+        }
+        .onDisappear {
+            // Retire externally dismissed presentations too. A retained old view
+            // must not dismiss a later sheet when another project is loaded.
+            dismissalConsumed = true
+            discardApprovalEntry()
+            session.discardRestorePreview()
+        }
+    }
+
+    private func campaignTabs(_ checklist: Result<CampaignReviewChecklist, Error>) -> some View {
+        ScrollViewReader { proxy in
+            TabView(selection: $selectedTab) {
+                CampaignAgencySourcesView(session: session, selectedDocumentID: $selectedAgencyDocumentID,
+                                          importLifecycle: importLifecycle,
+                                          privateExportLifecycle: privateExportLifecycle,
+                                          currentContext: {
+                    guard selectedTab == 0 else { return nil }
+                    return recoveryContext()
+                })
+                    .tabItem { Label("Agency Sources", systemImage: "doc.text.magnifyingglass") }.tag(0)
+                ScrollView { briefAndDeliverables.padding(.vertical, 12) }
+                    .tabItem { Label("Brief & Deliverables", systemImage: "list.bullet.rectangle") }.tag(1)
+                ScrollView { assumptions.padding(.vertical, 12) }
+                    .tabItem { Label("Bid Assumptions", systemImage: "text.badge.checkmark") }.tag(2)
+                ScrollView { review(checklist).padding(.vertical, 12) }
+                    .tabItem { Label("Baseline & Changes", systemImage: "arrow.triangle.branch") }.tag(3)
+            }
+            .onChange(of: navigationRequest) { request in
+                guard let request else { return }
+                // Allow the selected tab to mount before scrolling. A newer
+                // navigation, dismissal or project replacement retires this.
+                DispatchQueue.main.async {
+                    guard navigationRequest == request, selectedTab == request.tab,
+                          !dismissalConsumed, document != nil else { return }
+                    proxy.scrollTo(request.anchor, anchor: .top)
+                }
+            }
+        }
+    }
+
+    private var briefAndDeliverables: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            GroupBox("Campaign brief") {
+                VStack(spacing: 8) {
+                    field("Brand", text: briefBinding(\.brand))
+                    field("Objective", text: briefBinding(\.objective))
+                    field("Audience", text: briefBinding(\.audience))
+                    field("Key message", text: briefBinding(\.keyMessage))
+                    field("Mandatory requirements", text: briefBinding(\.mandatoryRequirements))
+                }.padding(6)
+            }
+            .id("campaign.section.brief")
+            HStack {
+                Text("Deliverables").font(.headline)
+                Spacer()
+                Button("Add Deliverable") {
+                    session.updateDraft { $0.deliverables.append(CampaignDeliverable(name: "New deliverable")) }
+                }
+                .accessibilityIdentifier("campaign.deliverable.add")
+            }
+            .id("campaign.section.deliverables")
+            if session.ledger.draft.deliverables.isEmpty {
+                Text("Add the hero film, cutdowns, vertical versions and market variants you have agreed to deliver.")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(session.ledger.draft.deliverables) { item in
+                deliverableEditor(item)
+            }
+        }
+    }
+
+    private func deliverableEditor(_ item: CampaignDeliverable) -> some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    TextField("Deliverable name", text: deliverableBinding(item, \.name))
+                        .accessibilityLabel("Deliverable name")
+                        .accessibilityIdentifier("campaign.deliverable.name.\(item.id)")
+                    Stepper(value: deliverableBinding(item, \.durationSeconds), in: 1...86400) {
+                        Text("\(item.durationSeconds) sec").monospacedDigit()
+                    }.frame(width: 130)
+                        .accessibilityIdentifier("campaign.deliverable.duration.\(item.id)")
+                    Button("Remove") { session.updateDraft { $0.deliverables.removeAll { $0.id == item.id } } }
+                        .accessibilityIdentifier("campaign.deliverable.remove.\(item.id)")
+                }
+                HStack {
+                    field("Ratio", text: deliverableBinding(item, \.aspectRatio))
+                    field("Market", text: deliverableBinding(item, \.market))
+                    field("Language", text: deliverableBinding(item, \.language))
+                }
+                DisclosureGroup("Shot coverage (\(item.linkedShotIDs.count) linked)", isExpanded: Binding(
+                    get: { expandedCoverageIDs.contains(item.id) },
+                    set: { expanded in
+                        if expanded { expandedCoverageIDs.insert(item.id) }
+                        else { expandedCoverageIDs.remove(item.id) }
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        if document?.shots.isEmpty != false {
+                            Text("Create shots in the Shot workspace, then link their coverage here.").foregroundStyle(.secondary)
+                        }
+                        ForEach(document?.shots ?? []) { shot in
+                            Toggle("\(shot.label) · \(shot.sceneSpineID)", isOn: Binding(
+                                get: { item.linkedShotIDs.contains(shot.id) },
+                                set: { linked in
+                                    session.updateDraft { draft in
+                                        guard let index = draft.deliverables.firstIndex(where: { $0.id == item.id }) else { return }
+                                        if linked && !draft.deliverables[index].linkedShotIDs.contains(shot.id) {
+                                            draft.deliverables[index].linkedShotIDs.append(shot.id)
+                                        } else if !linked { draft.deliverables[index].linkedShotIDs.removeAll { $0 == shot.id } }
+                                    }
+                                }
+                            ))
+                        }
+                        ForEach(item.linkedShotIDs.filter { id in !(document?.shots.contains { $0.id == id } ?? false) }, id: \.self) { id in
+                            HStack {
+                                Label("Missing shot \(id.uuidString)", systemImage: "exclamationmark.triangle").font(.caption)
+                                Button("Unlink") {
+                                    session.updateDraft { draft in
+                                        guard let index = draft.deliverables.firstIndex(where: { $0.id == item.id }) else { return }
+                                        draft.deliverables[index].linkedShotIDs.removeAll { $0 == id }
+                                    }
+                                }
+                            }
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
+                }
+                .id("campaign.section.coverage.\(item.id)")
+            }.padding(6)
+        }
+        .id("campaign.section.deliverable.\(item.id)")
+    }
+
+    private var assumptions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Record the bid basis, not the private working budget. Include exclusions, shoot days, locations, post, talent usage and delivery requirements.")
+                .foregroundStyle(.secondary)
+                .id("campaign.section.assumptions")
+            Text("Source references can be manual citations, such as ‘Agency script v3, page 4’. Use Agency Sources to import local text and link reviewed lines to these assumptions. Original documents and sender identities are not verified.")
+                .font(.caption).foregroundStyle(.secondary)
+            Button("Add Assumption") {
+                session.updateDraft { $0.assumptions.append(CampaignAssumption()) }
+            }
+            .accessibilityIdentifier("campaign.assumption.add")
+            ForEach(session.ledger.draft.assumptions) { item in
+                GroupBox {
+                    VStack(spacing: 8) {
+                        field("Assumption", text: assumptionBinding(item.id, \.text),
+                              identifier: "campaign.assumption.text.\(item.id)")
+                        field("Source document / version", text: assumptionBinding(item.id, \.sourceLabel),
+                              identifier: "campaign.assumption.sourceLabel.\(item.id)")
+                        HStack {
+                            field("Page / section / reference", text: assumptionBinding(item.id, \.sourceReference),
+                                  identifier: "campaign.assumption.sourceReference.\(item.id)")
+                            Button("Remove") { session.updateDraft { $0.assumptions.removeAll { $0.id == item.id } } }
+                                .accessibilityIdentifier("campaign.assumption.remove.\(item.id)")
+                        }
+                    }.padding(6)
+                }
+                .id("campaign.section.assumption.\(item.id)")
+            }
+        }
+    }
+
+    private func review(_ checklist: Result<CampaignReviewChecklist, Error>) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Freeze a named snapshot of this scope and its source objects. A snapshot is not approval; record each approval separately with evidence.")
+                .foregroundStyle(.secondary)
+                .id("campaign.section.baseline")
+            HStack {
+                TextField("Baseline name, e.g. Awarded bid · 5 Nov", text: $baselineName)
+                    .accessibilityIdentifier("campaign.baseline.name")
+                Button("Freeze Baseline") {
+                    guard let document, let id = session.freeze(name: baselineName, document: document) else { return }
+                    selectedBaselineID = id; baselineName = ""
+                }.disabled(baselineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("campaign.baseline.freeze")
+            }
+            if !session.ledger.baselines.isEmpty {
+                Picker("Compare with", selection: $selectedBaselineID) {
+                    ForEach(session.ledger.baselines) { saved in
+                        Text("\(saved.name) · \(saved.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                            .tag(Optional(saved.id))
+                    }
+                }.accessibilityIdentifier("campaign.baseline.picker")
+            }
+            if let baseline {
+                Text("Baseline \(baseline.id.uuidString)").font(.caption).textSelection(.enabled)
+                switch checklist {
+                case .failure(let error):
+                    Text(error.localizedDescription).foregroundStyle(.orange)
+                case .success(let value):
+                    let changes = value.changes ?? []
+                    HStack {
+                        Label(changes.isEmpty ? "No tracked changes" : "\(changes.count) changes / source warnings to review",
+                              systemImage: changes.isEmpty ? "checkmark.circle" : "exclamationmark.triangle")
+                    }
+                    .id("campaign.section.changes")
+                    Text("Exact tracked changes only. Coverage, costs, schedule and original documents still need human review. No automatic repricing or spend authorization.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if selectedTab == 3 {
+                        VStack(spacing: 0) {
+                            CampaignChangeReviewView(session: session, model: model, baseline: baseline,
+                                                     exportLifecycle: reportExportLifecycle,
+                                                     isContextActive: {
+                                !dismissalConsumed && selectedTab == 3 && selectedBaselineID == baseline.id
+                            })
+                            .id(baseline.id)
+                        }
+                        .id("campaign.section.report")
+                    }
+                    ForEach(changes) { change in changeRow(change) }
+                    if selectedTab == 3 {
+                        CampaignApprovalReviewView(session: session, model: model, baseline: baseline,
+                                                   current: changes.isEmpty)
+                            .id(baseline.id)
+                    }
+                }
+                decisionHistory(baseline)
+                    .id("campaign.section.decisions")
+            }
+        }
+    }
+
+    private func changeRow(_ change: CampaignChange) -> some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(change.title).font(.headline)
+                    Spacer()
+                    if canNavigate(change) {
+                        Button("Go to Source") { navigate(change) }
+                            .accessibilityIdentifier("campaign.change.source.\(change.sourceKind.rawValue).\(change.sourceID)\(change.unresolved ? ".unresolved" : "")")
+                    }
+                }
+                Text("\(change.sourceKind.rawValue) · \(change.sourceID.uuidString)").font(.caption).textSelection(.enabled)
+                Text("Affected: \(affectedNames(change).joined(separator: ", "))").font(.callout)
+                DisclosureGroup("Before / after") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Baseline").fontWeight(.semibold)
+                        Text(change.before).textSelection(.enabled)
+                        Text("Current").fontWeight(.semibold)
+                        Text(change.after).textSelection(.enabled)
+                    }.font(.caption).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
+                }
+            }.padding(6)
+        }
+    }
+
+    private func requestDismissal() {
+        // Consume before revocation or DismissAction can schedule further view
+        // updates. This state belongs to this presentation and is never reset.
+        guard !dismissalConsumed else { return }
+        dismissalConsumed = true
+        discardApprovalEntry()
+        session.discardRestorePreview()
+        dismiss()
+    }
+
+    private func recoveryContext() -> CampaignRecoveryContext? {
+        // Read the live model and presentation after the chooser's nested event
+        // loop, rather than authorizing the project that opened it earlier.
+        guard !dismissalConsumed, model.campaignPresented,
+              let projectID = model.document?.project.id,
+              projectID == session.ledger.projectID else { return nil }
+        return CampaignRecoveryContext(projectID: projectID, presentationID: presentationID,
+                                       sourceURL: model.saveURL)
+    }
+
+    private func discardApprovalEntry() {
+        // The child is removed on tab changes and keyed by baseline identity.
+        // Revoke the proposal without rebuilding a disappearing sheet subtree
+        // or publishing an unchanged nil value during teardown.
+        if session.decisionPreview != nil { session.discardDecisionPreview() }
+        if session.reportPreview != nil { session.discardReportPreview() }
+    }
+
+    private func decisionHistory(_ baseline: CampaignBaseline) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Recorded decisions for this baseline").font(.headline)
+            let decisions = session.ledger.decisions.filter { $0.baselineID == baseline.id }
+            if decisions.isEmpty { Text("No approvals recorded.").foregroundStyle(.secondary) }
+            ForEach(decisions) { decision in
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(decision.scope.rawValue.capitalized) · \(decision.approver) · \(decision.createdAt.formatted())")
+                    Text(decision.evidence).font(.caption).textSelection(.enabled)
+                        .accessibilityIdentifier("campaign.approval.history.\(decision.id).evidence")
+                    if let amount = decision.spendCeilingMinorUnits, let code = decision.currencyCode {
+                        Text(verbatim: "Ceiling: \(amount) minor units · \(code)").font(.caption)
+                    }
+                }
+            }
+            Text("Historical decisions stay attached to the frozen version, even after the working scope changes. Undo Draft Change does not erase recorded decisions.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func field(_ label: String, text: Binding<String>, identifier: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            TextField(label, text: text, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
+                .accessibilityLabel(label)
+                .accessibilityIdentifier(identifier ?? "campaign.field.\(label)")
+        }
+    }
+    private func briefBinding(_ path: WritableKeyPath<CampaignBrief, String>) -> Binding<String> {
+        Binding(get: { session.ledger.draft.brief[keyPath: path] },
+                set: { value in session.updateDraft { $0.brief[keyPath: path] = value } })
+    }
+    private func deliverableBinding<Value>(_ item: CampaignDeliverable, _ path: WritableKeyPath<CampaignDeliverable, Value>) -> Binding<Value> {
+        Binding(get: { (session.ledger.draft.deliverables.first { $0.id == item.id } ?? item)[keyPath: path] }, set: { value in
+            session.updateDraft { draft in
+                guard let index = draft.deliverables.firstIndex(where: { $0.id == item.id }) else { return }
+                draft.deliverables[index][keyPath: path] = value
+            }
+        })
+    }
+    private func assumptionBinding(_ id: UUID, _ path: WritableKeyPath<CampaignAssumption, String>) -> Binding<String> {
+        Binding(get: { session.ledger.draft.assumptions.first { $0.id == id }?[keyPath: path] ?? "" }, set: { value in
+            session.updateDraft { draft in
+                guard let index = draft.assumptions.firstIndex(where: { $0.id == id }) else { return }
+                draft.assumptions[index][keyPath: path] = value
+            }
+        })
+    }
+    private func affectedNames(_ change: CampaignChange) -> [String] {
+        guard !change.affectedDeliverableIDs.isEmpty else { return ["No linked deliverable; assess coverage manually"] }
+        let all = session.ledger.draft.deliverables + (baseline?.draft.deliverables ?? [])
+        return change.affectedDeliverableIDs.map { id in
+            guard let name = all.first(where: { $0.id == id })?.name else { return "Unknown deliverable (\(id.uuidString))" }
+            return "\(name) (\(id.uuidString))"
+        }
+    }
+    private func agencyDocumentID(for change: CampaignChange) -> UUID? {
+        if change.sourceKind == .agencyDocument { return change.sourceID }
+        let citations = (session.ledger.draft.agency?.citations ?? []) + (baseline?.draft.agency?.citations ?? [])
+        return citations.first { $0.id == change.sourceID }?.documentID
+    }
+
+    private func navigateReviewStep(_ destination: CampaignReviewDestination) {
+        guard !dismissalConsumed, document != nil,
+              !session.isReadOnly, !session.isPerformingRecoveryCommand else { return }
+        switch destination {
+        case .brief:
+            let brief = session.ledger.draft.brief
+            let needsBrief = brief.brand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || brief.objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if needsBrief {
+                reveal(tab: 1, anchor: "campaign.section.brief")
+            } else if let item = session.ledger.draft.deliverables.first(where: {
+                $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || $0.aspectRatio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }) {
+                reveal(tab: 1, anchor: "campaign.section.deliverable.\(item.id)")
+            } else {
+                reveal(tab: 1, anchor: session.ledger.draft.deliverables.isEmpty
+                       ? "campaign.section.deliverables" : "campaign.section.brief")
+            }
+        case .agencySources:
+            // Bring the first unresolved source into view without importing,
+            // acknowledging its review or changing any citation.
+            if let workspace = session.ledger.draft.agency {
+                let warnings = workspace.warnings(draft: session.ledger.draft)
+                if let warning = warnings.first(where: { $0.sourceKind == .agencyDocument }) {
+                    selectedAgencyDocumentID = warning.sourceID
+                } else if let warning = warnings.first,
+                          let citation = workspace.citations.first(where: { $0.id == warning.sourceID }) {
+                    selectedAgencyDocumentID = citation.documentID
+                }
+            }
+            reveal(tab: 0, anchor: "campaign.section.agencySources")
+        case .assumptions:
+            reveal(tab: 2, anchor: "campaign.section.assumptions")
+        case .coverage:
+            let shotIDs = Set((document?.shots ?? []).map(\.id))
+            let firstMissing = session.ledger.draft.deliverables.first(where: {
+                $0.linkedShotIDs.contains { !shotIDs.contains($0) }
+            })
+            if let item = firstMissing ?? session.ledger.draft.deliverables.first {
+                expandedCoverageIDs.insert(item.id)
+                reveal(tab: 1, anchor: "campaign.section.coverage.\(item.id)")
+            } else {
+                reveal(tab: 1, anchor: "campaign.section.deliverables")
+            }
+        case .baseline:
+            reveal(tab: 3, anchor: baseline == nil ? "campaign.section.baseline" : "campaign.section.changes")
+        case .decisions:
+            reveal(tab: 3, anchor: baseline == nil ? "campaign.section.baseline" : "campaign.section.decisions")
+        case .report:
+            reveal(tab: 3, anchor: baseline == nil ? "campaign.section.baseline" : "campaign.section.report")
+        }
+    }
+
+    private func reveal(tab: Int, anchor: String) {
+        // Presentation state only. A fresh request also supports repeated clicks
+        // on the same destination without resetting any ancestor view identity.
+        navigationRequest = SectionNavigation(tab: tab, anchor: anchor)
+        selectedTab = tab
+    }
+
+    private func canNavigate(_ change: CampaignChange) -> Bool {
+        switch change.sourceKind {
+        case .brief: return true
+        case .deliverable: return session.ledger.draft.deliverables.contains { $0.id == change.sourceID }
+        case .assumption: return session.ledger.draft.assumptions.contains { $0.id == change.sourceID }
+        case .script: return document?.screenplay.elements.contains { $0.id == change.sourceID } ?? false
+        case .shot: return document?.shots.contains { $0.id == change.sourceID } ?? false
+        case .board: return document?.boardFrames.contains { $0.id == change.sourceID } ?? false
+        case .agencyDocument, .agencyCitation:
+            guard let id = agencyDocumentID(for: change) else { return false }
+            return session.ledger.draft.agency?.latestRevision(documentID: id) != nil
+        }
+    }
+    private func navigate(_ change: CampaignChange) {
+        guard !dismissalConsumed, document != nil, canNavigate(change) else { return }
+        switch change.sourceKind {
+        case .brief:
+            reveal(tab: 1, anchor: "campaign.section.brief")
+            return
+        case .deliverable:
+            reveal(tab: 1, anchor: "campaign.section.deliverable.\(change.sourceID)")
+            return
+        case .assumption:
+            reveal(tab: 2, anchor: "campaign.section.assumption.\(change.sourceID)")
+            return
+        case .agencyDocument, .agencyCitation:
+            selectedAgencyDocumentID = agencyDocumentID(for: change)
+            reveal(tab: 0, anchor: "campaign.section.agencySources")
+            return
+        case .script:
+            model.setWorkflowMode(.writing); model.selectElement(id: change.sourceID)
+            model.scrollTargetElementID = change.sourceID
+        case .shot:
+            if let shot = document?.shots.first(where: { $0.id == change.sourceID }) {
+                model.setWorkflowMode(.directing); model.selectShot(shot)
+            }
+        case .board:
+            if let board = document?.boardFrames.first(where: { $0.id == change.sourceID }) {
+                model.setWorkflowMode(.boards); model.selectBoardFrame(board)
+            }
+        }
+        requestDismissal()
+    }
+}
