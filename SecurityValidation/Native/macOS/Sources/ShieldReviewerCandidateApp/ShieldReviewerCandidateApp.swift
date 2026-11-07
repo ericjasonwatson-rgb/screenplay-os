@@ -75,7 +75,4 @@ private struct ShieldReviewerCandidateApp: App {
         }
     }
 }
-#else
-import Foundation
-exit(78)
 #endif
