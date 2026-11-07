@@ -65,6 +65,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     public func validated() throws -> NativeAssemblyProject {
         guard version == Self.currentVersion, !sceneSpineID.isEmpty,
               sceneSpineID.utf8.count <= 256 else { throw NativeAssemblyError.unsupportedVersion }
+        guard !clips.isEmpty else { throw NativeAssemblyError.emptySelection }
         guard Self.digest(boardRevision), clips.count <= 5_000,
               Set(clips.map(\.id)).count == clips.count else {
             throw NativeAssemblyError.duplicateOccurrence
@@ -83,8 +84,16 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
         return self
     }
 
+    /// Source revision is independent of incidental array ordering, but
+    /// preserves authored frame order and all board contents.
+    private static func orderedBoards(_ boards: [BoardFrame], scene: String) -> [BoardFrame] {
+        boards.filter { $0.sceneSpineID == scene }
+            .sorted { ($0.frameNumber, $0.id.uuidString) < ($1.frameNumber, $1.id.uuidString) }
+    }
+
     public func isCurrent(with boards: [BoardFrame]) -> Bool {
-        (try? BoardTakeMigration.sourceRevision(boards)) == boardRevision
+        let ordered = Self.orderedBoards(boards, scene: sceneSpineID)
+        return (try? BoardTakeMigration.sourceRevision(ordered)) == boardRevision
     }
 
     public func clip(at frame: Int) -> NativeAssemblyClip? {
@@ -102,8 +111,7 @@ public struct NativeAssemblyProject: Codable, Equatable, Sendable {
     public static func assemble(projectID: UUID, sceneSpineID: String,
                                 boards: [BoardFrame]) throws -> NativeAssemblyProject {
         guard !sceneSpineID.isEmpty else { throw NativeAssemblyError.invalidClip }
-        let selectedBoards = boards.filter { $0.sceneSpineID == sceneSpineID }
-            .sorted { ($0.frameNumber, $0.id.uuidString) < ($1.frameNumber, $1.id.uuidString) }
+        let selectedBoards = Self.orderedBoards(boards, scene: sceneSpineID)
         let revision = try BoardTakeMigration.sourceRevision(selectedBoards)
         var items: [NativeAssemblyClip] = []
         for board in selectedBoards {
