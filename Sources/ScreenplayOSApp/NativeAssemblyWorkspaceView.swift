@@ -131,6 +131,9 @@ struct NativeAssemblyWorkspaceView: View {
                     } label: {
                         Label(playing ? "Pause" : "Play", systemImage: playing ? "pause.fill" : "play.fill")
                     }
+                    .disabled(containsVideo)
+                    .help(containsVideo ? "Mixed video/still playback awaits a verified decoder." :
+                          "Play the still-image boardomatic.")
                     Slider(value: Binding(
                         get: { Double(playheadFrame) },
                         set: { playing = false; playheadFrame = Int($0) }
