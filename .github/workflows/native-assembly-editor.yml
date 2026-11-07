@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - feature/native-assembly-editor-20261106
+      - feature/native-video-frame-preview-20261106
   pull_request:
     paths:
       - 'Sources/ScreenplayDomain/NativeAssembly.swift'
       - 'Sources/ScreenplayOSApp/NativeAssembly*.swift'
+      - 'Sources/ScreenplayOSApp/NativeVideo*.swift'
       - 'Sources/ScreenplayOSApp/ContentView.swift'
       - 'Tests/ScreenplayEditorTests/NativeAssembly*.swift'
+      - 'Tests/ScreenplayEditorTests/NativeVideo*.swift'
       - '.github/workflows/native-assembly-editor.yml'
   workflow_dispatch:
 
@@ -28,3 +31,5 @@ jobs:
         run: swift build --configuration debug --disable-sandbox --product ScreenplayOS
       - name: Run local assembly identity, edit and persistence tests
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeAssembly
+      - name: Run paused video frame preview decoding and provenance tests
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoFramePreview

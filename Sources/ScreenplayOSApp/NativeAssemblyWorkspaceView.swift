@@ -21,6 +21,10 @@ struct NativeAssemblyWorkspaceView: View {
     @State private var videoImportInProgress = false
     @State private var rebuildConfirmation = false
     @State private var cachedPreview: NSImage?
+    @State private var previewRequestID = UUID()
+    @State private var previewProblem: String?
+    @State private var previewLoading = false
+    @State private var previewTask: Task<Void, Never>?
     private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     private var sceneID: String? {
@@ -43,10 +47,49 @@ struct NativeAssemblyWorkspaceView: View {
         return assembly.clip(at: min(playheadFrame, max(0, assembly.totalFrames - 1)))
     }
     private func refreshPreview() {
-        guard let currentClip, let screenplayURL,
-              let file = try? NativeAssemblyMovieExporter.verifiedStill(currentClip, documentURL: screenplayURL)
-        else { cachedPreview = nil; return }
-        cachedPreview = NSImage(contentsOf: file)
+        // Cancellation also stops expensive SHA hashing when a scrub moves on.
+        previewTask?.cancel()
+        previewTask = nil
+        // Distinguish each clip/frame request so a slow decoder cannot place
+        // an old image over a newly selected shot.
+        let requestID = UUID()
+        previewRequestID = requestID
+        previewProblem = nil
+        previewLoading = false
+        guard let currentClip, let screenplayURL else {
+            cachedPreview = nil
+            return
+        }
+        switch currentClip.mediaKind {
+        case .stillImage:
+            guard let file = try? NativeAssemblyMovieExporter.verifiedStill(
+                currentClip, documentURL: screenplayURL) else {
+                cachedPreview = nil
+                previewProblem = "Selected still image is missing or has changed."
+                return
+            }
+            cachedPreview = NSImage(contentsOf: file)
+        case .video:
+            cachedPreview = nil
+            previewLoading = true
+            let localFrame = max(0, min(currentClip.frameCount - 1,
+                                        playheadFrame - startFrame(for: currentClip.id)))
+            previewTask = Task {
+                do {
+                    let decoded = try await NativeVideoFramePreview.preview(
+                        currentClip, localFrame: localFrame, screenplayURL: screenplayURL)
+                    guard previewRequestID == requestID else { return }
+                    cachedPreview = NSImage(data: decoded.pngData)
+                    previewProblem = cachedPreview == nil ? "The decoded frame could not be displayed." : nil
+                    previewLoading = false
+                } catch {
+                    guard previewRequestID == requestID else { return }
+                    cachedPreview = nil
+                    previewProblem = error.localizedDescription
+                    previewLoading = false
+                }
+            }
+        }
     }
 
     var body: some View {
@@ -88,9 +131,8 @@ struct NativeAssemblyWorkspaceView: View {
                         } else {
                             VStack(spacing: 8) {
                                 Image(systemName: "photo.badge.exclamationmark").font(.system(size: 30))
-                                Text(currentClip?.mediaKind == .video ?
-                                     "Video Take imported. Playback and export decoding are not yet enabled." :
-                                     "Selected image unavailable or fingerprint mismatch")
+                                Text(previewLoading ? "Decoding selected video frame..." :
+                                     (previewProblem ?? "No verified media frame to display"))
                                     .font(.caption).multilineTextAlignment(.center)
                             }.foregroundStyle(.secondary)
                         }
@@ -220,6 +262,9 @@ struct NativeAssemblyWorkspaceView: View {
         .onChange(of: model.document?.screenplay.id) { _ in load() }
         .onChange(of: sceneID) { _ in load() }
         .onChange(of: currentClip?.id) { _ in refreshPreview() }
+        .onChange(of: playheadFrame) { _ in
+            if currentClip?.mediaKind == .video { refreshPreview() }
+        }
         .onReceive(timer) { now in
             guard playing, let assembly, let playbackStartedAt else { return }
             let elapsed = max(0, now.timeIntervalSince(playbackStartedAt))
@@ -227,7 +272,12 @@ struct NativeAssemblyWorkspaceView: View {
                 from: playbackBaseFrame, after: elapsed, totalFrames: assembly.totalFrames)
             if playheadFrame >= assembly.totalFrames { playing = false }
         }
-        .onDisappear { playing = false }
+        .onDisappear {
+            playing = false
+            previewTask?.cancel()
+            previewTask = nil
+            previewRequestID = UUID()
+        }
         .confirmationDialog("Rebuild this assembly from current selected boards?",
                             isPresented: $rebuildConfirmation) {
             Button("Rebuild Assembly") { rebuild() }
@@ -252,12 +302,17 @@ struct NativeAssemblyWorkspaceView: View {
     }
 
     private func load() {
+        previewTask?.cancel()
+        previewTask = nil
         playing = false
         undoStack = []
         selection = nil
         playheadFrame = 0
         assembly = nil
         cachedPreview = nil
+        previewRequestID = UUID()
+        previewProblem = nil
+        previewLoading = false
         message = nil
         guard let projectID = model.document?.screenplay.id, let sceneID else { return }
         do {
@@ -373,7 +428,7 @@ struct NativeAssemblyWorkspaceView: View {
                 self.selection = imported.id
                 playheadFrame = startFrame(for: imported.id)
                 refreshPreview()
-                message = "Video Take added. Source in/out editing is enabled; video preview and export remain gated."
+                message = "Video Take added. Paused frame scrubbing is available; realtime video playback and export remain gated."
             } catch {
                 message = "Video import refused: \(error.localizedDescription)"
             }
