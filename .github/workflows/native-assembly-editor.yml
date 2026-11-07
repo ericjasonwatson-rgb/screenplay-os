@@ -30,4 +30,6 @@ jobs:
       - name: Compile native application including exporter and UI
         run: swift build --configuration debug --disable-sandbox --product ScreenplayOS
       - name: Run local assembly identity, edit and persistence tests
-        run: swift test --configuration debug --disable-sandbox --no-parallel --filter Native
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeAssembly
+      - name: Run paused video frame preview decoding and provenance tests
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoFramePreview
