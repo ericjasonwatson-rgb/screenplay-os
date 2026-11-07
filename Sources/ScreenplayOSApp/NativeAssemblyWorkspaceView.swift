@@ -18,6 +18,7 @@ struct NativeAssemblyWorkspaceView: View {
     @State private var message: String?
     @State private var exportInProgress = false
     @State private var rebuildConfirmation = false
+    @State private var cachedPreview: NSImage?
     private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     private var sceneID: String? {
@@ -36,11 +37,11 @@ struct NativeAssemblyWorkspaceView: View {
         guard let assembly else { return nil }
         return assembly.clip(at: min(playheadFrame, max(0, assembly.totalFrames - 1)))
     }
-    private var previewImage: NSImage? {
+    private func refreshPreview() {
         guard let currentClip, let screenplayURL,
               let file = try? NativeAssemblyMovieExporter.verifiedStill(currentClip, documentURL: screenplayURL)
-        else { return nil }
-        return NSImage(contentsOf: file)
+        else { cachedPreview = nil; return }
+        cachedPreview = NSImage(contentsOf: file)
     }
 
     var body: some View {
@@ -70,8 +71,8 @@ struct NativeAssemblyWorkspaceView: View {
                 HStack(spacing: 12) {
                     ZStack {
                         Rectangle().fill(Color.black)
-                        if let previewImage {
-                            Image(nsImage: previewImage)
+                        if let cachedPreview {
+                            Image(nsImage: cachedPreview)
                                 .resizable().scaledToFit().padding(6)
                         } else {
                             VStack(spacing: 8) {
@@ -195,6 +196,7 @@ struct NativeAssemblyWorkspaceView: View {
         .onAppear { load() }
         .onChange(of: model.document?.screenplay.id) { _ in load() }
         .onChange(of: sceneID) { _ in load() }
+        .onChange(of: currentClip?.id) { _ in refreshPreview() }
         .onReceive(timer) { now in
             guard playing, let assembly else { return }
             let elapsed = now.timeIntervalSince(lastPlaybackTick ?? now)
@@ -234,6 +236,7 @@ struct NativeAssemblyWorkspaceView: View {
         selection = nil
         playheadFrame = 0
         assembly = nil
+        cachedPreview = nil
         message = nil
         guard let projectID = model.document?.screenplay.id, let sceneID else { return }
         do {
@@ -243,6 +246,7 @@ struct NativeAssemblyWorkspaceView: View {
                         projectID: projectID, sceneSpineID: sceneID)
             selection = assembly?.clips.first?.id
             if isStale { message = "Boards have changed. The saved assembly is retained for review." }
+            refreshPreview()
         } catch {
             message = "The saved local assembly could not be opened. Nothing was overwritten. \(error)"
         }
@@ -259,6 +263,7 @@ struct NativeAssemblyWorkspaceView: View {
             selection = next.clips.first?.id
             playheadFrame = 0
             playing = false
+            refreshPreview()
             message = "Local assembly saved. The source boards were not modified."
         } catch {
             message = "Assembly was not changed: \(error)"
@@ -289,6 +294,7 @@ struct NativeAssemblyWorkspaceView: View {
             assembly = next
             playheadFrame = min(playheadFrame, next.totalFrames)
             playing = false
+            refreshPreview()
             message = "Edit saved locally."
         } catch {
             message = "Edit refused: \(error)"
@@ -304,6 +310,7 @@ struct NativeAssemblyWorkspaceView: View {
             selection = prior.clips.first?.id
             playheadFrame = min(playheadFrame, prior.totalFrames)
             playing = false
+            refreshPreview()
             message = "Previous assembly restored."
         } catch {
             message = "Undo could not be saved: \(error)"
