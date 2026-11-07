@@ -2594,8 +2594,34 @@ private struct TakeComparisonView: View {
 
 private struct EditWorkspaceView: View {
     @ObservedObject var model: ScreenplayViewModel
+    @State private var nativeAssemblySelected = false
 
     var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Picker("Edit workspace", selection: $nativeAssemblySelected) {
+                    Text("Scene Spine").tag(false)
+                    Text("Native Assembly · Preview").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 365)
+                Spacer()
+                if nativeAssemblySelected {
+                    Text("Local image assembly · no external NLE")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 7)
+            if nativeAssemblySelected {
+                NativeAssemblyWorkspaceView(model: model)
+            } else {
+                legacyEditWorkspace
+            }
+        }
+        .background(ScreenplayOSTokens.Palette.appBackground)
+    }
+
+    private var legacyEditWorkspace: some View {
         VSplitView {
             HSplitView {
                 if model.showEditScript {
