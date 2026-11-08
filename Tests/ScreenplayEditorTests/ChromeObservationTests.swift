@@ -289,6 +289,7 @@ struct ChromeObservationTests {
             }
             await refresh()
             let text = try #require(editor(in: host))
+            nativeUIHierarchyDiagnostic("script initial", host: host, window: window, model: model)
             text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
             text.insertText(" A native edit.", replacementRange: text.selectedRange())
             await refresh()
@@ -305,10 +306,16 @@ struct ChromeObservationTests {
             #expect(text.string == model.writingText)
             let expected = model.writingText
             model.setWorkflowMode(.outline)
-            await refresh()
+            let leftScript = try await waitForNativeUI(host) { editor(in: host) == nil }
+            nativeUIHierarchyDiagnostic("outline after switch", host: host, window: window, model: model)
+            #expect(leftScript)
             #expect(editor(in: host) == nil)
+            #expect(window.firstResponder !== text)
+            #expect(!WritingTextView.acceptsScriptCommands(in: window))
             model.setWorkflowMode(.writing)
-            await refresh()
+            let returnedToScript = try await waitForNativeUI(host) { editor(in: host)?.string == expected }
+            nativeUIHierarchyDiagnostic("script after return", host: host, window: window, model: model)
+            #expect(returnedToScript)
             #expect(try #require(editor(in: host)).string == expected)
         }
     }
