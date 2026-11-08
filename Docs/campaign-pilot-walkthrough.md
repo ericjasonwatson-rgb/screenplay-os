@@ -282,7 +282,10 @@ showing and use Finder's **Open With** to request that second file in this exact
 app. The pilot must remain current. Cancel the picker and verify the request does
 not replay; a fresh explicit retry should open the second project. Return to the
 pilot and verify its Campaign history. Record this separately: native sheet and
-modal-session tests do not establish real OS file-picker service behavior.
+application-modal state tests do not establish real modal event-loop or OS
+file-picker service behavior. The hosted modal-state test requires AppKit's
+actual `modalWindow` while a balanced begin/end session is installed, without
+running another modal event dispatcher inside the SwiftPM test helper.
 
 Make a new local note in the kit with the source commit/dirty flag, macOS/Xcode
 versions, actual app path, start/end time and each step's **pass / fail / not run**.

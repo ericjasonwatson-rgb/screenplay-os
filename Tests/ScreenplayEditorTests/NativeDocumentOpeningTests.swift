@@ -317,34 +317,54 @@ struct NativeDocumentOpeningTests {
         let source = try nativeOpeningDocument(in: fixture.root, name: "ModalRetry.json")
         let original = fixture.model.document
         let selection = fixture.model.selectedElementID
+        let caret = fixture.model.documentCaretToken
+        let currentURL = try #require(fixture.model.saveURL)
+        let currentBytes = try Data(contentsOf: currentURL)
         let sourceBytes = try Data(contentsOf: source)
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 160),
             styleMask: [.titled], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
         defer { panel.orderOut(nil); panel.close() }
-        // This is the real application-modal boundary used by runModal file
-        // pickers, without launching a separate OS file-picker view service.
+        let field = NSTextField(frame: NSRect(x: 20, y: 50, width: 360, height: 24))
+        field.stringValue = "Synthetic modal review remains current"
+        panel.contentView?.addSubview(field)
+        try #require(panel.makeFirstResponder(field))
+        try #require(NSApp.modalWindow == nil)
+        // Install AppKit's real application-modal state boundary, but do not run a second AppKit
+        // event dispatcher inside swiftpm-testing-helper. All four macOS 15
+        // suites previously stopped in this test before their final summary.
+        // Requiring the actual modalWindow below prevents a vacuous guard test;
+        // real runModal/file-picker event-loop behavior remains a manual gate.
         do {
             let session = NSApp.beginModalSession(for: panel)
             defer { NSApp.endModalSession(session) }
-            #expect(NSApp.runModalSession(session) == .continue)
             try #require(NSApp.modalWindow === panel)
             #expect(fixture.window.attachedSheet == nil)
-            let responder = panel.firstResponder
-            #expect(!opening.open([source]))
-            #expect(NSApp.modalWindow === panel)
-            #expect(panel.firstResponder === responder)
-            #expect(fixture.model.document == original)
-            #expect(fixture.model.selectedElementID == selection)
-            #expect(fixture.model.canUndo)
-            #expect(opening.notice?.contains("try opening the file again") == true)
+            let responder = try #require(panel.firstResponder)
+            for _ in 0..<3 {
+                #expect(!opening.open([source]))
+                #expect(NSApp.modalWindow === panel)
+                #expect(panel.firstResponder === responder)
+                #expect(field.stringValue == "Synthetic modal review remains current")
+                #expect(fixture.model.document == original)
+                #expect(fixture.model.selectedElementID == selection)
+                #expect(fixture.model.documentCaretToken == caret)
+                #expect(fixture.model.canUndo)
+                #expect(try Data(contentsOf: currentURL) == currentBytes)
+                #expect(try Data(contentsOf: source) == sourceBytes)
+                #expect(opening.notice?.contains("try opening the file again") == true)
+            }
         }
         panel.orderOut(nil)
-        #expect(NSApp.modalWindow == nil)
+        try #require(NSApp.modalWindow == nil)
         opening.attach(window: fixture.window, model: fixture.model)
         await drainNativeOpeningCallbacks()
         #expect(fixture.model.document == original)
+        #expect(fixture.model.selectedElementID == selection)
+        #expect(fixture.model.documentCaretToken == caret)
+        #expect(fixture.model.canUndo)
         #expect(fixture.model.sourceURL != source)
+        #expect(try Data(contentsOf: currentURL) == currentBytes)
         #expect(try Data(contentsOf: source) == sourceBytes)
         #expect(opening.open([source]))
         #expect(fixture.model.sourceURL == source)
