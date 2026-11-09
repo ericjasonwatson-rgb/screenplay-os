@@ -26,6 +26,22 @@ actor NativeVideoFrameDeliveryPipeline {
     func tick(atTimelineFrame frame: Int)
         -> NativeVideoFrameDeliveryQueue.Presentation? {
         currentFrame = frame
+        if let current = queue.project.clip(at: frame),
+           current.mediaKind == .video {
+            // The ready queue is also a cache. Before presenting previously
+            // decoded pixels, require the current original media to retain
+            // its SHA-256; otherwise invalidate every pending/ready token.
+            do {
+                _ = try NativeVideoFramePreview.verifiedVideoURL(
+                    current, screenplayURL: screenplayURL)
+            } catch {
+                for task in tasks.values { task.cancel() }
+                tasks.removeAll()
+                queue.reset()
+                decodeFailures += 1
+                return nil
+            }
+        }
         let requested = queue.plan(at: frame)
         let live = queue.inFlightRequestIDs
         for (id, task) in tasks where !live.contains(id) {
