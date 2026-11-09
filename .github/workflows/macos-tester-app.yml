@@ -1,0 +1,71 @@
+name: macOS Tester App
+
+on:
+  push:
+    branches: ['feature/macos-tester-app-*']
+  pull_request:
+    paths:
+      - 'Scripts/package-app.sh'
+      - 'Scripts/package-tester-app.sh'
+      - 'Scripts/verify-tester-app.py'
+      - 'Scripts/smoke-tester-app.swift'
+      - 'Tests/Packaging/**'
+      - 'Docs/macos-tester*'
+      - '.github/workflows/macos-tester-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tester-app:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record exact source
+        run: echo "TESTER_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Build universal release tester without credentials
+        run: bash Scripts/package-tester-app.sh
+      - name: Verify extracted archive away from build resources
+        run: |
+          mkdir -p "$RUNNER_TEMP/Tester Download With Spaces"
+          ditto -x -k "dist/macos-tester/$TESTER_REVISION/ScreenplayOS-macOS-universal-tester.zip" "$RUNNER_TEMP/Tester Download With Spaces"
+          echo "TESTER_APP=$RUNNER_TEMP/Tester Download With Spaces/ScreenplayOS.app" >> "$GITHUB_ENV"
+          # Prevent SwiftPM's absolute build-path fallback from hiding packaging bugs.
+          mv .build "$RUNNER_TEMP/hidden-swift-build"
+          python3 Scripts/verify-tester-app.py "$RUNNER_TEMP/Tester Download With Spaces/ScreenplayOS.app" "$TESTER_REVISION"
+      - name: Bundle regression tests
+        run: python3 -m unittest discover -s Tests/Packaging -v
+      - name: Finder-style launch and visible window smoke test
+        run: swift Scripts/smoke-tester-app.swift "$TESTER_APP"
+      - name: Restore build cache for regression tests
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/hidden-swift-build" ]; then
+            mv "$RUNNER_TEMP/hidden-swift-build" .build
+          fi
+      - name: Native editor and writing handoff regressions
+        run: >-
+          swift test --configuration debug --disable-sandbox --no-parallel
+          --filter 'NativeAssembly|NativeVideo|NativeMonotonicPlaybackClock|NativeVerifiedFrameCache|FDX|EditorialIdentity'
+      - name: Upload verified tester download
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenplayOS-macOS-universal-tester-${{ env.TESTER_REVISION }}
+          path: |
+            dist/macos-tester/${{ env.TESTER_REVISION }}/*.zip
+            dist/macos-tester/${{ env.TESTER_REVISION }}/*.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Download instructions
+        run: |
+          echo '## Verified local tester app' >> "$GITHUB_STEP_SUMMARY"
+          echo "Source: $TESTER_REVISION" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download the artifact below, unzip it, unzip the inner app ZIP, then double-click ScreenplayOS.app. Read READ-ME-FIRST.txt for the macOS security prompt. No Terminal needed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Ad-hoc signed only; not Developer ID signed or notarized. No new video/audio/export capability enabled.' >> "$GITHUB_STEP_SUMMARY"
