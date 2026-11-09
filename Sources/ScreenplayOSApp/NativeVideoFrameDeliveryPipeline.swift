@@ -58,7 +58,9 @@ actor NativeVideoFrameDeliveryPipeline {
                         screenplayURL: source)
                     await self?.didDecode(decoded.pngData, request: request)
                 } catch {
-                    await self?.didFail(request)
+                    // A clock jump or seek can cancel an in-flight decoder.
+                    // Cancellation is normal scheduling, not a broken asset.
+                    await self?.didFail(request, wasCancelled: Task.isCancelled)
                 }
             }
         }
@@ -71,13 +73,14 @@ actor NativeVideoFrameDeliveryPipeline {
         _ = queue.accept(pngData, for: request, currentTimelineFrame: currentFrame)
     }
 
-    private func didFail(_ request: NativeVideoFrameDeliveryQueue.Request) {
-        // A clock jump intentionally cancels obsolete decode work. Do not
-        // count those cancellations as media/decoder failures.
+    private func didFail(_ request: NativeVideoFrameDeliveryQueue.Request,
+                         wasCancelled: Bool) {
+        // Cancelled work must never be reported as an asset failure, even
+        // when cancellation races the queue's retirement of a request.
         let wasCurrent = queue.inFlightRequestIDs.contains(request.id)
         tasks.removeValue(forKey: request.id)
         queue.fail(request)
-        if wasCurrent { decodeFailures += 1 }
+        if wasCurrent && !wasCancelled { decodeFailures += 1 }
     }
 
     /// Stops any requested work and invalidates the source index and frame
