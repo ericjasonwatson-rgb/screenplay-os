@@ -40,7 +40,11 @@ synthetic merge. No secrets are passed to the build.
 - A LaunchServices launch must show a normal on-screen window and remain running
   for five additional seconds. The test terminates only the app instance it opened.
 - Focused native assembly/video/clock/cache, FDX and editorial identity tests pass
-  before artifact upload. No live provider calls or production media are used.
+  in release configuration before artifact upload. The existing
+  `defendersFixtureRoundTripsWithoutChangingSource` test is explicitly excluded:
+  it requires a private production screenplay absent from the public checkout.
+  The five synthetic FDX export tests and seven FDX import tests remain selected.
+  No live provider calls or production media are used.
 
 The launch check runs only on the disposable CI account. It is not a request to
 open the app against a developer's existing projects. Automated launch on the
