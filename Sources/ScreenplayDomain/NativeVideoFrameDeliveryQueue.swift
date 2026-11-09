@@ -107,13 +107,14 @@ public struct NativeVideoFrameDeliveryQueue: Sendable {
     @discardableResult
     public mutating func accept(_ pngData: Data, for request: Request,
                                 currentTimelineFrame: Int) -> Bool {
-        guard let expected = inFlight.removeValue(forKey: request.id),
+        guard let expected = inFlight[request.id],
               expected == request, request.sessionID == sessionID,
               let (clip, localFrame) = location(at: request.timelineFrame),
               clip == request.clip, localFrame == request.localFrame else {
             rejectedCompletions += 1
             return false
         }
+        inFlight.removeValue(forKey: request.id)
         guard request.timelineFrame >= currentTimelineFrame else {
             lateCompletions += 1
             return false
@@ -132,6 +133,14 @@ public struct NativeVideoFrameDeliveryQueue: Sendable {
         ready[request.timelineFrame] = Ready(request: request, pngData: pngData)
         readyBytes += size
         return true
+    }
+
+    /// A failed or cancelled decoder releases its reservation. Unknown or
+    /// superseded tokens cannot clear a newer request's in-flight slot.
+    public mutating func fail(_ request: Request) {
+        if inFlight[request.id] == request {
+            inFlight.removeValue(forKey: request.id)
+        }
     }
 
     /// Never display another occurrence's pixels across a cut.
