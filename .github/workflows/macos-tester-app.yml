@@ -52,7 +52,7 @@ jobs:
           fi
       - name: Native editor and writing handoff regressions
         run: >-
-          swift test --configuration release --disable-sandbox --no-parallel
+          swift test --configuration debug --disable-sandbox --no-parallel
           --filter 'NativeAssembly|NativeVideo|NativeMonotonicPlaybackClock|NativeVerifiedFrameCache|FDX|EditorialIdentity'
           --skip 'defendersFixtureRoundTripsWithoutChangingSource'
       - name: Upload verified tester download
