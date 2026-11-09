@@ -3,12 +3,13 @@ import Foundation
 import SwiftUI
 import ShieldNativeContract
 import ShieldReviewerKeychain
+import ShieldSignedSample
 
 /// Validation-only, signing-library-linked candidate. No live review inbox,
 /// Secure Enclave enrollment UI, signature action, XPC requests, or egress.
 @MainActor
 private enum ReviewerCandidatePreflight {
-    static func requireSignedReviewer() {
+    static func requireSignedReviewer() -> SignedPeerConfiguration {
         func bundled(_ key: String) -> String {
             guard let value = Bundle.main.object(
                 forInfoDictionaryKey: key
@@ -41,6 +42,7 @@ private enum ReviewerCandidatePreflight {
                 fputs("reviewer signing identity not trusted; startup refused\n", stderr)
                 exit(78)
             }
+            return config
         } catch {
             fputs("reviewer deployment configuration refused\n", stderr)
             exit(78)
@@ -52,7 +54,14 @@ private enum ReviewerCandidatePreflight {
 private struct ShieldReviewerCandidateApp: App {
     init() {
         // Refuse before displaying even a demonstration window.
-        ReviewerCandidatePreflight.requireSignedReviewer()
+        let configuration = ReviewerCandidatePreflight.requireSignedReviewer()
+        if CommandLine.arguments == [CommandLine.arguments[0], SignedSample.argument] {
+            guard Bundle.main.object(forInfoDictionaryKey: "CIPSSignedSample") as? Bool == true else {
+                fputs("signed sample marker missing\n", stderr)
+                exit(78)
+            }
+            exit(SignedSampleClient.run(configuration: configuration))
+        }
     }
 
     var body: some Scene {

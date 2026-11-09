@@ -1,11 +1,14 @@
 #if os(macOS)
+import CryptoKit
 import Foundation
 import Security
 import ShieldNativeContract
 import ShieldMacXPCInterfaces
+import ShieldSignedSample
+import ShieldApprovalVerification
 
-// This validation-only service NEVER dispatches protected content.
-// Its methods all return a deterministic denial.
+// The ordinary agent and reviewer methods always deny. The isolated sample
+// interface has only fixed fixture inputs and cannot dispatch anything.
 final class AgentEndpoint: NSObject, ShieldAgentXPC {
     func prepare(_ request: NSData, withReply reply: @escaping (NSData) -> Void) {
         reply(FailClosedCommandHandler.response(to: request as Data, role: .agent, requestedOperation: "prepare") as NSData)
@@ -29,18 +32,28 @@ final class ReviewerEndpoint: NSObject, ShieldReviewerXPC {
 
 final class SignedListenerDelegate: NSObject, NSXPCListenerDelegate {
     let configuration: SignedPeerConfiguration
-    let agentListener: NSXPCListener
+    let agentListener: NSXPCListener?
     let reviewerListener: NSXPCListener
+    let sampleMode: Bool
 
-    init(_ configuration: SignedPeerConfiguration) {
+    init(_ configuration: SignedPeerConfiguration, sampleMode: Bool) {
+        self.sampleMode = sampleMode
         self.configuration = configuration
-        agentListener = NSXPCListener(machServiceName: configuration.agentMachService)
+        agentListener = sampleMode ? nil : NSXPCListener(machServiceName: configuration.agentMachService)
         reviewerListener = NSXPCListener(machServiceName: configuration.reviewerMachService)
         super.init()
     }
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
-        if listener === agentListener {
+        if sampleMode {
+            guard listener === reviewerListener,
+                  let key = try? SignedSample.fixtureKey(),
+                  let endpoint = try? SignedSampleEndpoint(fixtureKey: key.publicKey.x963Representation)
+            else { return false }
+            connection.setCodeSigningRequirement(configuration.requirement(for: .reviewer))
+            connection.exportedInterface = NSXPCInterface(with: ShieldSignedSampleXPC.self)
+            connection.exportedObject = endpoint
+        } else if listener === agentListener {
             connection.setCodeSigningRequirement(configuration.requirement(for: .agent))
             connection.exportedInterface = NSXPCInterface(with: ShieldAgentXPC.self)
             connection.exportedObject = AgentEndpoint()
@@ -56,9 +69,9 @@ final class SignedListenerDelegate: NSObject, NSXPCListenerDelegate {
     }
 
     func serve() -> Never {
-        agentListener.delegate = self
+        agentListener?.delegate = self
         reviewerListener.delegate = self
-        agentListener.resume()
+        agentListener?.resume()
         reviewerListener.resume()
         RunLoop.current.run()
         fatalError("XPC service run loop exited unexpectedly")
@@ -116,7 +129,12 @@ do {
     }
     // NSXPCListener.delegate is weak. Keep the delegate strongly alive for the
     // lifetime of both Mach listeners; otherwise connections can silently fail.
-    let serviceDelegate = SignedListenerDelegate(config)
+    let sampleMode = CommandLine.arguments == [CommandLine.arguments[0], SignedSample.argument]
+    if sampleMode && (Bundle.main.object(forInfoDictionaryKey: "CIPSSignedSample") as? Bool) != true {
+        fputs("signed sample marker missing; service disabled\n", stderr)
+        exit(78)
+    }
+    let serviceDelegate = SignedListenerDelegate(config, sampleMode: sampleMode)
     serviceDelegate.serve()
 } catch {
     fputs("invalid signed helper configuration\n", stderr)

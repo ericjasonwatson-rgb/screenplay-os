@@ -12,6 +12,11 @@ import Foundation
     func approve(_ request: NSData, withReply reply: @escaping (NSData) -> Void)
     func reject(_ request: NSData, withReply reply: @escaping (NSData) -> Void)
 }
+/// Local test fixture. Carries only a challenge and a fixture signature.
+@objc public protocol ShieldSignedSampleXPC {
+    func challenge(_ reply: @escaping (NSData) -> Void)
+    func verifySample(_ signature: NSData, withReply reply: @escaping (NSData) -> Void)
+}
 #endif
 
 #if os(macOS)

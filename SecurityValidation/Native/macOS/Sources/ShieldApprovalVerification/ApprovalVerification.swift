@@ -34,8 +34,8 @@ public enum ReviewerApprovalMessage {
     }
 }
 
-/// Validation-only in-memory one-use verifier. The native helper does NOT link
-/// to this target and still unconditionally denies all approval/egress calls.
+/// Validation-only in-memory one-use verifier. The native helper uses it only
+/// for the isolated signed XPC sample, separate from ordinary approval calls.
 /// A production service must use durable, crash-safe spent-ID storage.
 public final class EphemeralApprovalVerifier {
     private let trustedKeys: [String: P256.Signing.PublicKey]
