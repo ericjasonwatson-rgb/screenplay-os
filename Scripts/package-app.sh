@@ -54,7 +54,7 @@ else
     binary_source="$binary_dir/ScreenplayOS"
 fi
 staged_app="$build_stage/ScreenplayOS.app"
-python3 - "$binary_source" "$staged_app" "$configuration" <<'PY'
+python3 - "$binary_source" "$staged_app" "$configuration" "$binary_dir" <<'PY'
 import os, pathlib, plistlib, re, shutil, subprocess, sys
 source, app = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 version = os.environ.get('SCREENPLAYOS_APP_VERSION', '0.1')
@@ -68,6 +68,14 @@ shutil.copy2(source, temporary)
 temporary.replace(app / 'Contents/MacOS/ScreenplayOS')
 resources = app / 'Contents/Resources'
 resources.mkdir(parents=True, exist_ok=True)
+# SwiftPM's Bundle.module searches the main app's resource directory on macOS.
+# Without these bundles the executable can accidentally rely on its build tree.
+for name in ['ScreenplayOSStarter_ScreenplayDomain.bundle', 'ScreenplayOSStarter_ScreenplayOSApp.bundle']:
+    bundle = pathlib.Path(sys.argv[4]) / name
+    if not bundle.is_dir():
+        raise SystemExit(f'Missing SwiftPM resource bundle: {bundle}')
+    shutil.copytree(bundle, resources / name)
+
 # Package the transparent master and its standard macOS icon representations.
 branding = pathlib.Path('Sources/ScreenplayOSApp/Resources')
 shutil.copy2(branding / 'ScreenplayOS.icns', resources / 'ScreenplayOS.icns')
@@ -89,7 +97,7 @@ if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
     revision += '-dirty'
 (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
     'CFBundleExecutable': 'ScreenplayOS',
-    'CFBundleIdentifier': 'com.screenplayos.app',
+    'CFBundleIdentifier': 'com.screenplayos.tester' if os.environ.get('SCREENPLAYOS_TESTER_BUILD') == '1' else 'com.screenplayos.app',
     'CFBundleName': 'ScreenplayOS',
     'CFBundleIconFile': 'ScreenplayOS.icns',
     'CFBundlePackageType': 'APPL',
@@ -112,6 +120,8 @@ if os.environ.get('SCREENPLAYOS_SOURCE_DIRTY') == '1':
         },
     }],
     'ScreenplayOSRevision': revision,
+    'ScreenplayOSSourceCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+    'ScreenplayOSDistribution': 'Local tester (ad-hoc, not notarized)' if os.environ.get('SCREENPLAYOS_TESTER_BUILD') == '1' else 'Development',
     'ScreenplayOSBuildConfiguration': sys.argv[3],
 }))
 print(app.resolve())
