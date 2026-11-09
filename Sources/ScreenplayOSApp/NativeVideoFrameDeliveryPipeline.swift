@@ -72,9 +72,12 @@ actor NativeVideoFrameDeliveryPipeline {
     }
 
     private func didFail(_ request: NativeVideoFrameDeliveryQueue.Request) {
+        // A clock jump intentionally cancels obsolete decode work. Do not
+        // count those cancellations as media/decoder failures.
+        let wasCurrent = queue.inFlightRequestIDs.contains(request.id)
         tasks.removeValue(forKey: request.id)
         queue.fail(request)
-        decodeFailures += 1
+        if wasCurrent { decodeFailures += 1 }
     }
 
     /// Stops any requested work and invalidates the source index and frame
