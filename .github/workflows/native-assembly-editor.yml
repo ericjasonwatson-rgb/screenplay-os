@@ -10,10 +10,12 @@ on:
       - feature/native-video-rate-conform-20261107
       - feature/native-video-frame-cache-20261107
       - feature/native-monotonic-playback-clock-20261107
+      - feature/native-video-delivery-queue-20261108
   pull_request:
     paths:
       - 'Sources/ScreenplayDomain/NativeAssembly.swift'
       - 'Sources/ScreenplayDomain/NativeMonotonicPlaybackClock.swift'
+      - 'Sources/ScreenplayDomain/NativeVideoFrameDeliveryQueue.swift'
       - 'Sources/ScreenplayDomain/NativeVideoPresentationIndex.swift'
       - 'Sources/ScreenplayOSApp/NativeAssembly*.swift'
       - 'Sources/ScreenplayOSApp/NativeVideo*.swift'
@@ -45,6 +47,8 @@ jobs:
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoFramePreview
       - name: Verify PTS-conformed paused scrub and cache provenance
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoConformedPreview
+      - name: Verify bounded video delivery and H264 decoder integration
+        run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeVideoFrameDelivery
       - name: Verify monotonic 24fps clock, pause seek and dropped-tick recovery
         run: swift test --configuration debug --disable-sandbox --no-parallel --filter NativeMonotonicPlaybackClock
       - name: Validate bounded SHA-scoped frame LRU and cache invalidation
