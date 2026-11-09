@@ -2,7 +2,6 @@
 import CryptoKit
 import Foundation
 import ShieldApprovalContract
-import ShieldApprovalVerification
 
 /// Fixed inputs and a public fixture key for the isolated signed XPC exercise.
 public enum SignedSample {
